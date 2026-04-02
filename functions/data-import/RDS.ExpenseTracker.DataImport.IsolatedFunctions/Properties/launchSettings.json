@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "RDS.ExpenseTracker.DataImport.IsolatedFunctions": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7161",
+      "launchBrowser": false
+    }
+  }
+}
