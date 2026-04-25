@@ -21,6 +21,7 @@
     <PackageReference Include="AutoMapper" Version="14.0.0" />
     <PackageReference Include="ExcelDataReader" Version="3.7.0" />
     <PackageReference Include="ExcelDataReader.DataSet" Version="3.7.0" />
+    <PackageReference Include="FluentResults" Version="4.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.4" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.4" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.4" />
@@ -38,7 +39,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RDS.ExpenseTracker.Business\RDS.ExpenseTracker.Business.csproj" />
+    <ProjectReference Include="..\RDS.ExpenseTracker.Application\RDS.ExpenseTracker.Application.csproj" />
   </ItemGroup>
 
 </Project>

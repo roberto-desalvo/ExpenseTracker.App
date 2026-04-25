@@ -1,0 +1,1 @@
+// Obsolete: exceptions moved to RDS.ExpenseTracker.Domain.Exceptions

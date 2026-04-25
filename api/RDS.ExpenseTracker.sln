@@ -5,15 +5,13 @@ VisualStudioVersion = 17.5.33530.505
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RDS.ExpenseTracker.Api", "RDS.ExpenseTracker.Api\RDS.ExpenseTracker.Api.csproj", "{C8D94FED-6F89-4900-B970-8134C516A8D8}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RDS.ExpenseTracker.DataAccess", "RDS.ExpenseTracker.DataAccess\RDS.ExpenseTracker.DataAccess.csproj", "{C13640B4-EB8C-45E6-887A-1D3B566ED31B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RDS.ExpenseTracker.Infrastructure", "RDS.ExpenseTracker.Infrastructure\RDS.ExpenseTracker.Infrastructure.csproj", "{C13640B4-EB8C-45E6-887A-1D3B566ED31B}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RDS.ExpenseTracker.Business", "RDS.ExpenseTracker.Business\RDS.ExpenseTracker.Business.csproj", "{78B44023-7165-4972-8B86-5446ABD677E3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RDS.ExpenseTracker.Application", "RDS.ExpenseTracker.Application\RDS.ExpenseTracker.Application.csproj", "{78B44023-7165-4972-8B86-5446ABD677E3}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RDS.ExpenseTracker.Domain", "RDS.ExpenseTracker.Domain\RDS.ExpenseTracker.Domain.csproj", "{9B11AFA0-FF24-493A-8E38-88607AA2699D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RDS.ExpenseTracker.Business.Tests", "RDS.ExpenseTracker.Business.Tests\RDS.ExpenseTracker.Business.Tests.csproj", "{FE78A978-D3B0-43BA-919E-7C4BE21C8F04}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RDS.ExpenseTracker.ArchitectureTests", "RDS.ExpenseTracker.Architecture.Tests\RDS.ExpenseTracker.ArchitectureTests.csproj", "{E73191C2-F106-4ADE-BAD3-C89E0E02543E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RDS.ExpenseTracker.Tests", "RDS.ExpenseTracker.Tests\RDS.ExpenseTracker.Tests.csproj", "{E73191C2-F106-4ADE-BAD3-C89E0E02543E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

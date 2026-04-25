@@ -4,8 +4,8 @@ using Microsoft.Identity.Web;
 using Serilog;
 using RDS.ExpenseTracker.Api.Middlewares;
 using Scalar.AspNetCore;
-using RDS.ExpenseTracker.Business.Extensions;
-using RDS.ExpenseTracker.Business.Options;
+using RDS.ExpenseTracker.Application.Extensions;
+using RDS.ExpenseTracker.Application.Options;
 using RDS.ExpenseTracker.Api.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -41,7 +41,7 @@ builder.Services.AddProblemDetails();
 
 var kvOptions = new KeyVaultOptions();
 builder.Configuration.GetSection(SectionNames.KeyVault).Bind(kvOptions);
-builder.Services.AddBusinessServices(kvOptions);
+builder.Services.AddApplicationServices(kvOptions);
 
 if (!builder.Environment.IsDevelopment())
 {
@@ -50,7 +50,7 @@ if (!builder.Environment.IsDevelopment())
     builder.Services.AddAuthorization();
 }
 
-builder.Services.AddAutoMapper(x => x.AddProfile<ExpenseTrackerApiProfile>());
+builder.Services.AddAutoMapper(x => x.AddProfile<ExpenseTrackerProfile>());
 builder.Services.AddControllers();
 builder.Host.UseSerilog();
 
@@ -71,7 +71,7 @@ else
 }
 
 
-app.UseExceptionHandler();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseStatusCodePages();
 app.UseMiddleware<RequestLoggingMiddleware>();
 

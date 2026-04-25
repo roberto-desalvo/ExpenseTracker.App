@@ -1,0 +1,18 @@
+﻿using RDS.ExpenseTracker.Domain.Entities;
+
+namespace RDS.ExpenseTracker.Domain.Repositories
+{
+    public interface ITransactionRepository : IRepositoryBase
+    {
+        Task<Transaction?> GetTransaction(int id);
+        Task<IEnumerable<Transaction>> GetTransactions();
+        Task<Transaction> GetLatestTransaction();
+        Task AddTransactions(IEnumerable<Transaction> transactions);
+        Task UpdateTransaction(Transaction transaction);
+        Task DeleteTransaction(int id);
+        Task DeleteAllTransactions();
+        Task<int> AddTransaction(Transaction transaction);
+        Task<int> AddTransaction(Transaction transaction, bool saveChanges);
+        Task ResetTransactions(IEnumerable<Transaction> transactions);
+    }
+}
