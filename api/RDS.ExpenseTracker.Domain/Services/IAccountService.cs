@@ -1,9 +1,10 @@
 using FluentResults;
 using RDS.ExpenseTracker.Api.Dtos;
+using RDS.ExpenseTracker.Domain.Common;
 
 namespace RDS.ExpenseTracker.Domain.Services;
 
-public interface IAccountService
+public interface IAccountService : IService
 {
     Task<Result<IEnumerable<FinancialAccountDto>>> GetAccounts();
     Task<Result<FinancialAccountDto?>> GetAccount(int id);

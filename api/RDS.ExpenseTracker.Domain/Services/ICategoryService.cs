@@ -1,9 +1,10 @@
 using FluentResults;
 using RDS.ExpenseTracker.Api.Dtos;
+using RDS.ExpenseTracker.Domain.Common;
 
 namespace RDS.ExpenseTracker.Domain.Services;
 
-public interface ICategoryService
+public interface ICategoryService : IService
 {
     Task<Result<IEnumerable<CategoryDto>>> GetCategories();
     Task<Result<CategoryDto?>> GetCategory(int id);

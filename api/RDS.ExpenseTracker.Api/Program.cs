@@ -1,12 +1,13 @@
-﻿using RDS.ExpenseTracker.Api.Helpers;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Identity.Web;
 using Serilog;
 using RDS.ExpenseTracker.Api.Middlewares;
 using Scalar.AspNetCore;
 using RDS.ExpenseTracker.Application.Extensions;
-using RDS.ExpenseTracker.Application.Options;
 using RDS.ExpenseTracker.Api.Configuration;
+using RDS.ExpenseTracker.Api.Options;
+using RDS.ExpenseTracker.Infrastructure;
+using RDS.ExpenseTracker.Infrastructure.Utilities;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,27 +37,28 @@ if (builder.Environment.IsDevelopment())
 }
 
 builder.Configuration.AddEnvironmentVariables();
+builder.Services.AddOptions(builder.Configuration);
 
 builder.Services.AddProblemDetails();
 
-var kvOptions = new KeyVaultOptions();
-builder.Configuration.GetSection(SectionNames.KeyVault).Bind(kvOptions);
-builder.Services.AddApplicationServices(kvOptions);
+var kvOptions = builder.Configuration.BindFromSectionName<KeyVaultOptions>();
+var connectionString = AzureKeyVaultHandler.GetKeyVaultSecret(kvOptions.Uri, kvOptions.ConnectionStringSecretName);
+
+builder.Services.AddInfrastructureServices(connectionString);
+builder.Services.AddApplicationServices();
 
 if (!builder.Environment.IsDevelopment())
 {
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection(SectionNames.AzureAd));
+    .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection(builder.Configuration.GetSectionName<AzureAdOptions>()));
     builder.Services.AddAuthorization();
 }
 
-builder.Services.AddAutoMapper(x => x.AddProfile<ExpenseTrackerProfile>());
 builder.Services.AddControllers();
 builder.Host.UseSerilog();
 
 var app = builder.Build();
 
-app.Services.AddSeedData();
 app.UseHttpsRedirection();
 
 
