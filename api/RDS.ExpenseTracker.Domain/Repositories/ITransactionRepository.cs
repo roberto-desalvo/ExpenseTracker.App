@@ -6,6 +6,7 @@ namespace RDS.ExpenseTracker.Domain.Repositories
     {
         Task<Transaction?> GetTransaction(int id);
         Task<IEnumerable<Transaction>> GetTransactions();
+        Task<IEnumerable<Transaction>> GetTransactionsByTransferId(int transferId);
         Task<Transaction> GetLatestTransaction();
         Task AddTransactions(IEnumerable<Transaction> transactions);
         Task UpdateTransaction(Transaction transaction);

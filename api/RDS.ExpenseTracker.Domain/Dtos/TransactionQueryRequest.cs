@@ -1,6 +1,6 @@
-namespace RDS.ExpenseTracker.Domain.QueryFilters;
+namespace RDS.ExpenseTracker.Api.Dtos;
 
-public class TransactionQueryFilter
+public class TransactionQueryRequest
 {
     public DateTime? FromDate { get; set; }
     public DateTime? ToDate { get; set; }

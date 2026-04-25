@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Repositories;
+using RDS.ExpenseTracker.Infrastructure.EFCore;
 
 namespace RDS.ExpenseTracker.Infrastructure.Repositories
 {

@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using RDS.ExpenseTracker.Api.Dtos;
-using RDS.ExpenseTracker.Domain.QueryFilters;
 using RDS.ExpenseTracker.Domain.Services;
 
 namespace RDS.ExpenseTracker.Api.Controllers
@@ -21,7 +20,7 @@ namespace RDS.ExpenseTracker.Api.Controllers
             [FromQuery] DateTime? fromDate,
             [FromQuery] DateTime? toDate)
         {
-            var filter = new TransactionQueryFilter { FromDate = fromDate, ToDate = toDate };
+            var filter = new TransactionQueryRequest { FromDate = fromDate, ToDate = toDate };
             return ExecuteAsync(() => _service.GetTransactions(filter));
         }
 

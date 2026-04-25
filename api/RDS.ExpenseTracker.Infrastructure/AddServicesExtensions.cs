@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Repositories;
+using RDS.ExpenseTracker.Infrastructure.EFCore;
 using RDS.ExpenseTracker.Infrastructure.Repositories;
 using System.Reflection;
 

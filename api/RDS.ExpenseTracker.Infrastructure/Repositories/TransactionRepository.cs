@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Repositories;
+using RDS.ExpenseTracker.Infrastructure.EFCore;
 
 namespace RDS.ExpenseTracker.Infrastructure.Repositories
 {
@@ -66,6 +67,13 @@ namespace RDS.ExpenseTracker.Infrastructure.Repositories
         public async Task<IEnumerable<Transaction>> GetTransactions()
         {
             return await Context.Transactions.ToListAsync();
+        }
+
+        public async Task<IEnumerable<Transaction>> GetTransactionsByTransferId(int transferId)
+        {
+            return await Context.Transactions
+                .Where(x => x.TransferId == transferId)
+                .ToListAsync();
         }
 
         public async Task DeleteAllTransactions()

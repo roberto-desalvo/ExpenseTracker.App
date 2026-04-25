@@ -1,5 +1,6 @@
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Repositories;
+using RDS.ExpenseTracker.Infrastructure.EFCore;
 
 namespace RDS.ExpenseTracker.Infrastructure.Repositories;
 

@@ -20,6 +20,31 @@ namespace RDS.ExpenseTracker.Application.Mappings
 
             CreateMap<Category, CategoryDto>()
                 .ReverseMap();
+
+            CreateMap<Transfer, TransferDto>()
+                .ForMember(dest => dest.FromAccountId,
+                    opt => opt.MapFrom(src => src.Transactions
+                        .Where(t => t.Amount < 0m)
+                        .Select(t => t.AccountId)
+                        .FirstOrDefault()))
+                .ForMember(dest => dest.ToAccountId,
+                    opt => opt.MapFrom(src => src.Transactions
+                        .Where(t => t.Amount > 0m)
+                        .Select(t => t.AccountId)
+                        .FirstOrDefault()))
+                .ForMember(dest => dest.Amount,
+                    opt => opt.MapFrom(src => Math.Abs(src.Transactions
+                        .Where(t => t.Amount < 0m)
+                        .Select(t => t.Amount)
+                        .FirstOrDefault())))
+                .ForMember(dest => dest.Description,
+                    opt => opt.MapFrom(src => src.Transactions
+                        .Select(t => t.Description)
+                        .FirstOrDefault() ?? string.Empty))
+                .ForMember(dest => dest.Date,
+                    opt => opt.MapFrom(src => src.Transactions
+                        .Select(t => t.Date)
+                        .FirstOrDefault()));
         }
     }
 }

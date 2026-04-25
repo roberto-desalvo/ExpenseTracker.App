@@ -3,7 +3,6 @@ using FluentResults;
 using RDS.ExpenseTracker.Api.Dtos;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Entities;
-using RDS.ExpenseTracker.Domain.QueryFilters;
 using RDS.ExpenseTracker.Domain.Repositories;
 using RDS.ExpenseTracker.Domain.Services;
 
@@ -25,7 +24,7 @@ public class TransactionService : ITransactionService
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
     }
 
-    public async Task<Result<IEnumerable<TransactionDto>>> GetTransactions(TransactionQueryFilter? filter = null)
+    public async Task<Result<IEnumerable<TransactionDto>>> GetTransactions(TransactionQueryRequest? filter = null)
     {
         var transactions = await _repository.GetTransactions();
 
