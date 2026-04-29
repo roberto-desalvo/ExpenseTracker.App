@@ -14,15 +14,10 @@ public class TransactionController : ApiControllerBase
         _service = service ?? throw new ArgumentNullException(nameof(service));
     }
 
-    [HttpGet]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<TransactionDto>))]
-    public Task<IActionResult> Get(
-        [FromQuery] DateTime? fromDate,
-        [FromQuery] DateTime? toDate)
-    {
-        var filter = new TransactionQueryRequest { FromDate = fromDate, ToDate = toDate };
-        return ExecuteAsync(() => _service.GetTransactions(filter));
-    }
+    [HttpPost("query")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<TransactionDto>))]
+    public Task<IActionResult> Query([FromBody] TransactionQueryRequest request)
+        => ExecuteAsync(() => _service.GetPagedTransactions(request));
 
     [HttpGet("{id}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TransactionDto))]

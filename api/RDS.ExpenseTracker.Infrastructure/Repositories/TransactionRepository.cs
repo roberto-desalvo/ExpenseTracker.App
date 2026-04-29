@@ -1,5 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using RDS.ExpenseTracker.Api.Dtos;
 using RDS.ExpenseTracker.Domain.Entities;
+using RDS.ExpenseTracker.Domain.Enums;
 using RDS.ExpenseTracker.Domain.Repositories;
 
 namespace RDS.ExpenseTracker.Infrastructure.Repositories;
@@ -67,7 +69,37 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
     {
         return await Context.Transactions
             .Include(transaction => transaction.AccountNavigation)
+            .Include(transaction => transaction.CategoryNavigation)
             .ToListAsync();
+    }
+
+    public async Task<(IEnumerable<Transaction> Items, int TotalCount)> GetPagedTransactions(TransactionQueryRequest request)
+    {
+        var query = Context.Transactions
+            .Include(t => t.AccountNavigation)
+            .Include(t => t.CategoryNavigation)
+            .AsQueryable();
+
+        if (request.FromDate.HasValue)
+            query = query.Where(t => t.Date >= request.FromDate);
+        if (request.ToDate.HasValue)
+            query = query.Where(t => t.Date <= request.ToDate);
+        if (request.IdAccounts is { Length: > 0 })
+            query = query.Where(t => request.IdAccounts.Contains(t.AccountId));
+        if (request.IdCategories is { Length: > 0 })
+            query = query.Where(t => t.CategoryId.HasValue && request.IdCategories.Contains(t.CategoryId.Value));
+        if (!request.IncludeMoneyTransfers)
+            query = query.Where(t => t.CategoryId != (int)CategoryEnum.MoneyTransfers);
+
+        var totalCount = await query.CountAsync();
+
+        var items = await query
+            .OrderByDescending(t => t.Date)
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .ToListAsync();
+
+        return (items, totalCount);
     }
 
     public async Task<IEnumerable<Transaction>> GetTransactionsByTransferId(int transferId)

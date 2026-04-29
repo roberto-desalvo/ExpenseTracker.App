@@ -9,35 +9,35 @@ import TablePagination from "@mui/material/TablePagination";
 import TableRow from "@mui/material/TableRow";
 import ExpenseTableRow from "./ExpenseTableRow";
 import { useTableContext } from "../stores/TableContext";
+import { useTransactions } from "../stores/TransactionContext";
 
 export default function ExpenseTable() {
-  const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(25);
-
   const tableContext = useTableContext();
+  const transactionContext = useTransactions();
   const filteredTransactions = tableContext.getFilteredTransactions();
 
   const handleChangePage = (_event: unknown, newPage: number) => {
-    setPage(newPage);
+    tableContext.modifyPage(newPage);
   };
 
   const handleChangeRowsPerPage = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
-    setRowsPerPage(+event.target.value);
-    setPage(0);
+    tableContext.modifyPageSize(+event.target.value);
   };
 
   return (
     <Paper
       sx={{
-        heigth: "100%",
+        height: "100%",
         width: "100%",
         overflow: "hidden",
         background: "white",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      <TableContainer sx={{ height: "75vh", overflow: "auto" }}>
+      <TableContainer sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
         <Table stickyHeader>
           <TableHead>
             <TableRow>
@@ -58,20 +58,18 @@ export default function ExpenseTable() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredTransactions
-              .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-              .map((t) => (
-                <ExpenseTableRow transaction={t} key={t.id} />
-              ))}
+            {filteredTransactions.map((t) => (
+              <ExpenseTableRow transaction={t} key={t.id} />
+            ))}
           </TableBody>
         </Table>
       </TableContainer>
       <TablePagination
         rowsPerPageOptions={[10, 25, 100]}
         component="div"
-        count={filteredTransactions.length}
-        rowsPerPage={rowsPerPage}
-        page={page}
+        count={transactionContext.totalCount}
+        rowsPerPage={tableContext.pageSize}
+        page={tableContext.page}
         onPageChange={handleChangePage}
         onRowsPerPageChange={handleChangeRowsPerPage}
       />

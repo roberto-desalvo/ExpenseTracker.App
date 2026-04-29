@@ -1,10 +1,22 @@
 import config from "../config/development";
+import { PagedResult } from "../models/PagedResult";
 import Transaction from "../models/Transaction";
+import { TransactionQueryRequest } from "../models/TransactionQueryRequest";
 
 const TransactionService = {
-  getAll: async (): Promise<Transaction[]> => {
-    const url = config.expenseTrackerBaseUrl + '/' + config.expenseTrackerTransactionUrl;
-    const response = await fetch(url + "?fromdate=2024-01-01");
+  getAll: async (request: TransactionQueryRequest): Promise<PagedResult<Transaction>> => {
+    const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerTransactionUrl}/query`;
+    const payload: TransactionQueryRequest = {
+      ...request,
+      idAccounts: request.idAccounts ?? null,
+      idCategories: request.idCategories ?? null,
+      includeMoneyTransfers: request.includeMoneyTransfers ?? true,
+    };
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
     if (!response.ok) {
       throw new Error('Errore while loading transactions');
     }
