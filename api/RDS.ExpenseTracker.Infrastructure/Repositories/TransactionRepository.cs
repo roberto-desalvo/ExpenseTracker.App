@@ -65,7 +65,9 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
 
     public async Task<IEnumerable<Transaction>> GetTransactions()
     {
-        return await Context.Transactions.ToListAsync();
+        return await Context.Transactions
+            .Include(transaction => transaction.AccountNavigation)
+            .ToListAsync();
     }
 
     public async Task<IEnumerable<Transaction>> GetTransactionsByTransferId(int transferId)

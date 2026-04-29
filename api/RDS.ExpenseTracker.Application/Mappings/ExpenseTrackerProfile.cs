@@ -6,6 +6,8 @@ namespace RDS.ExpenseTracker.Application.Mappings;
 
 public class ExpenseTrackerProfile : Profile
 {
+    private static readonly char[] CategoryTagSeparators = [',', ';'];
+
     public ExpenseTrackerProfile()
     {
         CreateMap<Account, AccountDto>()
@@ -19,7 +21,16 @@ public class ExpenseTrackerProfile : Profile
             .ReverseMap();
 
         CreateMap<Category, CategoryDto>()
-            .ReverseMap();
+            .ForMember(dest => dest.Priority, opt => opt.MapFrom(src => src.Priority ?? 0))
+            .ForMember(dest => dest.IsDefault, opt => opt.MapFrom(src => src.IsDefault ?? false))
+            .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Description ?? string.Empty))
+            .ForMember(dest => dest.Tags, opt => opt.MapFrom(src => SplitCategoryTags(src.Tags)));
+
+        CreateMap<CategoryDto, Category>()
+            .ForMember(dest => dest.Priority, opt => opt.MapFrom(src => src.Priority))
+            .ForMember(dest => dest.IsDefault, opt => opt.MapFrom(src => src.IsDefault))
+            .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Description))
+            .ForMember(dest => dest.Tags, opt => opt.MapFrom(src => JoinCategoryTags(src.Tags)));
 
         CreateMap<Transfer, TransferDto>()
             .ForMember(dest => dest.FromAccountId,
@@ -46,4 +57,14 @@ public class ExpenseTrackerProfile : Profile
                     .Select(t => t.Date)
                     .FirstOrDefault()));
     }
+
+    private static IEnumerable<string> SplitCategoryTags(string? tags)
+        => string.IsNullOrWhiteSpace(tags)
+            ? Enumerable.Empty<string>()
+            : tags.Split(CategoryTagSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private static string JoinCategoryTags(IEnumerable<string>? tags)
+        => tags is null
+            ? string.Empty
+            : string.Join(',', tags.Where(tag => !string.IsNullOrWhiteSpace(tag)).Select(tag => tag.Trim()));
 }

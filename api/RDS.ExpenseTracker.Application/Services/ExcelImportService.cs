@@ -1,10 +1,12 @@
 using ExcelDataReader;
 using FluentResults;
 using Microsoft.Extensions.Logging;
-using RDS.ExpenseTracker.Api.Dtos;
 using RDS.ExpenseTracker.Application.Extensions;
 using RDS.ExpenseTracker.Domain.Common;
+using RDS.ExpenseTracker.Domain.Entities;
+using RDS.ExpenseTracker.Domain.Enums;
 using RDS.ExpenseTracker.Domain.Models.DataImport;
+using RDS.ExpenseTracker.Domain.Repositories;
 using RDS.ExpenseTracker.Domain.Services;
 using System.Data;
 using System.Text;
@@ -13,25 +15,27 @@ namespace RDS.ExpenseTracker.Application.Services;
 
 public class ExcelImportService : IExcelImportService
 {
-    private readonly ITransactionService _transactionService;
-    private readonly ITransferService _transferService;
-    private readonly ICategoryService _categoryService;
-    private readonly IAccountService _accountService;
+    private static readonly char[] CategoryTagSeparators = [',', ';'];
+
+    private readonly ITransactionRepository _transactionRepository;
+    private readonly ITransferRepository _transferRepository;
+    private readonly ICategoryRepository _categoryRepository;
+    private readonly IAccountRepository _accountRepository;
     private readonly IExpenseExcelFileOptions _excelOptions;
     private readonly ILogger<ExcelImportService> _logger;
 
     public ExcelImportService(
-        ITransactionService transactionService,
-        ITransferService transferService,
-        ICategoryService categoryService,
-        IAccountService accountService,
+        ITransactionRepository transactionRepository,
+        ITransferRepository transferRepository,
+        ICategoryRepository categoryRepository,
+        IAccountRepository accountRepository,
         IExpenseExcelFileOptions excelOptions,
         ILogger<ExcelImportService> logger)
     {
-        _transactionService = transactionService ?? throw new ArgumentNullException(nameof(transactionService));
-        _transferService = transferService ?? throw new ArgumentNullException(nameof(transferService));
-        _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
-        _accountService = accountService ?? throw new ArgumentNullException(nameof(accountService));
+        _transactionRepository = transactionRepository ?? throw new ArgumentNullException(nameof(transactionRepository));
+        _transferRepository = transferRepository ?? throw new ArgumentNullException(nameof(transferRepository));
+        _categoryRepository = categoryRepository ?? throw new ArgumentNullException(nameof(categoryRepository));
+        _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
         _excelOptions = excelOptions ?? throw new ArgumentNullException(nameof(excelOptions));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -192,27 +196,26 @@ public class ExcelImportService : IExcelImportService
 
     private async Task<List<TransactionsBySheetModel>> FilterSheetsByLatestTransactionAsync(List<TransactionsBySheetModel> transactionsBySheet)
     {
-        var latestResult = await _transactionService.GetLatestTransaction();
-        var latestTransaction = latestResult.ValueOrDefault;
+        var latestTransaction = await _transactionRepository.GetLatestTransaction();
 
-        if (latestTransaction?.Date == null)
+        if (latestTransaction.Date == null)
             return transactionsBySheet;
 
         var latestTransactionDate = latestTransaction.Date.Value;
+        var fromDate = latestTransactionDate.AddDays(-1);
+        var toDate = latestTransactionDate.AddDays(1);
+
+        var existingTransactions = (await _transactionRepository.GetTransactions())
+            .Where(transaction => transaction.Date.HasValue
+                && transaction.Date.Value >= fromDate
+                && transaction.Date.Value <= toDate)
+            .ToList();
 
         foreach (var sheetTransactions in transactionsBySheet)
         {
             if (sheetTransactions.SheetDate.Month != latestTransactionDate.Month ||
                 sheetTransactions.SheetDate.Year != latestTransactionDate.Year)
                 continue;
-
-            var filter = new TransactionQueryRequest
-            {
-                FromDate = latestTransactionDate.AddDays(-1),
-                ToDate = latestTransactionDate.AddDays(1)
-            };
-            var transactionsResult = await _transactionService.GetTransactions(filter);
-            var existingTransactions = (transactionsResult.ValueOrDefault ?? Enumerable.Empty<TransactionDto>()).ToList();
 
             var newTransactions = new List<ImportTransactionModel>();
             var newTransfers = new List<ImportTransferModel>();
@@ -231,7 +234,7 @@ public class ExcelImportService : IExcelImportService
                 {
                     var isDuplicate = existingTransactions.Any(x =>
                         x.Description == transaction.Description &&
-                        x.Account == transaction.Account &&
+                        x.AccountNavigation.Name == transaction.Account &&
                         x.Amount == transaction.Amount);
 
                     if (!isDuplicate)
@@ -255,12 +258,12 @@ public class ExcelImportService : IExcelImportService
                 {
                     var outgoingExists = existingTransactions.Any(x =>
                         x.Description == transfer.Description &&
-                        x.Account == transfer.FromAccount &&
+                        x.AccountNavigation.Name == transfer.FromAccount &&
                         x.Amount == -Math.Abs(transfer.Amount));
 
                     var ingoingExists = existingTransactions.Any(x =>
                         x.Description == transfer.Description &&
-                        x.Account == transfer.ToAccount &&
+                        x.AccountNavigation.Name == transfer.ToAccount &&
                         x.Amount == Math.Abs(transfer.Amount));
 
                     if (!(outgoingExists && ingoingExists))
@@ -279,11 +282,8 @@ public class ExcelImportService : IExcelImportService
 
     private async Task<EnrichedImportBatch> EnrichTransactionsAsync(List<TransactionsBySheetModel> transactionsBySheet)
     {
-        var categoriesResult = await _categoryService.GetCategories();
-        var categories = (categoriesResult.ValueOrDefault ?? Enumerable.Empty<CategoryDto>()).ToList();
-
-        var defaultCategoryResult = await _categoryService.GetDefaultCategory();
-        var defaultCategory = defaultCategoryResult.ValueOrDefault;
+        var categories = (await _categoryRepository.GetCategories()).ToList();
+        var defaultCategory = await _categoryRepository.GetDefaultCategory();
 
         var accountNames = transactionsBySheet
             .SelectMany(x => x.Transactions.Select(transaction => transaction.Account)
@@ -292,8 +292,7 @@ public class ExcelImportService : IExcelImportService
             .Distinct()
             .ToList();
 
-        var accountsResult = await _accountService.GetAccounts();
-        var accounts = (accountsResult.ValueOrDefault ?? Enumerable.Empty<AccountDto>()).ToList();
+        var accounts = (await _accountRepository.GetAccounts()).ToList();
 
         var missingNames = accountNames
             .Where(name => !accounts.Any(a => a.Name != null && a.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
@@ -302,15 +301,15 @@ public class ExcelImportService : IExcelImportService
         if (missingNames.Any())
         {
             var newAccounts = missingNames
-                .Select(name => new AccountDto { Name = name })
+                .Select(name => new Account(0, name))
                 .ToList();
-            await _accountService.AddAccounts(newAccounts);
+            await _accountRepository.AddAccounts(newAccounts);
+            await _accountRepository.SaveChangesAsync();
 
-            var refreshedResult = await _accountService.GetAccounts();
-            accounts = (refreshedResult.ValueOrDefault ?? Enumerable.Empty<AccountDto>()).ToList();
+            accounts = (await _accountRepository.GetAccounts()).ToList();
         }
 
-        categories = categories.OrderBy(c => c.Priority).ToList();
+        categories = categories.OrderBy(c => c.Priority ?? int.MaxValue).ToList();
         var transactions = new List<ImportTransactionModel>();
         var transfers = new List<ImportTransferModel>();
 
@@ -320,10 +319,7 @@ public class ExcelImportService : IExcelImportService
             {
                 foreach (var category in categories)
                 {
-                    var tags = category.Tags
-                        .Select(tag => tag.Trim())
-                        .Where(tag => !string.IsNullOrWhiteSpace(tag))
-                        .ToArray();
+                    var tags = SplitCategoryTags(category.Tags).ToArray();
 
                     if (transaction.Description.ContainsOne(ignoreCase: true, tags))
                     {
@@ -404,22 +400,67 @@ public class ExcelImportService : IExcelImportService
 
         if (importTransactions.Transfers.Any())
         {
+            var transferEntities = new List<Transfer>(importTransactions.Transfers.Count);
+            var transferTransactions = new List<Transaction>(importTransactions.Transfers.Count * 2);
+
             foreach (var transfer in importTransactions.Transfers)
             {
-                var transferResult = await _transferService.AddTransfer(new TransferDto
+                if (transfer.FromAccountId <= 0 || transfer.ToAccountId <= 0)
                 {
-                    FromAccountId = transfer.FromAccountId,
-                    ToAccountId = transfer.ToAccountId,
-                    Amount = transfer.Amount,
-                    Description = transfer.Description,
-                    Date = transfer.Date
-                });
-
-                if (transferResult.IsFailed)
-                {
-                    return Result.Fail(transferResult.Errors);
+                    return Result.Fail("Transfer account mapping failed during import.");
                 }
+
+                if (transfer.Amount <= 0)
+                {
+                    return Result.Fail("Transfer amount must be greater than zero.");
+                }
+
+                if (transfer.FromAccountId == transfer.ToAccountId)
+                {
+                    return Result.Fail("Source and destination accounts must be different for transfers.");
+                }
+
+                var transferEntity = new Transfer
+                {
+                    CreatedOn = DateTime.UtcNow
+                };
+
+                var transferDate = transfer.Date ?? DateTime.UtcNow;
+
+                transferEntities.Add(transferEntity);
+
+                transferTransactions.AddRange([
+                    new Transaction
+                    {
+                        AccountId = transfer.FromAccountId,
+                        CategoryId = (int)CategoryEnum.MoneyTransfers,
+                        Amount = -Math.Abs(transfer.Amount),
+                        Description = transfer.Description,
+                        Date = transferDate,
+                        CreatedOn = DateTime.UtcNow,
+                        TransferNavigation = transferEntity
+                    },
+                    new Transaction
+                    {
+                        AccountId = transfer.ToAccountId,
+                        CategoryId = (int)CategoryEnum.MoneyTransfers,
+                        Amount = Math.Abs(transfer.Amount),
+                        Description = transfer.Description,
+                        Date = transferDate,
+                        CreatedOn = DateTime.UtcNow,
+                        TransferNavigation = transferEntity
+                    }
+                ]);
             }
+
+            foreach (var transferEntity in transferEntities)
+            {
+                await _transferRepository.AddTransfer(transferEntity);
+            }
+
+            await _transactionRepository.AddTransactions(transferTransactions);
+
+            await _transferRepository.SaveChangesAsync();
         }
 
         if (!importTransactions.Transactions.Any())
@@ -427,18 +468,31 @@ public class ExcelImportService : IExcelImportService
             return Result.Ok();
         }
 
-        var transactionsToSave = importTransactions.Transactions.Select(importTx => new TransactionDto
+        if (importTransactions.Transactions.Any(transaction => transaction.AccountId <= 0))
+        {
+            return Result.Fail("Transaction account mapping failed during import.");
+        }
+
+        var transactionsToSave = importTransactions.Transactions.Select(importTx => new Transaction
         {
             Amount = importTx.Amount,
             Date = importTx.Date,
             Description = importTx.Description,
             AccountId = importTx.AccountId,
-            CategoryId = importTx.CategoryId
+            CategoryId = importTx.CategoryId,
+            CreatedOn = DateTime.UtcNow
         }).ToList();
 
-        var saveResult = await _transactionService.AddTransactions(transactionsToSave);
-        return saveResult;
+        await _transactionRepository.AddTransactions(transactionsToSave);
+        await _transactionRepository.SaveChangesAsync();
+
+        return Result.Ok();
     }
+
+    private static IEnumerable<string> SplitCategoryTags(string? tags)
+        => string.IsNullOrWhiteSpace(tags)
+            ? Enumerable.Empty<string>()
+            : tags.Split(CategoryTagSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     private sealed record EnrichedImportBatch(
         List<ImportTransactionModel> Transactions,
