@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace RDS.ExpenseTracker.Application.Extensions;
 
-public static class DataImportExtensions
+public static class BasicTypeExtensions
 {
     internal static decimal? ParseToDecimal(this object? obj)
     {

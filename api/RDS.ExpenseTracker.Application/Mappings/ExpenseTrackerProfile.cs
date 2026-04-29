@@ -8,7 +8,7 @@ public class ExpenseTrackerProfile : Profile
 {
     public ExpenseTrackerProfile()
     {
-        CreateMap<Account, FinancialAccountDto>()
+        CreateMap<Account, AccountDto>()
             .ReverseMap();
 
         CreateMap<Transaction, TransactionDto>()

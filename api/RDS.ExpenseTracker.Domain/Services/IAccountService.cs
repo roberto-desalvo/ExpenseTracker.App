@@ -6,10 +6,10 @@ namespace RDS.ExpenseTracker.Domain.Services;
 
 public interface IAccountService : IService
 {
-    Task<Result<IEnumerable<FinancialAccountDto>>> GetAccounts();
-    Task<Result<FinancialAccountDto?>> GetAccount(int id);
+    Task<Result<IEnumerable<AccountDto>>> GetAccounts();
+    Task<Result<AccountDto?>> GetAccount(int id);
     Task<Result<decimal>> GetAvailability(int accountId);
-    Task<Result> AddAccounts(IEnumerable<FinancialAccountDto> accounts);
-    Task<Result> UpdateAccount(FinancialAccountDto account);
+    Task<Result> AddAccounts(IEnumerable<AccountDto> accounts);
+    Task<Result> UpdateAccount(AccountDto account);
     Task<Result> DeleteAccount(int id);
 }

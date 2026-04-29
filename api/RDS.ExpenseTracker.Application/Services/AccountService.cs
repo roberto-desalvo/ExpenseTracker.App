@@ -19,13 +19,13 @@ public class AccountService : IAccountService
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
     }
 
-    public async Task<Result<IEnumerable<FinancialAccountDto>>> GetAccounts()
+    public async Task<Result<IEnumerable<AccountDto>>> GetAccounts()
     {
         var accounts = await _repository.GetAccounts();
-        return Result.Ok(_mapper.Map<IEnumerable<FinancialAccountDto>>(accounts));
+        return Result.Ok(_mapper.Map<IEnumerable<AccountDto>>(accounts));
     }
 
-    public async Task<Result<FinancialAccountDto?>> GetAccount(int id)
+    public async Task<Result<AccountDto?>> GetAccount(int id)
     {
         if (id <= 0)
             return Result.Fail(DomainErrors.InvalidId("account", id));
@@ -34,7 +34,7 @@ public class AccountService : IAccountService
         if (account is null)
             return Result.Fail(DomainErrors.NotFound("Account", id));
 
-        return Result.Ok(_mapper.Map<FinancialAccountDto?>(account));
+        return Result.Ok(_mapper.Map<AccountDto?>(account));
     }
 
     public async Task<Result<decimal>> GetAvailability(int accountId)
@@ -50,7 +50,7 @@ public class AccountService : IAccountService
         return Result.Ok(availability);
     }
 
-    public async Task<Result> AddAccounts(IEnumerable<FinancialAccountDto> dtos)
+    public async Task<Result> AddAccounts(IEnumerable<AccountDto> dtos)
     {
         if (dtos is null || !dtos.Any())
             return Result.Fail(DomainErrors.Required("accounts"));
@@ -61,7 +61,7 @@ public class AccountService : IAccountService
         return Result.Ok();
     }
 
-    public async Task<Result> UpdateAccount(FinancialAccountDto dto)
+    public async Task<Result> UpdateAccount(AccountDto dto)
     {
         if (dto.Id <= 0)
             return Result.Fail(DomainErrors.InvalidId("account", dto.Id));

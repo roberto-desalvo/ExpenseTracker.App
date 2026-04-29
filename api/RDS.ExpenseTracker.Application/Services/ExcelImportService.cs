@@ -258,7 +258,7 @@ public class ExcelImportService : IExcelImportService
             .ToList();
 
         var accountsResult = await _accountService.GetAccounts();
-        var accounts = (accountsResult.ValueOrDefault ?? Enumerable.Empty<FinancialAccountDto>()).ToList();
+        var accounts = (accountsResult.ValueOrDefault ?? Enumerable.Empty<AccountDto>()).ToList();
 
         var missingNames = accountNames
             .Where(name => !accounts.Any(a => a.Name != null && a.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
@@ -267,12 +267,12 @@ public class ExcelImportService : IExcelImportService
         if (missingNames.Any())
         {
             var newAccounts = missingNames
-                .Select(name => new FinancialAccountDto { Name = name, Description = name })
+                .Select(name => new AccountDto { Name = name })
                 .ToList();
             await _accountService.AddAccounts(newAccounts);
 
             var refreshedResult = await _accountService.GetAccounts();
-            accounts = (refreshedResult.ValueOrDefault ?? Enumerable.Empty<FinancialAccountDto>()).ToList();
+            accounts = (refreshedResult.ValueOrDefault ?? Enumerable.Empty<AccountDto>()).ToList();
         }
 
         categories = categories.OrderBy(c => c.Priority).ToList();

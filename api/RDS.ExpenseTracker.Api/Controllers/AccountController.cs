@@ -15,12 +15,12 @@ public class AccountController : ApiControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<FinancialAccountDto>))]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<AccountDto>))]
     public Task<IActionResult> Get()
         => ExecuteAsync(() => _service.GetAccounts());
 
     [HttpGet("{id}")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(FinancialAccountDto))]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(AccountDto))]
     public Task<IActionResult> Get(int id)
         => ExecuteAsync(() => _service.GetAccount(id));
 
@@ -31,12 +31,12 @@ public class AccountController : ApiControllerBase
 
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public Task<IActionResult> Post([FromBody] IEnumerable<FinancialAccountDto> dto)
+    public Task<IActionResult> Post([FromBody] IEnumerable<AccountDto> dto)
         => ExecuteAsync(() => _service.AddAccounts(dto));
 
     [HttpPut("{id}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public Task<IActionResult> Put(int id, [FromBody] FinancialAccountDto dto)
+    public Task<IActionResult> Put(int id, [FromBody] AccountDto dto)
         => ExecuteAsync(() => _service.UpdateAccount(dto));
 
     [HttpDelete("{id}")]
