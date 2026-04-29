@@ -84,8 +84,8 @@ app.UseMiddleware<RequestLoggingMiddleware>();
 app.MapOpenApi();
 app.MapScalarApiReference();
 
-app.MapControllers()
-    .RequireAuthorization();
+app.MapControllers();
+    // .RequireAuthorization();
 
 app.Run();
 
