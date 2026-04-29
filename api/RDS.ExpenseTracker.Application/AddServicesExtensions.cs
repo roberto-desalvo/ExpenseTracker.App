@@ -2,7 +2,6 @@
 using RDS.ExpenseTracker.Application.Services;
 using RDS.ExpenseTracker.Application.Architecture;
 using RDS.ExpenseTracker.Domain.Common;
-using RDS.ExpenseTracker.Domain.Services;
 using System.Reflection;
 
 namespace RDS.ExpenseTracker.Application.Extensions

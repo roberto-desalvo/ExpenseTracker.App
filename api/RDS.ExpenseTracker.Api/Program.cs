@@ -1,13 +1,12 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Identity.Web;
-using Serilog;
+﻿using Serilog;
 using RDS.ExpenseTracker.Api.Middlewares;
 using Scalar.AspNetCore;
 using RDS.ExpenseTracker.Application.Extensions;
 using RDS.ExpenseTracker.Api.Configuration;
 using RDS.ExpenseTracker.Api.Options;
+using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Infrastructure;
-using RDS.ExpenseTracker.Infrastructure.Utilities;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,18 +40,22 @@ builder.Services.AddOptions(builder.Configuration);
 
 builder.Services.AddProblemDetails();
 
-var kvOptions = builder.Configuration.BindFromSectionName<KeyVaultOptions>();
-var connectionString = AzureKeyVaultHandler.GetKeyVaultSecret(kvOptions.Uri, kvOptions.ConnectionStringSecretName);
+// var kvOptions = builder.Configuration.BindFromSectionName<KeyVaultOptions>();
+// var connectionString = AzureKeyVaultHandler.GetKeyVaultSecret(kvOptions.Uri, kvOptions.ConnectionStringSecretName);
 
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
 builder.Services.AddInfrastructureServices(connectionString);
 builder.Services.AddApplicationServices();
 
-if (!builder.Environment.IsDevelopment())
-{
-    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection(builder.Configuration.GetSectionName<AzureAdOptions>()));
-    builder.Services.AddAuthorization();
-}
+builder.Services.AddScoped<IExpenseExcelFileOptions>(sp =>
+    sp.GetRequiredService<IOptions<ExpenseExcelFileOptions>>().Value);
+
+// if (!builder.Environment.IsDevelopment())
+// {
+//     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+//     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection(builder.Configuration.GetSectionName<AzureAdOptions>()));
+//     builder.Services.AddAuthorization();
+// }
 
 builder.Services.AddControllers();
 builder.Host.UseSerilog();
@@ -62,15 +65,16 @@ var app = builder.Build();
 app.UseHttpsRedirection();
 
 
+// TODO - Add authentication and authorization
 if (app.Environment.IsDevelopment())
 {
     app.UseCors(debugCorsPolicy);
 }
-else
-{
-    app.UseAuthentication();
-    app.UseAuthorization();
-}
+// else
+// {
+//     app.UseAuthentication();
+//     app.UseAuthorization();
+// }
 
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
