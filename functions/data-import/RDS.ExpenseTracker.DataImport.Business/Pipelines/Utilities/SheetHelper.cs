@@ -13,9 +13,9 @@ namespace RDS.ExpenseTracker.DataImport.Business.Pipelines.Utilities
         {
             try
             {
-                var index = name.IndexOf('2');
-                var year = int.Parse(name[index..].Trim());
-                var monthStr = name[..index].Trim().ToLower();
+                var yearIndex = name.IndexOf('2');
+                var year = int.Parse(name[yearIndex..].Trim());
+                var monthStr = name[..yearIndex].Trim().ToLower();
 
                 var months = new CultureInfo("it-IT").DateTimeFormat.MonthNames.Select(x => x.ToLowerInvariant()).ToArray();
                 var month = Array.IndexOf(months, monthStr) + 1;
