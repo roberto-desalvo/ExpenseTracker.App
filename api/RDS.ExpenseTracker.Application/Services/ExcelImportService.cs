@@ -70,6 +70,41 @@ public class ExcelImportService : IExcelImportService
         }
     }
 
+    public async Task<Result<int>> ImportFromExcelBase64Async(string base64Content, string fileName, bool importAll = false)
+    {
+        if (string.IsNullOrWhiteSpace(base64Content))
+        {
+            return Result.Fail("Base64 content is null or empty");
+        }
+
+        try
+        {
+            var normalizedBase64 = NormalizeBase64Payload(base64Content);
+            var fileBytes = Convert.FromBase64String(normalizedBase64);
+
+            using var stream = new MemoryStream(fileBytes);
+            return await ImportFromExcelAsync(stream, fileName, importAll);
+        }
+        catch (FormatException ex)
+        {
+            _logger.LogWarning(ex, "Invalid base64 file payload provided for import");
+            return Result.Fail(new Error("Invalid base64 file content").CausedBy(ex));
+        }
+    }
+
+    private static string NormalizeBase64Payload(string base64Content)
+    {
+        var trimmed = base64Content.Trim();
+        var dataPrefixIndex = trimmed.IndexOf("base64,", StringComparison.OrdinalIgnoreCase);
+
+        if (dataPrefixIndex >= 0)
+        {
+            return trimmed[(dataPrefixIndex + "base64,".Length)..];
+        }
+
+        return trimmed;
+    }
+
     private List<DataTable> ReadExcelFile(Stream fileStream)
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);

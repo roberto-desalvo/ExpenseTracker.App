@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using RDS.ExpenseTracker.Api.Dtos;
 using RDS.ExpenseTracker.Domain.Services;
 
 namespace RDS.ExpenseTracker.Api.Controllers;
@@ -39,6 +40,34 @@ public class ImportController : ControllerBase
         if (result.IsFailed)
         {
             _logger.LogWarning("Import failed: {errors}", string.Join(", ", result.Errors.Select(e => e.Message)));
+            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
+        }
+
+        return Ok(new { importedCount = result.Value });
+    }
+
+    /// <summary>
+    /// Imports transactions from a base64-encoded Excel file.
+    /// </summary>
+    /// <param name="request">Request containing base64 content and file name</param>
+    /// <param name="importAll">If false (default), filters out already-imported transactions from the current month</param>
+    /// <returns>Count of imported transactions</returns>
+    [HttpPost("excel/base64")]
+    [Consumes("application/json")]
+    public async Task<IActionResult> ImportExcelBase64([FromBody] ImportExcelBase64Request request, [FromQuery] bool importAll = false)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.Base64Content))
+        {
+            _logger.LogWarning("Import attempt with invalid base64 payload");
+            return BadRequest("No base64 content provided");
+        }
+
+        var fileName = string.IsNullOrWhiteSpace(request.FileName) ? "import.xlsx" : request.FileName;
+        var result = await _excelImportService.ImportFromExcelBase64Async(request.Base64Content, fileName, importAll);
+
+        if (result.IsFailed)
+        {
+            _logger.LogWarning("Base64 import failed: {errors}", string.Join(", ", result.Errors.Select(e => e.Message)));
             return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
         }
 
