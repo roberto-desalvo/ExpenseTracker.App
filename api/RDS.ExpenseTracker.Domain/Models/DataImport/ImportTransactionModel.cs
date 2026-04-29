@@ -8,5 +8,4 @@ public class ImportTransactionModel
     public int AccountId { get; set; }
     public string Account { get; set; } = string.Empty;
     public int CategoryId { get; set; }
-    public bool IsTransfer { get; set; }
 }

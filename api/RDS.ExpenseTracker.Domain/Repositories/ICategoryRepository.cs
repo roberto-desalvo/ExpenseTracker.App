@@ -5,15 +5,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace RDS.ExpenseTracker.Domain.Repositories
+namespace RDS.ExpenseTracker.Domain.Repositories;
+
+public interface ICategoryRepository : IRepositoryBase
 {
-    public interface ICategoryRepository : IRepositoryBase
-    {
-        Task<Category?> GetCategory(int id);
-        Task<Category?> GetDefaultCategory();
-        Task<IEnumerable<Category>> GetCategories();
-        Task AddCategories(IEnumerable<Category> categories);
-        Task RemoveCategory(int id);
-        Task RemoveCategory(Category category);
-    }
+    Task<Category?> GetCategory(int id);
+    Task<Category?> GetDefaultCategory();
+    Task<IEnumerable<Category>> GetCategories();
+    Task AddCategories(IEnumerable<Category> categories);
+    Task RemoveCategory(int id);
+    Task RemoveCategory(Category category);
 }

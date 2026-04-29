@@ -1,43 +1,27 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using RDS.ExpenseTracker.Application.Mappings;
 using RDS.ExpenseTracker.Application.Services;
-using RDS.ExpenseTracker.Application.Architecture;
 using RDS.ExpenseTracker.Domain.Common;
+using RDS.ExpenseTracker.Domain.Services;
 using System.Reflection;
 
-namespace RDS.ExpenseTracker.Application.Extensions
+namespace RDS.ExpenseTracker.Application;
+
+public static class AddServicesExtensions
 {
-    public static class AddServicesExtensions
+    public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
-        public static IServiceCollection AddApplicationServices(this IServiceCollection services)
-        {
-            var assembly = typeof(ApplicationAssemblyMarker).Assembly;
 
-            services.AddAutoMapper(assembly);
-            RegisterServicesFromAssembly(services, assembly);
+        services.AddAutoMapper(cfg => {
+            cfg.AddProfile<ExpenseTrackerProfile>();
+        });
+        
+        services.AddScoped<IAccountService, AccountService>();
+        services.AddScoped<ICategoryService, CategoryService>();
+        services.AddScoped<ITransactionService, TransactionService>();
+        services.AddScoped<ITransferService, TransferService>();
+        services.AddScoped<IExcelImportService, ExcelImportService>();
 
-            return services;
-        }
-
-        private static void RegisterServicesFromAssembly(IServiceCollection services, Assembly assembly)
-        {
-            var serviceInterfaces = typeof(IService).Assembly.GetTypes()
-                .Where(t =>
-                    t is { IsInterface: true, IsAbstract: false } &&
-                    typeof(IService).IsAssignableFrom(t) &&
-                    t != typeof(IService));
-
-            foreach (var serviceInterface in serviceInterfaces)
-            {
-                var implementation = assembly.GetTypes()
-                    .FirstOrDefault(t =>
-                        t is { IsClass: true, IsAbstract: false } &&
-                        serviceInterface.IsAssignableFrom(t));
-
-                if (implementation is not null)
-                {
-                    services.AddScoped(serviceInterface, implementation);
-                }
-            }
-        }
+        return services;
     }
 }

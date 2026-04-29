@@ -1,12 +1,12 @@
 ﻿using Serilog;
 using RDS.ExpenseTracker.Api.Middlewares;
 using Scalar.AspNetCore;
-using RDS.ExpenseTracker.Application.Extensions;
 using RDS.ExpenseTracker.Api.Configuration;
 using RDS.ExpenseTracker.Api.Options;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Infrastructure;
 using Microsoft.Extensions.Options;
+using RDS.ExpenseTracker.Application;
 
 var builder = WebApplication.CreateBuilder(args);
 
