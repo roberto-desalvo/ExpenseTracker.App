@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace RDS.ExpenseTracker.Application.Extensions.DataImport;
+namespace RDS.ExpenseTracker.Application.Extensions;
 
 public static class DataImportExtensions
 {

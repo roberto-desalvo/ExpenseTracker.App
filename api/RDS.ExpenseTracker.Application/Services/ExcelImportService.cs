@@ -2,7 +2,7 @@ using ExcelDataReader;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 using RDS.ExpenseTracker.Api.Dtos;
-using RDS.ExpenseTracker.Application.Extensions.DataImport;
+using RDS.ExpenseTracker.Application.Extensions;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Models.DataImport;
 using RDS.ExpenseTracker.Domain.Services;
