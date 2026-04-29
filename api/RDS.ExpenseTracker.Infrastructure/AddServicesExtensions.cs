@@ -13,14 +13,18 @@ public static class AddServicesExtensions
     {
         services.AddDbContext<ExpenseTrackerContext>(optBuilder =>
         {
-            optBuilder.UseSqlServer(connectionString, sqlServerBuilder => sqlServerBuilder.EnableRetryOnFailure());
+            optBuilder.UseSqlServer(connectionString, builder =>
+            {
+                builder.EnableRetryOnFailure();
+                builder.CommandTimeout(60);
+            });
         });
 
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<ITransactionRepository, TransactionRepository>();
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<ITransferRepository, TransferRepository>();
-        
+
         return services;
     }
 }
