@@ -3,11 +3,13 @@ import React, {
   useContext,
   useState,
   useEffect,
-  ReactNode,
+  type ReactNode,
 } from "react";
 import Transaction from "../models/Transaction";
+import { TransferPayload } from "../models/Transfer.ts";
 import { TransactionMonthOption } from "../models/TransactionMonthOption";
 import TransactionService from "../services/TransactionService";
+import TransferService from "../services/TransferService.ts";
 import { TransactionQueryRequest } from "../models/TransactionQueryRequest";
 
 interface TransactionsContextType {
@@ -20,6 +22,7 @@ interface TransactionsContextType {
   availableMonths: TransactionMonthOption[];
   availableMonthsLoading: boolean;
   addTransaction: (transaction: Transaction) => Promise<void>;
+  addTransfer: (transfer: TransferPayload) => Promise<void>;
   updateTransaction: (transaction: Transaction) => Promise<void>;
   deleteTransaction: (transaction: Transaction) => void;
   refreshTransactions: (request?: TransactionQueryRequest) => void;
@@ -114,6 +117,17 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
+  const addTransfer = async (transfer: TransferPayload) => {
+    try {
+      await TransferService.add(transfer);
+      await loadAvailableMonths();
+      refreshTransactions();
+    } catch (error) {
+      console.error("Errore nell'aggiunta del trasferimento:", error);
+      throw error;
+    }
+  };
+
   const deleteTransaction = (transaction: Transaction) => {
     const removeTransaction = async () => {
       try {
@@ -140,6 +154,7 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
         availableMonths,
         availableMonthsLoading,
         addTransaction,
+        addTransfer,
         updateTransaction,
         deleteTransaction,
         refreshTransactions,

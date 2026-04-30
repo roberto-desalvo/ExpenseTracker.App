@@ -3,7 +3,9 @@ import {
   Checkbox,
   FormControl,
   IconButton,
+  ListItemIcon,
   ListItemText,
+  Menu,
   MenuItem,
   Select,
   SelectChangeEvent,
@@ -13,13 +15,17 @@ import {
 import { useTheme } from "@mui/material/styles";
 import {
   Add,
+  CompareArrows,
   Refresh,
+  ReceiptLong,
 } from "@mui/icons-material";
+import { MouseEvent, useState } from "react";
 import { useAccounts } from "../stores/AccountContext";
 import { useCategories } from "../stores/CategoryContext";
 import { useTableContext } from "../stores/TableContext";
 import { useTransactions } from "../stores/TransactionContext";
 import { useTransactionModal } from "../stores/TransactionModalContext";
+import TransferModal from "./TransferModal";
 
 export default function AccountsBar() {
   const theme = useTheme();
@@ -29,8 +35,11 @@ export default function AccountsBar() {
   const tableContext = useTableContext();
   const transactionsContext = useTransactions();
   const transactionModalContext = useTransactionModal();
+  const [addMenuAnchorEl, setAddMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [transferModalOpen, setTransferModalOpen] = useState<boolean>(false);
   const allAccountsOptionValue = "__all_accounts__";
   const allCategoriesOptionValue = "__all_categories__";
+  const addMenuOpen = Boolean(addMenuAnchorEl);
 
   const controlBoxSx = {
     height: 44,
@@ -148,6 +157,24 @@ export default function AccountsBar() {
     }
 
     tableContext.modifySelectedMonth(selectedMonth);
+  };
+
+  const handleOpenAddMenu = (event: MouseEvent<HTMLElement>) => {
+    setAddMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleCloseAddMenu = () => {
+    setAddMenuAnchorEl(null);
+  };
+
+  const handleAddTransaction = () => {
+    handleCloseAddMenu();
+    transactionModalContext.openTransactionModal();
+  };
+
+  const handleAddTransfer = () => {
+    handleCloseAddMenu();
+    setTransferModalOpen(true);
   };
 
   return (
@@ -311,14 +338,43 @@ export default function AccountsBar() {
           spacing={1}
           sx={{ ml: { xs: 0, md: "auto" }, width: { xs: "100%", md: "auto" } }}
         >
-          <Tooltip title="Aggiungi transazione">
+          <Tooltip title="Aggiungi">
             <IconButton
               sx={{ ...controlBoxSx, color: controlLabelColor, px: 1.5 }}
-              onClick={() => transactionModalContext.openTransactionModal()}
+              onClick={handleOpenAddMenu}
             >
               <Add />
             </IconButton>
           </Tooltip>
+          <Menu
+            anchorEl={addMenuAnchorEl}
+            open={addMenuOpen}
+            onClose={handleCloseAddMenu}
+            anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+            transformOrigin={{ vertical: "top", horizontal: "left" }}
+            PaperProps={{
+              sx: {
+                mt: 0.5,
+                borderRadius: "10px",
+                border: `1px solid ${c.drawerBorder}`,
+                backgroundColor: c.drawerBackground,
+                color: theme.palette.text.primary,
+              },
+            }}
+          >
+            <MenuItem onClick={handleAddTransaction}>
+              <ListItemIcon sx={{ color: "inherit" }}>
+                <ReceiptLong fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Aggiungi transazione</ListItemText>
+            </MenuItem>
+            <MenuItem onClick={handleAddTransfer}>
+              <ListItemIcon sx={{ color: "inherit" }}>
+                <CompareArrows fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Aggiungi trasferimento</ListItemText>
+            </MenuItem>
+          </Menu>
           <Tooltip title="Aggiorna">
             <IconButton
               sx={{ ...controlBoxSx, color: controlLabelColor, px: 1.5 }}
@@ -329,6 +385,7 @@ export default function AccountsBar() {
           </Tooltip>
         </Stack>
       </div>
+      <TransferModal open={transferModalOpen} onClose={() => setTransferModalOpen(false)} />
     </>
   );
 }
