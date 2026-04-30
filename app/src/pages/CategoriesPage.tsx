@@ -375,46 +375,58 @@ export default function CategoriesPage() {
 
   return (
     <>
-      <Box sx={{ px: 2, pt: 1 }}>
-        <Tabs
-          value={activeTab}
-          onChange={(_event, value: number) => setActiveTab(value)}
-          textColor="inherit"
-          indicatorColor="primary"
+      <Stack spacing={2.5} sx={{ flex: 1, px: { xs: 2.5, md: 4 }, py: { xs: 2.5, md: 3 } }}>
+        <Typography
+          variant="h5"
+          sx={{
+            color: "text.primary",
+            fontWeight: 700,
+            letterSpacing: "-0.02em",
+            px: 1,
+          }}
         >
-          <Tab label="Gestione" />
-          <Tab label="Analisi" />
-        </Tabs>
-      </Box>
-      {activeTab === 0 && (
-        <CategoriesFilterBar
-          onSearch={handleSearch}
-          onAddClick={openCreateModal}
-          onRefresh={() => void refreshCategories()}
-          isLoading={isLoading}
-        />
-      )}
-      <main className="flex-1 min-h-0 px-2 pb-2">
-        {activeTab === 0 ? (
-          <DataTableBase
-            title="Categorie"
-            columns={columns}
-            rows={categories}
+          Categorie
+        </Typography>
+        <Box sx={{ px: { xs: 0.5, md: 1 } }}>
+          <Tabs
+            value={activeTab}
+            onChange={(_event, value: number) => setActiveTab(value)}
+            textColor="inherit"
+            indicatorColor="primary"
+          >
+            <Tab label="Gestione" />
+            <Tab label="Analisi" />
+          </Tabs>
+        </Box>
+        {activeTab === 0 && (
+          <CategoriesFilterBar
+            onSearch={handleSearch}
+            onAddClick={openCreateModal}
+            onRefresh={() => void refreshCategories()}
             isLoading={isLoading}
-            isEmpty={!isLoading && categories.length === 0}
-            emptyMessage="Nessuna categoria trovata"
-            emptySubtext="Crea la tua prima categoria per iniziare"
-            page={page}
-            pageSize={pageSize}
-            totalCount={totalCount}
-            onPageChange={(_event, newPage) => modifyPage(newPage)}
-            onPageSizeChange={(event) =>
-              modifyPageSize(parseInt(event.target.value, 10))
-            }
-            renderRow={(category) => renderCategoryRow(category)}
           />
-        ) : (
-          <Box sx={{ p: 2 }}>
+        )}
+        <main className="px-2 pb-2">
+          {activeTab === 0 ? (
+            <DataTableBase
+              title="Categorie"
+              columns={columns}
+              rows={categories}
+              isLoading={isLoading}
+              isEmpty={!isLoading && categories.length === 0}
+              emptyMessage="Nessuna categoria trovata"
+              emptySubtext="Crea la tua prima categoria per iniziare"
+              page={page}
+              pageSize={pageSize}
+              totalCount={totalCount}
+              onPageChange={(_event, newPage) => modifyPage(newPage)}
+              onPageSizeChange={(event) =>
+                modifyPageSize(parseInt(event.target.value, 10))
+              }
+              renderRow={(category) => renderCategoryRow(category)}
+            />
+          ) : (
+            <Box sx={{ p: 2 }}>
             <Stack spacing={2.5}>
               <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
                 <TextField
@@ -523,74 +535,75 @@ export default function CategoriesPage() {
                 )}
               </Box>
             </Stack>
-          </Box>
-        )}
+            </Box>
+          )}
 
-        <ConfirmDeleteDialog
-          open={deleteDialogOpen}
-          onClose={handleDeleteCancel}
-          onConfirm={handleDeleteConfirm}
-          isBusy={operationInProgress}
-          message={
-            <>
-              Vuoi eliminare la categoria &ldquo;{selectedCategory?.name}&rdquo;?
-              Le transazioni collegate verranno riassegnate alla categoria di
-              default.
-            </>
-          }
-        />
+          <ConfirmDeleteDialog
+            open={deleteDialogOpen}
+            onClose={handleDeleteCancel}
+            onConfirm={handleDeleteConfirm}
+            isBusy={operationInProgress}
+            message={
+              <>
+                Vuoi eliminare la categoria &ldquo;{selectedCategory?.name}&rdquo;?
+                Le transazioni collegate verranno riassegnate alla categoria di
+                default.
+              </>
+            }
+          />
 
-        <AppModal
-          open={modalOpen}
-          onClose={closeModal}
-          title={editingCategory ? "Modifica categoria" : "Nuova categoria"}
-          onSubmit={handleSubmit}
-          isBusy={operationInProgress}
-          submitLabel={editingCategory ? "Salva modifiche" : "Crea categoria"}
-        >
-          <TextField
-            label="Nome"
-            value={form.name}
-            onChange={(event) =>
-              setForm((prev) => ({ ...prev, name: event.target.value }))
-            }
-            required
-            fullWidth
-            disabled={operationInProgress}
-          />
-          <TextField
-            label="Descrizione"
-            value={form.description}
-            onChange={(event) =>
-              setForm((prev) => ({
-                ...prev,
-                description: event.target.value,
-              }))
-            }
-            fullWidth
-            disabled={operationInProgress}
-          />
-          <TextField
-            label="Tag (separati da virgola)"
-            value={form.tags}
-            onChange={(event) =>
-              setForm((prev) => ({ ...prev, tags: event.target.value }))
-            }
-            fullWidth
-            disabled={operationInProgress}
-          />
-          <TextField
-            label="Priorità"
-            type="number"
-            value={form.priority}
-            onChange={(event) =>
-              setForm((prev) => ({ ...prev, priority: event.target.value }))
-            }
-            fullWidth
-            disabled={operationInProgress}
-          />
-        </AppModal>
-      </main>
+          <AppModal
+            open={modalOpen}
+            onClose={closeModal}
+            title={editingCategory ? "Modifica categoria" : "Nuova categoria"}
+            onSubmit={handleSubmit}
+            isBusy={operationInProgress}
+            submitLabel={editingCategory ? "Salva modifiche" : "Crea categoria"}
+          >
+            <TextField
+              label="Nome"
+              value={form.name}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, name: event.target.value }))
+              }
+              required
+              fullWidth
+              disabled={operationInProgress}
+            />
+            <TextField
+              label="Descrizione"
+              value={form.description}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  description: event.target.value,
+                }))
+              }
+              fullWidth
+              disabled={operationInProgress}
+            />
+            <TextField
+              label="Tag (separati da virgola)"
+              value={form.tags}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, tags: event.target.value }))
+              }
+              fullWidth
+              disabled={operationInProgress}
+            />
+            <TextField
+              label="Priorità"
+              type="number"
+              value={form.priority}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, priority: event.target.value }))
+              }
+              fullWidth
+              disabled={operationInProgress}
+            />
+          </AppModal>
+        </main>
+      </Stack>
     </>
   );
 }

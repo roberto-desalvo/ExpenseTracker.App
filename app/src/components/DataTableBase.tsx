@@ -14,7 +14,6 @@ import {
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import DataTableFilters from "./DataTableFilters";
 
 export interface DataTableColumn {
   id: string;
@@ -24,7 +23,7 @@ export interface DataTableColumn {
 }
 
 export interface DataTableBaseProps<T> {
-  title: string;
+  title?: string;
   subtitle?: React.ReactNode;
   columns: DataTableColumn[];
   rows: T[];
@@ -40,6 +39,7 @@ export interface DataTableBaseProps<T> {
   renderRow: (row: T, index: number) => React.ReactNode;
   headerLeftContent?: React.ReactNode;
   headerRightContent?: React.ReactNode;
+  showHeader?: boolean;
   rowsPerPageOptions?: number[];
   minTableWidth?: number;
 }
@@ -61,18 +61,24 @@ export default function DataTableBase<T>({
   renderRow,
   headerLeftContent,
   headerRightContent,
+  showHeader = false,
   rowsPerPageOptions = [10, 25, 100],
   minTableWidth = 760,
 }: DataTableBaseProps<T>) {
+  void title;
+  void subtitle;
+  void headerLeftContent;
+  void headerRightContent;
+  void showHeader;
   const theme = useTheme();
   const c = theme.palette.custom;
 
   return (
     <Paper
       sx={{
-        height: "100%",
+        height: "auto",
         width: "100%",
-        overflow: "hidden",
+        overflow: "visible",
         background: "transparent",
         display: "flex",
         flexDirection: "column",
@@ -80,22 +86,13 @@ export default function DataTableBase<T>({
         border: `1px solid ${theme.palette.divider}`,
       }}
     >
-      {/* Header */}
-      <DataTableFilters
-        title={title}
-        subtitle={subtitle}
-        leftContent={headerLeftContent}
-        rightContent={headerRightContent}
-      />
 
       {/* Content Area */}
       <TableContainer
         sx={{
-          flex: 1,
-          minHeight: 0,
-          overflow: "auto",
-          px: { xs: 1.5, md: 2 },
-          py: 1.5,
+          overflow: "visible",
+          px: { xs: 2, md: 2.5 },
+          py: { xs: 1.75, md: 2 },
         }}
       >
         {isLoading ? (
@@ -129,7 +126,6 @@ export default function DataTableBase<T>({
           </Box>
         ) : (
           <Table
-            stickyHeader
             sx={{
               borderCollapse: "separate",
               borderSpacing: "0 10px",
@@ -186,7 +182,7 @@ export default function DataTableBase<T>({
           sx={{
             borderTop: `1px solid ${theme.palette.divider}`,
             ".MuiTablePagination-toolbar": {
-              px: { xs: 1.5, md: 2 },
+              px: { xs: 2, md: 2.5 },
             },
           }}
         />

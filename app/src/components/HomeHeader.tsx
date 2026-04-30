@@ -36,21 +36,31 @@ export default function HomeHeader() {
       <Box
         component="header"
         sx={{
-          display: "flex",
+          display: "grid",
+          gridTemplateColumns: "44px 1fr 44px",
           alignItems: "center",
-          justifyContent: "space-between",
           py: 1.5,
           px: 2,
-          bgcolor: "background.default",
+          backgroundColor:
+            theme.palette.mode === "light"
+              ? "rgba(241, 245, 249, 0.92)"
+              : "rgba(15, 23, 42, 0.9)",
           borderBottom: `1px solid ${theme.palette.divider}`,
+          backdropFilter: "blur(12px)",
+          boxShadow:
+            theme.palette.mode === "light"
+              ? "0 1px 0 rgba(255,255,255,0.65) inset"
+              : "0 1px 0 rgba(255,255,255,0.03) inset",
         }}
       >
+        <Box sx={{ width: 44, height: 44 }} />
         <Typography
           sx={{
             color: "text.primary",
-            fontWeight: 600,
-            fontSize: "1rem",
-            letterSpacing: "0.01em",
+            fontWeight: 700,
+            fontSize: "1.02rem",
+            letterSpacing: "0.02em",
+            textAlign: "center",
           }}
         >
           Expense Tracker
@@ -58,6 +68,7 @@ export default function HomeHeader() {
         <IconButton
           onClick={() => setOpen(true)}
           sx={{
+            justifySelf: "end",
             color: "text.secondary",
             borderRadius: "10px",
             border: `1px solid ${c.filterBorder}`,

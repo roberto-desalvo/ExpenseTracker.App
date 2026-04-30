@@ -50,8 +50,8 @@ public class TransactionController : ApiControllerBase
     public Task<IActionResult> Delete(int id)
         => ExecuteAsync(() => _service.DeleteTransaction(id));
 
-        [HttpPost("series")]
+    [HttpPost("series")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TimeSeriesListDto))]
     public Task<IActionResult> GetTimeSeries([FromBody] TimeSeriesRequestDto request)
-        => ExecuteAsync(() => _service.GetTimeSeries(request));
+    => ExecuteAsync(() => _service.GetTimeSeries(request));
 }

@@ -17,4 +17,5 @@ public interface ITransactionService : IService
     Task<Result> DeleteTransaction(int id);
     Task<Result> DeleteAllTransactions();
     Task<Result<TimeSeriesListDto>> GetTimeSeries(TimeSeriesRequestDto request);
+    Task<Result<TimeSeriesListDto>> GetStock(TimeSeriesRequestDto request);
 }

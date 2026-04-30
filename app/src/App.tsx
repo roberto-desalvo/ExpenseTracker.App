@@ -13,10 +13,10 @@ function App() {
         sx={{
           display: "flex",
           flexDirection: "column",
-          height: "100vh",
+          minHeight: "100vh",
           width: "100%",
           bgcolor: "background.default",
-          overflow: "hidden",
+          overflowX: "hidden",
         }}
       >
         <HomeHeader />
