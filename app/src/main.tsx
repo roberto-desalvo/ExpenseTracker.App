@@ -14,25 +14,32 @@ import { CategoriesProvider } from "./stores/CategoryContext.tsx";
 import { AppThemeProvider } from "./stores/ThemeContext.tsx";
 import { ApiErrorProvider } from "./stores/ApiErrorContext.tsx";
 import { SuccessMessageProvider } from "./stores/SuccessMessageContext.tsx";
+import { MsalProvider } from "@azure/msal-react";
+import { msalInstance } from "./auth/msalInstance.ts";
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <AppThemeProvider>
-      <ApiErrorProvider>
-        <SuccessMessageProvider>
-          <AccountsProvider>
-            <TransactionsProvider>
-              <CategoriesProvider>
-                <TableContextProvider>
-                  <TransactionModalProvider>
-                    <App />
-                  </TransactionModalProvider>
-                </TableContextProvider>
-              </CategoriesProvider>
-            </TransactionsProvider>
-          </AccountsProvider>
-        </SuccessMessageProvider>
-      </ApiErrorProvider>
-    </AppThemeProvider>
-  </StrictMode>
-);
+// Inizializza MSAL prima del render per gestire il redirect
+msalInstance.initialize().then(() => {
+  createRoot(document.getElementById("root")!).render(
+    <StrictMode>
+      <MsalProvider instance={msalInstance}>
+        <AppThemeProvider>
+          <ApiErrorProvider>
+            <SuccessMessageProvider>
+              <AccountsProvider>
+                <TransactionsProvider>
+                  <CategoriesProvider>
+                    <TableContextProvider>
+                      <TransactionModalProvider>
+                        <App />
+                      </TransactionModalProvider>
+                    </TableContextProvider>
+                  </CategoriesProvider>
+                </TransactionsProvider>
+              </AccountsProvider>
+            </SuccessMessageProvider>
+          </ApiErrorProvider>
+        </AppThemeProvider>
+      </MsalProvider>
+    </StrictMode>
+  );
+});

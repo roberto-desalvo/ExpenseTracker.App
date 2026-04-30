@@ -7,6 +7,8 @@ using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Infrastructure;
 using Microsoft.Extensions.Options;
 using RDS.ExpenseTracker.Application;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Identity.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -50,12 +52,9 @@ builder.Services.AddApplicationServices();
 builder.Services.AddScoped<IExpenseExcelFileOptions>(sp =>
     sp.GetRequiredService<IOptions<ExpenseExcelFileOptions>>().Value);
 
-// if (!builder.Environment.IsDevelopment())
-// {
-//     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-//     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection(builder.Configuration.GetSectionName<AzureAdOptions>()));
-//     builder.Services.AddAuthorization();
-// }
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
+builder.Services.AddAuthorization();
 
 builder.Services.AddControllers();
 builder.Host.UseSerilog();
@@ -65,16 +64,13 @@ var app = builder.Build();
 app.UseHttpsRedirection();
 
 
-// TODO - Add authentication and authorization
 if (app.Environment.IsDevelopment())
 {
     app.UseCors(debugCorsPolicy);
 }
-// else
-// {
-//     app.UseAuthentication();
-//     app.UseAuthorization();
-// }
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
@@ -84,8 +80,8 @@ app.UseMiddleware<RequestLoggingMiddleware>();
 app.MapOpenApi();
 app.MapScalarApiReference();
 
-app.MapControllers();
-    // .RequireAuthorization();
+app.MapControllers()
+    .RequireAuthorization();
 
 app.Run();
 

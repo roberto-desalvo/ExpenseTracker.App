@@ -12,6 +12,8 @@ import {
   Typography,
 } from "@mui/material";
 import { Menu as MenuIcon } from "@mui/icons-material";
+import LogoutIcon from "@mui/icons-material/Logout";
+import { useIsAuthenticated, useMsal } from "@azure/msal-react";
 
 const navItems = [
   { label: "Home", path: "/" },
@@ -26,10 +28,19 @@ export default function HomeHeader() {
   const location = useLocation();
   const theme = useTheme();
   const c = theme.palette.custom;
+  const { instance, accounts } = useMsal();
+  const isAuthenticated = useIsAuthenticated();
+
+  const userName = accounts[0]?.name ?? accounts[0]?.username ?? "";
 
   const handleNavigate = (path: string) => {
     navigate(path);
     setOpen(false);
+  };
+
+  const handleLogout = () => {
+    setOpen(false);
+    instance.logoutRedirect();
   };
 
   return (
@@ -113,26 +124,60 @@ export default function HomeHeader() {
             }}
           />
           <Divider sx={{ borderColor: c.drawerBorder, mb: 1 }} />
-          {navItems.map((item) => (
-            <ListItemButton
-              key={item.path}
-              selected={location.pathname === item.path}
-              onClick={() => handleNavigate(item.path)}
-              sx={{
-                mx: 1,
-                borderRadius: "8px",
-                color: theme.palette.text.secondary,
-                "&.Mui-selected": {
-                  backgroundColor: c.accentHover,
-                  color: c.accentColor,
-                  "& .MuiListItemText-primary": { fontWeight: 600 },
-                },
-                "&:hover": { backgroundColor: c.rowHover },
-              }}
-            >
-              <ListItemText primary={item.label} />
-            </ListItemButton>
-          ))}
+          {isAuthenticated &&
+            navItems.map((item) => (
+              <ListItemButton
+                key={item.path}
+                selected={location.pathname === item.path}
+                onClick={() => handleNavigate(item.path)}
+                sx={{
+                  mx: 1,
+                  borderRadius: "8px",
+                  color: theme.palette.text.secondary,
+                  "&.Mui-selected": {
+                    backgroundColor: c.accentHover,
+                    color: c.accentColor,
+                    "& .MuiListItemText-primary": { fontWeight: 600 },
+                  },
+                  "&:hover": { backgroundColor: c.rowHover },
+                }}
+              >
+                <ListItemText primary={item.label} />
+              </ListItemButton>
+            ))}
+          {isAuthenticated && (
+            <>
+              <Divider sx={{ borderColor: c.drawerBorder, mt: 1 }} />
+              {userName && (
+                <Typography
+                  sx={{
+                    px: 3,
+                    pt: 1.5,
+                    pb: 0.5,
+                    fontSize: "0.78rem",
+                    color: "text.disabled",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {userName}
+                </Typography>
+              )}
+              <ListItemButton
+                onClick={handleLogout}
+                sx={{
+                  mx: 1,
+                  borderRadius: "8px",
+                  color: theme.palette.error.main,
+                  "&:hover": { backgroundColor: c.rowHover },
+                }}
+              >
+                <LogoutIcon fontSize="small" sx={{ mr: 1.5 }} />
+                <ListItemText primary="Esci" />
+              </ListItemButton>
+            </>
+          )}
         </List>
       </Drawer>
     </>

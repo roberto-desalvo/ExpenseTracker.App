@@ -1,3 +1,6 @@
+import { msalInstance } from "../auth/msalInstance";
+import { apiTokenRequest } from "../config/authConfig";
+
 export const API_ERROR_EVENT = "expense-tracker:api-error";
 
 type ApiErrorEventDetail = {
@@ -19,6 +22,35 @@ const emitApiError = (message: string) => {
       detail: { message },
     })
   );
+};
+
+/**
+ * Tenta di acquisire silenziosamente un access token per le API.
+ * Se non ci sono account loggati restituisce null.
+ */
+const getAccessToken = async (): Promise<string | null> => {
+  const account = msalInstance.getActiveAccount() ?? msalInstance.getAllAccounts()[0];
+  if (!account) return null;
+  try {
+    const result = await msalInstance.acquireTokenSilent(apiTokenRequest(account));
+    return result.accessToken;
+  } catch {
+    // Token silenzioso fallito: forza redirect
+    await msalInstance.acquireTokenRedirect(apiTokenRequest(account));
+    return null;
+  }
+};
+
+const withAuthHeader = async (init: RequestInit): Promise<RequestInit> => {
+  const token = await getAccessToken();
+  if (!token) return init;
+  return {
+    ...init,
+    headers: {
+      ...(init.headers ?? {}),
+      Authorization: `Bearer ${token}`,
+    },
+  };
 };
 
 const tryExtractErrorMessage = async (response: Response): Promise<string | null> => {
@@ -76,7 +108,8 @@ export const apiFetchJson = async <T>(
   fallbackMessage: string
 ): Promise<T> => {
   try {
-    const response = await fetch(url, init);
+    const authInit = await withAuthHeader(init);
+    const response = await fetch(url, authInit);
 
     if (!response.ok) {
       const message = await buildErrorMessage(response, fallbackMessage);
@@ -106,7 +139,8 @@ export const apiFetchVoid = async (
   fallbackMessage: string
 ): Promise<void> => {
   try {
-    const response = await fetch(url, init);
+    const authInit = await withAuthHeader(init);
+    const response = await fetch(url, authInit);
 
     if (!response.ok) {
       const message = await buildErrorMessage(response, fallbackMessage);
