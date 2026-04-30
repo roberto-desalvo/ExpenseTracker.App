@@ -11,13 +11,15 @@ import { AccountsProvider } from "./stores/AccountContext.tsx";
 import { TableContextProvider } from "./stores/TableContext.tsx";
 import { TransactionModalProvider } from "./stores/TransactionModalContext.tsx";
 import { CategoriesProvider } from "./stores/CategoryContext.tsx";
+import { AppThemeProvider } from "./stores/ThemeContext.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <AccountsProvider>
-      <TransactionsProvider>
-        <CategoriesProvider>
-          <TableContextProvider>
+    <AppThemeProvider>
+      <AccountsProvider>
+        <TransactionsProvider>
+          <CategoriesProvider>
+            <TableContextProvider>
             <TransactionModalProvider>
               <App />
             </TransactionModalProvider>
@@ -25,5 +27,6 @@ createRoot(document.getElementById("root")!).render(
         </CategoriesProvider>
       </TransactionsProvider>
     </AccountsProvider>
+    </AppThemeProvider>
   </StrictMode>
 );

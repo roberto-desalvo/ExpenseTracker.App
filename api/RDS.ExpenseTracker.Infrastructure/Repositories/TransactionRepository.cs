@@ -1,7 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RDS.ExpenseTracker.Api.Dtos;
 using RDS.ExpenseTracker.Domain.Entities;
-using RDS.ExpenseTracker.Domain.Enums;
 using RDS.ExpenseTracker.Domain.Repositories;
 
 namespace RDS.ExpenseTracker.Infrastructure.Repositories;
@@ -88,8 +87,6 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             query = query.Where(t => request.IdAccounts.Contains(t.AccountId));
         if (request.IdCategories is { Length: > 0 })
             query = query.Where(t => t.CategoryId.HasValue && request.IdCategories.Contains(t.CategoryId.Value));
-        if (!request.IncludeMoneyTransfers)
-            query = query.Where(t => t.CategoryId != (int)CategoryEnum.MoneyTransfers);
 
         var totalCount = await query.CountAsync();
 
@@ -100,6 +97,38 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .ToListAsync();
 
         return (items, totalCount);
+    }
+
+    public async Task<IEnumerable<(DateTime StartDate, DateTime EndDate)>> GetAvailableMonthRanges()
+    {
+        var dateBounds = await Context.Transactions
+            .Where(transaction => transaction.Date.HasValue)
+            .Select(transaction => transaction.Date!.Value)
+            .GroupBy(_ => 1)
+            .Select(group => new
+            {
+                MinDate = group.Min(),
+                MaxDate = group.Max()
+            })
+            .FirstOrDefaultAsync();
+
+        if (dateBounds is null)
+        {
+            return [];
+        }
+
+        var oldestMonth = new DateTime(dateBounds.MinDate.Year, dateBounds.MinDate.Month, 1);
+        var newestMonth = new DateTime(dateBounds.MaxDate.Year, dateBounds.MaxDate.Month, 1);
+        var monthRanges = new List<(DateTime StartDate, DateTime EndDate)>();
+
+        for (var currentMonth = newestMonth; currentMonth >= oldestMonth; currentMonth = currentMonth.AddMonths(-1))
+        {
+            monthRanges.Add((
+                currentMonth,
+                currentMonth.AddMonths(1).AddTicks(-1)));
+        }
+
+        return monthRanges;
     }
 
     public async Task<IEnumerable<Transaction>> GetTransactionsByTransferId(int transferId)

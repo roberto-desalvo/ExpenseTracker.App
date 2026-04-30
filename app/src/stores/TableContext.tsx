@@ -9,6 +9,7 @@ import { useAccounts } from "./AccountContext";
 import { useCategories } from "./CategoryContext";
 import { useTransactions } from "./TransactionContext";
 import Transaction from "../models/Transaction";
+import { TransactionMonthOption } from "../models/TransactionMonthOption";
 
 export default interface TableColumn {
   id: "date" | "description" | "amount" | "category" | "account" | "actions";
@@ -22,12 +23,12 @@ interface TableContextType {
   columns: TableColumn[];
   selectedAccountIds: number[];
   selectedCategoryIds: number[];
-  filterDate: Date;
+  availableMonths: TransactionMonthOption[];
+  selectedMonth: TransactionMonthOption | null;
+  availableMonthsLoading: boolean;
   page: number;
   pageSize: number;
-  includeMoneyTransfers: boolean;
-  toggleIncludeMoneyTransfers: () => void;
-  modifyFilterDate: (date: Date) => void;
+  modifySelectedMonth: (month: TransactionMonthOption) => void;
   modifyPage: (page: number) => void;
   modifyPageSize: (pageSize: number) => void;
   modifySelectedAccountIds: (accountIds: number[]) => void;
@@ -76,23 +77,18 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
   const { categories } = useCategories();
   const [selectedAccountIds, setSelectedAccountIds] = useState<number[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
-  const [filterDate, setFilterDate] = useState<Date>(new Date());
+  const [selectedMonth, setSelectedMonth] = useState<TransactionMonthOption | null>(null);
   const [page, setPage] = useState<number>(0);
   const [pageSize, setPageSize] = useState<number>(25);
-  const [includeMoneyTransfers, setIncludeMoneyTransfers] =
-    useState<boolean>(true);
   const transactionContext = useTransactions();
 
   const buildRequest = (
-    date: Date,
+    month: TransactionMonthOption,
     p: number,
     ps: number,
     accountIds: number[],
     categoryIds: number[],
-    includeTransfers: boolean,
   ) => {
-    const from = new Date(date.getFullYear(), date.getMonth(), 1);
-    const to = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59);
     const normalizedAccountIds =
       accountIds.length === 0 || accountIds.length === accounts.length
         ? null
@@ -103,11 +99,10 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
         : categoryIds;
 
     return {
-      fromDate: from.toISOString(),
-      toDate: to.toISOString(),
+      fromDate: month.startDate,
+      toDate: month.endDate,
       idAccounts: normalizedAccountIds,
       idCategories: normalizedCategoryIds,
-      includeMoneyTransfers: includeTransfers,
       page: p + 1,
       pageSize: ps,
     };
@@ -130,35 +125,51 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
   }, [categories]);
 
   useEffect(() => {
+    if (transactionContext.availableMonths.length === 0) {
+      setSelectedMonth(null);
+      return;
+    }
+
+    setSelectedMonth((currentSelectedMonth) => {
+      if (
+        currentSelectedMonth &&
+        transactionContext.availableMonths.some(
+          (month) => month.startDate === currentSelectedMonth.startDate,
+        )
+      ) {
+        return currentSelectedMonth;
+      }
+
+      return transactionContext.availableMonths[0];
+    });
+  }, [transactionContext.availableMonths]);
+
+  useEffect(() => {
+    if (!selectedMonth) {
+      return;
+    }
+
     transactionContext.refreshTransactions(
       buildRequest(
-        filterDate,
+        selectedMonth,
         page,
         pageSize,
         selectedAccountIds,
         selectedCategoryIds,
-        includeMoneyTransfers,
       ),
     );
   }, [
-    filterDate,
+    selectedMonth,
     page,
     pageSize,
     selectedAccountIds,
     selectedCategoryIds,
-    includeMoneyTransfers,
     accounts,
     categories,
   ]);
 
-  const toggleIncludeMoneyTransfers = () => {
-    const newValue = !includeMoneyTransfers;
-    setIncludeMoneyTransfers(newValue);
-    setPage(0);
-  };
-
-  const modifySelectedMonthAndYear = (date: Date) => {
-    setFilterDate(date);
+  const modifySelectedMonth = (month: TransactionMonthOption) => {
+    setSelectedMonth(month);
     setPage(0);
   };
 
@@ -194,12 +205,12 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
         columns,
         selectedAccountIds,
         selectedCategoryIds,
-        filterDate,
+        availableMonths: transactionContext.availableMonths,
+        selectedMonth,
+        availableMonthsLoading: transactionContext.availableMonthsLoading,
         page,
         pageSize,
-        includeMoneyTransfers,
-        toggleIncludeMoneyTransfers,
-        modifyFilterDate: modifySelectedMonthAndYear,
+        modifySelectedMonth,
         modifyPage,
         modifyPageSize,
         modifySelectedAccountIds,

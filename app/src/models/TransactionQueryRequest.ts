@@ -3,7 +3,6 @@ export interface TransactionQueryRequest {
   toDate?: string;
   idAccounts?: number[] | null;
   idCategories?: number[] | null;
-  includeMoneyTransfers?: boolean;
   page: number;
   pageSize: number;
 }

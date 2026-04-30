@@ -1,6 +1,7 @@
 import config from "../config/development";
 import { PagedResult } from "../models/PagedResult";
 import Transaction from "../models/Transaction";
+import { TransactionMonthOption } from "../models/TransactionMonthOption";
 import { TransactionQueryRequest } from "../models/TransactionQueryRequest";
 
 const TransactionService = {
@@ -10,7 +11,6 @@ const TransactionService = {
       ...request,
       idAccounts: request.idAccounts ?? null,
       idCategories: request.idCategories ?? null,
-      includeMoneyTransfers: request.includeMoneyTransfers ?? true,
     };
     const response = await fetch(url, {
       method: 'POST',
@@ -19,6 +19,18 @@ const TransactionService = {
     });
     if (!response.ok) {
       throw new Error('Errore while loading transactions');
+    }
+    return response.json();
+  },
+
+  getMonthOptions: async (): Promise<TransactionMonthOption[]> => {
+    const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerTransactionUrl}/month-options`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error("Errore while loading transaction month options");
     }
     return response.json();
   },

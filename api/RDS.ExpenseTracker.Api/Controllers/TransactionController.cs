@@ -19,6 +19,11 @@ public class TransactionController : ApiControllerBase
     public Task<IActionResult> Query([FromBody] TransactionQueryRequest request)
         => ExecuteAsync(() => _service.GetPagedTransactions(request));
 
+    [HttpGet("month-options")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<TransactionMonthOptionDto>))]
+    public Task<IActionResult> GetMonthOptions()
+        => ExecuteAsync(() => _service.GetAvailableMonthOptions());
+
     [HttpGet("{id}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TransactionDto))]
     public Task<IActionResult> Get(int id)

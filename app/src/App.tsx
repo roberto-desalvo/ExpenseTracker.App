@@ -1,19 +1,32 @@
 import "./App.css";
-import ExpenseTable from "./components/ExpenseTable";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { Box } from "@mui/material";
 import HomeHeader from "./components/HomeHeader";
-import TransactionModal from "./components/TransactionModal";
-import AccountsBar from "./components/AccountsBar";
+import TransactionsPage from "./pages/TransactionsPage";
+import CategoriesPage from "./pages/CategoriesPage";
+import AccountsPage from "./pages/AccountsPage";
 
 function App() {
   return (
-    <div className="flex flex-col h-screen w-full bg-gray-800 overflow-hidden">
-      <HomeHeader/>
-      <AccountsBar/>
-      <main className="flex-1 min-h-0 px-2 pb-2">
-        <ExpenseTable/>
-        <TransactionModal/>
-      </main>
-    </div>
+    <BrowserRouter>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          height: "100vh",
+          width: "100%",
+          bgcolor: "background.default",
+          overflow: "hidden",
+        }}
+      >
+        <HomeHeader />
+        <Routes>
+          <Route path="/" element={<TransactionsPage />} />
+          <Route path="/categorie" element={<CategoriesPage />} />
+          <Route path="/account" element={<AccountsPage />} />
+        </Routes>
+      </Box>
+    </BrowserRouter>
   );
 }
 

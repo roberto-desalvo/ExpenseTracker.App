@@ -5,6 +5,7 @@ using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Repositories;
 using RDS.ExpenseTracker.Domain.Services;
+using System.Globalization;
 
 namespace RDS.ExpenseTracker.Application.Services;
 
@@ -34,6 +35,21 @@ public class TransactionService : ITransactionService
             Page = request.Page,
             PageSize = request.PageSize
         });
+    }
+
+    public async Task<Result<IEnumerable<TransactionMonthOptionDto>>> GetAvailableMonthOptions()
+    {
+        var cultureInfo = new CultureInfo("it-IT");
+        var monthOptions = (await _repository.GetAvailableMonthRanges())
+            .Select(range => new TransactionMonthOptionDto
+            {
+                StartDate = range.StartDate,
+                EndDate = range.EndDate,
+                Description = cultureInfo.TextInfo.ToTitleCase(
+                    range.StartDate.ToString("MMMM yyyy", cultureInfo))
+            });
+
+        return Result.Ok(monthOptions);
     }
 
     public async Task<Result<IEnumerable<TransactionDto>>> GetTransactions(TransactionQueryRequest? filter = null)

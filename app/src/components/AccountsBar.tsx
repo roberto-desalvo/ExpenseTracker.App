@@ -1,6 +1,5 @@
 import {
   Box,
-  Button,
   Checkbox,
   FormControl,
   IconButton,
@@ -9,12 +8,11 @@ import {
   Select,
   SelectChangeEvent,
   Stack,
-  Typography,
+  Tooltip,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import {
   Add,
-  KeyboardArrowLeft,
-  KeyboardArrowRight,
   Refresh,
 } from "@mui/icons-material";
 import { useAccounts } from "../stores/AccountContext";
@@ -24,6 +22,8 @@ import { useTransactions } from "../stores/TransactionContext";
 import { useTransactionModal } from "../stores/TransactionModalContext";
 
 export default function AccountsBar() {
+  const theme = useTheme();
+  const c = theme.palette.custom;
   const accountsContext = useAccounts();
   const categoriesContext = useCategories();
   const tableContext = useTableContext();
@@ -35,24 +35,52 @@ export default function AccountsBar() {
   const controlBoxSx = {
     height: 44,
     borderRadius: "10px",
-    border: "1px solid rgba(255, 255, 255, 0.12)",
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    border: `1px solid ${c.filterBorder}`,
+    backgroundColor: c.filterBackground,
     display: "flex",
     alignItems: "center",
     px: 1.5,
   };
 
-  const controlLabelColor = "#e5e7eb";
-  const actionButtonSx = {
-    borderRadius: "10px",
-    border: "1px solid rgba(205, 220, 57, 0.6)",
-    color: "#cddc39",
-    textTransform: "none",
-    fontWeight: 600,
-    minHeight: 44,
-    "&:hover": {
-      borderColor: "#cddc39",
-      backgroundColor: "rgba(205, 220, 57, 0.08)",
+  const controlLabelColor = c.filterText;
+
+  const menuProps = {
+    anchorOrigin: { vertical: "bottom" as const, horizontal: "left" as const },
+    transformOrigin: { vertical: "top" as const, horizontal: "left" as const },
+    disableScrollLock: true,
+    PaperProps: {
+      sx: {
+        mt: 0.5,
+        maxHeight: 300,
+        overflowY: "auto",
+        backgroundColor: c.drawerBackground,
+        border: `1px solid ${c.drawerBorder}`,
+        borderRadius: "10px",
+        boxShadow: theme.palette.mode === "dark" ? "0 8px 32px rgba(0,0,0,0.4)" : "0 8px 24px rgba(0,0,0,0.1)",
+        color: c.filterText,
+        "& .MuiMenuItem-root": {
+          fontSize: "0.88rem",
+          "&:hover": {
+            backgroundColor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(30,41,59,0.05)",
+          },
+          "&.Mui-selected": {
+            backgroundColor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(30,41,59,0.08)",
+            "&:hover": {
+              backgroundColor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.10)" : "rgba(30,41,59,0.10)",
+            },
+          },
+        },
+        "& .MuiCheckbox-root": {
+          color: theme.palette.text.secondary,
+          "&.Mui-checked, &.MuiCheckbox-indeterminate": {
+            color: c.accentColor,
+          },
+        },
+        "& .MuiListItemText-primary": {
+          color: theme.palette.text.primary,
+          fontSize: "0.88rem",
+        },
+      },
     },
   };
 
@@ -110,33 +138,21 @@ export default function AccountsBar() {
     tableContext.modifySelectedCategoryIds(selectedIds);
   };
 
-  const incrementMonth = () => {
-    const newDate = new Date(tableContext.filterDate);
-    newDate.setMonth(newDate.getMonth() + 1);
-    tableContext.modifyFilterDate(newDate);
-  };
+  const handleMonthChange = (event: SelectChangeEvent<string>) => {
+    const selectedMonth = tableContext.availableMonths.find(
+      (month) => month.startDate === event.target.value,
+    );
 
-  const decrementMonth = () => {
-    const newDate = new Date(tableContext.filterDate);
-    newDate.setMonth(newDate.getMonth() - 1);
-    tableContext.modifyFilterDate(newDate);
-  };
+    if (!selectedMonth) {
+      return;
+    }
 
-  const keyboardArrowStyle = {
-    color: controlLabelColor,
-    transition: "all 0.3s ease",
-    "&:hover": {
-      cursor: "pointer",
-      color: "#111827",
-      backgroundColor: "rgba(255, 255, 255, 0.8)",
-      borderRadius: "50%",
-      boxShadow: "0 6px 16px rgba(0, 0, 0, 0.25)",
-    },
+    tableContext.modifySelectedMonth(selectedMonth);
   };
 
   return (
     <>
-      <div className="h-1/8 text-white flex flex-wrap items-center justify-start gap-3 px-2 py-3">
+      <div className="text-white flex flex-wrap items-center justify-start gap-3 px-3 py-3">
         <Box sx={{ ...controlBoxSx, minWidth: 300 }}>
           <FormControl size="small" sx={{ minWidth: 260, width: "100%" }}>
             <Select
@@ -144,6 +160,7 @@ export default function AccountsBar() {
               value={tableContext.selectedAccountIds.map(String)}
               displayEmpty
               onChange={handleAccountChange}
+              MenuProps={menuProps}
               sx={{
                 color: controlLabelColor,
                 ".MuiOutlinedInput-notchedOutline": {
@@ -199,6 +216,7 @@ export default function AccountsBar() {
               value={tableContext.selectedCategoryIds.map(String)}
               displayEmpty
               onChange={handleCategoryChange}
+              MenuProps={menuProps}
               sx={{
                 color: controlLabelColor,
                 ".MuiOutlinedInput-notchedOutline": {
@@ -248,63 +266,67 @@ export default function AccountsBar() {
           </FormControl>
         </Box>
 
-        <Stack
-          direction="row"
-          spacing={1}
-          sx={{ ...controlBoxSx, justifyContent: "center" }}
-        >
-          <KeyboardArrowLeft sx={keyboardArrowStyle} onClick={decrementMonth} />
-          <Typography
-            sx={{ color: controlLabelColor, fontWeight: 600, textTransform: "uppercase" }}
-          >
-            {tableContext.filterDate.toLocaleDateString("en-EN", {
-              year: "numeric",
-              month: "short",
-            })}
-          </Typography>
-          <KeyboardArrowRight sx={keyboardArrowStyle} onClick={incrementMonth} />
-        </Stack>
-
-        <Stack
-          direction="row"
-          spacing={0.5}
-          sx={{ ...controlBoxSx, justifyContent: "center" }}
-        >
-          <Checkbox
-            onChange={() => tableContext.toggleIncludeMoneyTransfers()}
-            checked={tableContext.includeMoneyTransfers}
-            sx={{
-              color: controlLabelColor,
-              "&.Mui-checked": {
+        <Box sx={{ ...controlBoxSx, minWidth: 240 }}>
+          <FormControl size="small" sx={{ minWidth: 200, width: "100%" }}>
+            <Select
+              displayEmpty
+              value={tableContext.selectedMonth?.startDate ?? ""}
+              onChange={handleMonthChange}
+              MenuProps={menuProps}
+              disabled={
+                tableContext.availableMonthsLoading ||
+                tableContext.availableMonths.length === 0
+              }
+              sx={{
                 color: controlLabelColor,
-              },
-            }}
-          />
-          <Typography sx={{ color: controlLabelColor, fontWeight: 500 }}>
-            Include transfers
-          </Typography>
-        </Stack>
+                ".MuiOutlinedInput-notchedOutline": {
+                  border: "none",
+                },
+                ".MuiSelect-select": {
+                  display: "flex",
+                  alignItems: "center",
+                  py: 1,
+                },
+                ".MuiSelect-icon": { color: controlLabelColor },
+              }}
+              renderValue={(selected) => {
+                const selectedMonth = tableContext.availableMonths.find(
+                  (month) => month.startDate === selected,
+                );
+
+                return selectedMonth?.description ?? "Seleziona mese";
+              }}
+            >
+              {tableContext.availableMonths.map((month) => (
+                <MenuItem key={month.startDate} value={month.startDate}>
+                  {month.description}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
 
         <Stack
           direction="row"
           spacing={1}
           sx={{ ml: { xs: 0, md: "auto" }, width: { xs: "100%", md: "auto" } }}
         >
-          <Button
-            variant="outlined"
-            startIcon={<Add />}
-            sx={{ ...actionButtonSx, px: 2 }}
-            onClick={() => transactionModalContext.openTransactionModal()}
-          >
-            Aggiungi
-          </Button>
-          <IconButton
-            aria-label="Aggiorna tabella"
-            sx={actionButtonSx}
-            onClick={() => transactionsContext.refreshTransactions()}
-          >
-            <Refresh />
-          </IconButton>
+          <Tooltip title="Aggiungi transazione">
+            <IconButton
+              sx={{ ...controlBoxSx, color: controlLabelColor, px: 1.5 }}
+              onClick={() => transactionModalContext.openTransactionModal()}
+            >
+              <Add />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Aggiorna">
+            <IconButton
+              sx={{ ...controlBoxSx, color: controlLabelColor, px: 1.5 }}
+              onClick={() => transactionsContext.refreshTransactions()}
+            >
+              <Refresh />
+            </IconButton>
+          </Tooltip>
         </Stack>
       </div>
     </>

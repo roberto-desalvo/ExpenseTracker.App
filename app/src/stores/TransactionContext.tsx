@@ -6,12 +6,15 @@ import React, {
   ReactNode,
 } from "react";
 import Transaction from "../models/Transaction";
+import { TransactionMonthOption } from "../models/TransactionMonthOption";
 import TransactionService from "../services/TransactionService";
 import { TransactionQueryRequest } from "../models/TransactionQueryRequest";
 
 interface TransactionsContextType {
   transactions: Transaction[];
   totalCount: number;
+  availableMonths: TransactionMonthOption[];
+  availableMonthsLoading: boolean;
   addTransaction: (transaction: Transaction) => void;
   updateTransaction: (
     id: number,
@@ -30,12 +33,40 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
+  const [availableMonths, setAvailableMonths] = useState<TransactionMonthOption[]>([]);
+  const [availableMonthsLoading, setAvailableMonthsLoading] = useState<boolean>(true);
+  const [lastRequest, setLastRequest] = useState<TransactionQueryRequest | null>(null);
+
+  const loadAvailableMonths = async () => {
+    setAvailableMonthsLoading(true);
+
+    try {
+      const result = await TransactionService.getMonthOptions();
+      setAvailableMonths(result);
+      return result;
+    } catch (error) {
+      console.error("Errore nel caricamento dei mesi disponibili:", error);
+      setAvailableMonths([]);
+      return [];
+    } finally {
+      setAvailableMonthsLoading(false);
+    }
+  };
 
   const refreshTransactions = (request?: TransactionQueryRequest) => {
+    const effectiveRequest = request ?? lastRequest;
+
+    if (!effectiveRequest) {
+      return;
+    }
+
+    if (request) {
+      setLastRequest(request);
+    }
+
     const fetchTransactions = async () => {
       try {
-        const req = request ?? { page: 1, pageSize: 25 };
-        const result = await TransactionService.getAll(req);
+        const result = await TransactionService.getAll(effectiveRequest);
         setTransactions(result.items);
         setTotalCount(result.totalCount);
       } catch (error) {
@@ -43,16 +74,25 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
       }
     };
 
-    fetchTransactions();
+    void fetchTransactions();
   };
 
   useEffect(() => {
-    refreshTransactions();
+    void loadAvailableMonths();
   }, []);
 
   const addTransaction = (transaction: Transaction) => {
-    TransactionService.add(transaction);
-    refreshTransactions();
+    const createTransaction = async () => {
+      try {
+        await TransactionService.add(transaction);
+        await loadAvailableMonths();
+        refreshTransactions();
+      } catch (error) {
+        console.error("Errore nell'aggiunta della transaction:", error);
+      }
+    };
+
+    void createTransaction();
   };
 
   const updateTransaction = (
@@ -69,8 +109,17 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const deleteTransaction = (transaction: Transaction) => {
-    TransactionService.delete(transaction.id);
-    refreshTransactions();
+    const removeTransaction = async () => {
+      try {
+        await TransactionService.delete(transaction.id);
+        await loadAvailableMonths();
+        refreshTransactions();
+      } catch (error) {
+        console.error("Errore nell'eliminazione della transaction:", error);
+      }
+    };
+
+    void removeTransaction();
   };
 
   return (
@@ -78,6 +127,8 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
       value={{
         transactions,
         totalCount,
+        availableMonths,
+        availableMonthsLoading,
         addTransaction,
         updateTransaction,
         deleteTransaction,

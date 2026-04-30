@@ -11,11 +11,14 @@ import TableHead from "@mui/material/TableHead";
 import TablePagination from "@mui/material/TablePagination";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material/styles";
 import ExpenseTableRow from "./ExpenseTableRow";
 import { useTableContext } from "../stores/TableContext";
 import { useTransactions } from "../stores/TransactionContext";
 
 export default function ExpenseTable() {
+  const theme = useTheme();
+  const c = theme.palette.custom;
   const tableContext = useTableContext();
   const transactionContext = useTransactions();
   const filteredTransactions = tableContext.getFilteredTransactions();
@@ -36,23 +39,19 @@ export default function ExpenseTable() {
         height: "100%",
         width: "100%",
         overflow: "hidden",
-        background:
-          "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.98) 100%)",
+        background: "transparent",
         display: "flex",
         flexDirection: "column",
-        borderRadius: 6,
-        border: "1px solid rgba(148, 163, 184, 0.18)",
-        boxShadow: "0 22px 60px rgba(15, 23, 42, 0.22)",
+        borderRadius: 4,
+        border: `1px solid ${theme.palette.divider}`,
       }}
     >
       <Box
         sx={{
           px: { xs: 2, md: 3 },
-          pt: { xs: 2, md: 2.5 },
+          pt: { xs: 2, md: 2 },
           pb: 1.5,
-          borderBottom: "1px solid rgba(148, 163, 184, 0.14)",
-          background:
-            "linear-gradient(135deg, rgba(241,245,249,0.85) 0%, rgba(255,255,255,0.65) 100%)",
+          borderBottom: `1px solid ${theme.palette.divider}`,
         }}
       >
         <Stack
@@ -64,21 +63,20 @@ export default function ExpenseTable() {
           <Box>
             <Typography
               variant="h6"
-              sx={{ color: "#0f172a", fontWeight: 700, letterSpacing: "-0.02em" }}
+              sx={{ color: "text.primary", fontWeight: 600, letterSpacing: "-0.01em", fontSize: "1rem" }}
             >
               Transazioni
-            </Typography>
-            <Typography variant="body2" sx={{ color: "#64748b" }}>
-              Elenco aggiornato con filtri, paging e azioni rapide.
             </Typography>
           </Box>
           <Chip
             label={`${transactionContext.totalCount} movimenti`}
             sx={{
-              backgroundColor: "rgba(15, 23, 42, 0.06)",
-              color: "#0f172a",
-              fontWeight: 700,
+              backgroundColor: c.badgeBackground,
+              color: c.badgeText,
+              fontWeight: 600,
+              fontSize: "0.78rem",
               borderRadius: "999px",
+              border: `1px solid ${c.badgeBorder}`,
             }}
           />
         </Stack>
@@ -100,12 +98,13 @@ export default function ExpenseTable() {
                   align={column.align}
                   sx={{
                     width: column.minWidth,
-                    background: "transparent",
-                    color: "#64748b",
+                    background: "background.default",
+                    bgcolor: "background.default",
+                    color: c.tableHeaderText,
                     textTransform: "uppercase",
-                    fontSize: "0.72rem",
-                    fontWeight: 800,
-                    letterSpacing: "0.08em",
+                    fontSize: "0.68rem",
+                    fontWeight: 700,
+                    letterSpacing: "0.1em",
                     borderBottom: "none",
                     px: 2,
                     py: 0.5,
@@ -129,18 +128,27 @@ export default function ExpenseTable() {
         count={transactionContext.totalCount}
         rowsPerPage={tableContext.pageSize}
         page={tableContext.page}
+        labelRowsPerPage="Righe per pagina"
         onPageChange={handleChangePage}
         onRowsPerPageChange={handleChangeRowsPerPage}
         sx={{
-          borderTop: "1px solid rgba(148, 163, 184, 0.14)",
+          borderTop: `1px solid ${theme.palette.divider}`,
           px: { xs: 1, md: 2 },
-          backgroundColor: "rgba(248, 250, 252, 0.92)",
+          color: "text.secondary",
           ".MuiTablePagination-toolbar": {
-            minHeight: 64,
-            color: "#475569",
+            minHeight: 52,
+            color: theme.palette.text.secondary,
           },
           ".MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows": {
-            fontWeight: 600,
+            fontWeight: 500,
+            color: theme.palette.text.secondary,
+          },
+          ".MuiTablePagination-select, .MuiTablePagination-selectIcon": {
+            color: theme.palette.text.secondary,
+          },
+          ".MuiIconButton-root": {
+            color: theme.palette.text.secondary,
+            "&:hover": { color: theme.palette.text.primary },
           },
         }}
       />

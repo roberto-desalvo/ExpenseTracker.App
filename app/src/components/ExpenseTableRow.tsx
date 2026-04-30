@@ -9,6 +9,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import Transaction from "../models/Transaction";
 import TableColumn, { useTableContext } from "../stores/TableContext";
 import {
@@ -25,6 +26,8 @@ interface ExpenseTableRowProps {
 }
 
 export default function ExpenseTableRow({ transaction }: ExpenseTableRowProps) {
+  const theme = useTheme();
+  const c = theme.palette.custom;
   const tableContext = useTableContext();
   const transactionModalContext = useTransactionModal();
   const transactionContext = useTransactions();
@@ -42,18 +45,13 @@ export default function ExpenseTableRow({ transaction }: ExpenseTableRowProps) {
       : String(value);
   };
 
-  const getCellStyle = (column: TableColumn, value: unknown) => {
+  const getCellStyle = (column: TableColumn, _value: unknown) => {
     return {
-      color:
-        column.id === "amount" && typeof value === "number"
-          ? value > 0
-            ? "#166534"
-            : "#b91c1c"
-          : "#0f172a",
-      fontWeight: column.id === "amount" ? 700 : 500,
+      color: theme.palette.text.primary,
+      fontWeight: column.id === "amount" ? 700 : 400,
       borderBottom: "none",
-      backgroundColor: "#ffffff",
-      py: 2,
+      backgroundColor: c.rowBackground,
+      py: 1.5,
     };
   };
 
@@ -61,7 +59,7 @@ export default function ExpenseTableRow({ transaction }: ExpenseTableRowProps) {
     if (column.id === "date") {
       return (
         <Box>
-          <Typography sx={{ color: "#0f172a", fontWeight: 700, fontSize: "0.94rem" }}>
+          <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500, fontSize: "0.88rem" }}>
             {getValueAsString(column, value)}
           </Typography>
         </Box>
@@ -75,13 +73,14 @@ export default function ExpenseTableRow({ transaction }: ExpenseTableRowProps) {
           sx={{
             display: "inline-flex",
             alignItems: "center",
-            px: 1.25,
-            py: 0.45,
-            borderRadius: "999px",
-            backgroundColor: "rgba(148, 163, 184, 0.12)",
-            color: "#334155",
-            fontWeight: 700,
-            fontSize: "0.82rem",
+            px: 1.2,
+            py: 0.4,
+            borderRadius: "6px",
+            backgroundColor: c.badgeBackground,
+            border: `1px solid ${c.badgeBorder}`,
+            color: c.badgeText,
+            fontWeight: 500,
+            fontSize: "0.8rem",
           }}
         >
           {getValueAsString(column, value)}
@@ -91,19 +90,18 @@ export default function ExpenseTableRow({ transaction }: ExpenseTableRowProps) {
 
     if (column.id === "amount" && typeof value === "number") {
       return (
-        <Typography sx={{ color: value > 0 ? "#166534" : "#b91c1c", fontWeight: 800 }}>
+        <Typography sx={{ color: value > 0 ? c.amountPositive : c.amountNegative, fontWeight: 600, fontSize: "0.92rem" }}>
           {value.toLocaleString("it-IT", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           })}
-          {" "}
-          EUR
+          {" EUR"}
         </Typography>
       );
     }
 
     return (
-      <Typography sx={{ color: "#0f172a", fontWeight: 500 }}>
+      <Typography sx={{ color: theme.palette.text.secondary, fontWeight: 400, fontSize: "0.9rem" }}>
         {getValueAsString(column, value)}
       </Typography>
     );
@@ -136,17 +134,16 @@ export default function ExpenseTableRow({ transaction }: ExpenseTableRowProps) {
         tabIndex={-1}
         key={transaction.id}
         sx={{
-          fontWeight: 500,
           "& td:first-of-type": {
-            borderTopLeftRadius: 18,
-            borderBottomLeftRadius: 18,
+            borderTopLeftRadius: 8,
+            borderBottomLeftRadius: 8,
           },
           "& td:last-of-type": {
-            borderTopRightRadius: 18,
-            borderBottomRightRadius: 18,
+            borderTopRightRadius: 8,
+            borderBottomRightRadius: 8,
           },
           "&:hover td": {
-            backgroundColor: "#f8fafc",
+            backgroundColor: c.rowHover,
           },
         }}
       >
@@ -165,10 +162,12 @@ export default function ExpenseTableRow({ transaction }: ExpenseTableRowProps) {
                   aria-haspopup="true"
                   onClick={onOpenActions}
                   sx={{
-                    border: "1px solid rgba(148, 163, 184, 0.24)",
-                    backgroundColor: "rgba(248, 250, 252, 0.95)",
+                    color: c.actionButtonColor,
+                    border: `1px solid ${c.actionButtonBorder}`,
+                    backgroundColor: c.actionButtonBackground,
                     "&:hover": {
-                      backgroundColor: "rgba(226, 232, 240, 0.95)",
+                      color: theme.palette.text.secondary,
+                      backgroundColor: c.actionButtonHover,
                     },
                   }}
                 >
