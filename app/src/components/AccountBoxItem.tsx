@@ -1,7 +1,6 @@
 import { Typography } from "@mui/material";
 import Account from "../models/Account.tsx";
 import Stack from "@mui/material/Stack";
-import { useState } from "react";
 import { useTableContext } from "../stores/TableContext.tsx";
 
 interface AccountBoxItemProps {
@@ -10,18 +9,20 @@ interface AccountBoxItemProps {
 
 export default function AccountBoxItem({ account }: AccountBoxItemProps) {
   const tableContext = useTableContext();
-
-  const [isSelected, setIsSelected] = useState(
-    tableContext.selectedAccounts.filter((x) => x.id == account.id).length > 0
-  );
+  const isSelected = tableContext.selectedAccountIds.includes(account.id);
 
   const handleClick = () => {
     if (isSelected) {
-      tableContext.removeFromSelectedAccount(account);
-      setIsSelected(false);
+      tableContext.modifySelectedAccountIds(
+        tableContext.selectedAccountIds.filter(
+          (selectedAccountId) => selectedAccountId !== account.id
+        )
+      );
     } else {
-      tableContext.addToSelectedAccount(account);
-      setIsSelected(true);
+      tableContext.modifySelectedAccountIds([
+        ...tableContext.selectedAccountIds,
+        account.id,
+      ]);
     }
   };
 

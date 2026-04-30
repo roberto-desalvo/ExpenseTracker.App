@@ -14,7 +14,6 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { useAccounts } from "../stores/AccountContext";
 import dayjs, { Dayjs } from "dayjs";
 import { useTransactions } from "../stores/TransactionContext";
-import Transaction from "../models/Transaction";
 
 export default function TransactionModal() {
   const transactionModalContext = useTransactionModal();
@@ -28,10 +27,6 @@ export default function TransactionModal() {
     transactionModalContext.closeTransactionModal();
     transactionContext.refreshTransactions();
   };
-
-  const updateTransaction = (transaction: Transaction) => {
-    transactionModalContext.setTransaction(transaction);
-  }
 
   return (
     <>
@@ -99,7 +94,7 @@ export default function TransactionModal() {
                 getOptionLabel={(category) => category.description || ""}
                 isOptionEqualToValue={(option, value) => option.id === value.id}
                 value={categoryContext.categories.find((c) => c.id == transactionModalContext.currentTransaction?.categoryId)}
-                onChange={(e, category) =>
+                onChange={(_event, category) =>
                   transactionModalContext.modifyCategory(category)
                 }
                 sx={{ width: 300 }}
@@ -113,7 +108,7 @@ export default function TransactionModal() {
                 getOptionLabel={(account) => account.name || ""}
                 isOptionEqualToValue={(option, value) => option.id === value.id}
                 value={accountContext.accounts.find((a) => a.id == transactionModalContext.currentTransaction?.accountId)}
-                onChange={(e, account) =>
+                onChange={(_event, account) =>
                   transactionModalContext.modifyAccount(account)
                 }
                 sx={{ width: 300 }}

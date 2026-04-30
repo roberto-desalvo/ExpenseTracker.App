@@ -11,7 +11,7 @@ import { useTransactions } from "./TransactionContext";
 import Transaction from "../models/Transaction";
 
 export default interface TableColumn {
-  id: "date" | "description" | "amount" | "category" | "account" | "edit" | "delete";
+  id: "date" | "description" | "amount" | "category" | "account" | "actions";
   label: string;
   minWidth?: string;
   align?: "right";
@@ -43,19 +43,19 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
   const [columns] = useState<TableColumn[]>([
     {
       id: "date",
-      label: "Date",
+      label: "Data",
       minWidth: "15%",
     },
-    { id: "description", label: "Description", minWidth: "35%" },
+    { id: "description", label: "Descrizione", minWidth: "35%" },
     {
       id: "amount",
-      label: "Amount",
+      label: "Importo",
       minWidth: "10%",
       format: (value: number) => value.toLocaleString("it-IT"),
     },
     {
       id: "category",
-      label: "Category",
+      label: "Categoria",
       minWidth: "20%",
       format: (value: number) => value.toLocaleString("it-IT"),
     },
@@ -66,15 +66,10 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
       format: (value: number) => value.toFixed(2),
     },
     {
-      id: "edit",
-      label: "",
-      minWidth: "5%"
+      id: "actions",
+      label: "Azioni",
+      minWidth: "10%",
     },
-    {
-      id: "delete",
-      label: "",
-      minWidth: "5%"
-    }
   ]);
 
   const { accounts } = useAccounts();
@@ -94,7 +89,7 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
     ps: number,
     accountIds: number[],
     categoryIds: number[],
-    includeTransfers: boolean
+    includeTransfers: boolean,
   ) => {
     const from = new Date(date.getFullYear(), date.getMonth(), 1);
     const to = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59);
@@ -121,16 +116,16 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
   useEffect(() => {
     setSelectedAccountIds((prev) =>
       prev.filter((selectedId) =>
-        accounts.some((account) => account.id === selectedId)
-      )
+        accounts.some((account) => account.id === selectedId),
+      ),
     );
   }, [accounts]);
 
   useEffect(() => {
     setSelectedCategoryIds((prev) =>
       prev.filter((selectedId) =>
-        categories.some((category) => category.id === selectedId)
-      )
+        categories.some((category) => category.id === selectedId),
+      ),
     );
   }, [categories]);
 
@@ -142,8 +137,8 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
         pageSize,
         selectedAccountIds,
         selectedCategoryIds,
-        includeMoneyTransfers
-      )
+        includeMoneyTransfers,
+      ),
     );
   }, [
     filterDate,
@@ -188,8 +183,9 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
 
   const getFilteredTransactions = () => {
     const transactions = transactionContext.transactions;
-    return transactions
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return transactions.sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    );
   };
 
   return (
@@ -220,7 +216,7 @@ export const useTableContext = (): TableContextType => {
   const context = useContext(TableContext);
   if (!context) {
     throw new Error(
-      "useTableContext deve essere utilizzato all’interno di TableContextProvider"
+      "useTableContext deve essere utilizzato all’interno di TableContextProvider",
     );
   }
   return context;

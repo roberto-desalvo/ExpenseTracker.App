@@ -1,7 +1,9 @@
 import {
   Box,
+  Button,
   Checkbox,
   FormControl,
+  IconButton,
   ListItemText,
   MenuItem,
   Select,
@@ -9,15 +11,24 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { KeyboardArrowLeft, KeyboardArrowRight } from "@mui/icons-material";
+import {
+  Add,
+  KeyboardArrowLeft,
+  KeyboardArrowRight,
+  Refresh,
+} from "@mui/icons-material";
 import { useAccounts } from "../stores/AccountContext";
 import { useCategories } from "../stores/CategoryContext";
 import { useTableContext } from "../stores/TableContext";
+import { useTransactions } from "../stores/TransactionContext";
+import { useTransactionModal } from "../stores/TransactionModalContext";
 
 export default function AccountsBar() {
   const accountsContext = useAccounts();
   const categoriesContext = useCategories();
   const tableContext = useTableContext();
+  const transactionsContext = useTransactions();
+  const transactionModalContext = useTransactionModal();
   const allAccountsOptionValue = "__all_accounts__";
   const allCategoriesOptionValue = "__all_categories__";
 
@@ -32,6 +43,18 @@ export default function AccountsBar() {
   };
 
   const controlLabelColor = "#e5e7eb";
+  const actionButtonSx = {
+    borderRadius: "10px",
+    border: "1px solid rgba(205, 220, 57, 0.6)",
+    color: "#cddc39",
+    textTransform: "none",
+    fontWeight: 600,
+    minHeight: 44,
+    "&:hover": {
+      borderColor: "#cddc39",
+      backgroundColor: "rgba(205, 220, 57, 0.08)",
+    },
+  };
 
   const isAllSelected =
     accountsContext.accounts.length > 0 &&
@@ -260,6 +283,28 @@ export default function AccountsBar() {
           <Typography sx={{ color: controlLabelColor, fontWeight: 500 }}>
             Include transfers
           </Typography>
+        </Stack>
+
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ ml: { xs: 0, md: "auto" }, width: { xs: "100%", md: "auto" } }}
+        >
+          <Button
+            variant="outlined"
+            startIcon={<Add />}
+            sx={{ ...actionButtonSx, px: 2 }}
+            onClick={() => transactionModalContext.openTransactionModal()}
+          >
+            Aggiungi
+          </Button>
+          <IconButton
+            aria-label="Aggiorna tabella"
+            sx={actionButtonSx}
+            onClick={() => transactionsContext.refreshTransactions()}
+          >
+            <Refresh />
+          </IconButton>
         </Stack>
       </div>
     </>
