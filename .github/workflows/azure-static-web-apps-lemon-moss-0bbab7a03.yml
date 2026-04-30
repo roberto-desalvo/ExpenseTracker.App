@@ -22,6 +22,19 @@ jobs:
         with:
           submodules: true
           lfs: false
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Load Static Web App settings
+        shell: bash
+        run: |
+          echo "VITE_EXPENSE_TRACKER_API_BASE_URL=$(az staticwebapp appsettings list --name \"${{ vars.AZURE_STATIC_WEB_APP_NAME }}\" --resource-group \"${{ vars.AZURE_RESOURCE_GROUP }}\" --query \"properties.VITE_EXPENSE_TRACKER_API_BASE_URL\" -o tsv)" >> "$GITHUB_ENV"
+          echo "VITE_MSAL_CLIENT_ID=$(az staticwebapp appsettings list --name \"${{ vars.AZURE_STATIC_WEB_APP_NAME }}\" --resource-group \"${{ vars.AZURE_RESOURCE_GROUP }}\" --query \"properties.VITE_MSAL_CLIENT_ID\" -o tsv)" >> "$GITHUB_ENV"
+          echo "VITE_MSAL_TENANT_ID=$(az staticwebapp appsettings list --name \"${{ vars.AZURE_STATIC_WEB_APP_NAME }}\" --resource-group \"${{ vars.AZURE_RESOURCE_GROUP }}\" --query \"properties.VITE_MSAL_TENANT_ID\" -o tsv)" >> "$GITHUB_ENV"
+          echo "VITE_MSAL_API_SCOPE=$(az staticwebapp appsettings list --name \"${{ vars.AZURE_STATIC_WEB_APP_NAME }}\" --resource-group \"${{ vars.AZURE_RESOURCE_GROUP }}\" --query \"properties.VITE_MSAL_API_SCOPE\" -o tsv)" >> "$GITHUB_ENV"
       - name: Install OIDC Client from Core Package
         run: npm install @actions/core@1.6.0 @actions/http-client
       - name: Get Id Token
@@ -36,10 +49,10 @@ jobs:
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         env:
-          VITE_EXPENSE_TRACKER_API_BASE_URL: ${{ vars.VITE_EXPENSE_TRACKER_API_BASE_URL }}
-          VITE_MSAL_CLIENT_ID: ${{ vars.VITE_MSAL_CLIENT_ID }}
-          VITE_MSAL_TENANT_ID: ${{ vars.VITE_MSAL_TENANT_ID }}
-          VITE_MSAL_API_SCOPE: ${{ vars.VITE_MSAL_API_SCOPE }}
+          VITE_EXPENSE_TRACKER_API_BASE_URL: ${{ env.VITE_EXPENSE_TRACKER_API_BASE_URL }}
+          VITE_MSAL_CLIENT_ID: ${{ env.VITE_MSAL_CLIENT_ID }}
+          VITE_MSAL_TENANT_ID: ${{ env.VITE_MSAL_TENANT_ID }}
+          VITE_MSAL_API_SCOPE: ${{ env.VITE_MSAL_API_SCOPE }}
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_LEMON_MOSS_0BBAB7A03 }}
           action: "upload"
