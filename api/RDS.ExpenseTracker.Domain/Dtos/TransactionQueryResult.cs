@@ -1,6 +1,4 @@
-using RDS.ExpenseTracker.Domain.Dtos;
-
-namespace RDS.ExpenseTracker.Api.Dtos;
+namespace RDS.ExpenseTracker.Domain.Dtos;
 
 public class TransactionQueryResult : PagedResult<TransactionDto>
 {

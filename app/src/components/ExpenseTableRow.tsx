@@ -6,11 +6,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-  IconButton,
-  ListItemIcon,
-  ListItemText,
-  Menu,
-  MenuItem,
   TableCell,
   TableRow,
   Typography,
@@ -21,11 +16,11 @@ import TableColumn, { useTableContext } from "../stores/TableContext";
 import {
   DeleteOutlineRounded,
   EditRounded,
-  MoreVertRounded,
 } from "@mui/icons-material";
 import { useState } from "react";
 import { useTransactionModal } from "../stores/TransactionModalContext";
 import { useTransactions } from "../stores/TransactionContext";
+import RowActionsMenu from "./RowActionsMenu";
 
 interface ExpenseTableRowProps {
   transaction: Transaction;
@@ -37,10 +32,7 @@ export default function ExpenseTableRow({ transaction }: ExpenseTableRowProps) {
   const tableContext = useTableContext();
   const transactionModalContext = useTransactionModal();
   const transactionContext = useTransactions();
-  const [actionsAnchorEl, setActionsAnchorEl] = useState<null | HTMLElement>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
-
-  const isActionsMenuOpen = Boolean(actionsAnchorEl);
 
   const getValueAsString = (column: TableColumn, value: unknown) => {
     return column.format && typeof value === "number"
@@ -116,12 +108,10 @@ export default function ExpenseTableRow({ transaction }: ExpenseTableRowProps) {
 
   const onEdit = () => {
     transactionModalContext.openTransactionModal(transaction);
-    setActionsAnchorEl(null);
   };
 
   const onDelete = () => {
     setDeleteDialogOpen(true);
-    setActionsAnchorEl(null);
   };
 
   const onConfirmDelete = () => {
@@ -131,15 +121,6 @@ export default function ExpenseTableRow({ transaction }: ExpenseTableRowProps) {
 
   const onCancelDelete = () => {
     setDeleteDialogOpen(false);
-    setActionsAnchorEl(null);
-  };
-
-  const onOpenActions = (event: React.MouseEvent<HTMLElement>) => {
-    setActionsAnchorEl(event.currentTarget);
-  };
-
-  const onCloseActions = () => {
-    setActionsAnchorEl(null);
   };
 
   return (
@@ -171,43 +152,22 @@ export default function ExpenseTableRow({ transaction }: ExpenseTableRowProps) {
                 align={column.align}
                 sx={getCellStyle(column, "")}
               >
-                <IconButton
-                  aria-label="Azioni transazione"
-                  aria-controls={isActionsMenuOpen ? `transaction-actions-${transaction.id}` : undefined}
-                  aria-expanded={isActionsMenuOpen ? "true" : undefined}
-                  aria-haspopup="true"
-                  onClick={onOpenActions}
-                  sx={{
-                    color: c.actionButtonColor,
-                    border: `1px solid ${c.actionButtonBorder}`,
-                    backgroundColor: c.actionButtonBackground,
-                    "&:hover": {
-                      color: theme.palette.text.secondary,
-                      backgroundColor: c.actionButtonHover,
+                <RowActionsMenu
+                  rowId={transaction.id}
+                  ariaLabel="Azioni transazione"
+                  actions={[
+                    {
+                      label: "Modifica",
+                      icon: <EditRounded fontSize="small" />,
+                      onClick: onEdit,
                     },
-                  }}
-                >
-                  <MoreVertRounded />
-                </IconButton>
-                <Menu
-                  id={`transaction-actions-${transaction.id}`}
-                  anchorEl={actionsAnchorEl}
-                  open={isActionsMenuOpen}
-                  onClose={onCloseActions}
-                >
-                  <MenuItem onClick={onEdit}>
-                    <ListItemIcon>
-                      <EditRounded fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Modifica</ListItemText>
-                  </MenuItem>
-                  <MenuItem onClick={onDelete}>
-                    <ListItemIcon>
-                      <DeleteOutlineRounded fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Elimina</ListItemText>
-                  </MenuItem>
-                </Menu>
+                    {
+                      label: "Elimina",
+                      icon: <DeleteOutlineRounded fontSize="small" />,
+                      onClick: onDelete,
+                    },
+                  ]}
+                />
               </TableCell>
             );
           }

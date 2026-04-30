@@ -1,7 +1,7 @@
 ﻿using AutoMapper;
 using FluentResults;
-using RDS.ExpenseTracker.Api.Dtos;
 using RDS.ExpenseTracker.Domain.Common;
+using RDS.ExpenseTracker.Domain.Dtos;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Repositories;
 using RDS.ExpenseTracker.Domain.Services;
@@ -19,10 +19,16 @@ public class CategoryService : ICategoryService
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
     }
 
-    public async Task<Result<IEnumerable<CategoryDto>>> GetCategories(string? name = null)
+    public async Task<Result<PagedResult<CategoryDto>>> GetCategories(CategoryQueryRequest request)
     {
-        var categories = await _repository.GetCategories(name);
-        return Result.Ok(_mapper.Map<IEnumerable<CategoryDto>>(categories));
+        var (items, totalCount) = await _repository.GetPagedCategories(request);
+        return Result.Ok(new PagedResult<CategoryDto>
+        {
+            Items = _mapper.Map<IEnumerable<CategoryDto>>(items),
+            TotalCount = totalCount,
+            Page = request.Page,
+            PageSize = request.PageSize,
+        });
     }
 
     public async Task<Result<CategoryDto?>> GetCategory(int id)

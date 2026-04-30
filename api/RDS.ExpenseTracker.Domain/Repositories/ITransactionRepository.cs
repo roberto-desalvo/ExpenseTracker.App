@@ -1,4 +1,4 @@
-﻿using RDS.ExpenseTracker.Api.Dtos;
+﻿using RDS.ExpenseTracker.Domain.Dtos;
 using RDS.ExpenseTracker.Domain.Entities;
 
 namespace RDS.ExpenseTracker.Domain.Repositories;

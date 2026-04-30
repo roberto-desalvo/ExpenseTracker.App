@@ -1,10 +1,15 @@
-import React, { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from "react";
 import Category from "../models/Category";
 import CategoryService from "../services/CategoryService";
 
 interface CategoriesContextType {
   categories: Category[];
   isLoading: boolean;
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  modifyPage: (newPage: number) => void;
+  modifyPageSize: (newPageSize: number) => void;
   addCategory: (category: Category) => Promise<void>;
   updateCategory: (category: Category) => Promise<void>;
   deleteCategory: (id: number) => Promise<void>;
@@ -20,12 +25,18 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [page, setPage] = useState<number>(0);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const currentNameRef = useRef<string | undefined>(undefined);
 
   const refreshCategories = async (name?: string) => {
+    currentNameRef.current = name;
     setIsLoading(true);
     try {
-      const result = await CategoryService.getAll(name);
-      setCategories(result);
+      const result = await CategoryService.getAll({ name, page, pageSize });
+      setCategories(result.items);
+      setTotalCount(result.totalCount);
     } catch (error) {
       console.error("Errore nel caricamento delle categorie:", error);
       throw error;
@@ -34,6 +45,19 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
+  const modifyPage = (newPage: number) => {
+    setPage(newPage);
+  };
+
+  const modifyPageSize = (newPageSize: number) => {
+    setPageSize(newPageSize);
+    setPage(0);
+  };
+
+  useEffect(() => {
+    void refreshCategories(currentNameRef.current);
+  }, [page, pageSize]);
+
   useEffect(() => {
     void refreshCategories();
   }, []);
@@ -41,7 +65,8 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
   const addCategory = async (category: Category) => {
     try {
       await CategoryService.add(category);
-      await refreshCategories();
+      setPage(0);
+      await refreshCategories(currentNameRef.current);
     } catch (error) {
       console.error("Errore nell'aggiunta della categoria:", error);
       throw error;
@@ -51,7 +76,7 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
   const updateCategory = async (category: Category) => {
     try {
       await CategoryService.update(category);
-      await refreshCategories();
+      await refreshCategories(currentNameRef.current);
     } catch (error) {
       console.error("Errore nella modifica della categoria:", error);
       throw error;
@@ -61,7 +86,7 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
   const deleteCategory = async (id: number) => {
     try {
       await CategoryService.delete(id);
-      await refreshCategories();
+      await refreshCategories(currentNameRef.current);
     } catch (error) {
       console.error("Errore nell'eliminazione della categoria:", error);
       throw error;
@@ -73,6 +98,11 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
       value={{
         categories,
         isLoading,
+        page,
+        pageSize,
+        totalCount,
+        modifyPage,
+        modifyPageSize,
         addCategory,
         updateCategory,
         deleteCategory,

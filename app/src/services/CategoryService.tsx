@@ -2,23 +2,29 @@ import config from "../config/development";
 import Category from "../models/Category";
 import { apiFetchJson, apiFetchVoid } from "./ApiClient";
 
-const buildCategoryUrl = (name?: string) => {
-  const baseUrl = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerCategoryUrl}`;
+export interface CategoryPagedResult {
+  items: Category[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
 
-  if (!name || name.trim().length === 0) {
-    return baseUrl;
-  }
-
-  const params = new URLSearchParams({ name: name.trim() });
-  return `${baseUrl}?${params.toString()}`;
-};
+export interface CategoryQueryRequest {
+  name?: string;
+  page: number;
+  pageSize: number;
+}
 
 const CategoryService = {
-  getAll: async (name?: string): Promise<Category[]> => {
-    const url = buildCategoryUrl(name);
-    return apiFetchJson<Category[]>(
+  getAll: async (request: CategoryQueryRequest): Promise<CategoryPagedResult> => {
+    const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerCategoryUrl}/query`;
+    return apiFetchJson<CategoryPagedResult>(
       url,
-      { method: "GET" },
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      },
       "Errore nel caricamento delle categorie"
     );
   },

@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using RDS.ExpenseTracker.Domain.Dtos;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Repositories;
 
@@ -55,6 +56,26 @@ public class CategoryRepository : RepositoryBase, ICategoryRepository
         return await query
             .OrderBy(c => c.Name)
             .ToListAsync();
+    }
+
+    public async Task<(IEnumerable<Category> Items, int TotalCount)> GetPagedCategories(CategoryQueryRequest request)
+    {
+        var query = Context.Categories.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(request.Name))
+        {
+            var normalizedName = request.Name.Trim();
+            query = query.Where(c => EF.Functions.Like(c.Name, $"%{normalizedName}%"));
+        }
+
+        var totalCount = await query.CountAsync();
+        var items = await query
+            .OrderBy(c => c.Name)
+            .Skip(request.Page * request.PageSize)
+            .Take(request.PageSize)
+            .ToListAsync();
+
+        return (items, totalCount);
     }
 
     public async Task<Category?> GetCategory(int id)

@@ -1,7 +1,7 @@
 using AutoMapper;
 using FluentResults;
-using RDS.ExpenseTracker.Api.Dtos;
 using RDS.ExpenseTracker.Domain.Common;
+using RDS.ExpenseTracker.Domain.Dtos;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
 using RDS.ExpenseTracker.Domain.Repositories;

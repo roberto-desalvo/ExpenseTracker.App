@@ -1,5 +1,4 @@
 ﻿using AutoMapper;
-using RDS.ExpenseTracker.Api.Dtos;
 using RDS.ExpenseTracker.Domain.Dtos;
 using RDS.ExpenseTracker.Domain.Entities;
 

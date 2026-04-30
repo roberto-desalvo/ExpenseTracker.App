@@ -1,4 +1,4 @@
-﻿namespace RDS.ExpenseTracker.Api.Dtos;
+﻿namespace RDS.ExpenseTracker.Domain.Dtos;
 
 public class CategoryDto
 {

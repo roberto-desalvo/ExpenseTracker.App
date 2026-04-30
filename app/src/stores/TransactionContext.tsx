@@ -12,6 +12,7 @@ import { TransactionQueryRequest } from "../models/TransactionQueryRequest";
 
 interface TransactionsContextType {
   transactions: Transaction[];
+  isLoading: boolean;
   totalCount: number;
   totalIncomes: number;
   totalOutcomes: number;
@@ -32,6 +33,7 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [totalIncomes, setTotalIncomes] = useState<number>(0);
   const [totalOutcomes, setTotalOutcomes] = useState<number>(0);
@@ -68,6 +70,7 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
     }
 
     const fetchTransactions = async () => {
+      setIsLoading(true);
       try {
         const result = await TransactionService.getAll(effectiveRequest);
         setTransactions(result.items);
@@ -77,6 +80,8 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
         setTotalNet(result.totalNet ?? 0);
       } catch (error) {
         console.error("Errore nel caricamento delle transactions:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -127,6 +132,7 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
     <TransactionsContext.Provider
       value={{
         transactions,
+        isLoading,
         totalCount,
         totalIncomes,
         totalOutcomes,

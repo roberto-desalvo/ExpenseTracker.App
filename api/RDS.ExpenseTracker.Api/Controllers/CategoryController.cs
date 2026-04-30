@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using RDS.ExpenseTracker.Api.Dtos;
+using RDS.ExpenseTracker.Domain.Dtos;
 using RDS.ExpenseTracker.Domain.Services;
 
 namespace RDS.ExpenseTracker.Api.Controllers;
@@ -14,10 +14,10 @@ public class CategoryController : ApiControllerBase
         _service = service ?? throw new ArgumentNullException(nameof(service));
     }
 
-    [HttpGet]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<CategoryDto>))]
-    public Task<IActionResult> Get([FromQuery] string? name)
-        => ExecuteAsync(() => _service.GetCategories(name));
+    [HttpPost("query")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<CategoryDto>))]
+    public Task<IActionResult> Query([FromBody] CategoryQueryRequest request)
+        => ExecuteAsync(() => _service.GetCategories(request));
 
     [HttpGet("{id}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(CategoryDto))]
