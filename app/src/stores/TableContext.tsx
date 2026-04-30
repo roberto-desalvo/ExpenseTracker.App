@@ -19,16 +19,20 @@ export default interface TableColumn {
   format?: (value: number) => string;
 }
 
+export type MovementType = "all" | "incomes" | "outcomes";
+
 interface TableContextType {
   columns: TableColumn[];
   selectedAccountIds: number[];
   selectedCategoryIds: number[];
   availableMonths: TransactionMonthOption[];
   selectedMonth: TransactionMonthOption | null;
+  movementType: MovementType;
   availableMonthsLoading: boolean;
   page: number;
   pageSize: number;
   modifySelectedMonth: (month: TransactionMonthOption) => void;
+  modifyMovementType: (movementType: MovementType) => void;
   modifyPage: (page: number) => void;
   modifyPageSize: (pageSize: number) => void;
   modifySelectedAccountIds: (accountIds: number[]) => void;
@@ -78,6 +82,7 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
   const [selectedAccountIds, setSelectedAccountIds] = useState<number[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<TransactionMonthOption | null>(null);
+  const [movementType, setMovementType] = useState<MovementType>("all");
   const [page, setPage] = useState<number>(0);
   const [pageSize, setPageSize] = useState<number>(25);
   const transactionContext = useTransactions();
@@ -88,6 +93,7 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
     ps: number,
     accountIds: number[],
     categoryIds: number[],
+    selectedMovementType: MovementType,
   ) => {
     const normalizedAccountIds =
       accountIds.length === 0 || accountIds.length === accounts.length
@@ -103,6 +109,10 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
       toDate: month.endDate,
       idAccounts: normalizedAccountIds,
       idCategories: normalizedCategoryIds,
+      isIncome:
+        selectedMovementType === "all"
+          ? null
+          : selectedMovementType === "incomes",
       page: p + 1,
       pageSize: ps,
     };
@@ -156,6 +166,7 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
         pageSize,
         selectedAccountIds,
         selectedCategoryIds,
+        movementType,
       ),
     );
   }, [
@@ -164,6 +175,7 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
     pageSize,
     selectedAccountIds,
     selectedCategoryIds,
+    movementType,
     accounts,
     categories,
   ]);
@@ -180,6 +192,13 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
   const modifyPageSize = (newPageSize: number) => {
     setPage(0);
     setPageSize(newPageSize);
+  };
+
+  const modifyMovementType = (newMovementType: MovementType) => {
+    setMovementType((currentMovementType) =>
+      currentMovementType === newMovementType ? "all" : newMovementType,
+    );
+    setPage(0);
   };
 
   const modifySelectedAccountIds = (accountIds: number[]) => {
@@ -207,10 +226,12 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
         selectedCategoryIds,
         availableMonths: transactionContext.availableMonths,
         selectedMonth,
+        movementType,
         availableMonthsLoading: transactionContext.availableMonthsLoading,
         page,
         pageSize,
         modifySelectedMonth,
+        modifyMovementType,
         modifyPage,
         modifyPageSize,
         modifySelectedAccountIds,

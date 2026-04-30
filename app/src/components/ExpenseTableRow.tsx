@@ -1,5 +1,11 @@
 import {
   Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   IconButton,
   ListItemIcon,
   ListItemText,
@@ -32,6 +38,7 @@ export default function ExpenseTableRow({ transaction }: ExpenseTableRowProps) {
   const transactionModalContext = useTransactionModal();
   const transactionContext = useTransactions();
   const [actionsAnchorEl, setActionsAnchorEl] = useState<null | HTMLElement>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
 
   const isActionsMenuOpen = Boolean(actionsAnchorEl);
 
@@ -91,7 +98,7 @@ export default function ExpenseTableRow({ transaction }: ExpenseTableRowProps) {
     if (column.id === "amount" && typeof value === "number") {
       return (
         <Typography sx={{ color: value > 0 ? c.amountPositive : c.amountNegative, fontWeight: 600, fontSize: "0.92rem" }}>
-          {value.toLocaleString("it-IT", {
+          {Math.abs(value).toLocaleString("it-IT", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           })}
@@ -113,7 +120,17 @@ export default function ExpenseTableRow({ transaction }: ExpenseTableRowProps) {
   };
 
   const onDelete = () => {
+    setDeleteDialogOpen(true);
+    setActionsAnchorEl(null);
+  };
+
+  const onConfirmDelete = () => {
     transactionContext.deleteTransaction(transaction);
+    setDeleteDialogOpen(false);
+  };
+
+  const onCancelDelete = () => {
+    setDeleteDialogOpen(false);
     setActionsAnchorEl(null);
   };
 
@@ -207,6 +224,29 @@ export default function ExpenseTableRow({ transaction }: ExpenseTableRowProps) {
           );
         })}
       </TableRow>
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={onCancelDelete}
+        aria-labelledby={`delete-transaction-title-${transaction.id}`}
+        aria-describedby={`delete-transaction-description-${transaction.id}`}
+      >
+        <DialogTitle id={`delete-transaction-title-${transaction.id}`}>
+          Conferma eliminazione
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id={`delete-transaction-description-${transaction.id}`}>
+            Vuoi eliminare questa transazione? L&apos;operazione non può essere annullata.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={onCancelDelete} color="inherit">
+            Annulla
+          </Button>
+          <Button onClick={onConfirmDelete} color="error" variant="contained">
+            Elimina
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

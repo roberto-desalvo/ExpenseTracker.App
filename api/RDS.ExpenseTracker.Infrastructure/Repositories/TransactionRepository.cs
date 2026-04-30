@@ -72,7 +72,7 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .ToListAsync();
     }
 
-    public async Task<(IEnumerable<Transaction> Items, int TotalCount)> GetPagedTransactions(TransactionQueryRequest request)
+    public async Task<(IEnumerable<Transaction> Items, int TotalCount, decimal TotalIncomes, decimal TotalOutcomes, decimal TotalNet)> GetPagedTransactions(TransactionQueryRequest request)
     {
         var query = Context.Transactions
             .Include(t => t.AccountNavigation)
@@ -87,8 +87,22 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             query = query.Where(t => request.IdAccounts.Contains(t.AccountId));
         if (request.IdCategories is { Length: > 0 })
             query = query.Where(t => t.CategoryId.HasValue && request.IdCategories.Contains(t.CategoryId.Value));
+        if (request.IsIncome.HasValue)
+            query = request.IsIncome.Value
+                ? query.Where(t => t.Amount > 0m)
+                : query.Where(t => t.Amount < 0m);
 
         var totalCount = await query.CountAsync();
+        var totalIncomes = await query
+            .Where(t => t.Amount > 0m && t.TransferId == null)
+            .Select(t => (decimal?)t.Amount)
+            .SumAsync() ?? 0m;
+        var totalOutcomes = Math.Abs(
+            await query
+                .Where(t => t.Amount < 0m && t.TransferId == null)
+                .Select(t => (decimal?)t.Amount)
+                .SumAsync() ?? 0m);
+        var totalNet = totalIncomes - totalOutcomes;
 
         var items = await query
             .OrderByDescending(t => t.Date)
@@ -96,7 +110,7 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .Take(request.PageSize)
             .ToListAsync();
 
-        return (items, totalCount);
+        return (items, totalCount, totalIncomes, totalOutcomes, totalNet);
     }
 
     public async Task<IEnumerable<(DateTime StartDate, DateTime EndDate)>> GetAvailableMonthRanges()

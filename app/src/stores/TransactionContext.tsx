@@ -13,6 +13,9 @@ import { TransactionQueryRequest } from "../models/TransactionQueryRequest";
 interface TransactionsContextType {
   transactions: Transaction[];
   totalCount: number;
+  totalIncomes: number;
+  totalOutcomes: number;
+  totalNet: number;
   availableMonths: TransactionMonthOption[];
   availableMonthsLoading: boolean;
   addTransaction: (transaction: Transaction) => Promise<void>;
@@ -30,6 +33,9 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
+  const [totalIncomes, setTotalIncomes] = useState<number>(0);
+  const [totalOutcomes, setTotalOutcomes] = useState<number>(0);
+  const [totalNet, setTotalNet] = useState<number>(0);
   const [availableMonths, setAvailableMonths] = useState<TransactionMonthOption[]>([]);
   const [availableMonthsLoading, setAvailableMonthsLoading] = useState<boolean>(true);
   const [lastRequest, setLastRequest] = useState<TransactionQueryRequest | null>(null);
@@ -66,6 +72,9 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
         const result = await TransactionService.getAll(effectiveRequest);
         setTransactions(result.items);
         setTotalCount(result.totalCount);
+        setTotalIncomes(result.totalIncomes ?? 0);
+        setTotalOutcomes(result.totalOutcomes ?? 0);
+        setTotalNet(result.totalNet ?? 0);
       } catch (error) {
         console.error("Errore nel caricamento delle transactions:", error);
       }
@@ -119,6 +128,9 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
       value={{
         transactions,
         totalCount,
+        totalIncomes,
+        totalOutcomes,
+        totalNet,
         availableMonths,
         availableMonthsLoading,
         addTransaction,

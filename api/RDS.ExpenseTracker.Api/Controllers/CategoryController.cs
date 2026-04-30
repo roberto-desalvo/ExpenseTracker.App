@@ -16,8 +16,8 @@ public class CategoryController : ApiControllerBase
 
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<CategoryDto>))]
-    public Task<IActionResult> Get()
-        => ExecuteAsync(() => _service.GetCategories());
+    public Task<IActionResult> Get([FromQuery] string? name)
+        => ExecuteAsync(() => _service.GetCategories(name));
 
     [HttpGet("{id}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(CategoryDto))]
@@ -36,9 +36,9 @@ public class CategoryController : ApiControllerBase
     public Task<IActionResult> Post([FromBody] IEnumerable<CategoryDto> dto)
         => ExecuteAsync(() => _service.AddCategories(dto));
 
-    [HttpPut("{id}")]
+    [HttpPut]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(CategoryDto))]
-    public Task<IActionResult> Put(int id, [FromBody] CategoryDto dto)
+    public Task<IActionResult> Put([FromBody] CategoryDto dto)
         => ExecuteAsync(() => _service.UpdateCategory(dto));
 
     [HttpDelete("{id}")]

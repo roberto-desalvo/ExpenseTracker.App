@@ -1,78 +1,95 @@
-import React, {
-    createContext,
-    useContext,
-    useState,
-    useEffect,
-    ReactNode,
-  } from "react";
-  import Category from "../models/Category";
-  import CategoryService from "../services/CategoryService";
-  
-  interface CategoriesContextType {
-    categories: Category[];
-    addCategory: (category: Category) => void;
-    updateCategory: (id: number, updatedCategory: Partial<Category>) => void;
-    deleteCategory: (id: number) => void;
-  }
-  
-  // Crea il Context con un valore iniziale vuoto (sarà fornito dal Provider)
-  const CategoriesContext = createContext<CategoriesContextType | undefined>(
-    undefined
-  );
-  
-  // Definisci il Provider
-  export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
-    children,
-  }) => {
-    const [categories, setCategories] = useState<Category[]>([]);
-  
-    useEffect(() => {
-      const fetchCategories = async () => {
-        try {
-          const categories = await CategoryService.getAll();
-          setCategories(categories);
-        } catch (error) {
-          console.error("Errore nel caricamento delle categorys:", error);
-        }
-      };
-  
-      fetchCategories();
-    }, []);
-  
-    // Funzioni per gestire lo stato
-    const addCategory = (category: Category) => {
-      setCategories((prev) => [...prev, category]);
-    };
-  
-    const updateCategory = (id: number, updatedCategory: Partial<Category>) => {
-      setCategories((prev) =>
-        prev.map((category) =>
-          category.id === id ? { ...category, ...updatedCategory } : category
-        )
-      );
-    };
-  
-    const deleteCategory = (id: number) => {
-      setCategories((prev) => prev.filter((category) => category.id !== id));
-    };
-  
-    return (
-      <CategoriesContext.Provider
-        value={{ categories: categories, addCategory, updateCategory, deleteCategory }}
-      >
-        {children}
-      </CategoriesContext.Provider>
-    );
-  };
-  
-  // Hook per utilizzare il contesto in modo più semplice
-  export const useCategories = (): CategoriesContextType => {
-    const context = useContext(CategoriesContext);
-    if (!context) {
-      throw new Error(
-        "useCategories deve essere utilizzato all’interno di CategoriesProvider"
-      );
+import React, { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import Category from "../models/Category";
+import CategoryService from "../services/CategoryService";
+
+interface CategoriesContextType {
+  categories: Category[];
+  isLoading: boolean;
+  addCategory: (category: Category) => Promise<void>;
+  updateCategory: (category: Category) => Promise<void>;
+  deleteCategory: (id: number) => Promise<void>;
+  refreshCategories: (name?: string) => Promise<void>;
+}
+
+const CategoriesContext = createContext<CategoriesContextType | undefined>(
+  undefined
+);
+
+export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const refreshCategories = async (name?: string) => {
+    setIsLoading(true);
+    try {
+      const result = await CategoryService.getAll(name);
+      setCategories(result);
+    } catch (error) {
+      console.error("Errore nel caricamento delle categorie:", error);
+      throw error;
+    } finally {
+      setIsLoading(false);
     }
-    return context;
   };
-  
+
+  useEffect(() => {
+    void refreshCategories();
+  }, []);
+
+  const addCategory = async (category: Category) => {
+    try {
+      await CategoryService.add(category);
+      await refreshCategories();
+    } catch (error) {
+      console.error("Errore nell'aggiunta della categoria:", error);
+      throw error;
+    }
+  };
+
+  const updateCategory = async (category: Category) => {
+    try {
+      await CategoryService.update(category);
+      await refreshCategories();
+    } catch (error) {
+      console.error("Errore nella modifica della categoria:", error);
+      throw error;
+    }
+  };
+
+  const deleteCategory = async (id: number) => {
+    try {
+      await CategoryService.delete(id);
+      await refreshCategories();
+    } catch (error) {
+      console.error("Errore nell'eliminazione della categoria:", error);
+      throw error;
+    }
+  };
+
+  return (
+    <CategoriesContext.Provider
+      value={{
+        categories,
+        isLoading,
+        addCategory,
+        updateCategory,
+        deleteCategory,
+        refreshCategories,
+      }}
+    >
+      {children}
+    </CategoriesContext.Provider>
+  );
+};
+
+export const useCategories = (): CategoriesContextType => {
+  const context = useContext(CategoriesContext);
+  if (!context) {
+    throw new Error(
+      "useCategories deve essere utilizzato all’interno di CategoriesProvider"
+    );
+  }
+  return context;
+};

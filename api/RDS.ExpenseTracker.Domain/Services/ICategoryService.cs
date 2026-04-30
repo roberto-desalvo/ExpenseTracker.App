@@ -6,7 +6,7 @@ namespace RDS.ExpenseTracker.Domain.Services;
 
 public interface ICategoryService : IService
 {
-    Task<Result<IEnumerable<CategoryDto>>> GetCategories();
+    Task<Result<IEnumerable<CategoryDto>>> GetCategories(string? name = null);
     Task<Result<CategoryDto?>> GetCategory(int id);
     Task<Result<CategoryDto?>> GetDefaultCategory();
     Task<Result> AddCategories(IEnumerable<CategoryDto> categories);

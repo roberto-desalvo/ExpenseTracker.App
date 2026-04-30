@@ -23,6 +23,15 @@ export default function ExpenseTable() {
   const transactionContext = useTransactions();
   const filteredTransactions = tableContext.getFilteredTransactions();
 
+  const formatAmount = (value: number) =>
+    value.toLocaleString("it-IT", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+  const isMovementActive = (movementType: "incomes" | "outcomes") =>
+    tableContext.movementType === movementType;
+
   const handleChangePage = (_event: unknown, newPage: number) => {
     tableContext.modifyPage(newPage);
   };
@@ -68,17 +77,78 @@ export default function ExpenseTable() {
               Transazioni
             </Typography>
           </Box>
-          <Chip
-            label={`${transactionContext.totalCount} movimenti`}
-            sx={{
-              backgroundColor: c.badgeBackground,
-              color: c.badgeText,
-              fontWeight: 600,
-              fontSize: "0.78rem",
-              borderRadius: "999px",
-              border: `1px solid ${c.badgeBorder}`,
-            }}
-          />
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Chip
+              label={`${transactionContext.totalCount} movimenti`}
+              sx={{
+                backgroundColor: c.badgeBackground,
+                color: c.badgeText,
+                fontWeight: 600,
+                fontSize: "0.78rem",
+                borderRadius: "999px",
+                border: `1px solid ${c.badgeBorder}`,
+              }}
+            />
+            <Chip
+              label={`+ ${formatAmount(transactionContext.totalIncomes)} EUR`}
+              onClick={() => tableContext.modifyMovementType("incomes")}
+              sx={{
+                backgroundColor: c.badgeBackground,
+                color: c.amountPositive,
+                fontWeight: 700,
+                fontSize: "0.78rem",
+                borderRadius: "999px",
+                border: `1px solid ${isMovementActive("incomes") ? c.amountPositive : c.badgeBorder}`,
+                cursor: "pointer",
+                boxShadow: isMovementActive("incomes")
+                  ? `0 0 0 1px ${c.amountPositive}`
+                  : "none",
+              }}
+            />
+            <Chip
+              label={`- ${formatAmount(transactionContext.totalOutcomes)} EUR`}
+              onClick={() => tableContext.modifyMovementType("outcomes")}
+              sx={{
+                backgroundColor: c.badgeBackground,
+                color: c.amountNegative,
+                fontWeight: 700,
+                fontSize: "0.78rem",
+                borderRadius: "999px",
+                border: `1px solid ${isMovementActive("outcomes") ? c.amountNegative : c.badgeBorder}`,
+                cursor: "pointer",
+                boxShadow: isMovementActive("outcomes")
+                  ? `0 0 0 1px ${c.amountNegative}`
+                  : "none",
+              }}
+            />
+            <Typography
+              component="span"
+              sx={{
+                color: c.badgeText,
+                fontWeight: 700,
+                fontSize: "0.95rem",
+                lineHeight: 1,
+                alignSelf: "center",
+                px: 0.25,
+              }}
+            >
+              =
+            </Typography>
+            <Chip
+              label={`${transactionContext.totalNet >= 0 ? "+" : "-"} ${formatAmount(Math.abs(transactionContext.totalNet))} EUR`}
+              sx={{
+                backgroundColor: `${theme.palette.mode === "light" ? "rgba(59, 130, 246, 0.12)" : "rgba(59, 130, 246, 0.2)"}`,
+                color:
+                  transactionContext.totalNet >= 0
+                    ? c.amountPositive
+                    : c.amountNegative,
+                fontWeight: 700,
+                fontSize: "0.78rem",
+                borderRadius: "999px",
+                border: `1px solid ${theme.palette.mode === "light" ? "rgba(59, 130, 246, 0.35)" : "rgba(147, 197, 253, 0.45)"}`,
+              }}
+            />
+          </Stack>
         </Stack>
       </Box>
       <TableContainer sx={{ flex: 1, minHeight: 0, overflow: "auto", px: { xs: 1.5, md: 2 }, py: 1.5 }}>
@@ -128,7 +198,7 @@ export default function ExpenseTable() {
         count={transactionContext.totalCount}
         rowsPerPage={tableContext.pageSize}
         page={tableContext.page}
-        labelRowsPerPage="Righe per pagina"
+        labelRowsPerPage="Elementi per pagina"
         onPageChange={handleChangePage}
         onRowsPerPageChange={handleChangeRowsPerPage}
         sx={{

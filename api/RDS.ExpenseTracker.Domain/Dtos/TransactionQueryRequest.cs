@@ -6,6 +6,7 @@ public class TransactionQueryRequest
     public DateTime? ToDate { get; set; }
     public int[]? IdAccounts { get; set; }
     public int[]? IdCategories { get; set; }
+    public bool? IsIncome { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 25;
 }

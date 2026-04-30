@@ -1,19 +1,19 @@
 import config from "../config/development";
-import { PagedResult } from "../models/PagedResult";
 import Transaction from "../models/Transaction";
 import { TransactionMonthOption } from "../models/TransactionMonthOption";
 import { TransactionQueryRequest } from "../models/TransactionQueryRequest";
+import { TransactionQueryResult } from "../models/TransactionQueryResult";
 import { apiFetchJson, apiFetchVoid } from "./ApiClient";
 
 const TransactionService = {
-  getAll: async (request: TransactionQueryRequest): Promise<PagedResult<Transaction>> => {
+  getAll: async (request: TransactionQueryRequest): Promise<TransactionQueryResult> => {
     const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerTransactionUrl}/query`;
     const payload: TransactionQueryRequest = {
       ...request,
       idAccounts: request.idAccounts ?? null,
       idCategories: request.idCategories ?? null,
     };
-    return apiFetchJson<PagedResult<Transaction>>(
+    return apiFetchJson<TransactionQueryResult>(
       url,
       {
         method: 'POST',

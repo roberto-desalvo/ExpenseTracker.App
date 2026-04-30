@@ -26,15 +26,18 @@ public class TransactionService : ITransactionService
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
     }
 
-    public async Task<Result<PagedResult<TransactionDto>>> GetPagedTransactions(TransactionQueryRequest request)
+    public async Task<Result<TransactionQueryResult>> GetPagedTransactions(TransactionQueryRequest request)
     {
-        var (items, totalCount) = await _repository.GetPagedTransactions(request);
-        return Result.Ok(new PagedResult<TransactionDto>
+        var (items, totalCount, totalIncomes, totalOutcomes, totalNet) = await _repository.GetPagedTransactions(request);
+        return Result.Ok(new TransactionQueryResult
         {
             Items = _mapper.Map<IEnumerable<TransactionDto>>(items),
             TotalCount = totalCount,
             Page = request.Page,
-            PageSize = request.PageSize
+            PageSize = request.PageSize,
+            TotalIncomes = totalIncomes,
+            TotalOutcomes = totalOutcomes,
+            TotalNet = totalNet
         });
     }
 

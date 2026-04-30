@@ -16,7 +16,7 @@ public class TransactionController : ApiControllerBase
     }
 
     [HttpPost("query")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<TransactionDto>))]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TransactionQueryResult))]
     public Task<IActionResult> Query([FromBody] TransactionQueryRequest request)
         => ExecuteAsync(() => _service.GetPagedTransactions(request));
 

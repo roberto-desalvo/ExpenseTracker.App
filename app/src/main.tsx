@@ -13,22 +13,25 @@ import { TransactionModalProvider } from "./stores/TransactionModalContext.tsx";
 import { CategoriesProvider } from "./stores/CategoryContext.tsx";
 import { AppThemeProvider } from "./stores/ThemeContext.tsx";
 import { ApiErrorProvider } from "./stores/ApiErrorContext.tsx";
+import { SuccessMessageProvider } from "./stores/SuccessMessageContext.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AppThemeProvider>
       <ApiErrorProvider>
-        <AccountsProvider>
-          <TransactionsProvider>
-            <CategoriesProvider>
-              <TableContextProvider>
-                <TransactionModalProvider>
-                  <App />
-                </TransactionModalProvider>
-              </TableContextProvider>
-            </CategoriesProvider>
-          </TransactionsProvider>
-        </AccountsProvider>
+        <SuccessMessageProvider>
+          <AccountsProvider>
+            <TransactionsProvider>
+              <CategoriesProvider>
+                <TableContextProvider>
+                  <TransactionModalProvider>
+                    <App />
+                  </TransactionModalProvider>
+                </TableContextProvider>
+              </CategoriesProvider>
+            </TransactionsProvider>
+          </AccountsProvider>
+        </SuccessMessageProvider>
       </ApiErrorProvider>
     </AppThemeProvider>
   </StrictMode>

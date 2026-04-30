@@ -16,6 +16,17 @@ public class CategoryRepository : RepositoryBase, ICategoryRepository
         await Context.Categories.AddRangeAsync(categories);
     }
 
+    public async Task UpdateCategory(Category category)
+    {
+        var current = await Context.Categories.FirstOrDefaultAsync(x => x.Id == category.Id);
+        if (current is null)
+        {
+            return;
+        }
+
+        Context.Entry(current).CurrentValues.SetValues(category);
+    }
+
     public async Task RemoveCategory(int id)
     {
         var entity = await Context.Categories.FirstOrDefaultAsync(x => x.Id == id);
@@ -24,14 +35,26 @@ public class CategoryRepository : RepositoryBase, ICategoryRepository
             await RemoveCategory(entity);
         }
     }
-    public async Task RemoveCategory(Category category)
+
+    public Task RemoveCategory(Category category)
     {
         Context.Categories.Remove(category);
+        return Task.CompletedTask;
     }
 
-    public async Task<IEnumerable<Category>> GetCategories()
+    public async Task<IEnumerable<Category>> GetCategories(string? name = null)
     {
-        return await Context.Categories.ToListAsync();
+        var query = Context.Categories.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            var normalizedName = name.Trim();
+            query = query.Where(c => EF.Functions.Like(c.Name, $"%{normalizedName}%"));
+        }
+
+        return await query
+            .OrderBy(c => c.Name)
+            .ToListAsync();
     }
 
     public async Task<Category?> GetCategory(int id)
@@ -42,5 +65,14 @@ public class CategoryRepository : RepositoryBase, ICategoryRepository
     public async Task<Category?> GetDefaultCategory()
     {
         return await Context.Categories.FirstOrDefaultAsync(c => c.IsDefault == true);
+    }
+
+    public async Task ReassignTransactionsToCategory(int sourceCategoryId, int targetCategoryId)
+    {
+        await Context.Transactions
+            .Where(t => t.CategoryId == sourceCategoryId)
+            .ExecuteUpdateAsync(updates => updates
+                .SetProperty(t => t.CategoryId, targetCategoryId)
+                .SetProperty(t => t.UpdatedOn, DateTime.UtcNow));
     }
 }

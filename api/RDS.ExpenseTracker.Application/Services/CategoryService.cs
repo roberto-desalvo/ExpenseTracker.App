@@ -19,9 +19,9 @@ public class CategoryService : ICategoryService
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
     }
 
-    public async Task<Result<IEnumerable<CategoryDto>>> GetCategories()
+    public async Task<Result<IEnumerable<CategoryDto>>> GetCategories(string? name = null)
     {
-        var categories = await _repository.GetCategories();
+        var categories = await _repository.GetCategories(name);
         return Result.Ok(_mapper.Map<IEnumerable<CategoryDto>>(categories));
     }
 
@@ -67,8 +67,7 @@ public class CategoryService : ICategoryService
             return Result.Fail(DomainErrors.NotFound("Category", category.Id));
 
         var entity = _mapper.Map<Category>(category);
-        await _repository.RemoveCategory(entity.Id);
-        await _repository.AddCategories([entity]);
+        await _repository.UpdateCategory(entity);
         await _repository.SaveChangesAsync();
         return Result.Ok();
     }
@@ -82,6 +81,14 @@ public class CategoryService : ICategoryService
         if (current is null)
             return Result.Fail(DomainErrors.NotFound("Category", id));
 
+        if (current.IsDefault == true)
+            return Result.Fail(DomainErrors.BadRequest("Cannot delete default category."));
+
+        var defaultCategory = await _repository.GetDefaultCategory();
+        if (defaultCategory is null)
+            return Result.Fail(DomainErrors.NotFound("Default category"));
+
+        await _repository.ReassignTransactionsToCategory(id, defaultCategory.Id);
         await _repository.RemoveCategory(id);
         await _repository.SaveChangesAsync();
         return Result.Ok();
