@@ -66,6 +66,7 @@ export default function RowActionsMenu({
         anchorEl={anchorEl}
         open={isOpen}
         onClose={handleClose}
+        disableScrollLock
       >
         {actions.map((action) => (
           <MenuItem

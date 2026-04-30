@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { Box, Typography, useTheme } from "@mui/material";
 import {
   CartesianGrid,
@@ -22,6 +23,7 @@ interface TimeSeriesLineChartProps {
   series: TimeSeriesLineChartSeries[];
   height?: number;
   emptyMessage?: string;
+  enableLegendToggle?: boolean;
 }
 
 const COLORS = [
@@ -62,9 +64,65 @@ export default function TimeSeriesLineChart({
   series,
   height = 380,
   emptyMessage = "Nessun dato disponibile",
+  enableLegendToggle = true,
 }: TimeSeriesLineChartProps) {
   const theme = useTheme();
   const c = theme.palette.custom;
+  const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
+
+  const seriesNames = useMemo(() => series.map((item) => item.name), [series]);
+
+  useEffect(() => {
+    if (!enableLegendToggle) {
+      setHiddenSeries(new Set());
+      return;
+    }
+
+    setHiddenSeries((prev) => {
+      const next = new Set<string>();
+      prev.forEach((name) => {
+        if (seriesNames.includes(name)) {
+          next.add(name);
+        }
+      });
+      return next;
+    });
+  }, [seriesNames, enableLegendToggle]);
+
+  const handleLegendClick = (entry: { dataKey?: string | number | ((obj: unknown) => unknown) }) => {
+    if (!enableLegendToggle || !entry?.dataKey || typeof entry.dataKey === "function") {
+      return;
+    }
+
+    const key = String(entry.dataKey);
+    setHiddenSeries((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+
+      return next;
+    });
+  };
+
+  const formatLegendLabel = (value: string | number) => {
+    const key = String(value);
+    const isHidden = hiddenSeries.has(key);
+
+    return (
+      <span
+        style={{
+          opacity: isHidden ? 0.45 : 1,
+          textDecoration: isHidden ? "line-through" : "none",
+          cursor: enableLegendToggle ? "pointer" : "default",
+        }}
+      >
+        {key}
+      </span>
+    );
+  };
 
   if (series.length === 0 || series.every((serie) => serie.values.length === 0)) {
     return (
@@ -104,7 +162,10 @@ export default function TimeSeriesLineChart({
               border: `1px solid ${c.filterBorder}`,
             }}
           />
-          <Legend />
+          <Legend
+            onClick={enableLegendToggle ? handleLegendClick : undefined}
+            formatter={formatLegendLabel}
+          />
           {series.map((serie, index) => (
             <Line
               key={serie.name}
@@ -114,6 +175,7 @@ export default function TimeSeriesLineChart({
               strokeWidth={2}
               dot={false}
               connectNulls
+              hide={enableLegendToggle && hiddenSeries.has(serie.name)}
             />
           ))}
         </LineChart>

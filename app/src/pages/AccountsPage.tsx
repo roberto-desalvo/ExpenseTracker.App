@@ -86,7 +86,7 @@ export default function AccountsPage() {
       return [];
     }
 
-    return dashboardData.series.map((serie, index) => {
+    const accountSeries = dashboardData.series.map((serie, index) => {
       const accountDimension = serie.dimensions.find(
         (dimension) => dimension.key === "AccountId",
       );
@@ -101,6 +101,26 @@ export default function AccountsPage() {
         values: serie.values,
       };
     });
+
+    const totalByPeriod = new Map<string, number>();
+    dashboardData.series.forEach((serie) => {
+      serie.values.forEach((point) => {
+        totalByPeriod.set(point.period, (totalByPeriod.get(point.period) ?? 0) + point.amount);
+      });
+    });
+
+    const totalSeries: TimeSeriesLineChartSeries = {
+      name: "Totale",
+      values: Array.from(totalByPeriod.entries())
+        .map(([period, amount]) => ({ period, amount }))
+        .sort((a, b) => a.period.localeCompare(b.period)),
+    };
+
+    if (accountSeries.length <= 1) {
+      return accountSeries;
+    }
+
+    return [totalSeries, ...accountSeries];
   }, [dashboardData, accountNameById]);
 
   const handleDashboardLoad = async () => {
@@ -396,7 +416,7 @@ export default function AccountsPage() {
                     <CircularProgress />
                   </Box>
                 ) : dashboardData && chartSeries.length > 0 ? (
-                  <TimeSeriesLineChart series={chartSeries} />
+                  <TimeSeriesLineChart series={chartSeries} enableLegendToggle />
                 ) : (
                   <Box
                     sx={{
