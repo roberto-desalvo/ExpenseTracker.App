@@ -58,20 +58,24 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        await Promise.all([refreshAllAccounts(), refreshAccounts()]);
-      } catch {
-        // handled by error layer
-      }
-    };
-
-    void load();
-  }, []);
+  const isMountedRef = useRef(false);
 
   useEffect(() => {
-    void refreshAccounts(currentNameRef.current);
+    if (!isMountedRef.current) {
+      // Primo mount: carica tutto in parallelo
+      isMountedRef.current = true;
+      const load = async () => {
+        try {
+          await Promise.all([refreshAllAccounts(), refreshAccounts()]);
+        } catch {
+          // gestito dall'error layer
+        }
+      };
+      void load();
+    } else {
+      // page o pageSize cambiati dopo il mount
+      void refreshAccounts(currentNameRef.current);
+    }
   }, [page, pageSize]);
 
   const modifyPage = (newPage: number) => {

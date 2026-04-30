@@ -61,17 +61,21 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
     setPage(0);
   };
 
+  const isMountedRef = useRef(false);
+
   useEffect(() => {
-    void refreshCategories(currentNameRef.current);
+    if (!isMountedRef.current) {
+      // Primo mount: carica tutto in parallelo
+      isMountedRef.current = true;
+      const load = async () => {
+        await Promise.all([refreshCategories(), refreshAllCategories()]);
+      };
+      void load();
+    } else {
+      // page o pageSize cambiati dopo il mount
+      void refreshCategories(currentNameRef.current);
+    }
   }, [page, pageSize]);
-
-  useEffect(() => {
-    const load = async () => {
-      await Promise.all([refreshCategories(), refreshAllCategories()]);
-    };
-
-    void load();
-  }, []);
 
   const addCategory = async (category: Category) => {
     try {

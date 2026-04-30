@@ -6,11 +6,6 @@ import "@fontsource/roboto/300.css";
 import "@fontsource/roboto/400.css";
 import "@fontsource/roboto/500.css";
 import "@fontsource/roboto/700.css";
-import { TransactionsProvider } from "./stores/TransactionContext.tsx";
-import { AccountsProvider } from "./stores/AccountContext.tsx";
-import { TableContextProvider } from "./stores/TableContext.tsx";
-import { TransactionModalProvider } from "./stores/TransactionModalContext.tsx";
-import { CategoriesProvider } from "./stores/CategoryContext.tsx";
 import { AppThemeProvider } from "./stores/ThemeContext.tsx";
 import { ApiErrorProvider } from "./stores/ApiErrorContext.tsx";
 import { SuccessMessageProvider } from "./stores/SuccessMessageContext.tsx";
@@ -25,17 +20,7 @@ msalInstance.initialize().then(() => {
         <AppThemeProvider>
           <ApiErrorProvider>
             <SuccessMessageProvider>
-              <AccountsProvider>
-                <TransactionsProvider>
-                  <CategoriesProvider>
-                    <TableContextProvider>
-                      <TransactionModalProvider>
-                        <App />
-                      </TransactionModalProvider>
-                    </TableContextProvider>
-                  </CategoriesProvider>
-                </TransactionsProvider>
-              </AccountsProvider>
+              <App />
             </SuccessMessageProvider>
           </ApiErrorProvider>
         </AppThemeProvider>
@@ -43,3 +28,4 @@ msalInstance.initialize().then(() => {
     </StrictMode>
   );
 });
+
