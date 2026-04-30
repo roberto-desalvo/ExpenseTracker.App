@@ -25,6 +25,11 @@ public class TransactionController : ApiControllerBase
     public Task<IActionResult> GetMonthOptions()
         => ExecuteAsync(() => _service.GetAvailableMonthOptions());
 
+    [HttpGet("landing")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(LandingDashboardDto))]
+    public Task<IActionResult> GetLanding()
+        => ExecuteAsync(() => _service.GetLanding());
+
     [HttpGet("{id}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TransactionDto))]
     public Task<IActionResult> Get(int id)
@@ -54,4 +59,9 @@ public class TransactionController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TimeSeriesListDto))]
     public Task<IActionResult> GetTimeSeries([FromBody] TimeSeriesRequestDto request)
     => ExecuteAsync(() => _service.GetTimeSeries(request));
+
+    [HttpPost("stock")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TimeSeriesListDto))]
+    public Task<IActionResult> GetStock([FromBody] TimeSeriesRequestDto request)
+    => ExecuteAsync(() => _service.GetStock(request));
 }

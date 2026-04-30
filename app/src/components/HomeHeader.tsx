@@ -14,7 +14,8 @@ import {
 import { Menu as MenuIcon } from "@mui/icons-material";
 
 const navItems = [
-  { label: "Transazioni", path: "/" },
+  { label: "Home", path: "/" },
+  { label: "Transazioni", path: "/transazioni" },
   { label: "Categorie", path: "/categorie" },
   { label: "Account", path: "/account" },
 ];
@@ -55,12 +56,14 @@ export default function HomeHeader() {
       >
         <Box sx={{ width: 44, height: 44 }} />
         <Typography
+          onClick={() => handleNavigate("/")}
           sx={{
             color: "text.primary",
             fontWeight: 700,
             fontSize: "1.02rem",
             letterSpacing: "0.02em",
             textAlign: "center",
+            cursor: "pointer",
           }}
         >
           Expense Tracker

@@ -15,15 +15,18 @@ public class TransactionService : ITransactionService
 {
     private readonly ITransactionRepository _repository;
     private readonly IAccountRepository _accountRepository;
+    private readonly ICategoryRepository _categoryRepository;
     private readonly IMapper _mapper;
 
     public TransactionService(
         ITransactionRepository repository,
         IAccountRepository accountRepository,
+        ICategoryRepository categoryRepository,
         IMapper mapper)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
+        _categoryRepository = categoryRepository ?? throw new ArgumentNullException(nameof(categoryRepository));
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
     }
 
@@ -232,6 +235,254 @@ public class TransactionService : ITransactionService
             Granularity = granularity.ToString(),
             Series = series
         });
+    }
+
+    public async Task<Result<TimeSeriesListDto>> GetStock(TimeSeriesRequestDto request)
+    {
+        if (request == null)
+            return Result.Fail(DomainErrors.Required("request"));
+
+        if (request.StartDate > request.EndDate)
+            return Result.Fail(DomainErrors.BadRequest("EndDate must be greater than StartDate"));
+
+        var rawGranularity = request.Granularity;
+        var granularity = Enum.IsDefined(typeof(TimeGranularityEnum), rawGranularity)
+            ? (TimeGranularityEnum)rawGranularity
+            : TimeGranularityEnum.Daily;
+
+        var startPeriodKey = GetPeriodKey(request.StartDate, granularity);
+
+        var filtered = (await _repository.GetTimeSeriesTransactionsUntilDate(request)).ToList();
+
+        if (!filtered.Any())
+            return Result.Ok(new TimeSeriesListDto
+            {
+                Granularity = granularity.ToString(),
+                Series = []
+            });
+
+        var series = new List<TimeSeriesDto>();
+
+        if (request.IdAccounts.Any())
+        {
+            foreach (var accountId in request.IdAccounts)
+            {
+                var points = filtered
+                    .Where(t => t.AccountId == accountId)
+                    .GroupBy(t => GetPeriodKey(t.Date, granularity))
+                    .OrderBy(g => g.Key)
+                    .Select(g => new TimeSeriesPointDto
+                    {
+                        Period = g.Key,
+                        Amount = g.Sum(x => x.Amount)
+                    })
+                    .ToList();
+
+                var incrementalPoints = BuildIncrementalPoints(points, startPeriodKey);
+
+                series.Add(new TimeSeriesDto
+                {
+                    Dimensions = [new TimeSeriesDimensionDto { Key = "AccountId", Value = accountId.ToString() }],
+                    Values = incrementalPoints
+                });
+            }
+        }
+        else if (request.IdCategories.Any())
+        {
+            foreach (var categoryId in request.IdCategories)
+            {
+                var points = filtered
+                    .Where(t => t.CategoryId == categoryId)
+                    .GroupBy(t => GetPeriodKey(t.Date, granularity))
+                    .OrderBy(g => g.Key)
+                    .Select(g => new TimeSeriesPointDto
+                    {
+                        Period = g.Key,
+                        Amount = g.Sum(x => x.Amount)
+                    })
+                    .ToList();
+
+                var incrementalPoints = BuildIncrementalPoints(points, startPeriodKey);
+
+                series.Add(new TimeSeriesDto
+                {
+                    Dimensions = [new TimeSeriesDimensionDto { Key = "CategoryId", Value = categoryId.ToString() }],
+                    Values = incrementalPoints
+                });
+            }
+        }
+        else
+        {
+            var points = filtered
+                .GroupBy(t => GetPeriodKey(t.Date, granularity))
+                .OrderBy(g => g.Key)
+                .Select(g => new TimeSeriesPointDto
+                {
+                    Period = g.Key,
+                    Amount = g.Sum(x => x.Amount)
+                })
+                .ToList();
+
+            var incrementalPoints = BuildIncrementalPoints(points, startPeriodKey);
+
+            series.Add(new TimeSeriesDto
+            {
+                Dimensions = [],
+                Values = incrementalPoints
+            });
+        }
+
+        return Result.Ok(new TimeSeriesListDto
+        {
+            Granularity = granularity.ToString(),
+            Series = series
+        });
+    }
+
+    public async Task<Result<LandingDashboardDto>> GetLanding()
+    {
+        var asOf = DateTime.Now;
+        var monthStart = new DateTime(asOf.Year, asOf.Month, 1);
+
+        var accounts = (await _accountRepository.GetAccounts()).ToList();
+        var balances = (await _repository.GetAccountBalances(asOf))
+            .ToDictionary(item => item.AccountId, item => item.Balance);
+
+        var accountItems = accounts
+            .Select(account => new LandingAccountBalanceDto
+            {
+                AccountId = account.Id,
+                Name = account.Name,
+                CurrentBalance = balances.GetValueOrDefault(account.Id, 0m)
+            })
+            .OrderBy(item => item.Name)
+            .ToList();
+
+        var categories = (await _categoryRepository.GetCategories()).ToList();
+        var categoryTotals = (await _repository.GetCategoryMonthTotals(monthStart, asOf))
+            .ToDictionary(item => item.CategoryId);
+
+        var categoryItems = categories
+            .Select(category =>
+            {
+                var hasItem = categoryTotals.TryGetValue(category.Id, out var item);
+                var spent = hasItem ? item.Spent : 0m;
+                var earned = hasItem ? item.Earned : 0m;
+
+                return new LandingCategorySummaryDto
+                {
+                    CategoryId = category.Id,
+                    Name = category.Name,
+                    SpentMonth = spent,
+                    EarnedMonth = earned,
+                    NetMonth = earned - spent
+                };
+            })
+            .OrderBy(item => item.Name)
+            .ToList();
+
+        var monthTotals = await _repository.GetMonthTotals(monthStart, asOf);
+
+        var netWorthSeries = await BuildNetWorthSeries(asOf);
+
+        return Result.Ok(new LandingDashboardDto
+        {
+            AsOf = asOf,
+            MonthStart = monthStart,
+            Accounts = accountItems,
+            Categories = categoryItems,
+            Totals = new LandingTotalsDto
+            {
+                CurrentBalanceTotal = accountItems.Sum(item => item.CurrentBalance),
+                SpentMonth = monthTotals.Spent,
+                EarnedMonth = monthTotals.Earned,
+                NetMonth = monthTotals.Earned - monthTotals.Spent
+            },
+            NetWorthSeries = netWorthSeries
+        });
+    }
+
+    private async Task<TimeSeriesListDto> BuildNetWorthSeries(DateTime asOf)
+    {
+        var startMonth = new DateTime(asOf.Year, asOf.Month, 1).AddMonths(-11);
+        var baselineDate = startMonth.AddTicks(-1);
+        var baselineBalance = (await _repository.GetAccountBalances(baselineDate)).Sum(item => item.Balance);
+
+        var request = new TimeSeriesRequestDto
+        {
+            StartDate = startMonth,
+            EndDate = asOf,
+            Granularity = (int)TimeGranularityEnum.Monthly,
+            IdAccounts = [],
+            IdCategories = []
+        };
+
+        var stockResult = await GetStock(request);
+        var stockSeries = stockResult.IsSuccess
+            ? stockResult.Value
+            : new TimeSeriesListDto
+            {
+                Granularity = TimeGranularityEnum.Monthly.ToString(),
+                Series = []
+            };
+
+        var rawPoints = stockSeries.Series.FirstOrDefault()?.Values ?? [];
+        var pointByPeriod = rawPoints
+            .OrderBy(point => point.Period)
+            .ToDictionary(point => point.Period, point => point.Amount);
+
+        var normalized = new List<TimeSeriesPointDto>();
+        var runningAmount = baselineBalance;
+
+        for (var month = startMonth; month <= asOf; month = month.AddMonths(1))
+        {
+            var periodKey = month.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+            if (pointByPeriod.TryGetValue(periodKey, out var amount))
+            {
+                runningAmount = amount;
+            }
+
+            normalized.Add(new TimeSeriesPointDto
+            {
+                Period = periodKey,
+                Amount = runningAmount
+            });
+        }
+
+        return new TimeSeriesListDto
+        {
+            Granularity = TimeGranularityEnum.Monthly.ToString(),
+            Series =
+            [
+                new TimeSeriesDto
+                {
+                    Dimensions = [],
+                    Values = normalized
+                }
+            ]
+        };
+    }
+
+    private static List<TimeSeriesPointDto> BuildIncrementalPoints(IEnumerable<TimeSeriesPointDto> points, string startPeriodKey)
+    {
+        var runningTotal = 0m;
+        var incrementalPoints = new List<TimeSeriesPointDto>();
+
+        foreach (var point in points)
+        {
+            runningTotal += point.Amount;
+
+            if (string.Compare(point.Period, startPeriodKey, StringComparison.Ordinal) >= 0)
+            {
+                incrementalPoints.Add(new TimeSeriesPointDto
+                {
+                    Period = point.Period,
+                    Amount = runningTotal
+                });
+            }
+        }
+
+        return incrementalPoints;
     }
 
     private static string GetPeriodKey(DateTime date, TimeGranularityEnum granularity)

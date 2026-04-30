@@ -9,6 +9,10 @@ public interface ITransactionRepository : IRepositoryBase
     Task<IEnumerable<Transaction>> GetTransactions();
     Task<(IEnumerable<Transaction> Items, int TotalCount, decimal TotalIncomes, decimal TotalOutcomes, decimal TotalNet)> GetPagedTransactions(TransactionQueryRequest request);
     Task<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>> GetTimeSeriesTransactions(TimeSeriesRequestDto request);
+    Task<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>> GetTimeSeriesTransactionsUntilDate(TimeSeriesRequestDto request);
+    Task<IEnumerable<(int AccountId, decimal Balance)>> GetAccountBalances(DateTime asOfDate);
+    Task<IEnumerable<(int CategoryId, decimal Spent, decimal Earned)>> GetCategoryMonthTotals(DateTime monthStart, DateTime asOfDate);
+    Task<(decimal Spent, decimal Earned)> GetMonthTotals(DateTime monthStart, DateTime asOfDate);
     Task<IEnumerable<(DateTime StartDate, DateTime EndDate)>> GetAvailableMonthRanges();
     Task<IEnumerable<Transaction>> GetTransactionsByTransferId(int transferId);
     Task<Transaction> GetLatestTransaction();

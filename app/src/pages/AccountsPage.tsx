@@ -110,7 +110,7 @@ export default function AccountsPage() {
 
     setDashboardLoading(true);
     try {
-      const result = await TransactionService.getTimeSeries({
+      const result = await TransactionService.getStock({
         startDate: toIsoDateStart(dashboardStartDate),
         endDate: toIsoDateEnd(dashboardEndDate),
         idAccounts: dashboardAccountIds.length > 0 ? dashboardAccountIds : [],

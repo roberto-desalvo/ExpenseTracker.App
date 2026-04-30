@@ -139,6 +139,87 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .ToListAsync();
     }
 
+    public async Task<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>> GetTimeSeriesTransactionsUntilDate(TimeSeriesRequestDto request)
+    {
+        var query = Context.Transactions
+            .AsNoTracking()
+            .Where(t => t.Date.HasValue)
+            .Where(t => t.Date <= request.EndDate);
+
+        if (request.IdAccounts.Any())
+            query = query.Where(t => request.IdAccounts.Contains(t.AccountId));
+
+        if (request.IdCategories.Any())
+            query = query.Where(t => t.CategoryId.HasValue && request.IdCategories.Contains(t.CategoryId.Value));
+
+        return await query
+            .Select(t => new
+            {
+                Date = t.Date!.Value,
+                t.Amount,
+                t.AccountId,
+                t.CategoryId
+            })
+            .OrderBy(t => t.Date)
+            .Select(t => ValueTuple.Create(t.Date, t.Amount, t.AccountId, t.CategoryId))
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<(int AccountId, decimal Balance)>> GetAccountBalances(DateTime asOfDate)
+    {
+        return await Context.Transactions
+            .AsNoTracking()
+            .Where(t => t.Date.HasValue && t.Date <= asOfDate)
+            .GroupBy(t => t.AccountId)
+            .Select(group => ValueTuple.Create(
+                group.Key,
+                group.Sum(t => t.Amount)))
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<(int CategoryId, decimal Spent, decimal Earned)>> GetCategoryMonthTotals(DateTime monthStart, DateTime asOfDate)
+    {
+        return await Context.Transactions
+            .AsNoTracking()
+            .Where(t => t.Date.HasValue)
+            .Where(t => t.Date >= monthStart && t.Date <= asOfDate)
+            .Where(t => t.TransferId == null)
+            .Where(t => t.CategoryId.HasValue)
+            .GroupBy(t => t.CategoryId!.Value)
+            .Select(group => ValueTuple.Create(
+                group.Key,
+                Math.Abs(group
+                    .Where(t => t.Amount < 0m)
+                    .Select(t => (decimal?)t.Amount)
+                    .Sum() ?? 0m),
+                group
+                    .Where(t => t.Amount > 0m)
+                    .Select(t => (decimal?)t.Amount)
+                    .Sum() ?? 0m))
+            .ToListAsync();
+    }
+
+    public async Task<(decimal Spent, decimal Earned)> GetMonthTotals(DateTime monthStart, DateTime asOfDate)
+    {
+        var query = Context.Transactions
+            .AsNoTracking()
+            .Where(t => t.Date.HasValue)
+            .Where(t => t.Date >= monthStart && t.Date <= asOfDate)
+            .Where(t => t.TransferId == null);
+
+        var spent = Math.Abs(await query
+            .Where(t => t.Amount < 0m)
+            .Select(t => (decimal?)t.Amount)
+            .SumAsync() ?? 0m);
+
+        var earned = await query
+            .Where(t => t.Amount > 0m)
+            .Select(t => (decimal?)t.Amount)
+            .SumAsync() ?? 0m;
+
+        return (spent, earned);
+    }
+
     public async Task<IEnumerable<(DateTime StartDate, DateTime EndDate)>> GetAvailableMonthRanges()
     {
         var dateBounds = await Context.Transactions

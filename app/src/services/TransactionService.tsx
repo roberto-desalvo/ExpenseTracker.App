@@ -5,6 +5,7 @@ import { TransactionQueryRequest } from "../models/TransactionQueryRequest";
 import { TransactionQueryResult } from "../models/TransactionQueryResult";
 import { TimeSeriesList } from "../models/TimeSeries";
 import { TimeSeriesRequest } from "../models/TimeSeriesRequest";
+import { LandingDashboard } from "../models/LandingDashboard";
 import { apiFetchJson, apiFetchVoid } from "./ApiClient";
 
 const TransactionService = {
@@ -38,6 +39,18 @@ const TransactionService = {
     );
   },
 
+  getLanding: async (): Promise<LandingDashboard> => {
+    const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerTransactionUrl}/landing`;
+    return apiFetchJson<LandingDashboard>(
+      url,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      },
+      "Errore nel caricamento della dashboard"
+    );
+  },
+
   getTimeSeries: async (request: TimeSeriesRequest): Promise<TimeSeriesList> => {
     const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerTransactionUrl}/series`;
     const payload: TimeSeriesRequest = {
@@ -54,6 +67,25 @@ const TransactionService = {
         body: JSON.stringify(payload),
       },
       "Errore nel caricamento della serie temporale"
+    );
+  },
+
+  getStock: async (request: TimeSeriesRequest): Promise<TimeSeriesList> => {
+    const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerTransactionUrl}/stock`;
+    const payload: TimeSeriesRequest = {
+      ...request,
+      idAccounts: request.idAccounts && request.idAccounts.length > 0 ? request.idAccounts : [],
+      idCategories: request.idCategories && request.idCategories.length > 0 ? request.idCategories : [],
+    };
+
+    return apiFetchJson<TimeSeriesList>(
+      url,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+      "Errore nel caricamento dello stock"
     );
   },
 
