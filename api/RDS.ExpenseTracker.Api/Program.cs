@@ -23,19 +23,18 @@ builder.Services.AddOpenApi();
 
 var debugCorsPolicy = "Debug";
 
-if (builder.Environment.IsDevelopment())
+
+builder.Services.AddCors(options =>
 {
-    builder.Services.AddCors(options =>
-    {
-        options.AddPolicy(debugCorsPolicy,
-            builder =>
-            {
-                builder.WithOrigins("http://127.0.0.1:5500", "http://127.0.0.1:5173", "http://localhost:5500", "http://localhost:5173")
-                       .AllowAnyMethod()
-                       .AllowAnyHeader();
-            });
-    });
-}
+    options.AddPolicy(debugCorsPolicy,
+        builder =>
+        {
+            builder.WithOrigins("http://127.0.0.1:5500", "http://127.0.0.1:5173", "http://localhost:5500", "http://localhost:5173")
+                   .AllowAnyMethod()
+                   .AllowAnyHeader();
+        });
+});
+
 
 builder.Configuration.AddEnvironmentVariables();
 builder.Services.AddOptions(builder.Configuration);
@@ -63,12 +62,7 @@ var app = builder.Build();
 
 app.UseHttpsRedirection();
 
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseCors(debugCorsPolicy);
-}
-
+app.UseCors(debugCorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
 

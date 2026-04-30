@@ -9,6 +9,7 @@ import AccountsPage from "./pages/AccountsPage";
 import { MsalAuthenticationTemplate } from "@azure/msal-react";
 import { InteractionType } from "@azure/msal-browser";
 import { loginRequest } from "./config/authConfig";
+import AuthErrorPage from "./pages/AuthErrorPage";
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
       <MsalAuthenticationTemplate
         interactionType={InteractionType.Redirect}
         authenticationRequest={loginRequest}
+        errorComponent={AuthErrorPage}
       >
         <Box
           sx={{
