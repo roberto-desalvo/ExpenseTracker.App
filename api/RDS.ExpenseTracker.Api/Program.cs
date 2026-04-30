@@ -21,15 +21,15 @@ Log.Logger = new LoggerConfiguration()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
-var debugCorsPolicy = "Debug";
+var feCorsPolicy = "FEPolicy";
 
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(debugCorsPolicy,
+    options.AddPolicy(feCorsPolicy,
         builder =>
         {
-            builder.WithOrigins("http://127.0.0.1:5500", "http://127.0.0.1:5173", "http://localhost:5500", "http://localhost:5173")
+            builder.WithOrigins("https://thankful-island-04ae49a03.7.azurestaticapps.net")
                    .AllowAnyMethod()
                    .AllowAnyHeader();
         });
@@ -62,7 +62,7 @@ var app = builder.Build();
 
 app.UseHttpsRedirection();
 
-app.UseCors(debugCorsPolicy);
+app.UseCors(feCorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
 
