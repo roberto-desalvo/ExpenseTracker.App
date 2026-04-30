@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using RDS.ExpenseTracker.Api.Dtos;
+using RDS.ExpenseTracker.Domain.Dtos;
 using RDS.ExpenseTracker.Domain.Services;
 
 namespace RDS.ExpenseTracker.Api.Controllers;
@@ -36,18 +37,13 @@ public class TransactionController : ApiControllerBase
 
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public Task<IActionResult> Post([FromBody] IEnumerable<TransactionDto> dto)
-        => ExecuteAsync(() => _service.AddTransactions(dto));
-
-    [HttpPut("{id}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public Task<IActionResult> Put(int id, [FromBody] TransactionDto dto)
-        => ExecuteAsync(() => _service.UpdateTransaction(dto));
+    public Task<IActionResult> Post([FromBody] TransactionDto dto)
+        => ExecuteAsync(() => _service.AddTransaction(dto));
 
     [HttpPut]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public Task<IActionResult> Put([FromBody] IEnumerable<TransactionDto> dtos)
-        => ExecuteAsync(() => _service.ResetTransactions(dtos));
+    public Task<IActionResult> Put(int id, [FromBody] TransactionDto dto)
+        => ExecuteAsync(() => _service.UpdateTransaction(dto));
 
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status200OK)]

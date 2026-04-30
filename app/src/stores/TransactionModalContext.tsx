@@ -7,15 +7,14 @@ import { useTransactions } from "./TransactionContext";
 interface TransactionModalContextType {
   transactionModalOpen: boolean;
   currentTransaction: Transaction | null;
-  openTransactionModal: () => void;
+  openTransactionModal: (transaction?: Transaction | null) => void;
   closeTransactionModal: () => void;
   modifyCategory: (category: Category | null) => void;
   modifyDescription: (description: string) => void;
   modifyAmount: (amount: number) => void;
   modifyAccount: (account: Account | null) => void;
   modifyDate: (date: Date | undefined) => void;
-  sendTransaction: () => void;
-  setTransaction: (transaction: Transaction) => void;
+  sendTransaction: () => Promise<void>;
 }
 
 const TransactionModalContext = createContext<
@@ -28,86 +27,99 @@ export const TransactionModalProvider: React.FC<{ children: ReactNode }> = ({
   const [transactionModalOpen, setTransactionModalOpen] =
     useState<boolean>(false);
 
-  const [currentTransaction, setCurrentTransaction] =
-    useState<Transaction>(new Transaction(0, new Date(), "", 0, 0, "", 0, ""));
+  const [currentTransaction, setCurrentTransaction] = useState<Transaction | null>(null);
 
-  const transactionContext = useTransactions();
+  const createEmptyTransaction = () =>
+    new Transaction(0, new Date(), "", 0, 0, "", 0, "");
 
-  const openTransactionModal = () => {
+  const cloneTransaction = (transaction: Transaction) =>
+    new Transaction(
+      transaction.id,
+      new Date(transaction.date),
+      transaction.description,
+      transaction.amount,
+      transaction.categoryId,
+      transaction.category,
+      transaction.accountId,
+      transaction.account
+    );
+
+  const openTransactionModal = (transaction?: Transaction | null) => {
+    setCurrentTransaction(
+      transaction ? cloneTransaction(transaction) : createEmptyTransaction()
+    );
     setTransactionModalOpen(true);
   };
+
+  const transactionContext = useTransactions();
 
   const closeTransactionModal = () => {
     setTransactionModalOpen(false);
   };
-
-  const setTransaction = (transaction: Transaction) => {
-    setCurrentTransaction(transaction);
-  }
 
   const modifyCategory = (category: Category | null) => {
     if (category === null) {
       return;
     }
 
-    const transaction =
-      currentTransaction ?? new Transaction(0, new Date(), "", 0, 0, "", 0, "");
-    transaction.category = category.description;
-    transaction.categoryId = category.id;
-    setCurrentTransaction(transaction);
+    setCurrentTransaction((prev) => {
+      const transaction = prev ? cloneTransaction(prev) : createEmptyTransaction();
+      transaction.category = category.description;
+      transaction.categoryId = category.id;
+      return transaction;
+    });
   };
 
   const modifyDescription = (description: string) => {
-    const transaction =
-      currentTransaction ?? new Transaction(0, new Date(), "", 0, 0, "", 0, "");
-    transaction.description = description;
-    setCurrentTransaction(transaction);
+    setCurrentTransaction((prev) => {
+      const transaction = prev ? cloneTransaction(prev) : createEmptyTransaction();
+      transaction.description = description;
+      return transaction;
+    });
   };
 
   const modifyAmount = (amount: number) => {
-    const transaction =
-      currentTransaction ?? new Transaction(0, new Date(), "", 0, 0, "", 0, "");
-    transaction.amount = amount;
-    setCurrentTransaction(transaction);
+    setCurrentTransaction((prev) => {
+      const transaction = prev ? cloneTransaction(prev) : createEmptyTransaction();
+      transaction.amount = amount;
+      return transaction;
+    });
   };
 
   const modifyAccount = (account: Account | null) => {
     if (account === null) {
       return;
     }
-    const transaction =
-      currentTransaction ?? new Transaction(0, new Date(), "", 0, 0, "", 0, "");
-    transaction.account = account.name;
-    transaction.accountId = account.id;
-    setCurrentTransaction(transaction);
+    setCurrentTransaction((prev) => {
+      const transaction = prev ? cloneTransaction(prev) : createEmptyTransaction();
+      transaction.account = account.name;
+      transaction.accountId = account.id;
+      return transaction;
+    });
   };
 
   const modifyDate = (date: Date | undefined) => {
     if (date === null) {
       return;
     }
-    const transaction =
-      currentTransaction ?? new Transaction(0, new Date(), "", 0, 0, "", 0, "");
-    transaction.date = date ?? new Date();
-    setCurrentTransaction(transaction);
+    setCurrentTransaction((prev) => {
+      const transaction = prev ? cloneTransaction(prev) : createEmptyTransaction();
+      transaction.date = date ?? new Date();
+      return transaction;
+    });
   };
 
-  const sendTransaction = () => {
-
-    console.log(currentTransaction);
+  const sendTransaction = async () => {
     if (currentTransaction == null) {
       return;
     }
 
     if (currentTransaction.id > 0) {
-      transactionContext.updateTransaction(
-        currentTransaction.id,
-        currentTransaction
-      );
+      await transactionContext.updateTransaction(currentTransaction);
     } else {
-      transactionContext.addTransaction(currentTransaction);
+      await transactionContext.addTransaction(currentTransaction);
     }
-  };  
+  };
 
   return (
     <TransactionModalContext.Provider
@@ -122,7 +134,6 @@ export const TransactionModalProvider: React.FC<{ children: ReactNode }> = ({
         modifyDate,
         modifyDescription,
         sendTransaction,
-        setTransaction
       }}
     >
       {children}

@@ -1,6 +1,7 @@
 using FluentResults;
 using RDS.ExpenseTracker.Api.Dtos;
 using RDS.ExpenseTracker.Domain.Common;
+using RDS.ExpenseTracker.Domain.Dtos;
 
 namespace RDS.ExpenseTracker.Domain.Services;
 

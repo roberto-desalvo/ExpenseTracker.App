@@ -15,11 +15,8 @@ interface TransactionsContextType {
   totalCount: number;
   availableMonths: TransactionMonthOption[];
   availableMonthsLoading: boolean;
-  addTransaction: (transaction: Transaction) => void;
-  updateTransaction: (
-    id: number,
-    updatedTransaction: Partial<Transaction>
-  ) => void;
+  addTransaction: (transaction: Transaction) => Promise<void>;
+  updateTransaction: (transaction: Transaction) => Promise<void>;
   deleteTransaction: (transaction: Transaction) => void;
   refreshTransactions: (request?: TransactionQueryRequest) => void;
 }
@@ -81,31 +78,26 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
     void loadAvailableMonths();
   }, []);
 
-  const addTransaction = (transaction: Transaction) => {
-    const createTransaction = async () => {
-      try {
-        await TransactionService.add(transaction);
-        await loadAvailableMonths();
-        refreshTransactions();
-      } catch (error) {
-        console.error("Errore nell'aggiunta della transaction:", error);
-      }
-    };
-
-    void createTransaction();
+  const addTransaction = async (transaction: Transaction) => {
+    try {
+      await TransactionService.add(transaction);
+      await loadAvailableMonths();
+      refreshTransactions();
+    } catch (error) {
+      console.error("Errore nell'aggiunta della transaction:", error);
+      throw error;
+    }
   };
 
-  const updateTransaction = (
-    id: number,
-    updatedTransaction: Partial<Transaction>
-  ) => {
-    setTransactions((prev) =>
-      prev.map((transaction) =>
-        transaction.id === id
-          ? { ...transaction, ...updatedTransaction }
-          : transaction
-      )
-    );
+  const updateTransaction = async (transaction: Transaction) => {
+    try {
+      await TransactionService.update(transaction);
+      await loadAvailableMonths();
+      refreshTransactions();
+    } catch (error) {
+      console.error("Errore nella modifica della transaction:", error);
+      throw error;
+    }
   };
 
   const deleteTransaction = (transaction: Transaction) => {

@@ -108,8 +108,7 @@ export default function ExpenseTableRow({ transaction }: ExpenseTableRowProps) {
   };
 
   const onEdit = () => {
-    transactionModalContext.setTransaction(transaction);
-    transactionModalContext.openTransactionModal();
+    transactionModalContext.openTransactionModal(transaction);
     setActionsAnchorEl(null);
   };
 

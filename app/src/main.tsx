@@ -12,21 +12,24 @@ import { TableContextProvider } from "./stores/TableContext.tsx";
 import { TransactionModalProvider } from "./stores/TransactionModalContext.tsx";
 import { CategoriesProvider } from "./stores/CategoryContext.tsx";
 import { AppThemeProvider } from "./stores/ThemeContext.tsx";
+import { ApiErrorProvider } from "./stores/ApiErrorContext.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AppThemeProvider>
-      <AccountsProvider>
-        <TransactionsProvider>
-          <CategoriesProvider>
-            <TableContextProvider>
-            <TransactionModalProvider>
-              <App />
-            </TransactionModalProvider>
-          </TableContextProvider>
-        </CategoriesProvider>
-      </TransactionsProvider>
-    </AccountsProvider>
+      <ApiErrorProvider>
+        <AccountsProvider>
+          <TransactionsProvider>
+            <CategoriesProvider>
+              <TableContextProvider>
+                <TransactionModalProvider>
+                  <App />
+                </TransactionModalProvider>
+              </TableContextProvider>
+            </CategoriesProvider>
+          </TransactionsProvider>
+        </AccountsProvider>
+      </ApiErrorProvider>
     </AppThemeProvider>
   </StrictMode>
 );

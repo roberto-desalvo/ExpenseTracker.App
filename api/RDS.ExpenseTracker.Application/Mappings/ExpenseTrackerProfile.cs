@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using RDS.ExpenseTracker.Api.Dtos;
+using RDS.ExpenseTracker.Domain.Dtos;
 using RDS.ExpenseTracker.Domain.Entities;
 
 namespace RDS.ExpenseTracker.Application.Mappings;
@@ -14,11 +15,16 @@ public class ExpenseTrackerProfile : Profile
             .ReverseMap();
 
         CreateMap<Transaction, TransactionDto>()
-            .ForMember(dest => dest.CategoryId, opt => opt.MapFrom(src => src.CategoryId))
-            .ForMember(dest => dest.Category, opt => opt.MapFrom(src => src.CategoryNavigation == null ? null : src.CategoryNavigation.Name))
+            .ForMember(dest => dest.CategoryId, opt => opt.MapFrom(src => src.CategoryId ?? 0))
+            .ForMember(dest => dest.Category, opt => opt.MapFrom(src => src.CategoryNavigation == null ? string.Empty : src.CategoryNavigation.Name))
             .ForMember(dest => dest.AccountId, opt => opt.MapFrom(src => src.AccountId))
-            .ForMember(dest => dest.Account, opt => opt.MapFrom(src => src.AccountNavigation.Name))
-            .ReverseMap();
+            .ForMember(dest => dest.Account, opt => opt.MapFrom(src => src.AccountNavigation.Name));
+
+        CreateMap<TransactionDto, Transaction>()
+            .ForMember(dest => dest.CategoryId, opt => opt.MapFrom(src => src.CategoryId > 0 ? (int?)src.CategoryId : null))
+            .ForMember(dest => dest.AccountNavigation, opt => opt.Ignore())
+            .ForMember(dest => dest.CategoryNavigation, opt => opt.Ignore())
+            .ForMember(dest => dest.TransferNavigation, opt => opt.Ignore());
 
         CreateMap<Category, CategoryDto>()
             .ForMember(dest => dest.Priority, opt => opt.MapFrom(src => src.Priority ?? 0))
