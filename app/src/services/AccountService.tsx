@@ -1,4 +1,4 @@
-import config from "../config/development";
+import { apiConfig } from "../config/api";
 import Account from "../models/Account";
 import { apiFetchJson, apiFetchVoid } from "./ApiClient";
 
@@ -17,9 +17,8 @@ export interface AccountQueryRequest {
 
 const AccountService = {
   query: async (request: AccountQueryRequest): Promise<AccountPagedResult> => {
-    const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerAccountUrl}/query`;
     return apiFetchJson<AccountPagedResult>(
-      url,
+      apiConfig.accounts.query,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -30,9 +29,8 @@ const AccountService = {
   },
 
   add: async (account: Account): Promise<void> => {
-    const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerAccountUrl}`;
     await apiFetchVoid(
-      url,
+      apiConfig.accounts.base,
       {
         method: "POST",
         headers: {
@@ -45,9 +43,8 @@ const AccountService = {
   },
 
   update: async (account: Account): Promise<void> => {
-    const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerAccountUrl}`;
     await apiFetchVoid(
-      url,
+      apiConfig.accounts.base,
       {
         method: "PUT",
         headers: {

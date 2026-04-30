@@ -1,12 +1,11 @@
-import config from "../config/development";
+import { apiConfig } from "../config/api";
 import { TransferPayload } from "../models/Transfer";
 import { apiFetchVoid } from "./ApiClient";
 
 const TransferService = {
   add: async (transfer: TransferPayload): Promise<void> => {
-    const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerTransferUrl}`;
     await apiFetchVoid(
-      url,
+      apiConfig.transfers.base,
       {
         method: "POST",
         headers: {

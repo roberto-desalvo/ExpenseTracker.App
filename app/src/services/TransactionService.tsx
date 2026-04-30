@@ -1,4 +1,4 @@
-import config from "../config/development";
+import { apiConfig } from "../config/api";
 import Transaction from "../models/Transaction";
 import { TransactionMonthOption } from "../models/TransactionMonthOption";
 import { TransactionQueryRequest } from "../models/TransactionQueryRequest";
@@ -10,14 +10,13 @@ import { apiFetchJson, apiFetchVoid } from "./ApiClient";
 
 const TransactionService = {
   getAll: async (request: TransactionQueryRequest): Promise<TransactionQueryResult> => {
-    const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerTransactionUrl}/query`;
     const payload: TransactionQueryRequest = {
       ...request,
       idAccounts: request.idAccounts ?? null,
       idCategories: request.idCategories ?? null,
     };
     return apiFetchJson<TransactionQueryResult>(
-      url,
+      apiConfig.transactions.query,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -28,9 +27,8 @@ const TransactionService = {
   },
 
   getMonthOptions: async (): Promise<TransactionMonthOption[]> => {
-    const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerTransactionUrl}/month-options`;
     return apiFetchJson<TransactionMonthOption[]>(
-      url,
+      apiConfig.transactions.monthOptions,
       {
         method: "GET",
         headers: { "Content-Type": "application/json" },
@@ -40,9 +38,8 @@ const TransactionService = {
   },
 
   getLanding: async (): Promise<LandingDashboard> => {
-    const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerTransactionUrl}/landing`;
     return apiFetchJson<LandingDashboard>(
-      url,
+      apiConfig.transactions.landing,
       {
         method: "GET",
         headers: { "Content-Type": "application/json" },
@@ -52,7 +49,6 @@ const TransactionService = {
   },
 
   getTimeSeries: async (request: TimeSeriesRequest): Promise<TimeSeriesList> => {
-    const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerTransactionUrl}/series`;
     const payload: TimeSeriesRequest = {
       ...request,
       idAccounts: request.idAccounts && request.idAccounts.length > 0 ? request.idAccounts : [],
@@ -60,7 +56,7 @@ const TransactionService = {
     };
 
     return apiFetchJson<TimeSeriesList>(
-      url,
+      apiConfig.transactions.series,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -71,7 +67,6 @@ const TransactionService = {
   },
 
   getStock: async (request: TimeSeriesRequest): Promise<TimeSeriesList> => {
-    const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerTransactionUrl}/stock`;
     const payload: TimeSeriesRequest = {
       ...request,
       idAccounts: request.idAccounts && request.idAccounts.length > 0 ? request.idAccounts : [],
@@ -79,7 +74,7 @@ const TransactionService = {
     };
 
     return apiFetchJson<TimeSeriesList>(
-      url,
+      apiConfig.transactions.stock,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -90,9 +85,8 @@ const TransactionService = {
   },
 
   add: async (transaction: Transaction): Promise<void> => {
-    const url = config.expenseTrackerBaseUrl + '/' + config.expenseTrackerTransactionUrl;
     await apiFetchVoid(
-      url,
+      apiConfig.transactions.base,
       {
         method: 'POST',
         headers: {
@@ -105,9 +99,8 @@ const TransactionService = {
   },
 
   update: async (transaction: Transaction): Promise<void> => {
-    const url = config.expenseTrackerBaseUrl + '/' + config.expenseTrackerTransactionUrl;
     await apiFetchVoid(
-      url,
+      apiConfig.transactions.base,
       {
         method: 'PUT',
         headers: {
@@ -120,9 +113,8 @@ const TransactionService = {
   },
 
   delete: async (id: number): Promise<void> => {
-    const url = config.expenseTrackerBaseUrl + '/' + config.expenseTrackerTransactionUrl + '/' + id;
     await apiFetchVoid(
-      url,
+      apiConfig.transactions.byId(id),
       {
         method: 'DELETE',
         headers: {

@@ -1,4 +1,4 @@
-import config from "../config/development";
+import { apiConfig } from "../config/api";
 import Category from "../models/Category";
 import { apiFetchJson, apiFetchVoid } from "./ApiClient";
 
@@ -17,9 +17,8 @@ export interface CategoryQueryRequest {
 
 const CategoryService = {
   getAll: async (request: CategoryQueryRequest): Promise<CategoryPagedResult> => {
-    const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerCategoryUrl}/query`;
     return apiFetchJson<CategoryPagedResult>(
-      url,
+      apiConfig.categories.query,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -30,9 +29,8 @@ const CategoryService = {
   },
 
   add: async (category: Category): Promise<void> => {
-    const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerCategoryUrl}`;
     await apiFetchVoid(
-      url,
+      apiConfig.categories.base,
       {
         method: "POST",
         headers: {
@@ -45,9 +43,8 @@ const CategoryService = {
   },
 
   update: async (category: Category): Promise<void> => {
-    const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerCategoryUrl}`;
     await apiFetchVoid(
-      url,
+      apiConfig.categories.base,
       {
         method: "PUT",
         headers: {
@@ -60,9 +57,8 @@ const CategoryService = {
   },
 
   delete: async (id: number): Promise<void> => {
-    const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerCategoryUrl}/${id}`;
     await apiFetchVoid(
-      url,
+      apiConfig.categories.byId(id),
       {
         method: "DELETE",
         headers: {
