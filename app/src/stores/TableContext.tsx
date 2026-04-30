@@ -113,7 +113,7 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
         selectedMovementType === "all"
           ? null
           : selectedMovementType === "incomes",
-      page: p + 1,
+      page: p,
       pageSize: ps,
     };
   };

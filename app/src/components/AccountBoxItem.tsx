@@ -64,9 +64,6 @@ export default function AccountBoxItem({ account }: AccountBoxItemProps) {
         <div className="flex w-full justify-between items-center">
           <Typography sx={typographyStyle}>{account.name}</Typography>
           <Typography sx={typographyStyle}>
-            {account.availability} &#8364;
-          </Typography>
-          <Typography sx={typographyStyle}>
             ({getAccountOutcome().toFixed(2)} &#8364;)
           </Typography>
         </div>

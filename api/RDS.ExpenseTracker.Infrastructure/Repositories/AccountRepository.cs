@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using RDS.ExpenseTracker.Domain.Dtos;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Repositories;
 
@@ -14,15 +15,6 @@ public class AccountRepository : RepositoryBase, IAccountRepository
     public async Task AddAccounts(IEnumerable<Account> accounts)
     {
         await Context.Accounts.AddRangeAsync(accounts);
-    }
-
-    public async Task DeleteAccount(int id)
-    {
-        var entity = await Context.Accounts.FindAsync(id);
-        if (entity != null)
-        {
-            Context.Accounts.Remove(entity);
-        }
     }
 
     public async Task UpdateAccount(Account account)
@@ -54,7 +46,29 @@ public class AccountRepository : RepositoryBase, IAccountRepository
 
     public async Task<IEnumerable<Account>> GetAccounts()
     {
-        return await Context.Accounts.ToListAsync();
+        return await Context.Accounts
+            .OrderBy(a => a.Name)
+            .ToListAsync();
+    }
+
+    public async Task<(IEnumerable<Account> Items, int TotalCount)> GetPagedAccounts(AccountQueryRequest request)
+    {
+        var query = Context.Accounts.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(request.Name))
+        {
+            var normalizedName = request.Name.Trim();
+            query = query.Where(a => EF.Functions.Like(a.Name, $"%{normalizedName}%"));
+        }
+
+        var totalCount = await query.CountAsync();
+        var items = await query
+            .OrderBy(a => a.Name)
+            .Skip(request.Page * request.PageSize)
+            .Take(request.PageSize)
+            .ToListAsync();
+
+        return (items, totalCount);
     }
 
 

@@ -106,7 +106,7 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
 
         var items = await query
             .OrderByDescending(t => t.Date)
-            .Skip((request.Page - 1) * request.PageSize)
+            .Skip(request.Page * request.PageSize)
             .Take(request.PageSize)
             .ToListAsync();
 

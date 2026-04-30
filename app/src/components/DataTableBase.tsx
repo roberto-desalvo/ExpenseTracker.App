@@ -174,6 +174,10 @@ export default function DataTableBase<T>({
         <TablePagination
           rowsPerPageOptions={rowsPerPageOptions}
           component="div"
+          labelRowsPerPage="Elementi per pagina"
+          labelDisplayedRows={({ from, to, count }) =>
+            `${from}-${to} di ${count !== -1 ? count : `più di ${to}`}`
+          }
           count={totalCount}
           rowsPerPage={pageSize}
           page={page}

@@ -3,70 +3,134 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useRef,
   ReactNode,
 } from "react";
 import Account from "../models/Account";
 import AccountService from "../services/AccountService";
 
-// Definisci il tipo per il valore del contesto
 interface AccountsContextType {
   accounts: Account[];
-  addAccount: (account: Account) => void;
-  updateAccount: (id: number, updatedAccount: Partial<Account>) => void;
-  deleteAccount: (id: number) => void;
+  pagedAccounts: Account[];
+  isLoading: boolean;
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  modifyPage: (newPage: number) => void;
+  modifyPageSize: (newPageSize: number) => void;
+  refreshAccounts: (name?: string) => Promise<void>;
+  addAccount: (account: Account) => Promise<void>;
+  updateAccount: (account: Account) => Promise<void>;
 }
 
-// Crea il Context con un valore iniziale vuoto (sarà fornito dal Provider)
 const AccountsContext = createContext<AccountsContextType | undefined>(
   undefined
 );
 
-// Definisci il Provider
 export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [pagedAccounts, setPagedAccounts] = useState<Account[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [page, setPage] = useState<number>(0);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const currentNameRef = useRef<string | undefined>(undefined);
+
+  const refreshAllAccounts = async () => {
+    const result = await AccountService.query({ page: 0, pageSize: 10000 });
+    setAccounts(result.items);
+  };
+
+  const refreshAccounts = async (name?: string) => {
+    currentNameRef.current = name;
+    setIsLoading(true);
+    try {
+      const result = await AccountService.query({ name, page, pageSize });
+      setPagedAccounts(result.items);
+      setTotalCount(result.totalCount);
+    } catch (error) {
+      console.error("Errore nel caricamento degli account:", error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchAccounts = async () => {
+    const load = async () => {
       try {
-        const accounts = await AccountService.getAll();
-        setAccounts(accounts);
-      } catch (error) {
-        console.error("Errore nel caricamento degli accounts:", error);
+        await Promise.all([refreshAllAccounts(), refreshAccounts()]);
+      } catch {
+        // handled by error layer
       }
     };
 
-    fetchAccounts();
+    void load();
   }, []);
 
-  // Funzioni per gestire lo stato
-  const addAccount = (account: Account) => {
-    setAccounts((prev) => [...prev, account]);
+  useEffect(() => {
+    void refreshAccounts(currentNameRef.current);
+  }, [page, pageSize]);
+
+  const modifyPage = (newPage: number) => {
+    setPage(newPage);
   };
 
-  const updateAccount = (id: number, updatedAccount: Partial<Account>) => {
-    setAccounts((prev) =>
-      prev.map((account) =>
-        account.id === id ? { ...account, ...updatedAccount } : account
-      )
-    );
+  const modifyPageSize = (newPageSize: number) => {
+    setPageSize(newPageSize);
+    setPage(0);
   };
 
-  const deleteAccount = (id: number) => {
-    setAccounts((prev) => prev.filter((account) => account.id !== id));
+  const addAccount = async (account: Account) => {
+    try {
+      await AccountService.add(account);
+      setPage(0);
+      await Promise.all([
+        refreshAllAccounts(),
+        refreshAccounts(currentNameRef.current),
+      ]);
+    } catch (error) {
+      console.error("Errore nell'aggiunta dell'account:", error);
+      throw error;
+    }
+  };
+
+  const updateAccount = async (account: Account) => {
+    try {
+      await AccountService.update(account);
+      await Promise.all([
+        refreshAllAccounts(),
+        refreshAccounts(currentNameRef.current),
+      ]);
+    } catch (error) {
+      console.error("Errore nella modifica dell'account:", error);
+      throw error;
+    }
   };
 
   return (
     <AccountsContext.Provider
-      value={{ accounts, addAccount, updateAccount, deleteAccount }}
+      value={{
+        accounts,
+        pagedAccounts,
+        isLoading,
+        page,
+        pageSize,
+        totalCount,
+        modifyPage,
+        modifyPageSize,
+        refreshAccounts,
+        addAccount,
+        updateAccount,
+      }}
     >
       {children}
     </AccountsContext.Provider>
   );
 };
 
-// Hook per utilizzare il contesto in modo più semplice
 export const useAccounts = (): AccountsContextType => {
   const context = useContext(AccountsContext);
   if (!context) {

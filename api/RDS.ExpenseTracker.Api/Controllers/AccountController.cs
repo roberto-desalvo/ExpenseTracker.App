@@ -14,10 +14,10 @@ public class AccountController : ApiControllerBase
         _service = service ?? throw new ArgumentNullException(nameof(service));
     }
 
-    [HttpGet]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<AccountDto>))]
-    public Task<IActionResult> Get()
-        => ExecuteAsync(() => _service.GetAccounts());
+    [HttpPost("query")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<AccountDto>))]
+    public Task<IActionResult> Query([FromBody] AccountQueryRequest request)
+        => ExecuteAsync(() => _service.GetAccounts(request));
 
     [HttpGet("{id}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(AccountDto))]
@@ -34,13 +34,8 @@ public class AccountController : ApiControllerBase
     public Task<IActionResult> Post([FromBody] IEnumerable<AccountDto> dto)
         => ExecuteAsync(() => _service.AddAccounts(dto));
 
-    [HttpPut("{id}")]
+    [HttpPut]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public Task<IActionResult> Put(int id, [FromBody] AccountDto dto)
+    public Task<IActionResult> Put([FromBody] AccountDto dto)
         => ExecuteAsync(() => _service.UpdateAccount(dto));
-
-    [HttpDelete("{id}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public Task<IActionResult> Delete(int id)
-        => ExecuteAsync(() => _service.DeleteAccount(id));
 }

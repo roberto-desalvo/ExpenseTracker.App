@@ -19,10 +19,16 @@ public class AccountService : IAccountService
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
     }
 
-    public async Task<Result<IEnumerable<AccountDto>>> GetAccounts()
+    public async Task<Result<PagedResult<AccountDto>>> GetAccounts(AccountQueryRequest request)
     {
-        var accounts = await _repository.GetAccounts();
-        return Result.Ok(_mapper.Map<IEnumerable<AccountDto>>(accounts));
+        var (items, totalCount) = await _repository.GetPagedAccounts(request);
+        return Result.Ok(new PagedResult<AccountDto>
+        {
+            Items = _mapper.Map<IEnumerable<AccountDto>>(items),
+            TotalCount = totalCount,
+            Page = request.Page,
+            PageSize = request.PageSize,
+        });
     }
 
     public async Task<Result<AccountDto?>> GetAccount(int id)
@@ -76,17 +82,4 @@ public class AccountService : IAccountService
         return Result.Ok();
     }
 
-    public async Task<Result> DeleteAccount(int id)
-    {
-        if (id <= 0)
-            return Result.Fail(DomainErrors.InvalidId("account", id));
-
-        var current = await _repository.GetAccount(id);
-        if (current is null)
-            return Result.Fail(DomainErrors.NotFound("Account", id));
-
-        await _repository.DeleteAccount(id);
-        await _repository.SaveChangesAsync();
-        return Result.Ok();
-    }
 }
