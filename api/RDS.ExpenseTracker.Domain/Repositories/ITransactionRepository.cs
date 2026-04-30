@@ -1,4 +1,4 @@
-﻿using RDS.ExpenseTracker.Domain.Dtos;
+﻿using RDS.ExpenseTracker.Domain.Dtos.Requests;
 using RDS.ExpenseTracker.Domain.Entities;
 
 namespace RDS.ExpenseTracker.Domain.Repositories;
@@ -8,6 +8,7 @@ public interface ITransactionRepository : IRepositoryBase
     Task<Transaction?> GetTransaction(int id);
     Task<IEnumerable<Transaction>> GetTransactions();
     Task<(IEnumerable<Transaction> Items, int TotalCount, decimal TotalIncomes, decimal TotalOutcomes, decimal TotalNet)> GetPagedTransactions(TransactionQueryRequest request);
+    Task<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>> GetTimeSeriesTransactions(TimeSeriesRequestDto request);
     Task<IEnumerable<(DateTime StartDate, DateTime EndDate)>> GetAvailableMonthRanges();
     Task<IEnumerable<Transaction>> GetTransactionsByTransferId(int transferId);
     Task<Transaction> GetLatestTransaction();

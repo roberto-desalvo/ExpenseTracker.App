@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Box, Stack, Tab, TableCell, TableRow, Tabs, TextField, Typography } from "@mui/material";
+import { useState, useEffect, useMemo } from "react";
+import { Box, Stack, Tab, TableCell, TableRow, Tabs, TextField, Typography, FormControl, InputLabel, Select, MenuItem, Checkbox, ListItemText, OutlinedInput, Alert, CircularProgress } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { EditRounded } from "@mui/icons-material";
 import Account from "../models/Account";
@@ -7,7 +7,11 @@ import DataTableBase, { DataTableColumn } from "../components/DataTableBase";
 import RowActionsMenu from "../components/RowActionsMenu";
 import AppModal from "../components/AppModal";
 import AccountsFilterBar from "../components/AccountsFilterBar";
+import TimeSeriesLineChart, { TimeSeriesLineChartSeries } from "../components/TimeSeriesLineChart";
 import { useAccounts } from "../stores/AccountContext";
+import TransactionService from "../services/TransactionService";
+import { TimeSeriesList } from "../models/TimeSeries";
+import { toIsoDateStart, toIsoDateEnd } from "../utilities/date.utilities";
 
 type AccountFormState = {
   name: string;
@@ -38,11 +42,102 @@ export default function AccountsPage() {
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [operationInProgress, setOperationInProgress] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<number>(0);
+  const [dashboardLoading, setDashboardLoading] = useState<boolean>(false);
+  const [dashboardData, setDashboardData] = useState<TimeSeriesList | null>(null);
+  const [dashboardStartDate, setDashboardStartDate] = useState<string>(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+    return start.toISOString().slice(0, 10);
+  });
+  const [dashboardEndDate, setDashboardEndDate] = useState<string>(() => {
+    const now = new Date();
+    return now.toISOString().slice(0, 10);
+  });
+  const [dashboardGranularity, setDashboardGranularity] = useState<number>(3);
+  const [dashboardAccountIds, setDashboardAccountIds] = useState<number[]>([]);
 
   const columns: DataTableColumn[] = [
     { id: "name", label: "Nome", minWidth: 200 },
     { id: "actions", label: "Azioni", minWidth: 80, align: "center" },
   ];
+
+  useEffect(() => {
+    if (pagedAccounts.length === 0) {
+      setDashboardAccountIds([]);
+      return;
+    }
+
+    setDashboardAccountIds((prev) => {
+      if (prev.length === 0) {
+        return pagedAccounts.map((account) => account.id);
+      }
+
+      return prev.filter((id) => pagedAccounts.some((account) => account.id === id));
+    });
+  }, [pagedAccounts]);
+
+  const accountNameById = useMemo(
+    () => new Map(pagedAccounts.map((account) => [account.id, account.name])),
+    [pagedAccounts],
+  );
+
+  const chartSeries = useMemo<TimeSeriesLineChartSeries[]>(() => {
+    if (!dashboardData) {
+      return [];
+    }
+
+    return dashboardData.series.map((serie, index) => {
+      const accountDimension = serie.dimensions.find(
+        (dimension) => dimension.key === "AccountId",
+      );
+
+      const accountId = accountDimension ? Number(accountDimension.value) : NaN;
+      const accountName = Number.isFinite(accountId)
+        ? (accountNameById.get(accountId) ?? `Account ${accountId}`)
+        : `Serie ${index + 1}`;
+
+      return {
+        name: accountName,
+        values: serie.values,
+      };
+    });
+  }, [dashboardData, accountNameById]);
+
+  const handleDashboardLoad = async () => {
+    if (!dashboardStartDate || !dashboardEndDate) {
+      return;
+    }
+
+    setDashboardLoading(true);
+    try {
+      const result = await TransactionService.getTimeSeries({
+        startDate: toIsoDateStart(dashboardStartDate),
+        endDate: toIsoDateEnd(dashboardEndDate),
+        idAccounts: dashboardAccountIds.length > 0 ? dashboardAccountIds : [],
+        idCategories: [],
+        granularity: dashboardGranularity,
+      });
+      setDashboardData(result);
+    } finally {
+      setDashboardLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 1) {
+      return;
+    }
+
+    void handleDashboardLoad();
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== 1 || !dashboardStartDate || !dashboardEndDate) {
+      return;
+    }
+
+    void handleDashboardLoad();
+  }, [dashboardStartDate, dashboardEndDate, dashboardGranularity, dashboardAccountIds, activeTab]);
 
   const handleSearch = (name?: string) => {
     modifyPage(0);
@@ -156,8 +251,8 @@ export default function AccountsPage() {
           textColor="inherit"
           indicatorColor="primary"
         >
-          <Tab label="Tabella" />
-          <Tab label="Altro" />
+          <Tab label="Gestione" />
+          <Tab label="Analisi" />
         </Tabs>
       </Box>
       {activeTab === 0 && (
@@ -188,16 +283,123 @@ export default function AccountsPage() {
             renderRow={(account) => renderAccountRow(account)}
           />
         ) : (
-          <Box
-            sx={{
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "text.secondary",
-            }}
-          >
-            <Typography variant="body1">Contenuto in arrivo</Typography>
+          <Box sx={{ p: 2 }}>
+            <Stack spacing={2.5}>
+              <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+                <TextField
+                  label="Data inizio"
+                  type="date"
+                  value={dashboardStartDate}
+                  onChange={(event) => setDashboardStartDate(event.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  size="small"
+                />
+                <TextField
+                  label="Data fine"
+                  type="date"
+                  value={dashboardEndDate}
+                  onChange={(event) => setDashboardEndDate(event.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  size="small"
+                />
+
+                <FormControl size="small" sx={{ minWidth: 180 }}>
+                  <InputLabel id="granularity-label">Granularità</InputLabel>
+                  <Select
+                    labelId="granularity-label"
+                    value={dashboardGranularity}
+                    label="Granularità"
+                    onChange={(event) =>
+                      setDashboardGranularity(Number(event.target.value))
+                    }
+                  >
+                    <MenuItem value={1}>Giornaliero</MenuItem>
+                    <MenuItem value={2}>Settimanale</MenuItem>
+                    <MenuItem value={3}>Mensile</MenuItem>
+                    <MenuItem value={4}>Annuale</MenuItem>
+                  </Select>
+                </FormControl>
+              </Stack>
+
+              <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+                <FormControl size="small" sx={{ minWidth: 280, flex: 1.3 }}>
+                  <InputLabel id="dashboard-account-filter-label">Account</InputLabel>
+                  <Select
+                    labelId="dashboard-account-filter-label"
+                    multiple
+                    value={dashboardAccountIds.map(String)}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      const ids =
+                        typeof value === "string"
+                          ? value.split(",").map((id) => Number(id))
+                          : value.map((id) => Number(id));
+                      setDashboardAccountIds(ids);
+                    }}
+                    input={<OutlinedInput label="Account" />}
+                    renderValue={(selected) => {
+                      if (selected.length === 0) return "Nessun account";
+                      return selected
+                        .map((id) =>
+                          pagedAccounts.find((account) => account.id === Number(id))?.name,
+                        )
+                        .filter(Boolean)
+                        .join(", ");
+                    }}
+                  >
+                    {pagedAccounts.map((account) => (
+                      <MenuItem key={account.id} value={String(account.id)}>
+                        <Checkbox checked={dashboardAccountIds.includes(account.id)} />
+                        <ListItemText primary={account.name} />
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
+
+              {dashboardStartDate > dashboardEndDate && (
+                <Alert severity="warning">
+                  La data di inizio deve essere precedente o uguale alla data di fine.
+                </Alert>
+              )}
+
+              <Box
+                sx={{
+                  border: `1px solid ${c.filterBorder}`,
+                  borderRadius: 2,
+                  backgroundColor: theme.palette.background.paper,
+                  p: 2,
+                  minHeight: 430,
+                }}
+              >
+                {dashboardLoading ? (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      height: "100%",
+                    }}
+                  >
+                    <CircularProgress />
+                  </Box>
+                ) : dashboardData && chartSeries.length > 0 ? (
+                  <TimeSeriesLineChart series={chartSeries} />
+                ) : (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      height: "100%",
+                      color: "text.secondary",
+                    }}
+                  >
+                    <Typography>Nessun dato disponibile</Typography>
+                  </Box>
+                )}
+              </Box>
+            </Stack>
           </Box>
         )}
 

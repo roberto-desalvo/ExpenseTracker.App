@@ -1,4 +1,4 @@
-﻿using RDS.ExpenseTracker.Domain.Dtos;
+﻿using RDS.ExpenseTracker.Domain.Dtos.Requests;
 using RDS.ExpenseTracker.Domain.Entities;
 using System;
 using System.Collections.Generic;

@@ -1,5 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using RDS.ExpenseTracker.Domain.Dtos;
+using RDS.ExpenseTracker.Domain.Dtos.Requests;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Repositories;
 
@@ -111,6 +111,32 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .ToListAsync();
 
         return (items, totalCount, totalIncomes, totalOutcomes, totalNet);
+    }
+
+    public async Task<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>> GetTimeSeriesTransactions(TimeSeriesRequestDto request)
+    {
+        var query = Context.Transactions
+            .AsNoTracking()
+            .Where(t => t.Date.HasValue)
+            .Where(t => t.Date >= request.StartDate && t.Date <= request.EndDate);
+
+        if (request.IdAccounts.Any())
+            query = query.Where(t => request.IdAccounts.Contains(t.AccountId));
+
+        if (request.IdCategories.Any())
+            query = query.Where(t => t.CategoryId.HasValue && request.IdCategories.Contains(t.CategoryId.Value));
+
+        return await query
+            .Select(t => new
+            {
+                Date = t.Date!.Value,
+                t.Amount,
+                t.AccountId,
+                t.CategoryId
+            })
+            .OrderBy(t => t.Date)
+            .Select(t => ValueTuple.Create(t.Date, t.Amount, t.AccountId, t.CategoryId))
+            .ToListAsync();
     }
 
     public async Task<IEnumerable<(DateTime StartDate, DateTime EndDate)>> GetAvailableMonthRanges()

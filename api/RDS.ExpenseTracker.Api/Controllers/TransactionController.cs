@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using RDS.ExpenseTracker.Domain.Dtos;
+using RDS.ExpenseTracker.Domain.Dtos.Requests;
 using RDS.ExpenseTracker.Domain.Services;
 
 namespace RDS.ExpenseTracker.Api.Controllers;
@@ -48,4 +49,9 @@ public class TransactionController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public Task<IActionResult> Delete(int id)
         => ExecuteAsync(() => _service.DeleteTransaction(id));
+
+        [HttpPost("series")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TimeSeriesListDto))]
+    public Task<IActionResult> GetTimeSeries([FromBody] TimeSeriesRequestDto request)
+        => ExecuteAsync(() => _service.GetTimeSeries(request));
 }

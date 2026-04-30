@@ -1,5 +1,5 @@
 ﻿using RDS.ExpenseTracker.Domain.Entities;
-using RDS.ExpenseTracker.Domain.Dtos;
+using RDS.ExpenseTracker.Domain.Dtos.Requests;
 
 namespace RDS.ExpenseTracker.Domain.Repositories;
 

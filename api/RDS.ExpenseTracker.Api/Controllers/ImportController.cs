@@ -1,6 +1,5 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using RDS.ExpenseTracker.Domain.Dtos;
+using RDS.ExpenseTracker.Domain.Dtos.Requests;
 using RDS.ExpenseTracker.Domain.Services;
 
 namespace RDS.ExpenseTracker.Api.Controllers;
@@ -18,12 +17,6 @@ public class ImportController : ControllerBase
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    /// <summary>
-    /// Imports transactions from an uploaded Excel file.
-    /// </summary>
-    /// <param name="file">Excel file with transaction data</param>
-    /// <param name="importAll">If false (default), filters out already-imported transactions from the current month</param>
-    /// <returns>Count of imported transactions</returns>
     [HttpPost("excel")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> ImportExcel(IFormFile file, [FromQuery] bool importAll = false)
@@ -45,13 +38,7 @@ public class ImportController : ControllerBase
 
         return Ok(new { importedCount = result.Value });
     }
-
-    /// <summary>
-    /// Imports transactions from a base64-encoded Excel file.
-    /// </summary>
-    /// <param name="request">Request containing base64 content and file name</param>
-    /// <param name="importAll">If false (default), filters out already-imported transactions from the current month</param>
-    /// <returns>Count of imported transactions</returns>
+    
     [HttpPost("excel/base64")]
     [Consumes("application/json")]
     public async Task<IActionResult> ImportExcelBase64([FromBody] ImportExcelBase64Request request, [FromQuery] bool importAll = false)

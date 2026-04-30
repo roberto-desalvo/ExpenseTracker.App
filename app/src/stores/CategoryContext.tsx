@@ -4,6 +4,7 @@ import CategoryService from "../services/CategoryService";
 
 interface CategoriesContextType {
   categories: Category[];
+  allCategories: Category[];
   isLoading: boolean;
   page: number;
   pageSize: number;
@@ -24,6 +25,7 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [page, setPage] = useState<number>(0);
   const [pageSize, setPageSize] = useState<number>(10);
@@ -45,6 +47,11 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
+  const refreshAllCategories = async () => {
+    const result = await CategoryService.getAll({ page: 0, pageSize: 10000 });
+    setAllCategories(result.items);
+  };
+
   const modifyPage = (newPage: number) => {
     setPage(newPage);
   };
@@ -59,14 +66,21 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
   }, [page, pageSize]);
 
   useEffect(() => {
-    void refreshCategories();
+    const load = async () => {
+      await Promise.all([refreshCategories(), refreshAllCategories()]);
+    };
+
+    void load();
   }, []);
 
   const addCategory = async (category: Category) => {
     try {
       await CategoryService.add(category);
       setPage(0);
-      await refreshCategories(currentNameRef.current);
+      await Promise.all([
+        refreshCategories(currentNameRef.current),
+        refreshAllCategories(),
+      ]);
     } catch (error) {
       console.error("Errore nell'aggiunta della categoria:", error);
       throw error;
@@ -76,7 +90,10 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
   const updateCategory = async (category: Category) => {
     try {
       await CategoryService.update(category);
-      await refreshCategories(currentNameRef.current);
+      await Promise.all([
+        refreshCategories(currentNameRef.current),
+        refreshAllCategories(),
+      ]);
     } catch (error) {
       console.error("Errore nella modifica della categoria:", error);
       throw error;
@@ -86,7 +103,10 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
   const deleteCategory = async (id: number) => {
     try {
       await CategoryService.delete(id);
-      await refreshCategories(currentNameRef.current);
+      await Promise.all([
+        refreshCategories(currentNameRef.current),
+        refreshAllCategories(),
+      ]);
     } catch (error) {
       console.error("Errore nell'eliminazione della categoria:", error);
       throw error;
@@ -97,6 +117,7 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
     <CategoriesContext.Provider
       value={{
         categories,
+        allCategories,
         isLoading,
         page,
         pageSize,

@@ -1,5 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using RDS.ExpenseTracker.Domain.Dtos;
+using RDS.ExpenseTracker.Domain.Dtos.Requests;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Repositories;
 

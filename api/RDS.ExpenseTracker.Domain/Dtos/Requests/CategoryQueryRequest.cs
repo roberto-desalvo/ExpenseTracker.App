@@ -1,4 +1,4 @@
-namespace RDS.ExpenseTracker.Domain.Dtos;
+namespace RDS.ExpenseTracker.Domain.Dtos.Requests;
 
 public class CategoryQueryRequest : PagedQueryRequest
 {

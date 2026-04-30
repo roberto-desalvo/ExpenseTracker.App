@@ -1,14 +1,23 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Box,
+  Checkbox,
   Chip,
+  CircularProgress,
+  FormControl,
+  InputLabel,
+  ListItemText,
+  MenuItem,
+  OutlinedInput,
+  Select,
   Stack,
   Tab,
+  TableCell,
+  TableRow,
   Tabs,
   TextField,
   Typography,
-  TableRow,
-  TableCell,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { DeleteOutlineRounded, EditRounded } from "@mui/icons-material";
@@ -19,6 +28,12 @@ import RowActionsMenu from "../components/RowActionsMenu";
 import CategoriesFilterBar from "../components/CategoriesFilterBar";
 import AppModal from "../components/AppModal";
 import ConfirmDeleteDialog from "../components/ConfirmDeleteDialog";
+import TransactionService from "../services/TransactionService";
+import { TimeSeriesList } from "../models/TimeSeries";
+import TimeSeriesLineChart, {
+  TimeSeriesLineChartSeries,
+} from "../components/TimeSeriesLineChart";
+import { toIsoDateStart, toIsoDateEnd } from "../utilities/date.utilities";
 
 type CategoryFormState = {
   name: string;
@@ -47,6 +62,7 @@ export default function CategoriesPage() {
   const c = theme.palette.custom;
   const {
     categories,
+    allCategories,
     isLoading,
     page,
     pageSize,
@@ -70,6 +86,22 @@ export default function CategoriesPage() {
     useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<number>(0);
 
+  const [dashboardLoading, setDashboardLoading] = useState<boolean>(false);
+  const [dashboardData, setDashboardData] = useState<TimeSeriesList | null>(
+    null,
+  );
+  const [dashboardStartDate, setDashboardStartDate] = useState<string>(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+    return start.toISOString().slice(0, 10);
+  });
+  const [dashboardEndDate, setDashboardEndDate] = useState<string>(() => {
+    const now = new Date();
+    return now.toISOString().slice(0, 10);
+  });
+  const [dashboardGranularity, setDashboardGranularity] = useState<number>(3);
+  const [dashboardCategoryIds, setDashboardCategoryIds] = useState<number[]>([]);
+
   const columns: DataTableColumn[] = [
     { id: "name", label: "Nome", minWidth: 150 },
     { id: "description", label: "Descrizione", minWidth: 200 },
@@ -77,6 +109,84 @@ export default function CategoriesPage() {
     { id: "priority", label: "Priorità", minWidth: 80, align: "right" },
     { id: "actions", label: "Azioni", minWidth: 80, align: "center" },
   ];
+
+  useEffect(() => {
+    if (allCategories.length === 0) {
+      setDashboardCategoryIds([]);
+      return;
+    }
+
+    setDashboardCategoryIds((prev) => {
+      if (prev.length === 0) {
+        return allCategories.map((category) => category.id);
+      }
+
+      return prev.filter((id) => allCategories.some((category) => category.id === id));
+    });
+  }, [allCategories]);
+
+  const categoryNameById = useMemo(
+    () => new Map(allCategories.map((category) => [category.id, category.name])),
+    [allCategories],
+  );
+
+  const chartSeries = useMemo<TimeSeriesLineChartSeries[]>(() => {
+    if (!dashboardData) {
+      return [];
+    }
+
+    return dashboardData.series.map((serie, index) => {
+      const categoryDimension = serie.dimensions.find(
+        (dimension) => dimension.key === "CategoryId",
+      );
+
+      const categoryId = categoryDimension ? Number(categoryDimension.value) : NaN;
+      const categoryName = Number.isFinite(categoryId)
+        ? (categoryNameById.get(categoryId) ?? `Categoria ${categoryId}`)
+        : `Serie ${index + 1}`;
+
+      return {
+        name: categoryName,
+        values: serie.values,
+      };
+    });
+  }, [dashboardData, categoryNameById]);
+
+  const handleDashboardLoad = async () => {
+    if (!dashboardStartDate || !dashboardEndDate) {
+      return;
+    }
+
+    setDashboardLoading(true);
+    try {
+      const result = await TransactionService.getTimeSeries({
+        startDate: toIsoDateStart(dashboardStartDate),
+        endDate: toIsoDateEnd(dashboardEndDate),
+        idAccounts: [],
+        idCategories: dashboardCategoryIds.length > 0 ? dashboardCategoryIds : [],
+        granularity: dashboardGranularity,
+      });
+      setDashboardData(result);
+    } finally {
+      setDashboardLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 1) {
+      return;
+    }
+
+    void handleDashboardLoad();
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== 1 || !dashboardStartDate || !dashboardEndDate) {
+      return;
+    }
+
+    void handleDashboardLoad();
+  }, [dashboardStartDate, dashboardEndDate, dashboardGranularity, dashboardCategoryIds, activeTab]);
 
   const handleSearch = (name?: string) => {
     modifyPage(0);
@@ -272,8 +382,8 @@ export default function CategoriesPage() {
           textColor="inherit"
           indicatorColor="primary"
         >
-          <Tab label="Tabella" />
-          <Tab label="Altro" />
+          <Tab label="Gestione" />
+          <Tab label="Analisi" />
         </Tabs>
       </Box>
       {activeTab === 0 && (
@@ -285,99 +395,201 @@ export default function CategoriesPage() {
         />
       )}
       <main className="flex-1 min-h-0 px-2 pb-2">
-      {activeTab === 0 ? (
-        <DataTableBase
-          title="Categorie"
-          columns={columns}
-          rows={categories}
-          isLoading={isLoading}
-          isEmpty={!isLoading && categories.length === 0}
-          emptyMessage="Nessuna categoria trovata"
-          emptySubtext="Crea la tua prima categoria per iniziare"
-          page={page}
-          pageSize={pageSize}
-          totalCount={totalCount}
-          onPageChange={(_event, newPage) => modifyPage(newPage)}
-          onPageSizeChange={(event) =>
-            modifyPageSize(parseInt(event.target.value, 10))
+        {activeTab === 0 ? (
+          <DataTableBase
+            title="Categorie"
+            columns={columns}
+            rows={categories}
+            isLoading={isLoading}
+            isEmpty={!isLoading && categories.length === 0}
+            emptyMessage="Nessuna categoria trovata"
+            emptySubtext="Crea la tua prima categoria per iniziare"
+            page={page}
+            pageSize={pageSize}
+            totalCount={totalCount}
+            onPageChange={(_event, newPage) => modifyPage(newPage)}
+            onPageSizeChange={(event) =>
+              modifyPageSize(parseInt(event.target.value, 10))
+            }
+            renderRow={(category) => renderCategoryRow(category)}
+          />
+        ) : (
+          <Box sx={{ p: 2 }}>
+            <Stack spacing={2.5}>
+              <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+                <TextField
+                  label="Data inizio"
+                  type="date"
+                  value={dashboardStartDate}
+                  onChange={(event) => setDashboardStartDate(event.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  size="small"
+                />
+                <TextField
+                  label="Data fine"
+                  type="date"
+                  value={dashboardEndDate}
+                  onChange={(event) => setDashboardEndDate(event.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  size="small"
+                />
+
+                <FormControl size="small" sx={{ minWidth: 180 }}>
+                  <InputLabel id="granularity-label">Granularità</InputLabel>
+                  <Select
+                    labelId="granularity-label"
+                    value={dashboardGranularity}
+                    label="Granularità"
+                    onChange={(event) =>
+                      setDashboardGranularity(Number(event.target.value))
+                    }
+                  >
+                    <MenuItem value={1}>Giornaliero</MenuItem>
+                    <MenuItem value={2}>Settimanale</MenuItem>
+                    <MenuItem value={3}>Mensile</MenuItem>
+                    <MenuItem value={4}>Annuale</MenuItem>
+                  </Select>
+                </FormControl>
+              </Stack>
+
+              <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+                <FormControl size="small" sx={{ minWidth: 280, flex: 1.3 }}>
+                  <InputLabel id="dashboard-category-filter-label">Categorie</InputLabel>
+                  <Select
+                    labelId="dashboard-category-filter-label"
+                    multiple
+                    value={dashboardCategoryIds.map(String)}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      const ids =
+                        typeof value === "string"
+                          ? value.split(",").map((id) => Number(id))
+                          : value.map((id) => Number(id));
+                      setDashboardCategoryIds(ids);
+                    }}
+                    input={<OutlinedInput label="Categorie" />}
+                    renderValue={(selected) => {
+                      if (selected.length === 0) return "Nessuna categoria";
+                      return selected
+                        .map((id) =>
+                          allCategories.find((category) => category.id === Number(id))?.name,
+                        )
+                        .filter(Boolean)
+                        .join(", ");
+                    }}
+                  >
+                    {allCategories.map((category) => (
+                      <MenuItem key={category.id} value={String(category.id)}>
+                        <Checkbox checked={dashboardCategoryIds.includes(category.id)} />
+                        <ListItemText primary={category.name} />
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+              </Stack>
+
+              {dashboardStartDate > dashboardEndDate && (
+                <Alert severity="warning">
+                  La data di inizio deve essere precedente o uguale alla data di fine.
+                </Alert>
+              )}
+
+              <Box
+                sx={{
+                  border: `1px solid ${c.filterBorder}`,
+                  borderRadius: 2,
+                  backgroundColor: theme.palette.background.paper,
+                  p: 2,
+                  minHeight: 430,
+                }}
+              >
+                {dashboardLoading ? (
+                  <Box
+                    sx={{
+                      height: 390,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <CircularProgress size={28} />
+                  </Box>
+                ) : (
+                  <TimeSeriesLineChart
+                    series={chartSeries}
+                    emptyMessage="Nessuna serie disponibile per i filtri selezionati"
+                  />
+                )}
+              </Box>
+            </Stack>
+          </Box>
+        )}
+
+        <ConfirmDeleteDialog
+          open={deleteDialogOpen}
+          onClose={handleDeleteCancel}
+          onConfirm={handleDeleteConfirm}
+          isBusy={operationInProgress}
+          message={
+            <>
+              Vuoi eliminare la categoria &ldquo;{selectedCategory?.name}&rdquo;?
+              Le transazioni collegate verranno riassegnate alla categoria di
+              default.
+            </>
           }
-          renderRow={(category) => renderCategoryRow(category)}
         />
-      ) : (
-        <Box
-          sx={{
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "text.secondary",
-          }}
+
+        <AppModal
+          open={modalOpen}
+          onClose={closeModal}
+          title={editingCategory ? "Modifica categoria" : "Nuova categoria"}
+          onSubmit={handleSubmit}
+          isBusy={operationInProgress}
+          submitLabel={editingCategory ? "Salva modifiche" : "Crea categoria"}
         >
-          <Typography variant="body1">Contenuto in arrivo</Typography>
-        </Box>
-      )}
-
-      <ConfirmDeleteDialog
-        open={deleteDialogOpen}
-        onClose={handleDeleteCancel}
-        onConfirm={handleDeleteConfirm}
-        isBusy={operationInProgress}
-        message={
-          <>Vuoi eliminare la categoria &ldquo;{selectedCategory?.name}&rdquo;? Le transazioni collegate verranno riassegnate alla categoria di default.</>
-        }
-      />
-
-      <AppModal
-        open={modalOpen}
-        onClose={closeModal}
-        title={editingCategory ? "Modifica categoria" : "Nuova categoria"}
-        onSubmit={handleSubmit}
-        isBusy={operationInProgress}
-        submitLabel={editingCategory ? "Salva modifiche" : "Crea categoria"}
-      >
-        <TextField
-          label="Nome"
-          value={form.name}
-          onChange={(event) =>
-            setForm((prev) => ({ ...prev, name: event.target.value }))
-          }
-          required
-          fullWidth
-          disabled={operationInProgress}
-        />
-        <TextField
-          label="Descrizione"
-          value={form.description}
-          onChange={(event) =>
-            setForm((prev) => ({
-              ...prev,
-              description: event.target.value,
-            }))
-          }
-          fullWidth
-          disabled={operationInProgress}
-        />
-        <TextField
-          label="Tag (separati da virgola)"
-          value={form.tags}
-          onChange={(event) =>
-            setForm((prev) => ({ ...prev, tags: event.target.value }))
-          }
-          fullWidth
-          disabled={operationInProgress}
-        />
-        <TextField
-          label="Priorità"
-          type="number"
-          value={form.priority}
-          onChange={(event) =>
-            setForm((prev) => ({ ...prev, priority: event.target.value }))
-          }
-          fullWidth
-          disabled={operationInProgress}
-        />
-      </AppModal>
-
+          <TextField
+            label="Nome"
+            value={form.name}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, name: event.target.value }))
+            }
+            required
+            fullWidth
+            disabled={operationInProgress}
+          />
+          <TextField
+            label="Descrizione"
+            value={form.description}
+            onChange={(event) =>
+              setForm((prev) => ({
+                ...prev,
+                description: event.target.value,
+              }))
+            }
+            fullWidth
+            disabled={operationInProgress}
+          />
+          <TextField
+            label="Tag (separati da virgola)"
+            value={form.tags}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, tags: event.target.value }))
+            }
+            fullWidth
+            disabled={operationInProgress}
+          />
+          <TextField
+            label="Priorità"
+            type="number"
+            value={form.priority}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, priority: event.target.value }))
+            }
+            fullWidth
+            disabled={operationInProgress}
+          />
+        </AppModal>
       </main>
     </>
   );

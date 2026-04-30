@@ -3,6 +3,8 @@ import Transaction from "../models/Transaction";
 import { TransactionMonthOption } from "../models/TransactionMonthOption";
 import { TransactionQueryRequest } from "../models/TransactionQueryRequest";
 import { TransactionQueryResult } from "../models/TransactionQueryResult";
+import { TimeSeriesList } from "../models/TimeSeries";
+import { TimeSeriesRequest } from "../models/TimeSeriesRequest";
 import { apiFetchJson, apiFetchVoid } from "./ApiClient";
 
 const TransactionService = {
@@ -33,6 +35,25 @@ const TransactionService = {
         headers: { "Content-Type": "application/json" },
       },
       "Errore nel caricamento dei mesi disponibili"
+    );
+  },
+
+  getTimeSeries: async (request: TimeSeriesRequest): Promise<TimeSeriesList> => {
+    const url = `${config.expenseTrackerBaseUrl}/${config.expenseTrackerTransactionUrl}/series`;
+    const payload: TimeSeriesRequest = {
+      ...request,
+      idAccounts: request.idAccounts && request.idAccounts.length > 0 ? request.idAccounts : [],
+      idCategories: request.idCategories && request.idCategories.length > 0 ? request.idCategories : [],
+    };
+
+    return apiFetchJson<TimeSeriesList>(
+      url,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+      "Errore nel caricamento della serie temporale"
     );
   },
 

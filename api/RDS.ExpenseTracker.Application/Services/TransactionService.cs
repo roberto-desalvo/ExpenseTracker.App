@@ -2,7 +2,9 @@
 using FluentResults;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Dtos;
+using RDS.ExpenseTracker.Domain.Dtos.Requests;
 using RDS.ExpenseTracker.Domain.Entities;
+using RDS.ExpenseTracker.Domain.Enums;
 using RDS.ExpenseTracker.Domain.Repositories;
 using RDS.ExpenseTracker.Domain.Services;
 using System.Globalization;
@@ -53,21 +55,6 @@ public class TransactionService : ITransactionService
             });
 
         return Result.Ok(monthOptions);
-    }
-
-    public async Task<Result<IEnumerable<TransactionDto>>> GetTransactions(TransactionQueryRequest? filter = null)
-    {
-        var transactions = await _repository.GetTransactions();
-
-        if (filter != null)
-        {
-            if (filter.FromDate.HasValue)
-                transactions = transactions.Where(x => x.Date >= filter.FromDate);
-            if (filter.ToDate.HasValue)
-                transactions = transactions.Where(x => x.Date <= filter.ToDate);
-        }
-
-        return Result.Ok(_mapper.Map<IEnumerable<TransactionDto>>(transactions));
     }
 
     public async Task<Result<TransactionDto?>> GetTransaction(int id)
@@ -153,10 +140,109 @@ public class TransactionService : ITransactionService
         return Result.Ok();
     }
 
-    public async Task<Result> ResetTransactions(IEnumerable<TransactionDto> dtos)
+    public async Task<Result<TimeSeriesListDto>> GetTimeSeries(TimeSeriesRequestDto request)
     {
-        await DeleteAllTransactions();
-        await AddTransactions(dtos);
-        return Result.Ok();
+        if (request == null)
+            return Result.Fail(DomainErrors.Required("request"));
+
+        if (request.StartDate > request.EndDate)
+            return Result.Fail(DomainErrors.BadRequest("EndDate must be greater than StartDate"));
+
+        var rawGranularity = request.Granularity;
+        var granularity = Enum.IsDefined(typeof(TimeGranularityEnum), rawGranularity)
+            ? (TimeGranularityEnum)rawGranularity
+            : TimeGranularityEnum.Daily;
+
+        var filtered = (await _repository.GetTimeSeriesTransactions(request)).ToList();
+
+        if (!filtered.Any())
+            return Result.Ok(new TimeSeriesListDto
+            {
+                Granularity = granularity.ToString(),
+                Series = []
+            });
+
+        var series = new List<TimeSeriesDto>();
+
+        if (request.IdAccounts.Any())
+        {
+            foreach (var accountId in request.IdAccounts)
+            {
+                var points = filtered
+                    .Where(t => t.AccountId == accountId)
+                    .GroupBy(t => GetPeriodKey(t.Date, granularity))
+                    .OrderBy(g => g.Key)
+                    .Select(g => new TimeSeriesPointDto
+                    {
+                        Period = g.Key,
+                        Amount = g.Sum(x => x.Amount)
+                    })
+                    .ToList();
+
+                series.Add(new TimeSeriesDto
+                {
+                    Dimensions = [new TimeSeriesDimensionDto { Key = "AccountId", Value = accountId.ToString() }],
+                    Values = points
+                });
+            }
+        }
+        else if (request.IdCategories.Any())
+        {
+            foreach (var categoryId in request.IdCategories)
+            {
+                var points = filtered
+                    .Where(t => t.CategoryId == categoryId)
+                    .GroupBy(t => GetPeriodKey(t.Date, granularity))
+                    .OrderBy(g => g.Key)
+                    .Select(g => new TimeSeriesPointDto
+                    {
+                        Period = g.Key,
+                        Amount = g.Sum(x => x.Amount)
+                    })
+                    .ToList();
+
+                series.Add(new TimeSeriesDto
+                {
+                    Dimensions = [new TimeSeriesDimensionDto { Key = "CategoryId", Value = categoryId.ToString() }],
+                    Values = points
+                });
+            }
+        }
+        else
+        {
+            var points = filtered
+                .GroupBy(t => GetPeriodKey(t.Date, granularity))
+                .OrderBy(g => g.Key)
+                .Select(g => new TimeSeriesPointDto
+                {
+                    Period = g.Key,
+                    Amount = g.Sum(x => x.Amount)
+                })
+                .ToList();
+
+            series.Add(new TimeSeriesDto
+            {
+                Dimensions = [],
+                Values = points
+            });
+        }
+
+        return Result.Ok(new TimeSeriesListDto
+        {
+            Granularity = granularity.ToString(),
+            Series = series
+        });
+    }
+
+    private static string GetPeriodKey(DateTime date, TimeGranularityEnum granularity)
+    {
+        return granularity switch
+        {
+            TimeGranularityEnum.Daily => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            TimeGranularityEnum.Weekly => $"{ISOWeek.GetYear(date)}-W{ISOWeek.GetWeekOfYear(date):00}",
+            TimeGranularityEnum.Monthly => date.ToString("yyyy-MM", CultureInfo.InvariantCulture),
+            TimeGranularityEnum.Yearly => date.Year.ToString(CultureInfo.InvariantCulture),
+            _ => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+        };
     }
 }
