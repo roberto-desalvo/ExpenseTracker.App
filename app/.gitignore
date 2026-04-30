@@ -26,4 +26,5 @@ dist-ssr
 # Environment configuration
 .env
 .env.*
+!.env.example
 .env.development
