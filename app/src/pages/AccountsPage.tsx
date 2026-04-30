@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Stack, TableCell, TableRow, TextField, Typography } from "@mui/material";
+import { Box, Stack, Tab, TableCell, TableRow, Tabs, TextField, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { EditRounded } from "@mui/icons-material";
 import Account from "../models/Account";
@@ -37,6 +37,7 @@ export default function AccountsPage() {
   const [modalOpen, setModalOpen] = useState<boolean>(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [operationInProgress, setOperationInProgress] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<number>(0);
 
   const columns: DataTableColumn[] = [
     { id: "name", label: "Nome", minWidth: 200 },
@@ -148,30 +149,57 @@ export default function AccountsPage() {
 
   return (
     <>
-      <AccountsFilterBar
-        onSearch={handleSearch}
-        onAddClick={openCreateModal}
-        onRefresh={() => void refreshAccounts()}
-        isLoading={isLoading}
-      />
-      <main className="flex-1 min-h-0 px-2 pb-2">
-        <DataTableBase
-          title="Account"
-          columns={columns}
-          rows={pagedAccounts}
+      <Box sx={{ px: 2, pt: 1 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_event, value: number) => setActiveTab(value)}
+          textColor="inherit"
+          indicatorColor="primary"
+        >
+          <Tab label="Tabella" />
+          <Tab label="Altro" />
+        </Tabs>
+      </Box>
+      {activeTab === 0 && (
+        <AccountsFilterBar
+          onSearch={handleSearch}
+          onAddClick={openCreateModal}
+          onRefresh={() => void refreshAccounts()}
           isLoading={isLoading}
-          isEmpty={!isLoading && pagedAccounts.length === 0}
-          emptyMessage="Nessun account trovato"
-          emptySubtext="Crea il tuo primo account per iniziare"
-          page={page}
-          pageSize={pageSize}
-          totalCount={totalCount}
-          onPageChange={(_event, newPage) => modifyPage(newPage)}
-          onPageSizeChange={(event) =>
-            modifyPageSize(parseInt(event.target.value, 10))
-          }
-          renderRow={(account) => renderAccountRow(account)}
         />
+      )}
+      <main className="flex-1 min-h-0 px-2 pb-2">
+        {activeTab === 0 ? (
+          <DataTableBase
+            title="Account"
+            columns={columns}
+            rows={pagedAccounts}
+            isLoading={isLoading}
+            isEmpty={!isLoading && pagedAccounts.length === 0}
+            emptyMessage="Nessun account trovato"
+            emptySubtext="Crea il tuo primo account per iniziare"
+            page={page}
+            pageSize={pageSize}
+            totalCount={totalCount}
+            onPageChange={(_event, newPage) => modifyPage(newPage)}
+            onPageSizeChange={(event) =>
+              modifyPageSize(parseInt(event.target.value, 10))
+            }
+            renderRow={(account) => renderAccountRow(account)}
+          />
+        ) : (
+          <Box
+            sx={{
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "text.secondary",
+            }}
+          >
+            <Typography variant="body1">Contenuto in arrivo</Typography>
+          </Box>
+        )}
 
         <AppModal
           open={modalOpen}

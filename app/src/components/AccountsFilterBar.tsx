@@ -43,9 +43,7 @@ export default function AccountsFilterBar({
   }, [searchTerm]);
 
   return (
-    <div className="flex flex-wrap items-center justify-start gap-3 px-3 py-3"
-      style={{ borderBottom: `1px solid ${theme.palette.divider}` }}
-    >
+    <div className="flex flex-wrap items-center justify-start gap-3 px-3 py-3">
       <Box sx={{ ...controlBoxSx, minWidth: 280, display: "flex", alignItems: "center", px: 1 }}>
         <TextField
           value={searchTerm}

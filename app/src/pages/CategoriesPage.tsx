@@ -1,7 +1,10 @@
 import { useState } from "react";
 import {
+  Box,
   Chip,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
   TableRow,
@@ -65,6 +68,7 @@ export default function CategoriesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
   const [operationInProgress, setOperationInProgress] =
     useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<number>(0);
 
   const columns: DataTableColumn[] = [
     { id: "name", label: "Nome", minWidth: 150 },
@@ -261,30 +265,57 @@ export default function CategoriesPage() {
 
   return (
     <>
-      <CategoriesFilterBar
-        onSearch={handleSearch}
-        onAddClick={openCreateModal}
-        onRefresh={() => void refreshCategories()}
-        isLoading={isLoading}
-      />
+      <Box sx={{ px: 2, pt: 1 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_event, value: number) => setActiveTab(value)}
+          textColor="inherit"
+          indicatorColor="primary"
+        >
+          <Tab label="Tabella" />
+          <Tab label="Altro" />
+        </Tabs>
+      </Box>
+      {activeTab === 0 && (
+        <CategoriesFilterBar
+          onSearch={handleSearch}
+          onAddClick={openCreateModal}
+          onRefresh={() => void refreshCategories()}
+          isLoading={isLoading}
+        />
+      )}
       <main className="flex-1 min-h-0 px-2 pb-2">
-      <DataTableBase
-        title="Categorie"
-        columns={columns}
-        rows={categories}
-        isLoading={isLoading}
-        isEmpty={!isLoading && categories.length === 0}
-        emptyMessage="Nessuna categoria trovata"
-        emptySubtext="Crea la tua prima categoria per iniziare"
-        page={page}
-        pageSize={pageSize}
-        totalCount={totalCount}
-        onPageChange={(_event, newPage) => modifyPage(newPage)}
-        onPageSizeChange={(event) =>
-          modifyPageSize(parseInt(event.target.value, 10))
-        }
-        renderRow={(category) => renderCategoryRow(category)}
-      />
+      {activeTab === 0 ? (
+        <DataTableBase
+          title="Categorie"
+          columns={columns}
+          rows={categories}
+          isLoading={isLoading}
+          isEmpty={!isLoading && categories.length === 0}
+          emptyMessage="Nessuna categoria trovata"
+          emptySubtext="Crea la tua prima categoria per iniziare"
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          onPageChange={(_event, newPage) => modifyPage(newPage)}
+          onPageSizeChange={(event) =>
+            modifyPageSize(parseInt(event.target.value, 10))
+          }
+          renderRow={(category) => renderCategoryRow(category)}
+        />
+      ) : (
+        <Box
+          sx={{
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "text.secondary",
+          }}
+        >
+          <Typography variant="body1">Contenuto in arrivo</Typography>
+        </Box>
+      )}
 
       <ConfirmDeleteDialog
         open={deleteDialogOpen}
