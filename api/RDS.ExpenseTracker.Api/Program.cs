@@ -51,6 +51,9 @@ builder.Services.AddApplicationServices();
 builder.Services.AddScoped<IExpenseExcelFileOptions>(sp =>
     sp.GetRequiredService<IOptions<ExpenseExcelFileOptions>>().Value);
 
+builder.Services.AddScoped<ITradeRepublicCsvOptions>(sp =>
+    sp.GetRequiredService<IOptions<TradeRepublicCsvOptions>>().Value);
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 builder.Services.AddAuthorization();

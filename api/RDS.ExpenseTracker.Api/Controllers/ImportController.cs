@@ -9,12 +9,17 @@ namespace RDS.ExpenseTracker.Api.Controllers;
 public class ImportController : ControllerBase
 {
     private readonly IExcelImportService _excelImportService;
+    private readonly ITradeRepublicCsvImportService _tradeRepublicCsvImportService;
     private readonly ILogger<ImportController> _logger;
 
-    public ImportController(IExcelImportService excelImportService, ILogger<ImportController> logger)
+    public ImportController(
+        IExcelImportService excelImportService,
+        ITradeRepublicCsvImportService tradeRepublicCsvImportService,
+        ILogger<ImportController> logger)
     {
-        _excelImportService = excelImportService ?? throw new ArgumentNullException(nameof(excelImportService));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _excelImportService              = excelImportService              ?? throw new ArgumentNullException(nameof(excelImportService));
+        _tradeRepublicCsvImportService   = tradeRepublicCsvImportService   ?? throw new ArgumentNullException(nameof(tradeRepublicCsvImportService));
+        _logger                          = logger                          ?? throw new ArgumentNullException(nameof(logger));
     }
 
     [HttpPost("excel")]
@@ -38,7 +43,7 @@ public class ImportController : ControllerBase
 
         return Ok(new { importedCount = result.Value });
     }
-    
+
     [HttpPost("excel/base64")]
     [Consumes("application/json")]
     public async Task<IActionResult> ImportExcelBase64([FromBody] ImportExcelBase64Request request, [FromQuery] bool importAll = false)
@@ -55,6 +60,34 @@ public class ImportController : ControllerBase
         if (result.IsFailed)
         {
             _logger.LogWarning("Base64 import failed: {errors}", string.Join(", ", result.Errors.Select(e => e.Message)));
+            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
+        }
+
+        return Ok(new { importedCount = result.Value });
+    }
+
+    /// <summary>
+    /// Imports transactions from a Trade Republic CSV export.
+    /// Rows whose <c>transaction_id</c> already exist in the database are skipped automatically
+    /// unless <paramref name="importAll"/> is <c>true</c>.
+    /// </summary>
+    [HttpPost("traderepublic-csv")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> ImportTradeRepublicCsv(IFormFile file, [FromQuery] bool importAll = false)
+    {
+        if (file == null || file.Length == 0)
+        {
+            _logger.LogWarning("Trade Republic CSV import attempt with invalid file");
+            return BadRequest("No file provided");
+        }
+
+        using var stream = file.OpenReadStream();
+        var result = await _tradeRepublicCsvImportService.ImportFromCsvAsync(stream, file.FileName, importAll);
+
+        if (result.IsFailed)
+        {
+            _logger.LogWarning("Trade Republic CSV import failed: {Errors}",
+                string.Join(", ", result.Errors.Select(e => e.Message)));
             return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
         }
 

@@ -4,16 +4,16 @@ param(
     [string]$FilePath,
 
     [Parameter(Mandatory = $false)]
+    [switch]$ImportAll,
+
+    [Parameter(Mandatory = $false)]
     [string]$AccessToken,
 
     [Parameter(Mandatory = $false)]
     [string]$Audience,
 
     [Parameter(Mandatory = $false)]
-    [switch]$NoAuth,
-
-    [Parameter(Mandatory = $false)]
-    [switch]$ImportAll
+    [switch]$NoAuth
 )
 
 $ErrorActionPreference = "Stop"
@@ -87,12 +87,11 @@ if (-not (Test-Path -LiteralPath $FilePath -PathType Leaf)) {
 }
 
 $resolvedPath = (Resolve-Path -LiteralPath $FilePath).Path
-$fileName = [System.IO.Path]::GetFileName($resolvedPath)
 
-Write-Host "Import in corso..."
+Write-Host "Import Trade Republic CSV in corso..."
 Write-Host "File: $resolvedPath"
 
-$endpoint = "https://localhost:7120/api/import/excel"
+$endpoint = "https://localhost:7120/api/import/traderepublic-csv"
 if ($ImportAll) {
     $endpoint += "?importAll=true"
 }

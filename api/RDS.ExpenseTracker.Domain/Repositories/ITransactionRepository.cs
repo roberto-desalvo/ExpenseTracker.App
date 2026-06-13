@@ -16,6 +16,7 @@ public interface ITransactionRepository : IRepositoryBase
     Task<IEnumerable<(DateTime StartDate, DateTime EndDate)>> GetAvailableMonthRanges();
     Task<IEnumerable<Transaction>> GetTransactionsByTransferId(int transferId);
     Task<Transaction> GetLatestTransaction();
+    Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds);
     Task AddTransactions(IEnumerable<Transaction> transactions);
     Task UpdateTransaction(Transaction transaction);
     Task DeleteTransaction(int id);

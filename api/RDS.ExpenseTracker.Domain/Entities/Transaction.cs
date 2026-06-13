@@ -9,6 +9,7 @@ public class Transaction
     public int AccountId { get; set; }
     public int? CategoryId { get; set; }
     public int? TransferId { get; set; }
+    public string? ExternalId { get; set; }
 
     public DateTime CreatedOn { get; set; }
     public DateTime? UpdatedOn { get; set; }

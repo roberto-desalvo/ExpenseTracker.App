@@ -12,6 +12,8 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
         builder.Property(t => t.Amount).IsRequired().HasColumnType("decimal(18,2)");
         builder.Property(t => t.Description).IsRequired().HasMaxLength(500);
         builder.Property(t => t.CreatedOn).IsRequired();
+        builder.Property(t => t.ExternalId).HasMaxLength(100);
+        builder.HasIndex(t => t.ExternalId).IsUnique().HasFilter("[ExternalId] IS NOT NULL");
 
         builder.HasOne(t => t.AccountNavigation)
                .WithMany(a => a.Transactions)

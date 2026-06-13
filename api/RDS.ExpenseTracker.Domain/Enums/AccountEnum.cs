@@ -23,5 +23,8 @@ public enum AccountEnum
     BBVA = 6,
 
     [Description("PayPal")]
-    PayPal = 7
+    PayPal = 7,
+
+    [Description("Trade Republic Trading")]
+    TradeRepublicTrading = 8
 }
