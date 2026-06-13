@@ -6,6 +6,7 @@ public class Transfer
 {
     public int Id { get; set; }
     public DateTime CreatedOn { get; set; }
+    public string? ExternalId { get; set; }
 
     public ICollection<Transaction> Transactions { get; set; } = [];
 

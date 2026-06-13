@@ -10,6 +10,8 @@ public class TransferConfiguration : IEntityTypeConfiguration<Transfer>
     {
         builder.HasKey(t => t.Id);
         builder.Property(t => t.CreatedOn).IsRequired();
+        builder.Property(t => t.ExternalId).HasMaxLength(100);
+        builder.HasIndex(t => t.ExternalId).IsUnique().HasFilter("[ExternalId] IS NOT NULL");
 
         builder.HasMany(t => t.Transactions)
                .WithOne(tr => tr.TransferNavigation)

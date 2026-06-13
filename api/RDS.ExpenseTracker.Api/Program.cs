@@ -22,22 +22,36 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
 var feCorsPolicy = "FEPolicy";
-
+var debugCorsPolicy = "DebugPolicy";
 
 builder.Services.AddCors(options =>
 {
+    var appSection = builder.Configuration.GetSection("App");
     options.AddPolicy(feCorsPolicy,
-        builder =>
+        b =>
         {
-            builder.WithOrigins("https://thankful-island-04ae49a03.7.azurestaticapps.net")
+            var feUrl = appSection["FEUrl"] ?? string.Empty;
+            b.WithOrigins(feUrl)
                    .AllowAnyMethod()
                    .AllowAnyHeader();
         });
+
+    if(builder.Environment.IsDevelopment())
+    {
+        options.AddPolicy(debugCorsPolicy,
+            b =>
+            {
+                b.WithOrigins(appSection.GetSection("AllowedLocalOrigins").Get<string[]>() ?? [])
+                    .AllowAnyMethod()
+                   .AllowAnyHeader();
+        });
+    }
 });
 
 
 builder.Configuration.AddEnvironmentVariables();
 builder.Services.AddOptions(builder.Configuration);
+builder.Services.Configure<SatisPayCsvOptions>(builder.Configuration.GetSection(SatisPayCsvOptions.SectionName));
 
 builder.Services.AddProblemDetails();
 
@@ -54,6 +68,9 @@ builder.Services.AddScoped<IExpenseExcelFileOptions>(sp =>
 builder.Services.AddScoped<ITradeRepublicCsvOptions>(sp =>
     sp.GetRequiredService<IOptions<TradeRepublicCsvOptions>>().Value);
 
+builder.Services.AddScoped<ISatisPayCsvOptions>(sp =>
+    sp.GetRequiredService<IOptions<SatisPayCsvOptions>>().Value);
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 builder.Services.AddAuthorization();
@@ -65,7 +82,7 @@ var app = builder.Build();
 
 app.UseHttpsRedirection();
 
-app.UseCors(feCorsPolicy);
+app.UseCors(builder.Environment.IsDevelopment() ? debugCorsPolicy : feCorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
 
