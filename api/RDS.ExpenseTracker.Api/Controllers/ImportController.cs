@@ -10,18 +10,27 @@ public class ImportController : ControllerBase
 {
     private readonly IExcelImportService _excelImportService;
     private readonly ITradeRepublicCsvImportService _tradeRepublicCsvImportService;
+<<<<<<< HEAD
     private readonly ISatisPayCsvImportService _satisPayCsvImportService;
+=======
+>>>>>>> 3780dcc5e415e1093353af2a6d859c2f0ac2669b
     private readonly ILogger<ImportController> _logger;
 
     public ImportController(
         IExcelImportService excelImportService,
         ITradeRepublicCsvImportService tradeRepublicCsvImportService,
+<<<<<<< HEAD
         ISatisPayCsvImportService satisPayCsvImportService,
+=======
+>>>>>>> 3780dcc5e415e1093353af2a6d859c2f0ac2669b
         ILogger<ImportController> logger)
     {
         _excelImportService              = excelImportService              ?? throw new ArgumentNullException(nameof(excelImportService));
         _tradeRepublicCsvImportService   = tradeRepublicCsvImportService   ?? throw new ArgumentNullException(nameof(tradeRepublicCsvImportService));
+<<<<<<< HEAD
         _satisPayCsvImportService        = satisPayCsvImportService        ?? throw new ArgumentNullException(nameof(satisPayCsvImportService));
+=======
+>>>>>>> 3780dcc5e415e1093353af2a6d859c2f0ac2669b
         _logger                          = logger                          ?? throw new ArgumentNullException(nameof(logger));
     }
 
