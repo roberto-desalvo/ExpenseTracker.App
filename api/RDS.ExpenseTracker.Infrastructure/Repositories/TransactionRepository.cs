@@ -55,6 +55,17 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .FirstOrDefaultAsync() ?? new Transaction();
     }
 
+    public async Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds)
+    {
+        var list = externalIds.ToList();
+        if (list.Count == 0) return [];
+
+        return await Context.Transactions
+            .Where(t => t.ExternalId != null && list.Contains(t.ExternalId))
+            .Select(t => t.ExternalId!)
+            .ToListAsync();
+    }
+
     public async Task UpdateTransaction(Transaction modified)
     {
         var current = await Context.Transactions.FirstOrDefaultAsync(x => x.Id == modified.Id);

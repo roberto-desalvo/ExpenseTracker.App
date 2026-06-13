@@ -25,7 +25,8 @@ public class AccountConfiguration : IEntityTypeConfiguration<Account>
             new Account((int)AccountEnum.PayPal, AccountEnum.PayPal.GetDescription()),
             new Account((int)AccountEnum.Satispay, AccountEnum.Satispay.GetDescription()),
             new Account((int)AccountEnum.Sella, AccountEnum.Sella.GetDescription()),
-            new Account((int)AccountEnum.TradeRepublic, AccountEnum.TradeRepublic.GetDescription())            
+            new Account((int)AccountEnum.TradeRepublic, AccountEnum.TradeRepublic.GetDescription()),
+            new Account((int)AccountEnum.TradeRepublicTrading, AccountEnum.TradeRepublicTrading.GetDescription())            
         );
     }
 }

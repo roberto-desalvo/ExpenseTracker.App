@@ -1,81 +1,30 @@
 {
-	"version": "2.0.0",
-	"tasks": [
-		{
-			"label": "clean (functions)",
-			"command": "dotnet",
-			"args": [
-				"clean",
-				"/property:GenerateFullPaths=true",
-				"/consoleloggerparameters:NoSummary"
-			],
-			"type": "process",
-			"problemMatcher": "$msCompile",
-			"options": {
-				"cwd": "${workspaceFolder}/functions\\data-import\\RDS.ExpenseTracker.DataImport.IsolatedFunctions"
-			}
-		},
-		{
-			"label": "build (functions)",
-			"command": "dotnet",
-			"args": [
-				"build",
-				"/property:GenerateFullPaths=true",
-				"/consoleloggerparameters:NoSummary"
-			],
-			"type": "process",
-			"dependsOn": "clean (functions)",
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			},
-			"problemMatcher": "$msCompile",
-			"options": {
-				"cwd": "${workspaceFolder}/functions\\data-import\\RDS.ExpenseTracker.DataImport.IsolatedFunctions"
-			}
-		},
-		{
-			"label": "clean release (functions)",
-			"command": "dotnet",
-			"args": [
-				"clean",
-				"--configuration",
-				"Release",
-				"/property:GenerateFullPaths=true",
-				"/consoleloggerparameters:NoSummary"
-			],
-			"type": "process",
-			"problemMatcher": "$msCompile",
-			"options": {
-				"cwd": "${workspaceFolder}/functions\\data-import\\RDS.ExpenseTracker.DataImport.IsolatedFunctions"
-			}
-		},
-		{
-			"label": "publish (functions)",
-			"command": "dotnet",
-			"args": [
-				"publish",
-				"--configuration",
-				"Release",
-				"/property:GenerateFullPaths=true",
-				"/consoleloggerparameters:NoSummary"
-			],
-			"type": "process",
-			"dependsOn": "clean release (functions)",
-			"problemMatcher": "$msCompile",
-			"options": {
-				"cwd": "${workspaceFolder}/functions\\data-import\\RDS.ExpenseTracker.DataImport.IsolatedFunctions"
-			}
-		},
-		{
-			"type": "func",
-			"dependsOn": "build (functions)",
-			"options": {
-				"cwd": "${workspaceFolder}/functions\\data-import\\RDS.ExpenseTracker.DataImport.IsolatedFunctions/bin/Debug/net9.0"
-			},
-			"command": "host start",
-			"isBackground": true,
-			"problemMatcher": "$func-dotnet-watch"
-		}
-	]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "FE: npm run dev",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "dev"],
+      "options": {
+        "cwd": "${workspaceFolder}\\app"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "BE: dotnet run",
+      "type": "shell",
+      "command": "dotnet",
+      "args": ["run"],
+      "options": {
+        "cwd": "${workspaceFolder}\\api\\RDS.ExpenseTracker.Api"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Avvia FE + BE",
+      "dependsOn": ["FE: npm run dev", "BE: dotnet run"],
+      "dependsOrder": "parallel"
+    }
+  ]
 }
