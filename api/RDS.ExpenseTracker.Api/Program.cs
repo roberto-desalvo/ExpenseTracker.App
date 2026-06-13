@@ -68,12 +68,9 @@ builder.Services.AddScoped<IExpenseExcelFileOptions>(sp =>
 builder.Services.AddScoped<ITradeRepublicCsvOptions>(sp =>
     sp.GetRequiredService<IOptions<TradeRepublicCsvOptions>>().Value);
 
-<<<<<<< HEAD
 builder.Services.AddScoped<ISatisPayCsvOptions>(sp =>
     sp.GetRequiredService<IOptions<SatisPayCsvOptions>>().Value);
 
-=======
->>>>>>> 3780dcc5e415e1093353af2a6d859c2f0ac2669b
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 builder.Services.AddAuthorization();
@@ -85,11 +82,7 @@ var app = builder.Build();
 
 app.UseHttpsRedirection();
 
-<<<<<<< HEAD
 app.UseCors(builder.Environment.IsDevelopment() ? debugCorsPolicy : feCorsPolicy);
-=======
-app.UseCors(feCorsPolicy);
->>>>>>> 3780dcc5e415e1093353af2a6d859c2f0ac2669b
 app.UseAuthentication();
 app.UseAuthorization();
 
