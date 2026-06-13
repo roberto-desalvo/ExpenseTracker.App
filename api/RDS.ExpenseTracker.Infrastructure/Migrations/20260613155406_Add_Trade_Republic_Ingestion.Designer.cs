@@ -12,8 +12,8 @@ using RDS.ExpenseTracker.Infrastructure;
 namespace RDS.ExpenseTracker.Infrastructure.Migrations
 {
     [DbContext(typeof(ExpenseTrackerContext))]
-    [Migration("20260613151337_Add_Trade_Republic_Trading_Account")]
-    partial class Add_Trade_Republic_Trading_Account
+    [Migration("20260613155406_Add_Trade_Republic_Ingestion")]
+    partial class Add_Trade_Republic_Ingestion
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

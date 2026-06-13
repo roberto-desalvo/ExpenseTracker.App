@@ -1,11 +1,11 @@
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace RDS.ExpenseTracker.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class AddExternalIdToTransaction : Migration
+    public partial class Add_Trade_Republic_Ingestion : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -16,6 +16,11 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                 type: "nvarchar(100)",
                 maxLength: 100,
                 nullable: true);
+
+            migrationBuilder.InsertData(
+                table: "Accounts",
+                columns: new[] { "Id", "Name" },
+                values: new object[] { 8, "Trade Republic Trading" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Transactions_ExternalId",
@@ -31,6 +36,11 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
             migrationBuilder.DropIndex(
                 name: "IX_Transactions_ExternalId",
                 table: "Transactions");
+
+            migrationBuilder.DeleteData(
+                table: "Accounts",
+                keyColumn: "Id",
+                keyValue: 8);
 
             migrationBuilder.DropColumn(
                 name: "ExternalId",
