@@ -23,6 +23,7 @@ public static class AddServicesExtensions
         services.AddScoped<IExcelImportService, ExcelImportService>();
         services.AddScoped<ITradeRepublicCsvImportService, TradeRepublicCsvImportService>();
         services.AddScoped<ISatisPayCsvImportService, SatisPayCsvImportService>();
+        services.AddScoped<ISellaPdfImportService, SellaPdfImportService>();
 
         return services;
     }

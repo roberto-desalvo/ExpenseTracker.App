@@ -73,11 +73,31 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
                 return Result.Ok(0);
             }
 
-            // 2. Deduplicate by ExternalId (transaction ID) ------------------
+            // 2. Validate required identifier (Codice Identificativo / ID) --
+            foreach (var row in rows)
+            {
+                row.TransactionId = row.TransactionId?.Trim();
+            }
+
+            var missingIdentifierRows = rows
+                .Where(r => string.IsNullOrWhiteSpace(r.TransactionId))
+                .ToList();
+
+            if (missingIdentifierRows.Count > 0)
+            {
+                _logger.LogWarning(
+                    "Satispay import rejected: {Count} rows have no codice identificativo (ID)",
+                    missingIdentifierRows.Count);
+
+                return Result.Fail(
+                    $"Import failed: {missingIdentifierRows.Count} rows have no codice identificativo (ID). The identifier is mandatory for all rows.");
+            }
+
+            // 3. Deduplicate by ExternalId (transaction ID) ------------------
             if (!importAll)
             {
                 var externalIds = rows
-                    .Where(r => !string.IsNullOrEmpty(r.TransactionId))
+                    .Where(r => !string.IsNullOrWhiteSpace(r.TransactionId))
                     .Select(r => r.TransactionId!)
                     .ToList();
 
@@ -88,7 +108,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
 
                     var beforeCount = rows.Count;
                     rows = rows
-                        .Where(r => string.IsNullOrEmpty(r.TransactionId) || !existingIds.Contains(r.TransactionId))
+                        .Where(r => !existingIds.Contains(r.TransactionId!))
                         .ToList();
 
                     var skipped = beforeCount - rows.Count;
