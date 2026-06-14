@@ -9,6 +9,7 @@ namespace RDS.ExpenseTracker.Api.Controllers;
 public class ImportController : ControllerBase
 {
     private readonly IExcelImportService _excelImportService;
+    private readonly IBbvaCsvImportService _bbvaCsvImportService;
     private readonly ITradeRepublicCsvImportService _tradeRepublicCsvImportService;
     private readonly ISatisPayCsvImportService _satisPayCsvImportService;
     private readonly ISellaPdfImportService _sellaPdfImportService;
@@ -16,12 +17,14 @@ public class ImportController : ControllerBase
 
     public ImportController(
         IExcelImportService excelImportService,
+        IBbvaCsvImportService bbvaCsvImportService,
         ITradeRepublicCsvImportService tradeRepublicCsvImportService,       
         ISatisPayCsvImportService satisPayCsvImportService,
         ISellaPdfImportService sellaPdfImportService,
         ILogger<ImportController> logger)
     {
         _excelImportService              = excelImportService              ?? throw new ArgumentNullException(nameof(excelImportService));
+        _bbvaCsvImportService            = bbvaCsvImportService            ?? throw new ArgumentNullException(nameof(bbvaCsvImportService));
         _tradeRepublicCsvImportService   = tradeRepublicCsvImportService   ?? throw new ArgumentNullException(nameof(tradeRepublicCsvImportService));
         _satisPayCsvImportService        = satisPayCsvImportService        ?? throw new ArgumentNullException(nameof(satisPayCsvImportService));
         _sellaPdfImportService           = sellaPdfImportService           ?? throw new ArgumentNullException(nameof(sellaPdfImportService));
@@ -66,6 +69,34 @@ public class ImportController : ControllerBase
         if (result.IsFailed)
         {
             _logger.LogWarning("Base64 import failed: {errors}", string.Join(", ", result.Errors.Select(e => e.Message)));
+            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
+        }
+
+        return Ok(new { importedCount = result.Value });
+    }
+
+    /// <summary>
+    /// Imports transactions from a BBVA CSV export.
+    /// Rows with an already known fingerprint are skipped automatically
+    /// unless <paramref name="importAll"/> is <c>true</c>.
+    /// </summary>
+    [HttpPost("bbva-csv")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> ImportBbvaCsv(IFormFile file, [FromQuery] bool importAll = false)
+    {
+        if (file == null || file.Length == 0)
+        {
+            _logger.LogWarning("BBVA CSV import attempt with invalid file");
+            return BadRequest("No file provided");
+        }
+
+        using var stream = file.OpenReadStream();
+        var result = await _bbvaCsvImportService.ImportFromCsvAsync(stream, file.FileName, importAll);
+
+        if (result.IsFailed)
+        {
+            _logger.LogWarning("BBVA CSV import failed: {Errors}",
+                string.Join(", ", result.Errors.Select(e => e.Message)));
             return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
         }
 

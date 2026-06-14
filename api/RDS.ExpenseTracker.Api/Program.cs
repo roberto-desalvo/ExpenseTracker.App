@@ -51,6 +51,7 @@ builder.Services.AddCors(options =>
 
 builder.Configuration.AddEnvironmentVariables();
 builder.Services.AddOptions(builder.Configuration);
+builder.Services.Configure<BbvaCsvOptions>(builder.Configuration.GetSection(BbvaCsvOptions.SectionName));
 builder.Services.Configure<SatisPayCsvOptions>(builder.Configuration.GetSection(SatisPayCsvOptions.SectionName));
 builder.Services.Configure<SellaPdfOptions>(builder.Configuration.GetSection(SellaPdfOptions.Section));
 
@@ -65,6 +66,9 @@ builder.Services.AddApplicationServices();
 
 builder.Services.AddScoped<IExpenseExcelFileOptions>(sp =>
     sp.GetRequiredService<IOptions<ExpenseExcelFileOptions>>().Value);
+
+builder.Services.AddScoped<IBbvaCsvOptions>(sp =>
+    sp.GetRequiredService<IOptions<BbvaCsvOptions>>().Value);
 
 builder.Services.AddScoped<ITradeRepublicCsvOptions>(sp =>
     sp.GetRequiredService<IOptions<TradeRepublicCsvOptions>>().Value);

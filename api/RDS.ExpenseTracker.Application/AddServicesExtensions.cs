@@ -21,6 +21,7 @@ public static class AddServicesExtensions
         services.AddScoped<ITransactionService, TransactionService>();
         services.AddScoped<ITransferService, TransferService>();
         services.AddScoped<IExcelImportService, ExcelImportService>();
+        services.AddScoped<IBbvaCsvImportService, BbvaCsvImportService>();
         services.AddScoped<ITradeRepublicCsvImportService, TradeRepublicCsvImportService>();
         services.AddScoped<ISatisPayCsvImportService, SatisPayCsvImportService>();
         services.AddScoped<ISellaPdfImportService, SellaPdfImportService>();
