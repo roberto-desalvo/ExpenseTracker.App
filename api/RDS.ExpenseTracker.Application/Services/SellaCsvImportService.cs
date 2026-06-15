@@ -53,6 +53,20 @@ public class SellaCsvImportService : ISellaCsvImportService
             if (rows.Count == 0)
                 return Result.Ok(0);
 
+            var originalRowsCount = rows.Count;
+            rows = rows
+                .GroupBy(r => r.Identifier, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First())
+                .ToList();
+
+            var skippedInFileDuplicates = originalRowsCount - rows.Count;
+            if (skippedInFileDuplicates > 0)
+            {
+                _logger.LogInformation(
+                    "Skipped {Count} Sella CSV rows with duplicate Codice identificativo within the same file",
+                    skippedInFileDuplicates);
+            }
+
             if (!importAll)
             {
                 var externalIds = rows.Select(r => r.Identifier).Distinct(StringComparer.OrdinalIgnoreCase).ToList();

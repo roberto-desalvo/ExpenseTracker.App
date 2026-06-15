@@ -82,6 +82,30 @@ public class SellaCsvImportServiceTests
     }
 
     [Fact]
+    public async Task ImportFromCsvAsync_SkipsDuplicateIdentifiers_InSameFile()
+    {
+        var service = BuildService(
+            out var transactionRepository,
+            out _,
+            new FakeSellaCsvOptions());
+
+        const string csv = "\"Codice identificativo\",\"Data operazione\",\"Data valuta\",\"Descrizione\",\"Divisa\",\"Debito\",\"Credito\",\"Categoria\",\"Sottocategoria\",\"Etichette\",\"Note\",\n"
+            + "\"SEL-DUP-1\",\"11/06/2026\",\"11/06/2026\",\"Prima riga\",\"EUR\",\"-10,00\",\"\",\"Altre spese\",\"Varie\",\"Bonifico\",\"\",\n"
+            + "\"SEL-DUP-1\",\"11/06/2026\",\"11/06/2026\",\"Seconda riga duplicata\",\"EUR\",\"-2,00\",\"\",\"Tasse\",\"Commissioni\",\"Commissioni\",\"\",\n"
+            + "\"SEL-DUP-2\",\"11/06/2026\",\"11/06/2026\",\"Riga diversa\",\"EUR\",\"-5,00\",\"\",\"Altre spese\",\"Varie\",\"Bonifico\",\"\",\n";
+
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+        var result = await service.ImportFromCsvAsync(stream, "sella.csv", importAll: false);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(2);
+
+        transactionRepository.AddedTransactions.Should().HaveCount(2);
+        transactionRepository.AddedTransactions.Select(t => t.ExternalId)
+            .Should().BeEquivalentTo(["SEL-DUP-1", "SEL-DUP-2"]);
+    }
+
+    [Fact]
     public async Task ImportFromCsvAsync_CreatesTransfer_WhenMappedIbanFoundInDescription()
     {
         var options = new FakeSellaCsvOptions
