@@ -2,11 +2,11 @@ using RDS.ExpenseTracker.Domain.Common;
 
 namespace RDS.ExpenseTracker.Api.Options;
 
-public class SellaPdfOptions : IAppOptions, ISellaPdfOptions
+public class SellaCsvOptions : IAppOptions, ISellaCsvOptions
 {
-    public const string Section = "SellaPdf";
+    public const string SectionName = "SellaCsv";
 
-    string IAppOptions.SectionName => Section;
+    string IAppOptions.SectionName => SectionName;
 
     public string DefaultAccountName { get; set; } = "Sella";
 

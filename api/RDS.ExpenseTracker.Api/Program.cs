@@ -53,7 +53,7 @@ builder.Configuration.AddEnvironmentVariables();
 builder.Services.AddOptions(builder.Configuration);
 builder.Services.Configure<BbvaCsvOptions>(builder.Configuration.GetSection(BbvaCsvOptions.SectionName));
 builder.Services.Configure<SatisPayCsvOptions>(builder.Configuration.GetSection(SatisPayCsvOptions.SectionName));
-builder.Services.Configure<SellaPdfOptions>(builder.Configuration.GetSection(SellaPdfOptions.Section));
+builder.Services.Configure<SellaCsvOptions>(builder.Configuration.GetSection(SellaCsvOptions.SectionName));
 
 builder.Services.AddProblemDetails();
 
@@ -76,8 +76,8 @@ builder.Services.AddScoped<ITradeRepublicCsvOptions>(sp =>
 builder.Services.AddScoped<ISatisPayCsvOptions>(sp =>
     sp.GetRequiredService<IOptions<SatisPayCsvOptions>>().Value);
 
-builder.Services.AddScoped<ISellaPdfOptions>(sp =>
-    sp.GetRequiredService<IOptions<SellaPdfOptions>>().Value);
+builder.Services.AddScoped<ISellaCsvOptions>(sp =>
+    sp.GetRequiredService<IOptions<SellaCsvOptions>>().Value);
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));

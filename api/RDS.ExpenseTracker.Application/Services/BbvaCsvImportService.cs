@@ -16,10 +16,19 @@ namespace RDS.ExpenseTracker.Application.Services;
 
 public class BbvaCsvImportService : IBbvaCsvImportService
 {
-    private const string HeaderPrefix = "Data valuta;Data;";
     private const int TransactionDescriptionMaxLength = 500;
 
     private static readonly char[] CategoryTagSeparators = [',', ';'];
+    private static readonly string[] RequiredHeaders =
+    [
+        "Data valuta",
+        "Data",
+        "Parola chiave",
+        "Movimento",
+        "Importo",
+        "Disponibile",
+        "Osservazioni",
+    ];
 
     private readonly ITransactionRepository _transactionRepository;
     private readonly ICategoryRepository _categoryRepository;
@@ -153,41 +162,55 @@ public class BbvaCsvImportService : IBbvaCsvImportService
         var content = reader.ReadToEnd();
 
         var lines = content
-            .Split(["\r\n", "\n"], StringSplitOptions.None)
+            .Split(["\r\n", "\n", "\r"], StringSplitOptions.None)
             .ToList();
 
-        var headerIndex = lines.FindIndex(l =>
-            l.StartsWith(HeaderPrefix, StringComparison.OrdinalIgnoreCase));
+        var headerIndex = lines.FindIndex(IsHeaderLine);
 
         if (headerIndex < 0)
         {
-            _logger.LogWarning("BBVA CSV header not found. Expected prefix '{HeaderPrefix}'", HeaderPrefix);
+            _logger.LogWarning(
+                "BBVA CSV header not found. Expected columns: {Columns}",
+                string.Join(";", RequiredHeaders));
             return [];
         }
 
-        var normalizedCsv = string.Join(Environment.NewLine, lines.Skip(headerIndex));
+        var headerRecord = SplitSemicolonLine(lines[headerIndex])
+            .Select(NormalizeHeaderToken)
+            .ToArray();
 
-        using var csvReader = new StringReader(normalizedCsv);
-        using var csv = new CsvReader(csvReader, new CsvConfiguration(CultureInfo.InvariantCulture)
+        var valueDateIndex = GetHeaderIndex(headerRecord, "Data valuta");
+        var dateIndex = GetHeaderIndex(headerRecord, "Data");
+        var keywordIndex = GetHeaderIndex(headerRecord, "Parola chiave");
+        var movementIndex = GetHeaderIndex(headerRecord, "Movimento");
+        var amountIndex = GetHeaderIndex(headerRecord, "Importo");
+        var availableIndex = GetHeaderIndex(headerRecord, "Disponibile");
+        var notesIndex = GetHeaderIndex(headerRecord, "Osservazioni");
+
+        if (valueDateIndex < 0 || dateIndex < 0 || keywordIndex < 0 || movementIndex < 0 || amountIndex < 0 || availableIndex < 0 || notesIndex < 0)
         {
-            Delimiter = ";",
-            TrimOptions = TrimOptions.Trim,
-            MissingFieldFound = null,
-            BadDataFound = null,
-        });
+            _logger.LogWarning(
+                "BBVA CSV header is missing one or more expected columns. Found: {Header}",
+                string.Join(";", headerRecord));
+            return [];
+        }
 
         var rows = new List<BbvaRow>();
-        csv.Read();
-        csv.ReadHeader();
-
-        while (csv.Read())
+        for (var i = headerIndex + 1; i < lines.Count; i++)
         {
-            var valueDateRaw = csv.GetField("Data valuta")?.Trim();
-            var dateRaw = csv.GetField("Data")?.Trim();
-            var keyword = csv.GetField("Parola chiave")?.Trim();
-            var movement = csv.GetField("Movimento")?.Trim();
-            var amountRaw = csv.GetField("Importo")?.Trim();
-            var notes = csv.GetField("Osservazioni")?.Trim();
+            var line = lines[i];
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            var fields = SplitSemicolonLine(line);
+
+            var valueDateRaw = GetField(fields, valueDateIndex);
+            var dateRaw = GetField(fields, dateIndex);
+            var keyword = GetField(fields, keywordIndex);
+            var movement = GetField(fields, movementIndex);
+            var amountRaw = GetField(fields, amountIndex);
+            var availableRaw = GetField(fields, availableIndex);
+            var notes = GetField(fields, notesIndex);
 
             // Ignore fully-empty rows that can appear at the end of exported files.
             if (string.IsNullOrWhiteSpace(valueDateRaw)
@@ -195,6 +218,7 @@ public class BbvaCsvImportService : IBbvaCsvImportService
                 && string.IsNullOrWhiteSpace(keyword)
                 && string.IsNullOrWhiteSpace(movement)
                 && string.IsNullOrWhiteSpace(amountRaw)
+                && string.IsNullOrWhiteSpace(availableRaw)
                 && string.IsNullOrWhiteSpace(notes))
             {
                 continue;
@@ -207,13 +231,95 @@ public class BbvaCsvImportService : IBbvaCsvImportService
                 Keyword = keyword,
                 Movement = movement,
                 Amount = ParseAmount(amountRaw),
+                Available = ParseAmount(availableRaw),
                 Notes = notes,
-                RawLine = string.Join(";", [valueDateRaw, dateRaw, keyword, movement, amountRaw, notes]),
+                RawLine = string.Join(";", [valueDateRaw, dateRaw, keyword, movement, amountRaw, availableRaw, notes]),
             });
         }
 
         return rows;
     }
+
+    private static string? GetField(IReadOnlyList<string> fields, int index)
+    {
+        if (index < 0 || index >= fields.Count)
+            return null;
+
+        var value = fields[index]?.Trim();
+        return string.IsNullOrEmpty(value) ? null : value;
+    }
+
+    private static List<string> SplitSemicolonLine(string line)
+    {
+        var values = new List<string>();
+        var sb = new StringBuilder();
+        var inQuotes = false;
+
+        for (var i = 0; i < line.Length; i++)
+        {
+            var c = line[i];
+
+            if (c == '"')
+            {
+                if (inQuotes && i + 1 < line.Length && line[i + 1] == '"')
+                {
+                    sb.Append('"');
+                    i++;
+                }
+                else
+                {
+                    inQuotes = !inQuotes;
+                }
+
+                continue;
+            }
+
+            if (c == ';' && !inQuotes)
+            {
+                values.Add(sb.ToString());
+                sb.Clear();
+                continue;
+            }
+
+            sb.Append(c);
+        }
+
+        values.Add(sb.ToString());
+        return values;
+    }
+
+    private static int GetHeaderIndex(string[] headers, string expectedHeader)
+        => Array.FindIndex(headers, header =>
+            string.Equals(NormalizeHeaderToken(header), NormalizeHeaderToken(expectedHeader), StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsHeaderLine(string? line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+            return false;
+
+        var normalized = line.TrimStart('\uFEFF').Trim();
+        if (normalized.StartsWith("sep=", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var tokens = normalized
+            .Split(';', StringSplitOptions.None)
+            .Select(NormalizeHeaderToken)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return RequiredHeaders
+            .Select(NormalizeHeaderToken)
+            .All(tokens.Contains);
+    }
+
+    private static string NormalizeHeaderToken(string? value)
+        => string.IsNullOrWhiteSpace(value)
+            ? string.Empty
+            : value
+                .TrimStart('\uFEFF')
+                .Trim()
+                .Trim('"')
+                .Replace('\u00A0', ' ')
+                .Trim();
 
     private async Task<List<Account>> EnsureAccountsExistAsync(IEnumerable<string> requiredAccountNames)
     {
@@ -303,18 +409,24 @@ public class BbvaCsvImportService : IBbvaCsvImportService
             : description;
     }
 
-    private static string BuildExternalId(BbvaRow row)
+    private static string BuildFingerprintBaseKey(BbvaRow row)
     {
-        var key = string.Join("|", [
+        return string.Join("|", [
             (row.Date ?? row.ValueDate)?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? string.Empty,
             row.Amount?.ToString("0.00################", CultureInfo.InvariantCulture) ?? string.Empty,
+            row.Available?.ToString("0.00################", CultureInfo.InvariantCulture) ?? string.Empty,
             NormalizeForFingerprint(row.Keyword),
             NormalizeForFingerprint(row.Movement),
             NormalizeForFingerprint(row.Notes),
         ]);
+    }
+
+    private static string BuildExternalId(BbvaRow row)
+    {
+        var key = BuildFingerprintBaseKey(row);
 
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(key));
-        return $"BBVA:v1:{Convert.ToHexString(hash)}";
+        return $"BBVA:v3:{Convert.ToHexString(hash)}";
     }
 
     private static string NormalizeForFingerprint(string? value)
@@ -332,6 +444,7 @@ public class BbvaCsvImportService : IBbvaCsvImportService
         public string? Keyword { get; set; }
         public string? Movement { get; set; }
         public decimal? Amount { get; set; }
+        public decimal? Available { get; set; }
         public string? Notes { get; set; }
         public string RawLine { get; set; } = string.Empty;
     }

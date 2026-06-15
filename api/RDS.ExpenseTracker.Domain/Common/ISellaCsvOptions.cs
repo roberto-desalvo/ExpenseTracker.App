@@ -1,6 +1,6 @@
 namespace RDS.ExpenseTracker.Domain.Common;
 
-public interface ISellaPdfOptions
+public interface ISellaCsvOptions
 {
     string DefaultAccountName { get; }
     Dictionary<string, string> IbanToAccountMap { get; }

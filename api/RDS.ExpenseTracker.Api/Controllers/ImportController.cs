@@ -12,7 +12,7 @@ public class ImportController : ControllerBase
     private readonly IBbvaCsvImportService _bbvaCsvImportService;
     private readonly ITradeRepublicCsvImportService _tradeRepublicCsvImportService;
     private readonly ISatisPayCsvImportService _satisPayCsvImportService;
-    private readonly ISellaPdfImportService _sellaPdfImportService;
+    private readonly ISellaCsvImportService _sellaCsvImportService;
     private readonly ILogger<ImportController> _logger;
 
     public ImportController(
@@ -20,14 +20,14 @@ public class ImportController : ControllerBase
         IBbvaCsvImportService bbvaCsvImportService,
         ITradeRepublicCsvImportService tradeRepublicCsvImportService,       
         ISatisPayCsvImportService satisPayCsvImportService,
-        ISellaPdfImportService sellaPdfImportService,
+        ISellaCsvImportService sellaCsvImportService,
         ILogger<ImportController> logger)
     {
         _excelImportService              = excelImportService              ?? throw new ArgumentNullException(nameof(excelImportService));
         _bbvaCsvImportService            = bbvaCsvImportService            ?? throw new ArgumentNullException(nameof(bbvaCsvImportService));
         _tradeRepublicCsvImportService   = tradeRepublicCsvImportService   ?? throw new ArgumentNullException(nameof(tradeRepublicCsvImportService));
         _satisPayCsvImportService        = satisPayCsvImportService        ?? throw new ArgumentNullException(nameof(satisPayCsvImportService));
-        _sellaPdfImportService           = sellaPdfImportService           ?? throw new ArgumentNullException(nameof(sellaPdfImportService));
+        _sellaCsvImportService           = sellaCsvImportService           ?? throw new ArgumentNullException(nameof(sellaCsvImportService));
         _logger                          = logger                          ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -160,26 +160,26 @@ public class ImportController : ControllerBase
     }
 
     /// <summary>
-    /// Imports transactions from a Sella PDF export.
+    /// Imports transactions from a Sella CSV export.
     /// Rows whose <c>CodiceIdentificativo</c> already exist in the database are skipped automatically
     /// unless <paramref name="importAll"/> is <c>true</c>.
     /// </summary>
-    [HttpPost("sella-pdf")]
+    [HttpPost("sella-csv")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> ImportSellaPdf(IFormFile file, [FromQuery] bool importAll = false)
+    public async Task<IActionResult> ImportSellaCsv(IFormFile file, [FromQuery] bool importAll = false)
     {
         if (file == null || file.Length == 0)
         {
-            _logger.LogWarning("Sella PDF import attempt with invalid file");
+            _logger.LogWarning("Sella CSV import attempt with invalid file");
             return BadRequest("No file provided");
         }
 
         using var stream = file.OpenReadStream();
-        var result = await _sellaPdfImportService.ImportFromPdfAsync(stream, file.FileName, importAll);
+        var result = await _sellaCsvImportService.ImportFromCsvAsync(stream, file.FileName, importAll);
 
         if (result.IsFailed)
         {
-            _logger.LogWarning("Sella PDF import failed: {Errors}",
+            _logger.LogWarning("Sella CSV import failed: {Errors}",
                 string.Join(", ", result.Errors.Select(e => e.Message)));
             return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
         }

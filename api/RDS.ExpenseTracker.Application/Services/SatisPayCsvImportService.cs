@@ -26,7 +26,6 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
     };
 
     private static readonly Regex IbanExtractor = new(@"\(([A-Z]{2}\d{2}[A-Z0-9]{1,30})\)");
-    private static readonly Regex AmountExtractor = new(@"[-+]?\d+(?:[\.,]\d+)?");
 
     // ── Dependencies ────────────────────────────────────────────────────────
     private readonly ITransactionRepository _transactionRepository;
@@ -481,19 +480,61 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             .Replace("€", string.Empty, StringComparison.Ordinal)
             .Replace("EUR", string.Empty, StringComparison.OrdinalIgnoreCase)
             .Replace("∩┐╜", string.Empty, StringComparison.Ordinal)
+            .Replace("\u00A0", string.Empty, StringComparison.Ordinal)
             .Replace(" ", string.Empty, StringComparison.Ordinal)
             .Trim();
 
-        var match = AmountExtractor.Match(normalized);
-        if (!match.Success)
+        var isNegative = false;
+        foreach (var ch in normalized)
+        {
+            if (char.IsDigit(ch))
+                break;
+
+            if (ch == '-')
+            {
+                isNegative = true;
+                break;
+            }
+
+            if (ch == '+')
+                break;
+        }
+
+        var sanitized = new string(normalized
+            .Where(ch => char.IsDigit(ch) || ch is ',' or '.')
+            .ToArray());
+
+        if (string.IsNullOrEmpty(sanitized))
             return null;
 
-        var numeric = match.Value.Replace(',', '.');
+        var lastComma = sanitized.LastIndexOf(',');
+        var lastDot = sanitized.LastIndexOf('.');
+        var decimalSeparatorIndex = Math.Max(lastComma, lastDot);
 
-        if (decimal.TryParse(numeric, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
+        string numeric;
+        if (decimalSeparatorIndex >= 0)
+        {
+            var integerPart = new string(sanitized[..decimalSeparatorIndex]
+                .Where(char.IsDigit)
+                .ToArray());
+
+            var fractionalPart = new string(sanitized[(decimalSeparatorIndex + 1)..]
+                .Where(char.IsDigit)
+                .ToArray());
+
+            numeric = fractionalPart.Length > 0
+                ? $"{(integerPart.Length > 0 ? integerPart : "0")}.{fractionalPart}"
+                : (integerPart.Length > 0 ? integerPart : "0");
+        }
+        else
+        {
+            numeric = new string(sanitized.Where(char.IsDigit).ToArray());
+        }
+
+        if (decimal.TryParse(numeric, NumberStyles.AllowDecimalPoint,
             CultureInfo.InvariantCulture, out var amount))
         {
-            return amount;
+            return isNegative ? -amount : amount;
         }
 
         return null;
