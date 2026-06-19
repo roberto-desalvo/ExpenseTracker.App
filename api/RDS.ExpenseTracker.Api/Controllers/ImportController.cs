@@ -186,4 +186,150 @@ public class ImportController : ControllerBase
 
         return Ok(new { importedCount = result.Value });
     }
+
+    // -------------------------------------------------------------------------
+    // Octet-stream variants
+    // -------------------------------------------------------------------------
+
+    [HttpPost("excel/stream")]
+    [Consumes("application/octet-stream")]
+    public async Task<IActionResult> ImportExcelStream([FromQuery] string fileName = "import.xlsx", [FromQuery] bool importAll = false)
+    {
+        if (Request.ContentLength is null or 0)
+        {
+            _logger.LogWarning("Excel stream import attempt with empty body");
+            return BadRequest("No file content provided");
+        }
+
+        using var memoryStream = new MemoryStream();
+        await Request.Body.CopyToAsync(memoryStream);
+        memoryStream.Position = 0;
+
+        var result = await _excelImportService.ImportFromExcelAsync(memoryStream, fileName, importAll);
+
+        if (result.IsFailed)
+        {
+            _logger.LogWarning("Excel stream import failed: {Errors}",
+                string.Join(", ", result.Errors.Select(e => e.Message)));
+            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
+        }
+
+        return Ok(new { importedCount = result.Value });
+    }
+
+    /// <summary>
+    /// Imports transactions from a BBVA CSV export sent as raw octet-stream.
+    /// </summary>
+    [HttpPost("bbva-csv/stream")]
+    [Consumes("application/octet-stream")]
+    public async Task<IActionResult> ImportBbvaCsvStream([FromQuery] string fileName = "bbva.csv", [FromQuery] bool importAll = false)
+    {
+        if (Request.ContentLength is null or 0)
+        {
+            _logger.LogWarning("BBVA CSV stream import attempt with empty body");
+            return BadRequest("No file content provided");
+        }
+
+        using var memoryStream = new MemoryStream();
+        await Request.Body.CopyToAsync(memoryStream);
+        memoryStream.Position = 0;
+
+        var result = await _bbvaCsvImportService.ImportFromCsvAsync(memoryStream, fileName, importAll);
+
+        if (result.IsFailed)
+        {
+            _logger.LogWarning("BBVA CSV stream import failed: {Errors}",
+                string.Join(", ", result.Errors.Select(e => e.Message)));
+            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
+        }
+
+        return Ok(new { importedCount = result.Value });
+    }
+
+    /// <summary>
+    /// Imports transactions from a Trade Republic CSV export sent as raw octet-stream.
+    /// </summary>
+    [HttpPost("traderepublic-csv/stream")]
+    [Consumes("application/octet-stream")]
+    public async Task<IActionResult> ImportTradeRepublicCsvStream([FromQuery] string fileName = "traderepublic.csv", [FromQuery] bool importAll = false)
+    {
+        if (Request.ContentLength is null or 0)
+        {
+            _logger.LogWarning("Trade Republic CSV stream import attempt with empty body");
+            return BadRequest("No file content provided");
+        }
+
+        using var memoryStream = new MemoryStream();
+        await Request.Body.CopyToAsync(memoryStream);
+        memoryStream.Position = 0;
+
+        var result = await _tradeRepublicCsvImportService.ImportFromCsvAsync(memoryStream, fileName, importAll);
+
+        if (result.IsFailed)
+        {
+            _logger.LogWarning("Trade Republic CSV stream import failed: {Errors}",
+                string.Join(", ", result.Errors.Select(e => e.Message)));
+            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
+        }
+
+        return Ok(new { importedCount = result.Value });
+    }
+
+    /// <summary>
+    /// Imports transactions from a Satispay CSV export sent as raw octet-stream.
+    /// </summary>
+    [HttpPost("satispay-csv/stream")]
+    [Consumes("application/octet-stream")]
+    public async Task<IActionResult> ImportSatisPayCsvStream([FromQuery] string fileName = "satispay.csv", [FromQuery] bool importAll = false)
+    {
+        if (Request.ContentLength is null or 0)
+        {
+            _logger.LogWarning("Satispay CSV stream import attempt with empty body");
+            return BadRequest("No file content provided");
+        }
+
+        using var memoryStream = new MemoryStream();
+        await Request.Body.CopyToAsync(memoryStream);
+        memoryStream.Position = 0;
+
+        var result = await _satisPayCsvImportService.ImportFromCsvAsync(memoryStream, fileName, importAll);
+
+        if (result.IsFailed)
+        {
+            _logger.LogWarning("Satispay CSV stream import failed: {Errors}",
+                string.Join(", ", result.Errors.Select(e => e.Message)));
+            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
+        }
+
+        return Ok(new { importedCount = result.Value });
+    }
+
+    /// <summary>
+    /// Imports transactions from a Sella CSV export sent as raw octet-stream.
+    /// </summary>
+    [HttpPost("sella-csv/stream")]
+    [Consumes("application/octet-stream")]
+    public async Task<IActionResult> ImportSellaCsvStream([FromQuery] string fileName = "sella.csv", [FromQuery] bool importAll = false)
+    {
+        if (Request.ContentLength is null or 0)
+        {
+            _logger.LogWarning("Sella CSV stream import attempt with empty body");
+            return BadRequest("No file content provided");
+        }
+
+        using var memoryStream = new MemoryStream();
+        await Request.Body.CopyToAsync(memoryStream);
+        memoryStream.Position = 0;
+
+        var result = await _sellaCsvImportService.ImportFromCsvAsync(memoryStream, fileName, importAll);
+
+        if (result.IsFailed)
+        {
+            _logger.LogWarning("Sella CSV stream import failed: {Errors}",
+                string.Join(", ", result.Errors.Select(e => e.Message)));
+            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
+        }
+
+        return Ok(new { importedCount = result.Value });
+    }
 }
