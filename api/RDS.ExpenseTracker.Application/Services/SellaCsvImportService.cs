@@ -220,7 +220,7 @@ public class SellaCsvImportService : ISellaCsvImportService
             var operationDate = ParseDate(rawRow.OperationDateRaw)
                 ?? throw new InvalidOperationException($"Import failed: invalid Data operazione for row '{identifier}'.");
 
-            var amount = ParseAmount(rawRow.DebitRaw, rawRow.CreditRaw)
+            var amount = ParseAmount(rawRow.AmountRaw)
                 ?? throw new InvalidOperationException($"Import failed: invalid amount for row '{identifier}'.");
 
             var description = NormalizeDescription(rawRow.Description);
@@ -248,8 +248,7 @@ public class SellaCsvImportService : ISellaCsvImportService
             && string.IsNullOrWhiteSpace(row.OperationDateRaw)
             && string.IsNullOrWhiteSpace(row.ValueDateRaw)
             && string.IsNullOrWhiteSpace(row.Description)
-            && string.IsNullOrWhiteSpace(row.DebitRaw)
-            && string.IsNullOrWhiteSpace(row.CreditRaw);
+            && string.IsNullOrWhiteSpace(row.AmountRaw);
     }
 
     private IEnumerable<string> GetRequiredAccountNames(IEnumerable<SellaCsvRow> rows)
@@ -329,19 +328,12 @@ public class SellaCsvImportService : ISellaCsvImportService
             : null;
     }
 
-    private static decimal? ParseAmount(string? debitRaw, string? creditRaw)
+    private static decimal? ParseAmount(string? amountRaw)
     {
-        var debit = ParseItalianDecimal(debitRaw);
-        var credit = ParseItalianDecimal(creditRaw);
+        var amount = ParseItalianDecimal(amountRaw);
 
-        if (debit.HasValue && credit.HasValue)
-            return null;
-
-        if (credit.HasValue)
-            return Math.Abs(credit.Value);
-
-        if (debit.HasValue)
-            return debit.Value > 0 ? -debit.Value : debit.Value;
+        if (amount.HasValue)
+            return amount.Value;
 
         return null;
     }
@@ -406,11 +398,8 @@ public class SellaCsvImportService : ISellaCsvImportService
         [Name("Descrizione")]
         public string? Description { get; set; }
 
-        [Name("Debito")]
-        public string? DebitRaw { get; set; }
-
-        [Name("Credito")]
-        public string? CreditRaw { get; set; }
+        [Name("Importo")]
+        public string? AmountRaw { get; set; }
     }
 
     private sealed record SellaCsvRow(
