@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RDS.ExpenseTracker.Domain.Dtos.Requests;
 using RDS.ExpenseTracker.Domain.Services;
@@ -6,6 +7,7 @@ namespace RDS.ExpenseTracker.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = "Files.Sender")]
 public class ImportController : ControllerBase
 {
     private readonly IExcelImportService _excelImportService;
