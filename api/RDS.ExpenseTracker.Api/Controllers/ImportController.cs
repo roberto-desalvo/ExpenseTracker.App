@@ -465,10 +465,9 @@ public class ImportController : ControllerBase
         using var csvPayload = await PrepareCsvPayloadAsync(xlsxStream, "satispay.xlsx");
         sb.Append("CsvPayload creato;");
         var result = await _satisPayCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
-        sb.Append("Import da CSV completato;");
         if (result.IsFailed)
         {
-            sb.Append(result.Errors.Select(e => e.Message));
+            sb.Append(string.Join(", ", result.Errors.Select(e => e.Message)));
             _logger.LogWarning("Satispay XLSX(base64) import failed: {Errors}",
                 string.Join(", ", result.Errors.Select(e => e.Message)));
             return BadRequest(new { errors = sb.ToString() });
