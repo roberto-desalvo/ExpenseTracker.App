@@ -447,7 +447,7 @@ public class ImportController : ControllerBase
 
     [HttpPost("satispay-xlsx")]
     [Consumes("application/octet-stream")]
-    public async Task<IActionResult> ImportSatisPayCsvFromXlsxBase64([FromBody] FileStream xlsxStream, [FromQuery] bool importAll = false)
+    public async Task<IActionResult> ImportSatisPayCsvFromXlsxBase64([FromQuery] bool importAll = false)
     {
         // if (request == null || string.IsNullOrWhiteSpace(request.Content))
         // {
@@ -455,14 +455,23 @@ public class ImportController : ControllerBase
         // }
 
         // using var xlsxStream = BuildExcelStreamFromEnvelope(request);
-        using var csvPayload = await PrepareCsvPayloadAsync(xlsxStream, "satispay.xlsx");
-        var result = await _satisPayCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
 
+        using var xlsxStream = new MemoryStream();
+        await Request.Body.CopyToAsync(xlsxStream);
+        xlsxStream.Position = 0;
+
+        var sb = new StringBuilder("MemStream creato;");
+
+        using var csvPayload = await PrepareCsvPayloadAsync(xlsxStream, "satispay.xlsx");
+        sb.Append("CsvPayload creato;");
+        var result = await _satisPayCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
+        sb.Append("Import da CSV completato;");
         if (result.IsFailed)
         {
+            sb.Append(result.Errors.Select(e => e.Message));
             _logger.LogWarning("Satispay XLSX(base64) import failed: {Errors}",
                 string.Join(", ", result.Errors.Select(e => e.Message)));
-            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
+            return BadRequest(new { errors = sb.ToString() });
         }
 
         return Ok(new { importedCount = result.Value });
