@@ -446,15 +446,15 @@ public class ImportController : ControllerBase
     }
 
     [HttpPost("satispay-xlsx")]
-    [Consumes("application/json")]
-    public async Task<IActionResult> ImportSatisPayCsvFromXlsxBase64([FromBody] ImportXlsxBase64EnvelopeRequest request, [FromQuery] bool importAll = false)
+    [Consumes("application/octet-stream")]
+    public async Task<IActionResult> ImportSatisPayCsvFromXlsxBase64([FromBody] FileStream xlsxStream, [FromQuery] bool importAll = false)
     {
-        if (request == null || string.IsNullOrWhiteSpace(request.Content))
-        {
-            return BadRequest("No base64 content provided");
-        }
+        // if (request == null || string.IsNullOrWhiteSpace(request.Content))
+        // {
+        //     return BadRequest("No base64 content provided");
+        // }
 
-        using var xlsxStream = BuildExcelStreamFromEnvelope(request);
+        // using var xlsxStream = BuildExcelStreamFromEnvelope(request);
         using var csvPayload = await PrepareCsvPayloadAsync(xlsxStream, "satispay.xlsx");
         var result = await _satisPayCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
 
@@ -469,7 +469,7 @@ public class ImportController : ControllerBase
     }
 
     [HttpPost("sella-xlsx")]
-    [Consumes("application/json")]
+    [Consumes("application/octet-stream")]
     public async Task<IActionResult> ImportSellaCsvFromXlsxBase64([FromBody] ImportXlsxBase64EnvelopeRequest request, [FromQuery] bool importAll = false)
     {
         if (request == null || string.IsNullOrWhiteSpace(request.Content))
