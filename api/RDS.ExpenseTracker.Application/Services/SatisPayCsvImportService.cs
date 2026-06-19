@@ -458,6 +458,16 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
         if (string.IsNullOrEmpty(dateString))
             return null;
 
+        //2026 - 01 - 30 20:20:27
+
+        if (DateTime.TryParseExact(dateString, "yyyy - MM - dd HH:mm:ss", CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var dateTime2))
+            return dateTime2;
+
+        if (DateTime.TryParseExact(dateString, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var dateTime3))
+            return dateTime3;
+
         if (DateTime.TryParseExact(dateString, "dd-MM-yyyy HH:mm:ss", CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out var dateTime1))
             return dateTime1;
