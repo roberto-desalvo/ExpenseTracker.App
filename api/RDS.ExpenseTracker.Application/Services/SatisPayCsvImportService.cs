@@ -459,6 +459,10 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             return null;
 
         // Satispay formats: dd/MM/yyyy HH:mm or dd/MM/yyyy
+        if (DateTime.TryParseExact(dateString, "dd/MM/yyyy HH:mm:ss", CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var dateTimeS))
+            return dateTimeS;
+
         if (DateTime.TryParseExact(dateString, "dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out var dateTime))
             return dateTime;
