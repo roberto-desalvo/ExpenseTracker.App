@@ -1,7 +1,9 @@
+using ExcelDataReader;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RDS.ExpenseTracker.Domain.Dtos.Requests;
 using RDS.ExpenseTracker.Domain.Services;
+using System.Text;
 
 namespace RDS.ExpenseTracker.Api.Controllers;
 
@@ -93,7 +95,8 @@ public class ImportController : ControllerBase
         }
 
         using var stream = file.OpenReadStream();
-        var result = await _bbvaCsvImportService.ImportFromCsvAsync(stream, file.FileName, importAll);
+        using var csvPayload = await PrepareCsvPayloadAsync(stream, file.FileName);
+        var result = await _bbvaCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
 
         if (result.IsFailed)
         {
@@ -121,7 +124,8 @@ public class ImportController : ControllerBase
         }
 
         using var stream = file.OpenReadStream();
-        var result = await _tradeRepublicCsvImportService.ImportFromCsvAsync(stream, file.FileName, importAll);
+        using var csvPayload = await PrepareCsvPayloadAsync(stream, file.FileName);
+        var result = await _tradeRepublicCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
 
         if (result.IsFailed)
         {
@@ -149,7 +153,8 @@ public class ImportController : ControllerBase
         }
 
         using var stream = file.OpenReadStream();
-        var result = await _satisPayCsvImportService.ImportFromCsvAsync(stream, file.FileName, importAll);
+        using var csvPayload = await PrepareCsvPayloadAsync(stream, file.FileName);
+        var result = await _satisPayCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
 
         if (result.IsFailed)
         {
@@ -177,7 +182,8 @@ public class ImportController : ControllerBase
         }
 
         using var stream = file.OpenReadStream();
-        var result = await _sellaCsvImportService.ImportFromCsvAsync(stream, file.FileName, importAll);
+        using var csvPayload = await PrepareCsvPayloadAsync(stream, file.FileName);
+        var result = await _sellaCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
 
         if (result.IsFailed)
         {
@@ -236,7 +242,8 @@ public class ImportController : ControllerBase
         await Request.Body.CopyToAsync(memoryStream);
         memoryStream.Position = 0;
 
-        var result = await _bbvaCsvImportService.ImportFromCsvAsync(memoryStream, fileName, importAll);
+        using var csvPayload = await PrepareCsvPayloadAsync(memoryStream, fileName);
+        var result = await _bbvaCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
 
         if (result.IsFailed)
         {
@@ -265,7 +272,8 @@ public class ImportController : ControllerBase
         await Request.Body.CopyToAsync(memoryStream);
         memoryStream.Position = 0;
 
-        var result = await _tradeRepublicCsvImportService.ImportFromCsvAsync(memoryStream, fileName, importAll);
+        using var csvPayload = await PrepareCsvPayloadAsync(memoryStream, fileName);
+        var result = await _tradeRepublicCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
 
         if (result.IsFailed)
         {
@@ -294,7 +302,8 @@ public class ImportController : ControllerBase
         await Request.Body.CopyToAsync(memoryStream);
         memoryStream.Position = 0;
 
-        var result = await _satisPayCsvImportService.ImportFromCsvAsync(memoryStream, fileName, importAll);
+        using var csvPayload = await PrepareCsvPayloadAsync(memoryStream, fileName);
+        var result = await _satisPayCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
 
         if (result.IsFailed)
         {
@@ -323,7 +332,8 @@ public class ImportController : ControllerBase
         await Request.Body.CopyToAsync(memoryStream);
         memoryStream.Position = 0;
 
-        var result = await _sellaCsvImportService.ImportFromCsvAsync(memoryStream, fileName, importAll);
+        using var csvPayload = await PrepareCsvPayloadAsync(memoryStream, fileName);
+        var result = await _sellaCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
 
         if (result.IsFailed)
         {
@@ -333,5 +343,81 @@ public class ImportController : ControllerBase
         }
 
         return Ok(new { importedCount = result.Value });
+    }
+
+    private async Task<CsvPayload> PrepareCsvPayloadAsync(Stream sourceStream, string fileName)
+    {
+        var normalizedFileName = string.IsNullOrWhiteSpace(fileName) ? "import.csv" : fileName;
+
+        var buffer = new MemoryStream();
+        await sourceStream.CopyToAsync(buffer);
+        buffer.Position = 0;
+
+        if (!Path.GetExtension(normalizedFileName).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+        {
+            return new CsvPayload(buffer, normalizedFileName);
+        }
+
+        var csvContent = ConvertExcelToCsv(buffer);
+        buffer.Dispose();
+
+        var csvStream = new MemoryStream(Encoding.UTF8.GetBytes(csvContent));
+        csvStream.Position = 0;
+
+        var csvFileName = Path.ChangeExtension(normalizedFileName, ".csv") ?? "import.csv";
+        _logger.LogInformation("Converted XLSX payload to CSV for import. OriginalFileName={OriginalFileName}, ConvertedFileName={ConvertedFileName}",
+            normalizedFileName,
+            csvFileName);
+
+        return new CsvPayload(csvStream, csvFileName);
+    }
+
+    private static string ConvertExcelToCsv(Stream excelStream)
+    {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
+        excelStream.Position = 0;
+        using var reader = ExcelReaderFactory.CreateReader(excelStream);
+        var csvBuilder = new StringBuilder();
+
+        do
+        {
+            while (reader.Read())
+            {
+                for (var columnIndex = 0; columnIndex < reader.FieldCount; columnIndex++)
+                {
+                    if (columnIndex > 0)
+                    {
+                        csvBuilder.Append(',');
+                    }
+
+                    var value = reader.GetValue(columnIndex)?.ToString() ?? string.Empty;
+                    csvBuilder.Append(EscapeCsvValue(value));
+                }
+
+                csvBuilder.AppendLine();
+            }
+        }
+        while (reader.NextResult());
+
+        return csvBuilder.ToString();
+    }
+
+    private static string EscapeCsvValue(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        var escaped = value.Replace("\"", "\"\"");
+        return escaped.IndexOfAny([',', '"', '\r', '\n']) >= 0
+            ? $"\"{escaped}\""
+            : escaped;
+    }
+
+    private sealed record CsvPayload(Stream Stream, string FileName) : IDisposable
+    {
+        public void Dispose() => Stream.Dispose();
     }
 }
