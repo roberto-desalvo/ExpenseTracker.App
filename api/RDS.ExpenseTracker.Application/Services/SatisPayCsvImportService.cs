@@ -212,7 +212,11 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
     private List<SatisPayRow> ParseCsv(Stream fileStream)
     {
         using var reader = new StreamReader(fileStream);
-        using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
+        var content = reader.ReadToEnd();
+        var csvContent = StripLegendFooter(content);
+
+        using var stringReader = new StringReader(csvContent);
+        using var csv = new CsvReader(stringReader, new CsvConfiguration(CultureInfo.InvariantCulture)
         {
             Delimiter = ";", // Satispay uses semicolon delimiter
             TrimOptions = TrimOptions.Trim,
@@ -222,6 +226,32 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
         csv.Context.TypeConverterOptionsCache.GetOptions<decimal?>().NullValues.Add(string.Empty);
 
         return [.. csv.GetRecords<SatisPayRow>()];
+    }
+
+    /// <summary>
+    /// Satispay export files append a "Legenda" glossary section after the data rows
+    /// (e.g. "Legenda;Descrizione" followed by code explanations). That section has
+    /// fewer columns than the transaction table and breaks CsvHelper, so it is removed here.
+    /// </summary>
+    private static string StripLegendFooter(string content)
+    {
+        var lines = content.Split('\n');
+        var dataLines = new List<string>(lines.Length);
+
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var line = lines[i].TrimEnd('\r');
+
+            if (i > 0 && string.IsNullOrWhiteSpace(line))
+                continue;
+
+            if (i > 0 && line.TrimStart().StartsWith("Legenda", StringComparison.OrdinalIgnoreCase))
+                break;
+
+            dataLines.Add(line);
+        }
+
+        return string.Join("\n", dataLines);
     }
 
     private IEnumerable<string> GetRequiredAccountNames(List<SatisPayRow> rows)
