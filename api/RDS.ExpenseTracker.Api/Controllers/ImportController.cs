@@ -377,24 +377,36 @@ public class ImportController : ControllerBase
         return Ok(new { importedCount = result.Value });
     }
 
-    private async Task<CsvPayload> PrepareCsvPayloadAsync(Stream sourceStream, string fileName)
+    private async Task<CsvPayload> PrepareCsvPayloadAsync(Stream sourceStream, string fileName, char delimiter = ',')
     {
         var normalizedFileName = string.IsNullOrWhiteSpace(fileName) ? "import.xlsx" : fileName;
 
         var buffer = new MemoryStream();
         await sourceStream.CopyToAsync(buffer);
         buffer.Position = 0;
+        _logger.LogDebug("Read XLSX source stream for {FileName}: {ByteCount} bytes", normalizedFileName, buffer.Length);
 
-        var csvContent = ConvertExcelToCsv(buffer);
+        var csvContent = ConvertExcelToCsv(buffer, delimiter);
         buffer.Dispose();
+
+        var lineCount = csvContent.Count(c => c == '\n');
+        _logger.LogDebug("Converted XLSX to CSV for {FileName}: {LineCount} lines, delimiter='{Delimiter}'",
+            normalizedFileName, lineCount, delimiter);
+
+        if (lineCount > 0)
+        {
+            var firstLine = csvContent.Split('\n', 2)[0];
+            _logger.LogDebug("CSV header row for {FileName}: {HeaderLine}", normalizedFileName, firstLine);
+        }
 
         var csvStream = new MemoryStream(Encoding.UTF8.GetBytes(csvContent));
         csvStream.Position = 0;
 
         var csvFileName = Path.ChangeExtension(normalizedFileName, ".csv") ?? "import.csv";
-        _logger.LogInformation("Converted XLSX payload to CSV for import. OriginalFileName={OriginalFileName}, ConvertedFileName={ConvertedFileName}",
+        _logger.LogInformation("Converted XLSX payload to CSV for import. OriginalFileName={OriginalFileName}, ConvertedFileName={ConvertedFileName}, LineCount={LineCount}",
             normalizedFileName,
-            csvFileName);
+            csvFileName,
+            lineCount);
 
         return new CsvPayload(csvStream, csvFileName);
     }
@@ -446,33 +458,33 @@ public class ImportController : ControllerBase
     }
 
     [HttpPost("satispay-xlsx")]
-    [Consumes("application/octet-stream")]
-    public async Task<IActionResult> ImportSatisPayCsvFromXlsxBase64([FromQuery] bool importAll = false)
+    [Consumes("application/json")]
+    public async Task<IActionResult> ImportSatisPayCsvFromXlsxBase64([FromBody] ImportXlsxBase64EnvelopeRequest request, [FromQuery] bool importAll = false)
     {
-        // if (request == null || string.IsNullOrWhiteSpace(request.Content))
-        // {
-        //     return BadRequest("No base64 content provided");
-        // }
-
-        // using var xlsxStream = BuildExcelStreamFromEnvelope(request);
-
-        using var xlsxStream = new MemoryStream();
-        await Request.Body.CopyToAsync(xlsxStream);
-        xlsxStream.Position = 0;
-
-        var sb = new StringBuilder("MemStream creato;");
-
-        using var csvPayload = await PrepareCsvPayloadAsync(xlsxStream, "satispay.xlsx");
-        sb.Append("CsvPayload creato;");
-        var result = await _satisPayCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
-        if (result.IsFailed)
+        if (request == null || string.IsNullOrWhiteSpace(request.Content))
         {
-            sb.Append(string.Join(", ", result.Errors.Select(e => e.Message)));
-            _logger.LogWarning("Satispay XLSX(base64) import failed: {Errors}",
-                string.Join(", ", result.Errors.Select(e => e.Message)));
-            return BadRequest(new { errors = sb.ToString() });
+            _logger.LogWarning("Satispay XLSX(base64) import attempt with no base64 content provided");
+            return BadRequest("No base64 content provided");
         }
 
+        _logger.LogInformation(
+            "Satispay XLSX(base64) import received. ContentType={ContentType}, Base64Length={Base64Length}, ImportAll={ImportAll}",
+            request.ContentType, request.Content.Length, importAll);
+
+        using var xlsxStream = BuildExcelStreamFromEnvelope(request);
+        _logger.LogDebug("Satispay XLSX(base64) decoded payload size: {ByteCount} bytes", xlsxStream.Length);
+
+        using var csvPayload = await PrepareCsvPayloadAsync(xlsxStream, "satispay.xlsx", ';');
+        var result = await _satisPayCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
+
+        if (result.IsFailed)
+        {
+            _logger.LogWarning("Satispay XLSX(base64) import failed: {Errors}",
+                string.Join(", ", result.Errors.Select(e => e.Message)));
+            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
+        }
+
+        _logger.LogInformation("Satispay XLSX(base64) import succeeded. ImportedCount={ImportedCount}", result.Value);
         return Ok(new { importedCount = result.Value });
     }
 
@@ -524,7 +536,7 @@ public class ImportController : ControllerBase
         => !string.IsNullOrWhiteSpace(fileName)
             && Path.GetExtension(fileName).Equals(".csv", StringComparison.OrdinalIgnoreCase);
 
-    private static string ConvertExcelToCsv(Stream excelStream)
+    private static string ConvertExcelToCsv(Stream excelStream, char delimiter = ',')
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
@@ -540,11 +552,11 @@ public class ImportController : ControllerBase
                 {
                     if (columnIndex > 0)
                     {
-                        csvBuilder.Append(',');
+                        csvBuilder.Append(delimiter);
                     }
 
                     var value = reader.GetValue(columnIndex)?.ToString() ?? string.Empty;
-                    csvBuilder.Append(EscapeCsvValue(value));
+                    csvBuilder.Append(EscapeCsvValue(value, delimiter));
                 }
 
                 csvBuilder.AppendLine();
@@ -555,7 +567,7 @@ public class ImportController : ControllerBase
         return csvBuilder.ToString();
     }
 
-    private static string EscapeCsvValue(string value)
+    private static string EscapeCsvValue(string value, char delimiter)
     {
         if (string.IsNullOrEmpty(value))
         {
@@ -563,7 +575,7 @@ public class ImportController : ControllerBase
         }
 
         var escaped = value.Replace("\"", "\"\"");
-        return escaped.IndexOfAny([',', '"', '\r', '\n']) >= 0
+        return escaped.IndexOfAny([delimiter, '"', '\r', '\n']) >= 0
             ? $"\"{escaped}\""
             : escaped;
     }

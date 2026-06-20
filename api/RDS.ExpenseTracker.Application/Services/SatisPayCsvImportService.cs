@@ -66,10 +66,20 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
 
             // 1. Parse -------------------------------------------------------
             var rows = ParseCsv(fileStream);
+            _logger.LogInformation("Parsed {RowCount} rows from Satispay CSV {FileName}", rows.Count, fileName);
+
             if (rows.Count == 0)
             {
                 _logger.LogInformation("CSV file contains no data rows");
                 return Result.Ok(0);
+            }
+
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                var firstRow = rows[0];
+                _logger.LogDebug(
+                    "First parsed row: Date='{Date}', Name='{Name}', Description='{Description}', AmountRaw='{AmountRaw}', Type='{Type}', ID='{Id}'",
+                    firstRow.Date, firstRow.Name, firstRow.Description, firstRow.AmountRaw, firstRow.Type, firstRow.TransactionId);
             }
 
             // 2. Validate required identifier (Codice Identificativo / ID) --
@@ -462,29 +472,47 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
 
         if (DateTime.TryParseExact(dateString, "yyyy - MM - dd HH:mm:ss", CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out var dateTime2))
+        {
+            _logger.LogDebug("Parsed date '{Date}' using format 'yyyy - MM - dd HH:mm:ss' -> {Parsed}", dateString, dateTime2);
             return dateTime2;
+        }
 
         if (DateTime.TryParseExact(dateString, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out var dateTime3))
+        {
+            _logger.LogDebug("Parsed date '{Date}' using format 'yyyy-MM-dd HH:mm:ss' -> {Parsed}", dateString, dateTime3);
             return dateTime3;
+        }
 
         if (DateTime.TryParseExact(dateString, "dd-MM-yyyy HH:mm:ss", CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out var dateTime1))
+        {
+            _logger.LogDebug("Parsed date '{Date}' using format 'dd-MM-yyyy HH:mm:ss' -> {Parsed}", dateString, dateTime1);
             return dateTime1;
+        }
 
         if (DateTime.TryParseExact(dateString, "dd/MM/yyyy HH:mm:ss", CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out var dateTimeS))
+        {
+            _logger.LogDebug("Parsed date '{Date}' using format 'dd/MM/yyyy HH:mm:ss' -> {Parsed}", dateString, dateTimeS);
             return dateTimeS;
+        }
 
         if (DateTime.TryParseExact(dateString, "dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out var dateTime))
+        {
+            _logger.LogDebug("Parsed date '{Date}' using format 'dd/MM/yyyy HH:mm' -> {Parsed}", dateString, dateTime);
             return dateTime;
+        }
 
         if (DateTime.TryParseExact(dateString, "dd/MM/yyyy", CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out var date))
+        {
+            _logger.LogDebug("Parsed date '{Date}' using format 'dd/MM/yyyy' -> {Parsed}", dateString, date);
             return date;
+        }
 
-        _logger.LogWarning("Could not parse date '{Date}'", dateString);
+        _logger.LogWarning("Could not parse date '{Date}' against any known Satispay date format", dateString);
         return null;
     }
 
@@ -551,9 +579,12 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
         if (decimal.TryParse(numeric, NumberStyles.AllowDecimalPoint,
             CultureInfo.InvariantCulture, out var amount))
         {
-            return isNegative ? -amount : amount;
+            var signedAmount = isNegative ? -amount : amount;
+            _logger.LogDebug("Parsed amount '{AmountRaw}' -> {ParsedAmount}", amountRaw, signedAmount);
+            return signedAmount;
         }
 
+        _logger.LogWarning("Could not parse amount '{AmountRaw}' (sanitized to '{Sanitized}')", amountRaw, numeric);
         return null;
     }
 
