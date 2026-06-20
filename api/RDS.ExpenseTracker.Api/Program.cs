@@ -12,10 +12,17 @@ using Microsoft.Identity.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var homeDirectory = Environment.GetEnvironmentVariable("HOME") ?? AppContext.BaseDirectory;
+var logFilePath = Path.Combine(homeDirectory, "LogFiles", "Logs", "log.txt");
+
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .Enrich.FromLogContext()
     .WriteTo.Console()
+    .WriteTo.File(
+        path: logFilePath,
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 10)
     .CreateLogger();
 
 builder.Services.AddEndpointsApiExplorer();
@@ -84,6 +91,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 builder.Services.AddControllers();
+
 builder.Host.UseSerilog();
 
 var app = builder.Build();
