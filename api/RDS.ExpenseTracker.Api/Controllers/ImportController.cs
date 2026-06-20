@@ -45,6 +45,9 @@ public class ImportController : ControllerBase
             return BadRequest("No file provided");
         }
 
+        _logger.LogInformation("Excel import received. FileName={FileName}, Size={Size} bytes, ImportAll={ImportAll}",
+            file.FileName, file.Length, importAll);
+
         using var stream = file.OpenReadStream();
         var result = await _excelImportService.ImportFromExcelAsync(stream, file.FileName, importAll);
 
@@ -54,6 +57,7 @@ public class ImportController : ControllerBase
             return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
         }
 
+        _logger.LogInformation("Excel import succeeded. FileName={FileName}, ImportedCount={ImportedCount}", file.FileName, result.Value);
         return Ok(new { importedCount = result.Value });
     }
 
@@ -68,6 +72,9 @@ public class ImportController : ControllerBase
         }
 
         var fileName = string.IsNullOrWhiteSpace(request.FileName) ? "import.xlsx" : request.FileName;
+        _logger.LogInformation("Excel base64 import received. FileName={FileName}, Base64Length={Base64Length}, ImportAll={ImportAll}",
+            fileName, request.Base64Content.Length, importAll);
+
         var result = await _excelImportService.ImportFromExcelBase64Async(request.Base64Content, fileName, importAll);
 
         if (result.IsFailed)
@@ -76,6 +83,7 @@ public class ImportController : ControllerBase
             return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
         }
 
+        _logger.LogInformation("Excel base64 import succeeded. FileName={FileName}, ImportedCount={ImportedCount}", fileName, result.Value);
         return Ok(new { importedCount = result.Value });
     }
 
@@ -99,6 +107,9 @@ public class ImportController : ControllerBase
             return BadRequest("Invalid file type. Use a .csv file for this endpoint.");
         }
 
+        _logger.LogInformation("BBVA CSV import received. FileName={FileName}, Size={Size} bytes, ImportAll={ImportAll}",
+            file.FileName, file.Length, importAll);
+
         using var stream = file.OpenReadStream();
         var result = await _bbvaCsvImportService.ImportFromCsvAsync(stream, file.FileName, importAll);
 
@@ -109,6 +120,7 @@ public class ImportController : ControllerBase
             return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
         }
 
+        _logger.LogInformation("BBVA CSV import succeeded. ImportedCount={ImportedCount}", result.Value);
         return Ok(new { importedCount = result.Value });
     }
 
@@ -132,6 +144,9 @@ public class ImportController : ControllerBase
             return BadRequest("Invalid file type. Use a .csv file for this endpoint.");
         }
 
+        _logger.LogInformation("Trade Republic CSV import received. FileName={FileName}, Size={Size} bytes, ImportAll={ImportAll}",
+            file.FileName, file.Length, importAll);
+
         using var stream = file.OpenReadStream();
         var result = await _tradeRepublicCsvImportService.ImportFromCsvAsync(stream, file.FileName, importAll);
 
@@ -142,6 +157,7 @@ public class ImportController : ControllerBase
             return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
         }
 
+        _logger.LogInformation("Trade Republic CSV import succeeded. ImportedCount={ImportedCount}", result.Value);
         return Ok(new { importedCount = result.Value });
     }
 
@@ -165,6 +181,9 @@ public class ImportController : ControllerBase
             return BadRequest("Invalid file type. Use a .csv file for this endpoint.");
         }
 
+        _logger.LogInformation("Satispay CSV import received. FileName={FileName}, Size={Size} bytes, ImportAll={ImportAll}",
+            file.FileName, file.Length, importAll);
+
         using var stream = file.OpenReadStream();
         var result = await _satisPayCsvImportService.ImportFromCsvAsync(stream, file.FileName, importAll);
 
@@ -175,6 +194,7 @@ public class ImportController : ControllerBase
             return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
         }
 
+        _logger.LogInformation("Satispay CSV import succeeded. ImportedCount={ImportedCount}", result.Value);
         return Ok(new { importedCount = result.Value });
     }
 
@@ -198,6 +218,9 @@ public class ImportController : ControllerBase
             return BadRequest("Invalid file type. Use a .csv file for this endpoint.");
         }
 
+        _logger.LogInformation("Sella CSV import received. FileName={FileName}, Size={Size} bytes, ImportAll={ImportAll}",
+            file.FileName, file.Length, importAll);
+
         using var stream = file.OpenReadStream();
         var result = await _sellaCsvImportService.ImportFromCsvAsync(stream, file.FileName, importAll);
 
@@ -208,6 +231,7 @@ public class ImportController : ControllerBase
             return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
         }
 
+        _logger.LogInformation("Sella CSV import succeeded. ImportedCount={ImportedCount}", result.Value);
         return Ok(new { importedCount = result.Value });
     }
 
@@ -225,6 +249,9 @@ public class ImportController : ControllerBase
             return BadRequest("No file content provided");
         }
 
+        _logger.LogInformation("Excel stream import received. FileName={FileName}, ContentLength={ContentLength}, ImportAll={ImportAll}",
+            fileName, Request.ContentLength, importAll);
+
         using var memoryStream = new MemoryStream();
         await Request.Body.CopyToAsync(memoryStream);
         memoryStream.Position = 0;
@@ -238,6 +265,7 @@ public class ImportController : ControllerBase
             return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
         }
 
+        _logger.LogInformation("Excel stream import succeeded. FileName={FileName}, ImportedCount={ImportedCount}", fileName, result.Value);
         return Ok(new { importedCount = result.Value });
     }
 
@@ -259,6 +287,9 @@ public class ImportController : ControllerBase
             return BadRequest("Invalid file type. Use a .csv file for this endpoint.");
         }
 
+        _logger.LogInformation("BBVA CSV stream import received. FileName={FileName}, ContentLength={ContentLength}, ImportAll={ImportAll}",
+            fileName, Request.ContentLength, importAll);
+
         using var memoryStream = new MemoryStream();
         await Request.Body.CopyToAsync(memoryStream);
         memoryStream.Position = 0;
@@ -272,6 +303,7 @@ public class ImportController : ControllerBase
             return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
         }
 
+        _logger.LogInformation("BBVA CSV stream import succeeded. ImportedCount={ImportedCount}", result.Value);
         return Ok(new { importedCount = result.Value });
     }
 
@@ -293,6 +325,9 @@ public class ImportController : ControllerBase
             return BadRequest("Invalid file type. Use a .csv file for this endpoint.");
         }
 
+        _logger.LogInformation("Trade Republic CSV stream import received. FileName={FileName}, ContentLength={ContentLength}, ImportAll={ImportAll}",
+            fileName, Request.ContentLength, importAll);
+
         using var memoryStream = new MemoryStream();
         await Request.Body.CopyToAsync(memoryStream);
         memoryStream.Position = 0;
@@ -306,6 +341,7 @@ public class ImportController : ControllerBase
             return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
         }
 
+        _logger.LogInformation("Trade Republic CSV stream import succeeded. ImportedCount={ImportedCount}", result.Value);
         return Ok(new { importedCount = result.Value });
     }
 
@@ -327,6 +363,9 @@ public class ImportController : ControllerBase
             return BadRequest("Invalid file type. Use a .csv file for this endpoint.");
         }
 
+        _logger.LogInformation("Satispay CSV stream import received. FileName={FileName}, ContentLength={ContentLength}, ImportAll={ImportAll}",
+            fileName, Request.ContentLength, importAll);
+
         using var memoryStream = new MemoryStream();
         await Request.Body.CopyToAsync(memoryStream);
         memoryStream.Position = 0;
@@ -340,6 +379,7 @@ public class ImportController : ControllerBase
             return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
         }
 
+        _logger.LogInformation("Satispay CSV stream import succeeded. ImportedCount={ImportedCount}", result.Value);
         return Ok(new { importedCount = result.Value });
     }
 
@@ -361,6 +401,9 @@ public class ImportController : ControllerBase
             return BadRequest("Invalid file type. Use a .csv file for this endpoint.");
         }
 
+        _logger.LogInformation("Sella CSV stream import received. FileName={FileName}, ContentLength={ContentLength}, ImportAll={ImportAll}",
+            fileName, Request.ContentLength, importAll);
+
         using var memoryStream = new MemoryStream();
         await Request.Body.CopyToAsync(memoryStream);
         memoryStream.Position = 0;
@@ -374,6 +417,7 @@ public class ImportController : ControllerBase
             return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
         }
 
+        _logger.LogInformation("Sella CSV stream import succeeded. ImportedCount={ImportedCount}", result.Value);
         return Ok(new { importedCount = result.Value });
     }
 
@@ -411,125 +455,126 @@ public class ImportController : ControllerBase
         return new CsvPayload(csvStream, csvFileName);
     }
 
+    private const string XlsxContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
     [HttpPost("bbva-xlsx")]
-    [Consumes("application/json")]
-    public async Task<IActionResult> ImportBbvaCsvFromXlsxBase64([FromBody] ImportXlsxBase64EnvelopeRequest request, [FromQuery] bool importAll = false)
+    [Consumes(XlsxContentType)]
+    public async Task<IActionResult> ImportBbvaCsvFromXlsx([FromQuery] bool importAll = false)
     {
-        if (request == null || string.IsNullOrWhiteSpace(request.Content))
+        using var xlsxStream = await ReadXlsxBodyAsync();
+        if (xlsxStream.Length == 0)
         {
-            return BadRequest("No base64 content provided");
+            _logger.LogWarning("BBVA XLSX import attempt with no content provided");
+            return BadRequest("No file content provided");
         }
 
-        using var xlsxStream = BuildExcelStreamFromEnvelope(request);
+        _logger.LogInformation("BBVA XLSX import received. ByteCount={ByteCount}, ImportAll={ImportAll}",
+            xlsxStream.Length, importAll);
+
         using var csvPayload = await PrepareCsvPayloadAsync(xlsxStream, "bbva.xlsx");
         var result = await _bbvaCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
 
         if (result.IsFailed)
         {
-            _logger.LogWarning("BBVA XLSX(base64) import failed: {Errors}",
+            _logger.LogWarning("BBVA XLSX import failed: {Errors}",
                 string.Join(", ", result.Errors.Select(e => e.Message)));
             return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
         }
 
+        _logger.LogInformation("BBVA XLSX import succeeded. ImportedCount={ImportedCount}", result.Value);
         return Ok(new { importedCount = result.Value });
     }
 
     [HttpPost("traderepublic-xlsx")]
-    [Consumes("application/json")]
-    public async Task<IActionResult> ImportTradeRepublicCsvFromXlsxBase64([FromBody] ImportXlsxBase64EnvelopeRequest request, [FromQuery] bool importAll = false)
+    [Consumes(XlsxContentType)]
+    public async Task<IActionResult> ImportTradeRepublicCsvFromXlsx([FromQuery] bool importAll = false)
     {
-        if (request == null || string.IsNullOrWhiteSpace(request.Content))
+        using var xlsxStream = await ReadXlsxBodyAsync();
+        if (xlsxStream.Length == 0)
         {
-            return BadRequest("No base64 content provided");
+            _logger.LogWarning("Trade Republic XLSX import attempt with no content provided");
+            return BadRequest("No file content provided");
         }
 
-        using var xlsxStream = BuildExcelStreamFromEnvelope(request);
+        _logger.LogInformation("Trade Republic XLSX import received. ByteCount={ByteCount}, ImportAll={ImportAll}",
+            xlsxStream.Length, importAll);
+
         using var csvPayload = await PrepareCsvPayloadAsync(xlsxStream, "traderepublic.xlsx");
         var result = await _tradeRepublicCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
 
         if (result.IsFailed)
         {
-            _logger.LogWarning("Trade Republic XLSX(base64) import failed: {Errors}",
+            _logger.LogWarning("Trade Republic XLSX import failed: {Errors}",
                 string.Join(", ", result.Errors.Select(e => e.Message)));
             return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
         }
 
+        _logger.LogInformation("Trade Republic XLSX import succeeded. ImportedCount={ImportedCount}", result.Value);
         return Ok(new { importedCount = result.Value });
     }
 
     [HttpPost("satispay-xlsx")]
-    [Consumes("application/json")]
-    public async Task<IActionResult> ImportSatisPayCsvFromXlsxBase64([FromBody] ImportXlsxBase64EnvelopeRequest request, [FromQuery] bool importAll = false)
+    [Consumes(XlsxContentType)]
+    public async Task<IActionResult> ImportSatisPayCsvFromXlsx([FromQuery] bool importAll = false)
     {
-        if (request == null || string.IsNullOrWhiteSpace(request.Content))
+        using var xlsxStream = await ReadXlsxBodyAsync();
+        if (xlsxStream.Length == 0)
         {
-            _logger.LogWarning("Satispay XLSX(base64) import attempt with no base64 content provided");
-            return BadRequest("No base64 content provided");
+            _logger.LogWarning("Satispay XLSX import attempt with no content provided");
+            return BadRequest("No file content provided");
         }
 
-        _logger.LogInformation(
-            "Satispay XLSX(base64) import received. ContentType={ContentType}, Base64Length={Base64Length}, ImportAll={ImportAll}",
-            request.ContentType, request.Content.Length, importAll);
-
-        using var xlsxStream = BuildExcelStreamFromEnvelope(request);
-        _logger.LogDebug("Satispay XLSX(base64) decoded payload size: {ByteCount} bytes", xlsxStream.Length);
+        _logger.LogInformation("Satispay XLSX import received. ByteCount={ByteCount}, ImportAll={ImportAll}",
+            xlsxStream.Length, importAll);
 
         using var csvPayload = await PrepareCsvPayloadAsync(xlsxStream, "satispay.xlsx", ';');
         var result = await _satisPayCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
 
         if (result.IsFailed)
         {
-            _logger.LogWarning("Satispay XLSX(base64) import failed: {Errors}",
+            _logger.LogWarning("Satispay XLSX import failed: {Errors}",
                 string.Join(", ", result.Errors.Select(e => e.Message)));
             return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
         }
 
-        _logger.LogInformation("Satispay XLSX(base64) import succeeded. ImportedCount={ImportedCount}", result.Value);
+        _logger.LogInformation("Satispay XLSX import succeeded. ImportedCount={ImportedCount}", result.Value);
         return Ok(new { importedCount = result.Value });
     }
 
     [HttpPost("sella-xlsx")]
-    [Consumes("application/octet-stream")]
-    public async Task<IActionResult> ImportSellaCsvFromXlsxBase64([FromBody] ImportXlsxBase64EnvelopeRequest request, [FromQuery] bool importAll = false)
+    [Consumes(XlsxContentType)]
+    public async Task<IActionResult> ImportSellaCsvFromXlsx([FromQuery] bool importAll = false)
     {
-        if (request == null || string.IsNullOrWhiteSpace(request.Content))
+        using var xlsxStream = await ReadXlsxBodyAsync();
+        if (xlsxStream.Length == 0)
         {
-            return BadRequest("No base64 content provided");
+            _logger.LogWarning("Sella XLSX import attempt with no content provided");
+            return BadRequest("No file content provided");
         }
 
-        using var xlsxStream = BuildExcelStreamFromEnvelope(request);
+        _logger.LogInformation("Sella XLSX import received. ByteCount={ByteCount}, ImportAll={ImportAll}",
+            xlsxStream.Length, importAll);
+
         using var csvPayload = await PrepareCsvPayloadAsync(xlsxStream, "sella.xlsx");
         var result = await _sellaCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
 
         if (result.IsFailed)
         {
-            _logger.LogWarning("Sella XLSX(base64) import failed: {Errors}",
+            _logger.LogWarning("Sella XLSX import failed: {Errors}",
                 string.Join(", ", result.Errors.Select(e => e.Message)));
             return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
         }
 
+        _logger.LogInformation("Sella XLSX import succeeded. ImportedCount={ImportedCount}", result.Value);
         return Ok(new { importedCount = result.Value });
     }
 
-    private static MemoryStream BuildExcelStreamFromEnvelope(ImportXlsxBase64EnvelopeRequest request)
+    private async Task<MemoryStream> ReadXlsxBodyAsync()
     {
-        var normalizedBase64 = NormalizeBase64Payload(request.Content);
-        var fileBytes = Convert.FromBase64String(normalizedBase64);
-        var stream = new MemoryStream(fileBytes);
+        var stream = new MemoryStream();
+        await Request.Body.CopyToAsync(stream);
         stream.Position = 0;
         return stream;
-    }
-
-    private static string NormalizeBase64Payload(string base64Content)
-    {
-        var trimmed = base64Content.Trim();
-        var dataPrefixIndex = trimmed.IndexOf("base64,", StringComparison.OrdinalIgnoreCase);
-        if (dataPrefixIndex >= 0)
-        {
-            return trimmed[(dataPrefixIndex + "base64,".Length)..];
-        }
-
-        return trimmed;
     }
 
     private static bool IsCsvFileName(string? fileName)
