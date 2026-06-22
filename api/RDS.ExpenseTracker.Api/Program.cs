@@ -1,5 +1,4 @@
-﻿using Serilog;
-using RDS.ExpenseTracker.Api.Middlewares;
+﻿using RDS.ExpenseTracker.Api.Middlewares;
 using Scalar.AspNetCore;
 using RDS.ExpenseTracker.Api.Configuration;
 using RDS.ExpenseTracker.Api.Options;
@@ -9,37 +8,10 @@ using Microsoft.Extensions.Options;
 using RDS.ExpenseTracker.Application;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Identity.Web;
-using Microsoft.ApplicationInsights.Extensibility;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var homeDirectory = Environment.GetEnvironmentVariable("HOME") ?? AppContext.BaseDirectory;
-var logFilePath = Path.Combine(homeDirectory, "LogFiles", "Logs", "log.txt");
-
-// Bootstrap logger: only used for startup errors before the host (and DI-backed
-// Application Insights sink) is available.
-Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Information()
-    .Enrich.FromLogContext()
-    .WriteTo.Console()
-    .CreateBootstrapLogger();
-
 builder.Services.AddApplicationInsightsTelemetry();
-
-builder.Host.UseSerilog((context, services, loggerConfiguration) =>
-{
-    loggerConfiguration
-        .MinimumLevel.Information()
-        .Enrich.FromLogContext()
-        .WriteTo.Console()
-        .WriteTo.File(
-            path: logFilePath,
-            rollingInterval: RollingInterval.Day,
-            retainedFileCountLimit: 10)
-        .WriteTo.ApplicationInsights(
-            services.GetRequiredService<TelemetryConfiguration>(),
-            TelemetryConverter.Traces);
-});
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
@@ -107,8 +79,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 builder.Services.AddControllers();
-
-builder.Host.UseSerilog();
 
 var app = builder.Build();
 
