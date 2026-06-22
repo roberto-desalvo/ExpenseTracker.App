@@ -24,6 +24,8 @@ Log.Logger = new LoggerConfiguration()
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 10)
     .CreateLogger();
+    
+builder.Services.AddApplicationInsightsTelemetry();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
