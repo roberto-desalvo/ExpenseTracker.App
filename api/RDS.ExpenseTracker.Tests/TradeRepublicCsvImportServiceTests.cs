@@ -11,7 +11,7 @@ using System.Text;
 
 namespace RDS.ExpenseTracker.Tests;
 
-public class SatisPayCsvImportServiceTests
+public class TradeRepublicCsvImportServiceTests
 {
     private static readonly TransferMatchRule TradeRepublicRule = new()
     {
@@ -21,224 +21,159 @@ public class SatisPayCsvImportServiceTests
         DescriptionPattern2 = "Ricarica Satispay",
     };
 
-    [Fact]
-    public async Task ImportFromCsvAsync_KeepsNegativeAmount_WhenSatispayCsvContainsNegativeValue()
-    {
-        var service = BuildService(
-            out var transactionRepository,
-            out _,
-            out _,
-            accounts: [new Account(3, "Satispay")]);
-
-        const string csv = "Data;Nome;Descrizione;Importo;Tipo;Stato;Disponibilità;Disponibilità dopo la transazione;ID (Comunicalo all'Assistenza Clienti in caso di problemi)\n"
-            + "12/06/2026 22:38;Il Quadrifoglio;;-€4,50;Pagamento;Approvato;-€4,50;€244,30;019ebd8e-81bd-7a5d-acbc-577b728ba080\n";
-
-        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-
-        var result = await service.ImportFromCsvAsync(stream, "transazioni-satispay.csv");
-
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Be(1);
-        transactionRepository.AddedTransactions.Should().ContainSingle();
-
-        var importedTransaction = transactionRepository.AddedTransactions.Single();
-        importedTransaction.AccountId.Should().Be(3);
-        importedTransaction.Amount.Should().Be(-4.50m);
-        importedTransaction.ExternalId.Should().Be("019ebd8e-81bd-7a5d-acbc-577b728ba080");
-        importedTransaction.CategoryId.Should().Be((int)CategoryEnum.Default);
-    }
+    private const string Header = "datetime,account_type,type,name,amount,description,transaction_id,counterparty_iban\n";
 
     [Fact]
-    public async Task ImportFromCsvAsync_RecordsRicaricaSatispayAsUnlinkedTransferLeg_WhenNoTradeRepublicCounterpartYet()
+    public async Task ImportFromCsvAsync_ImportsPlainTransaction_WhenNotATransferType()
     {
         var service = BuildService(
             out var transactionRepository,
             out var transferRepository,
-            out _,
-            rules: [TradeRepublicRule],
-            accounts: [new Account(3, "Satispay")]);
+            out _);
 
-        const string csv = "Data;Nome;Descrizione;Importo;Tipo;Stato;Disponibilità;Disponibilità dopo la transazione;ID (Comunicalo all'Assistenza Clienti in caso di problemi)\n"
-            + "16/06/2026 10:00:00;;Ricarica Satispay;€50,00;BANK_RECHARGE;Approvato;€50,00;€50,00;sat-recharge-1\n";
+        const string csv = Header
+            + "2026-06-10T08:00:00Z,CURRENT,PAYMENT_OUTBOUND,Supermarket,-12.50,Supermarket purchase,tr-1,\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-
-        var result = await service.ImportFromCsvAsync(stream, "transazioni-satispay.csv");
+        var result = await service.ImportFromCsvAsync(stream, "traderepublic.csv");
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(1);
         transferRepository.AddedTransfers.Should().BeEmpty();
 
         var importedTransaction = transactionRepository.AddedTransactions.Should().ContainSingle().Subject;
-        importedTransaction.AccountId.Should().Be(3);
-        importedTransaction.Amount.Should().Be(50.00m);
+        importedTransaction.Amount.Should().Be(-12.50m);
+        importedTransaction.ExternalId.Should().Be("tr-1");
+    }
+
+    [Fact]
+    public async Task ImportFromCsvAsync_RecordsSepaDirectDebitAsUnlinkedTransferLeg_WhenNoSatispayCounterpartYet()
+    {
+        var service = BuildService(
+            out var transactionRepository,
+            out var transferRepository,
+            out _,
+            rules: [TradeRepublicRule]);
+
+        const string csv = Header
+            + "2026-06-17T08:00:00Z,CURRENT,PAYMENT_OUTBOUND,Satispay Europe S.A.,-50.00,Sepa Direct Debit transfer to Satispay Europe S.A.,tr-2,\n";
+
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+        var result = await service.ImportFromCsvAsync(stream, "traderepublic.csv");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(1);
+        transferRepository.AddedTransfers.Should().BeEmpty();
+
+        var importedTransaction = transactionRepository.AddedTransactions.Should().ContainSingle().Subject;
+        importedTransaction.Amount.Should().Be(-50.00m);
         importedTransaction.CategoryId.Should().Be((int)CategoryEnum.MoneyTransfers);
         importedTransaction.TransferNavigation.Should().BeNull();
     }
 
     [Fact]
-    public async Task ImportFromCsvAsync_LinksTransfer_WhenUnlinkedTradeRepublicTransactionIsOneDayLater()
+    public async Task ImportFromCsvAsync_LinksTransfer_WhenUnlinkedSatispayTransactionIsOneDayEarlier()
     {
         var service = BuildService(
             out var transactionRepository,
             out var transferRepository,
             out _,
             rules: [TradeRepublicRule],
-            accounts: [new Account(1, "Trade Republic"), new Account(3, "Satispay")]);
+            accounts: [new Account(1, "Trade Republic"), new Account(2, "Satispay")]);
 
-        // Pre-existing unlinked TR transaction, dated one day after the Satispay recharge.
+        // Pre-existing unlinked Satispay recharge, dated one day before the TR debit.
         await transactionRepository.AddTransactions([
             new Transaction
             {
-                AccountId = 1,
+                AccountId = 2,
                 CategoryId = (int)CategoryEnum.MoneyTransfers,
-                Amount = -50.00m,
-                Description = "Sepa Direct Debit transfer to Satispay Europe S.A.",
-                Date = new DateTime(2026, 6, 17, 8, 0, 0),
-                ExternalId = "tr-debit-1",
+                Amount = 50.00m,
+                Description = "Ricarica Satispay",
+                Date = new DateTime(2026, 6, 16, 9, 0, 0),
+                ExternalId = "sat-recharge-42",
             },
         ]);
 
-        const string csv = "Data;Nome;Descrizione;Importo;Tipo;Stato;Disponibilità;Disponibilità dopo la transazione;ID (Comunicalo all'Assistenza Clienti in caso di problemi)\n"
-            + "16/06/2026 10:00:00;;Ricarica Satispay;€50,00;BANK_RECHARGE;Approvato;€50,00;€50,00;sat-recharge-1\n";
+        const string csv = Header
+            + "2026-06-17T08:00:00Z,CURRENT,PAYMENT_OUTBOUND,Satispay Europe S.A.,-50.00,Sepa Direct Debit transfer to Satispay Europe S.A.,tr-3,\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-
-        var result = await service.ImportFromCsvAsync(stream, "transazioni-satispay.csv");
+        var result = await service.ImportFromCsvAsync(stream, "traderepublic.csv");
 
         result.IsSuccess.Should().BeTrue();
         transferRepository.AddedTransfers.Should().ContainSingle();
 
-        var trCandidate = transactionRepository.AddedTransactions.Single(t => t.AccountId == 1);
-        var satispayLeg = transactionRepository.AddedTransactions.Single(t => t.AccountId == 3);
+        var satispayCandidate = transactionRepository.AddedTransactions.Single(t => t.AccountId == 2);
+        var trLeg = transactionRepository.AddedTransactions.Single(t => t.AccountId == 1);
 
-        trCandidate.TransferNavigation.Should().NotBeNull();
-        satispayLeg.TransferNavigation.Should().BeSameAs(trCandidate.TransferNavigation);
-        trCandidate.CategoryId.Should().Be((int)CategoryEnum.MoneyTransfers);
-        satispayLeg.CategoryId.Should().Be((int)CategoryEnum.MoneyTransfers);
+        satispayCandidate.TransferNavigation.Should().NotBeNull();
+        trLeg.TransferNavigation.Should().BeSameAs(satispayCandidate.TransferNavigation);
+        trLeg.CategoryId.Should().Be((int)CategoryEnum.MoneyTransfers);
     }
 
     [Fact]
-    public async Task ImportFromCsvAsync_DoesNotLink_WhenDateGapIsNotExactlyOneDay()
+    public async Task ImportFromCsvAsync_CreatesTransferViaIban_WhenCounterpartyIbanMapped()
     {
+        var options = new FakeTradeRepublicCsvOptions
+        {
+            IbanToAccountMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["IT60X0542811101000000123456"] = "Sella",
+            },
+        };
+
         var service = BuildService(
             out var transactionRepository,
             out var transferRepository,
             out _,
-            rules: [TradeRepublicRule],
-            accounts: [new Account(1, "Trade Republic"), new Account(3, "Satispay")]);
+            options: options,
+            accounts: [new Account(1, "Trade Republic"), new Account(2, "Sella")]);
 
-        // TR transaction dated two days after the Satispay recharge - not a valid pair.
-        await transactionRepository.AddTransactions([
-            new Transaction
-            {
-                AccountId = 1,
-                CategoryId = (int)CategoryEnum.MoneyTransfers,
-                Amount = -50.00m,
-                Description = "Sepa Direct Debit transfer to Satispay Europe S.A.",
-                Date = new DateTime(2026, 6, 18, 8, 0, 0),
-                ExternalId = "tr-debit-2",
-            },
-        ]);
-
-        const string csv = "Data;Nome;Descrizione;Importo;Tipo;Stato;Disponibilità;Disponibilità dopo la transazione;ID (Comunicalo all'Assistenza Clienti in caso di problemi)\n"
-            + "16/06/2026 10:00:00;;Ricarica Satispay;€50,00;BANK_RECHARGE;Approvato;€50,00;€50,00;sat-recharge-2\n";
+        const string csv = Header
+            + "2026-06-10T08:00:00Z,CURRENT,TRANSFER_INSTANT_OUTBOUND,Sella,-100.00,Transfer to Sella,tr-iban-1,IT60X0542811101000000123456\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-
-        var result = await service.ImportFromCsvAsync(stream, "transazioni-satispay.csv");
-
-        result.IsSuccess.Should().BeTrue();
-        transferRepository.AddedTransfers.Should().BeEmpty();
-
-        var satispayLeg = transactionRepository.AddedTransactions.Single(t => t.AccountId == 3);
-        satispayLeg.TransferNavigation.Should().BeNull();
-        satispayLeg.CategoryId.Should().Be((int)CategoryEnum.MoneyTransfers);
-    }
-
-    [Fact]
-    public async Task ImportFromCsvAsync_ExcludesAlreadyLinkedCandidate_AndClaimsOldestUnlinkedOne()
-    {
-        var service = BuildService(
-            out var transactionRepository,
-            out var transferRepository,
-            out _,
-            rules: [TradeRepublicRule],
-            accounts: [new Account(1, "Trade Republic"), new Account(3, "Satispay")]);
-
-        var alreadyLinkedTransfer = new Transfer { CreatedOn = DateTime.UtcNow };
-
-        await transactionRepository.AddTransactions([
-            // Already linked to another transfer - must be excluded from matching.
-            new Transaction
-            {
-                AccountId = 1,
-                CategoryId = (int)CategoryEnum.MoneyTransfers,
-                Amount = -50.00m,
-                Description = "Sepa Direct Debit transfer to Satispay Europe S.A.",
-                Date = new DateTime(2026, 6, 17, 8, 0, 0),
-                ExternalId = "tr-debit-linked",
-                TransferNavigation = alreadyLinkedTransfer,
-            },
-            // Still unlinked - this is the one that should be claimed.
-            new Transaction
-            {
-                AccountId = 1,
-                CategoryId = (int)CategoryEnum.MoneyTransfers,
-                Amount = -50.00m,
-                Description = "Sepa Direct Debit transfer to Satispay Europe S.A.",
-                Date = new DateTime(2026, 6, 17, 9, 0, 0),
-                ExternalId = "tr-debit-unlinked",
-            },
-        ]);
-
-        const string csv = "Data;Nome;Descrizione;Importo;Tipo;Stato;Disponibilità;Disponibilità dopo la transazione;ID (Comunicalo all'Assistenza Clienti in caso di problemi)\n"
-            + "16/06/2026 10:00:00;;Ricarica Satispay;€50,00;BANK_RECHARGE;Approvato;€50,00;€50,00;sat-recharge-3\n";
-
-        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-
-        var result = await service.ImportFromCsvAsync(stream, "transazioni-satispay.csv");
+        var result = await service.ImportFromCsvAsync(stream, "traderepublic.csv");
 
         result.IsSuccess.Should().BeTrue();
         transferRepository.AddedTransfers.Should().ContainSingle();
 
-        var claimedCandidate = transactionRepository.AddedTransactions.Single(t => t.ExternalId == "tr-debit-unlinked");
-        var satispayLeg = transactionRepository.AddedTransactions.Single(t => t.AccountId == 3);
-
-        satispayLeg.TransferNavigation.Should().BeSameAs(claimedCandidate.TransferNavigation);
-        claimedCandidate.TransferNavigation.Should().NotBeSameAs(alreadyLinkedTransfer);
+        transactionRepository.AddedTransactions.Should().HaveCount(2);
+        transactionRepository.AddedTransactions.Should().Contain(t => t.AccountId == 1 && t.Amount == -100m);
+        transactionRepository.AddedTransactions.Should().Contain(t => t.AccountId == 2 && t.Amount == 100m);
     }
 
-    private static SatisPayCsvImportService BuildService(
+    private static TradeRepublicCsvImportService BuildService(
         out FakeTransactionRepository transactionRepository,
         out FakeTransferRepository transferRepository,
         out FakeAccountRepository accountRepository,
+        FakeTradeRepublicCsvOptions? options = null,
         IEnumerable<TransferMatchRule>? rules = null,
         IEnumerable<Account>? accounts = null)
     {
         transactionRepository = new FakeTransactionRepository();
         transferRepository = new FakeTransferRepository();
-        accountRepository = new FakeAccountRepository(accounts ?? [new Account(3, "Satispay")]);
+        accountRepository = new FakeAccountRepository(accounts ?? [new Account(1, "Trade Republic")]);
 
         var categoryRepository = new FakeCategoryRepository();
         var transferMatchingOptions = new FakeTransferMatchingOptions { Rules = rules?.ToList() ?? [] };
         var transferMatchingService = new TransferMatchingService(transactionRepository, accountRepository, transferMatchingOptions);
 
-        return new SatisPayCsvImportService(
+        return new TradeRepublicCsvImportService(
             transactionRepository,
             transferRepository,
             categoryRepository,
             accountRepository,
-            new FakeSatisPayCsvOptions(),
+            options ?? new FakeTradeRepublicCsvOptions(),
             transferMatchingService,
-            NullLogger<SatisPayCsvImportService>.Instance);
+            NullLogger<TradeRepublicCsvImportService>.Instance);
     }
 
-    private sealed class FakeSatisPayCsvOptions : ISatisPayCsvOptions
+    private sealed class FakeTradeRepublicCsvOptions : ITradeRepublicCsvOptions
     {
-        public string DefaultAccountName => "Satispay";
-        public string? BankAccountName => null;
-        public Dictionary<string, string> IbanToAccountMap => [];
+        public string DefaultAccountName => "Trade Republic";
+        public string? TradingAccountName => "Trade Republic Trading";
+        public Dictionary<string, string> IbanToAccountMap { get; set; } = [];
     }
 
     private sealed class FakeTransferMatchingOptions : ITransferMatchingOptions
@@ -333,11 +268,13 @@ public class SatisPayCsvImportServiceTests
         public Task<IEnumerable<Category>> GetCategories(string? name = null)
             => Task.FromResult<IEnumerable<Category>>([]);
 
+        public Task<Category?> GetDefaultCategory()
+            => Task.FromResult<Category?>(null);
+
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(1);
 
         public Task<Category?> GetCategory(int id) => throw new NotImplementedException();
-        public Task<Category?> GetDefaultCategory() => throw new NotImplementedException();
         public Task<(IEnumerable<Category> Items, int TotalCount)> GetPagedCategories(CategoryQueryRequest request) => throw new NotImplementedException();
         public Task AddCategories(IEnumerable<Category> categories) => throw new NotImplementedException();
         public Task UpdateCategory(Category category) => throw new NotImplementedException();

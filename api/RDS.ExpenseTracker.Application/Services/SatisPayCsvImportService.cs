@@ -33,6 +33,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
     private readonly ICategoryRepository _categoryRepository;
     private readonly IAccountRepository _accountRepository;
     private readonly ISatisPayCsvOptions _csvOptions;
+    private readonly ITransferMatchingService _transferMatchingService;
     private readonly ILogger<SatisPayCsvImportService> _logger;
 
     public SatisPayCsvImportService(
@@ -41,14 +42,16 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
         ICategoryRepository categoryRepository,
         IAccountRepository accountRepository,
         ISatisPayCsvOptions csvOptions,
+        ITransferMatchingService transferMatchingService,
         ILogger<SatisPayCsvImportService> logger)
     {
-        _transactionRepository = transactionRepository ?? throw new ArgumentNullException(nameof(transactionRepository));
-        _transferRepository    = transferRepository    ?? throw new ArgumentNullException(nameof(transferRepository));
-        _categoryRepository    = categoryRepository    ?? throw new ArgumentNullException(nameof(categoryRepository));
-        _accountRepository     = accountRepository     ?? throw new ArgumentNullException(nameof(accountRepository));
-        _csvOptions            = csvOptions            ?? throw new ArgumentNullException(nameof(csvOptions));
-        _logger                = logger                ?? throw new ArgumentNullException(nameof(logger));
+        _transactionRepository   = transactionRepository   ?? throw new ArgumentNullException(nameof(transactionRepository));
+        _transferRepository      = transferRepository      ?? throw new ArgumentNullException(nameof(transferRepository));
+        _categoryRepository      = categoryRepository      ?? throw new ArgumentNullException(nameof(categoryRepository));
+        _accountRepository       = accountRepository       ?? throw new ArgumentNullException(nameof(accountRepository));
+        _csvOptions              = csvOptions              ?? throw new ArgumentNullException(nameof(csvOptions));
+        _transferMatchingService = transferMatchingService ?? throw new ArgumentNullException(nameof(transferMatchingService));
+        _logger                  = logger                  ?? throw new ArgumentNullException(nameof(logger));
     }
 
     // ── Public API ──────────────────────────────────────────────────────────
@@ -155,7 +158,29 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
 
             var defaultCategoryId = (int)CategoryEnum.Default;
 
+            var candidateRows = new List<SatisPayRow>();
+            var remainingRows = new List<SatisPayRow>();
+
             foreach (var row in rows)
+            {
+                var description = BuildDescription(row);
+                if (_transferMatchingService.IsTransferCandidate(_csvOptions.DefaultAccountName, description))
+                    candidateRows.Add(row);
+                else
+                    remainingRows.Add(row);
+            }
+
+            // Rule-matched rows must be processed oldest-first so that, when several rows
+            // of the same amount are unmatched, each claims the oldest still-unlinked
+            // counterpart (see ITransferMatchingService).
+            var consumedCandidateIds = new HashSet<int>();
+            foreach (var row in candidateRows.OrderBy(r => ParseDate(r.Date) ?? DateTime.UtcNow))
+            {
+                await ProcessTransferCandidateRow(
+                    row, satispayAccount, transactions, transferEntities, transferTransactions, consumedCandidateIds);
+            }
+
+            foreach (var row in remainingRows)
             {
                 // Check if this is a bank recharge (Ricarica Satispay)
                 if (IsBankRechargeRow(row))
@@ -413,6 +438,63 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             bankAccountName, _csvOptions.DefaultAccountName, amount);
 
         return Result.Ok();
+    }
+
+    private async Task ProcessTransferCandidateRow(
+        SatisPayRow row,
+        Account satispayAccount,
+        List<Transaction> transactions,
+        List<Transfer> transferEntities,
+        List<Transaction> transferTransactions,
+        HashSet<int> consumedCandidateIds)
+    {
+        var amount = ParseAmount(row.AmountRaw);
+        if (!amount.HasValue)
+        {
+            _logger.LogWarning("Skipping row {ID}: invalid amount '{AmountRaw}'", row.TransactionId, row.AmountRaw);
+            return;
+        }
+
+        var date        = ParseDate(row.Date) ?? DateTime.UtcNow;
+        var description = BuildDescription(row);
+
+        var matchResult = await _transferMatchingService.TryMatchAsync(
+            _csvOptions.DefaultAccountName, description, amount.Value, date, consumedCandidateIds);
+
+        if (matchResult.Candidate != null)
+        {
+            var transfer = new Transfer { CreatedOn = DateTime.UtcNow };
+            transferEntities.Add(transfer);
+
+            matchResult.Candidate.TransferNavigation = transfer;
+            matchResult.Candidate.CategoryId = (int)CategoryEnum.MoneyTransfers;
+            consumedCandidateIds.Add(matchResult.Candidate.Id);
+
+            transferTransactions.Add(new Transaction
+            {
+                AccountId          = satispayAccount.Id,
+                CategoryId         = (int)CategoryEnum.MoneyTransfers,
+                Amount             = amount.Value,
+                Description        = description,
+                Date               = date,
+                CreatedOn          = DateTime.UtcNow,
+                ExternalId         = row.TransactionId,
+                TransferNavigation = transfer,
+            });
+        }
+        else
+        {
+            transactions.Add(new Transaction
+            {
+                AccountId   = satispayAccount.Id,
+                CategoryId  = (int)CategoryEnum.MoneyTransfers,
+                Amount      = amount.Value,
+                Description = description,
+                Date        = date,
+                CreatedOn   = DateTime.UtcNow,
+                ExternalId  = row.TransactionId,
+            });
+        }
     }
 
     private Transaction? BuildTransaction(

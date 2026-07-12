@@ -45,6 +45,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
     private readonly ICategoryRepository _categoryRepository;
     private readonly IAccountRepository _accountRepository;
     private readonly ITradeRepublicCsvOptions _csvOptions;
+    private readonly ITransferMatchingService _transferMatchingService;
     private readonly ILogger<TradeRepublicCsvImportService> _logger;
 
     public TradeRepublicCsvImportService(
@@ -53,14 +54,16 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         ICategoryRepository categoryRepository,
         IAccountRepository accountRepository,
         ITradeRepublicCsvOptions csvOptions,
+        ITransferMatchingService transferMatchingService,
         ILogger<TradeRepublicCsvImportService> logger)
     {
-        _transactionRepository = transactionRepository ?? throw new ArgumentNullException(nameof(transactionRepository));
-        _transferRepository    = transferRepository    ?? throw new ArgumentNullException(nameof(transferRepository));
-        _categoryRepository    = categoryRepository    ?? throw new ArgumentNullException(nameof(categoryRepository));
-        _accountRepository     = accountRepository     ?? throw new ArgumentNullException(nameof(accountRepository));
-        _csvOptions            = csvOptions            ?? throw new ArgumentNullException(nameof(csvOptions));
-        _logger                = logger                ?? throw new ArgumentNullException(nameof(logger));
+        _transactionRepository   = transactionRepository   ?? throw new ArgumentNullException(nameof(transactionRepository));
+        _transferRepository      = transferRepository      ?? throw new ArgumentNullException(nameof(transferRepository));
+        _categoryRepository      = categoryRepository      ?? throw new ArgumentNullException(nameof(categoryRepository));
+        _accountRepository       = accountRepository       ?? throw new ArgumentNullException(nameof(accountRepository));
+        _csvOptions              = csvOptions              ?? throw new ArgumentNullException(nameof(csvOptions));
+        _transferMatchingService = transferMatchingService ?? throw new ArgumentNullException(nameof(transferMatchingService));
+        _logger                  = logger                  ?? throw new ArgumentNullException(nameof(logger));
     }
 
     // ── Public API ──────────────────────────────────────────────────────────
@@ -127,10 +130,34 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
             var transferEntities   = new List<Transfer>();
             var transferTransactions = new List<Transaction>();
 
+            var candidateRows = new List<TradeRepublicRow>();
+            var remainingRows = new List<TradeRepublicRow>();
+
             foreach (var row in rows)
             {
                 if (row.Amount is null || row.Amount == 0) continue;
 
+                var accountName = ResolveAccountName(row);
+                var description = BuildDescription(row);
+
+                if (_transferMatchingService.IsTransferCandidate(accountName, description))
+                    candidateRows.Add(row);
+                else
+                    remainingRows.Add(row);
+            }
+
+            // Rule-matched rows must be processed oldest-first so that, when several rows
+            // of the same amount are unmatched, each claims the oldest still-unlinked
+            // counterpart (see ITransferMatchingService).
+            var consumedCandidateIds = new HashSet<int>();
+            foreach (var row in candidateRows.OrderBy(r => ParseDate(r.Datetime) ?? DateTime.UtcNow))
+            {
+                await ProcessTransferCandidateRow(
+                    row, accounts, transactions, transferEntities, transferTransactions, consumedCandidateIds);
+            }
+
+            foreach (var row in remainingRows)
+            {
                 var isTransferType        = TransferTypes.Contains(row.Type ?? string.Empty);
                 string? counterpartyName  = null;
 
@@ -316,16 +343,81 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         });
     }
 
+    private async Task ProcessTransferCandidateRow(
+        TradeRepublicRow row,
+        List<Account> accounts,
+        List<Transaction> transactions,
+        List<Transfer> transferEntities,
+        List<Transaction> transferTransactions,
+        HashSet<int> consumedCandidateIds)
+    {
+        var accountName = ResolveAccountName(row);
+        var account = accounts.FirstOrDefault(a =>
+            a.Name.Equals(accountName, StringComparison.OrdinalIgnoreCase));
+
+        if (account == null)
+        {
+            _logger.LogWarning(
+                "Skipping row {TransactionId}: account '{Account}' not found",
+                row.TransactionId, accountName);
+            return;
+        }
+
+        var amount      = row.Amount!.Value;
+        var date        = ParseDate(row.Datetime) ?? DateTime.UtcNow;
+        var description = BuildDescription(row);
+
+        var matchResult = await _transferMatchingService.TryMatchAsync(
+            accountName, description, amount, date, consumedCandidateIds);
+
+        if (matchResult.Candidate != null)
+        {
+            var transfer = new Transfer { CreatedOn = DateTime.UtcNow };
+            transferEntities.Add(transfer);
+
+            matchResult.Candidate.TransferNavigation = transfer;
+            matchResult.Candidate.CategoryId = (int)CategoryEnum.MoneyTransfers;
+            consumedCandidateIds.Add(matchResult.Candidate.Id);
+
+            transferTransactions.Add(new Transaction
+            {
+                AccountId          = account.Id,
+                CategoryId         = (int)CategoryEnum.MoneyTransfers,
+                Amount             = amount,
+                Description        = description,
+                Date               = date,
+                CreatedOn          = DateTime.UtcNow,
+                ExternalId         = row.TransactionId,
+                TransferNavigation = transfer,
+            });
+        }
+        else
+        {
+            transactions.Add(new Transaction
+            {
+                AccountId   = account.Id,
+                CategoryId  = (int)CategoryEnum.MoneyTransfers,
+                Amount      = amount,
+                Description = description,
+                Date        = date,
+                CreatedOn   = DateTime.UtcNow,
+                ExternalId  = row.TransactionId,
+            });
+        }
+    }
+
+    private string ResolveAccountName(TradeRepublicRow row)
+        => row.AccountType == AccountTypeTrading && !string.IsNullOrEmpty(_csvOptions.TradingAccountName)
+            ? _csvOptions.TradingAccountName
+            : _csvOptions.DefaultAccountName;
+
     private Transaction? BuildTransaction(
         TradeRepublicRow row,
         List<Account> accounts,
         List<Category> categories,
         int defaultCategoryId)
     {
-        var accountName = row.AccountType == AccountTypeTrading
-                          && !string.IsNullOrEmpty(_csvOptions.TradingAccountName)
-            ? _csvOptions.TradingAccountName
-            : _csvOptions.DefaultAccountName;
+        var accountName = ResolveAccountName(row);
 
         var account = accounts.FirstOrDefault(a =>
             a.Name.Equals(accountName, StringComparison.OrdinalIgnoreCase));

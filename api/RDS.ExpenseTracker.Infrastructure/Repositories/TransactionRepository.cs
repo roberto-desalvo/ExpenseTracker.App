@@ -66,6 +66,23 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .ToListAsync();
     }
 
+    public async Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains)
+    {
+        var targetDate = date.Date;
+
+        return await Context.Transactions
+            .Where(t =>
+                t.AccountId == accountId &&
+                t.TransferId == null &&
+                t.Amount == amount &&
+                t.Date != null &&
+                t.Date.Value.Date == targetDate &&
+                t.Description.Contains(descriptionContains))
+            .OrderBy(t => t.Date)
+            .ThenBy(t => t.Id)
+            .ToListAsync();
+    }
+
     public async Task UpdateTransaction(Transaction modified)
     {
         var current = await Context.Transactions.FirstOrDefaultAsync(x => x.Id == modified.Id);

@@ -49,6 +49,7 @@ builder.Services.AddOptions(builder.Configuration);
 builder.Services.Configure<BbvaCsvOptions>(builder.Configuration.GetSection(BbvaCsvOptions.SectionName));
 builder.Services.Configure<SatisPayCsvOptions>(builder.Configuration.GetSection(SatisPayCsvOptions.SectionName));
 builder.Services.Configure<SellaCsvOptions>(builder.Configuration.GetSection(SellaCsvOptions.SectionName));
+builder.Services.Configure<TransferMatchingOptions>(builder.Configuration.GetSection(TransferMatchingOptions.SectionName));
 
 builder.Services.AddProblemDetails();
 
@@ -73,6 +74,9 @@ builder.Services.AddScoped<ISatisPayCsvOptions>(sp =>
 
 builder.Services.AddScoped<ISellaCsvOptions>(sp =>
     sp.GetRequiredService<IOptions<SellaCsvOptions>>().Value);
+
+builder.Services.AddScoped<ITransferMatchingOptions>(sp =>
+    sp.GetRequiredService<IOptions<TransferMatchingOptions>>().Value);
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));

@@ -25,6 +25,7 @@ public static class AddServicesExtensions
         services.AddScoped<ITradeRepublicCsvImportService, TradeRepublicCsvImportService>();
         services.AddScoped<ISatisPayCsvImportService, SatisPayCsvImportService>();
         services.AddScoped<ISellaCsvImportService, SellaCsvImportService>();
+        services.AddScoped<ITransferMatchingService, TransferMatchingService>();
 
         return services;
     }

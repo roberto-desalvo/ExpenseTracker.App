@@ -6,12 +6,23 @@ using RDS.ExpenseTracker.Domain.Dtos.Requests;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
 using RDS.ExpenseTracker.Domain.Repositories;
+using RDS.ExpenseTracker.Domain.Services;
 using System.Text;
 
 namespace RDS.ExpenseTracker.Tests;
 
 public class SellaCsvImportServiceTests
 {
+    private static readonly TransferMatchRule SellaSatispayRule = new()
+    {
+        AccountName1 = "Sella",
+        DescriptionPattern1 = "Satispay Europe",
+        DescriptionMatchMode1 = DescriptionMatchMode.StartsWith,
+        AccountName2 = "Satispay",
+        DescriptionPattern2 = "Ricarica Satispay",
+    };
+
+
     [Fact]
     public async Task ImportFromCsvAsync_ThrowsError_WhenCodiceIdentificativoMissing()
     {
@@ -47,7 +58,7 @@ public class SellaCsvImportServiceTests
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
         var result = await service.ImportFromCsvAsync(stream, "sella.csv");
 
-        result.IsSuccess.Should().BeTrue();
+        result.IsSuccess.Should().BeTrue(string.Join(",", result.Errors.Select(e => e.Message)));
         result.Value.Should().Be(2);
 
         transactionRepository.AddedTransactions.Should().HaveCount(2);
@@ -140,12 +151,77 @@ public class SellaCsvImportServiceTests
         transactionRepository.AddedTransactions.Should().OnlyContain(t => t.CategoryId == (int)CategoryEnum.MoneyTransfers);
     }
 
+    [Fact]
+    public async Task ImportFromCsvAsync_RecordsSatispayEuropeRowAsUnlinkedTransferLeg_WhenNoSatispayCounterpartYet()
+    {
+        var service = BuildService(
+            out var transactionRepository,
+            out var transferRepository,
+            new FakeSellaCsvOptions(),
+            rules: [SellaSatispayRule]);
+
+        const string csv = "\"Codice identificativo\",\"Data operazione\",\"Data valuta\",\"Descrizione\",\"Divisa\",\"Debito\",\"Credito\",\"Categoria\",\"Sottocategoria\",\"Etichette\",\"Note\",\n"
+            + "\"SEL-SAT-1\",\"17/06/2026\",\"17/06/2026\",\"Satispay Europe S.A. - Ricarica wallet\",\"EUR\",\"-50,00\",\"\",\"Trasferimenti\",\"Varie\",\"Bonifico\",\"\",\n";
+
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+        var result = await service.ImportFromCsvAsync(stream, "sella.csv");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(1);
+        transferRepository.AddedTransfers.Should().BeEmpty();
+
+        var importedTransaction = transactionRepository.AddedTransactions.Should().ContainSingle().Subject;
+        importedTransaction.Amount.Should().Be(-50.00m);
+        importedTransaction.CategoryId.Should().Be((int)CategoryEnum.MoneyTransfers);
+        importedTransaction.TransferNavigation.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ImportFromCsvAsync_LinksTransfer_WhenUnlinkedSatispayTransactionIsOneDayEarlier()
+    {
+        var service = BuildService(
+            out var transactionRepository,
+            out var transferRepository,
+            new FakeSellaCsvOptions(),
+            rules: [SellaSatispayRule],
+            accounts: [new Account(1, "Sella"), new Account(2, "Satispay")]);
+
+        // Pre-existing unlinked Satispay recharge, dated one day before the Sella debit.
+        await transactionRepository.AddTransactions([
+            new Transaction
+            {
+                AccountId = 2,
+                CategoryId = (int)CategoryEnum.MoneyTransfers,
+                Amount = 50.00m,
+                Description = "Ricarica Satispay",
+                Date = new DateTime(2026, 6, 16, 9, 0, 0),
+                ExternalId = "sat-recharge-9",
+            },
+        ]);
+
+        const string csv = "\"Codice identificativo\",\"Data operazione\",\"Data valuta\",\"Descrizione\",\"Divisa\",\"Debito\",\"Credito\",\"Categoria\",\"Sottocategoria\",\"Etichette\",\"Note\",\n"
+            + "\"SEL-SAT-2\",\"17/06/2026\",\"17/06/2026\",\"Satispay Europe S.A. - Ricarica wallet\",\"EUR\",\"-50,00\",\"\",\"Trasferimenti\",\"Varie\",\"Bonifico\",\"\",\n";
+
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+        var result = await service.ImportFromCsvAsync(stream, "sella.csv");
+
+        result.IsSuccess.Should().BeTrue();
+        transferRepository.AddedTransfers.Should().ContainSingle();
+
+        var satispayCandidate = transactionRepository.AddedTransactions.Single(t => t.AccountId == 2);
+        var sellaLeg = transactionRepository.AddedTransactions.Single(t => t.AccountId == 1);
+
+        satispayCandidate.TransferNavigation.Should().NotBeNull();
+        sellaLeg.TransferNavigation.Should().BeSameAs(satispayCandidate.TransferNavigation);
+    }
+
     private static SellaCsvImportService BuildService(
         out FakeTransactionRepository transactionRepository,
         out FakeTransferRepository transferRepository,
         FakeSellaCsvOptions options,
         IEnumerable<string>? existingExternalIds = null,
-        IEnumerable<Account>? accounts = null)
+        IEnumerable<Account>? accounts = null,
+        IEnumerable<TransferMatchRule>? rules = null)
     {
         transactionRepository = new FakeTransactionRepository(existingExternalIds ?? []);
         transferRepository = new FakeTransferRepository();
@@ -153,12 +229,16 @@ public class SellaCsvImportServiceTests
         var categoryRepository = new FakeCategoryRepository();
         var accountRepository = new FakeAccountRepository(accounts ?? [new Account(1, "Sella")]);
 
+        var transferMatchingOptions = new FakeTransferMatchingOptions { Rules = rules?.ToList() ?? [] };
+        var transferMatchingService = new TransferMatchingService(transactionRepository, accountRepository, transferMatchingOptions);
+
         return new SellaCsvImportService(
             transactionRepository,
             transferRepository,
             categoryRepository,
             accountRepository,
             options,
+            transferMatchingService,
             NullLogger<SellaCsvImportService>.Instance);
     }
 
@@ -168,14 +248,26 @@ public class SellaCsvImportServiceTests
         public Dictionary<string, string> IbanToAccountMap { get; set; } = [];
     }
 
+    private sealed class FakeTransferMatchingOptions : ITransferMatchingOptions
+    {
+        public List<TransferMatchRule> Rules { get; set; } = [];
+    }
+
     private sealed class FakeTransactionRepository(IEnumerable<string> existingExternalIds) : ITransactionRepository
     {
         private readonly HashSet<string> _existingExternalIds = existingExternalIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        private int _nextId = 1;
         public List<Transaction> AddedTransactions { get; } = [];
 
         public Task AddTransactions(IEnumerable<Transaction> transactions)
         {
             var txs = transactions.ToList();
+            foreach (var tx in txs)
+            {
+                if (tx.Id == 0)
+                    tx.Id = _nextId++;
+            }
+
             AddedTransactions.AddRange(txs);
 
             foreach (var externalId in txs.Where(t => !string.IsNullOrWhiteSpace(t.ExternalId)).Select(t => t.ExternalId!))
@@ -186,6 +278,24 @@ public class SellaCsvImportServiceTests
 
         public Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds)
             => Task.FromResult(externalIds.Where(id => _existingExternalIds.Contains(id)));
+
+        public Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains)
+        {
+            var targetDate = date.Date;
+
+            var result = AddedTransactions
+                .Where(t =>
+                    t.AccountId == accountId &&
+                    t.TransferNavigation == null &&
+                    t.Amount == amount &&
+                    t.Date.HasValue && t.Date.Value.Date == targetDate &&
+                    t.Description.Contains(descriptionContains, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(t => t.Date)
+                .ThenBy(t => t.Id)
+                .ToList();
+
+            return Task.FromResult(result);
+        }
 
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(1);

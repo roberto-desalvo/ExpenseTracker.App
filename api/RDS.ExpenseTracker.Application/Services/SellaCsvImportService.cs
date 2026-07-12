@@ -24,6 +24,7 @@ public class SellaCsvImportService : ISellaCsvImportService
     private readonly ICategoryRepository _categoryRepository;
     private readonly IAccountRepository _accountRepository;
     private readonly ISellaCsvOptions _options;
+    private readonly ITransferMatchingService _transferMatchingService;
     private readonly ILogger<SellaCsvImportService> _logger;
 
     public SellaCsvImportService(
@@ -32,6 +33,7 @@ public class SellaCsvImportService : ISellaCsvImportService
         ICategoryRepository categoryRepository,
         IAccountRepository accountRepository,
         ISellaCsvOptions options,
+        ITransferMatchingService transferMatchingService,
         ILogger<SellaCsvImportService> logger)
     {
         _transactionRepository = transactionRepository ?? throw new ArgumentNullException(nameof(transactionRepository));
@@ -39,6 +41,7 @@ public class SellaCsvImportService : ISellaCsvImportService
         _categoryRepository = categoryRepository ?? throw new ArgumentNullException(nameof(categoryRepository));
         _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
         _options = options ?? throw new ArgumentNullException(nameof(options));
+        _transferMatchingService = transferMatchingService ?? throw new ArgumentNullException(nameof(transferMatchingService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -95,7 +98,29 @@ public class SellaCsvImportService : ISellaCsvImportService
             var transferEntities = new List<Transfer>();
             var transferTransactions = new List<Transaction>();
 
+            var candidateRows = new List<SellaCsvRow>();
+            var remainingRows = new List<SellaCsvRow>();
+
             foreach (var row in rows)
+            {
+                var candidateDescription = BuildSafeDescription(row.Description, row.Identifier);
+                if (_transferMatchingService.IsTransferCandidate(_options.DefaultAccountName, candidateDescription))
+                    candidateRows.Add(row);
+                else
+                    remainingRows.Add(row);
+            }
+
+            // Rule-matched rows must be processed oldest-first so that, when several rows
+            // of the same amount are unmatched, each claims the oldest still-unlinked
+            // counterpart (see ITransferMatchingService).
+            var consumedCandidateIds = new HashSet<int>();
+            foreach (var row in candidateRows.OrderBy(r => r.OperationDate))
+            {
+                await ProcessTransferCandidateRow(
+                    row, sellaAccount, transactions, transferEntities, transferTransactions, consumedCandidateIds);
+            }
+
+            foreach (var row in remainingRows)
             {
                 if (TryResolveCounterpartyAccount(row, accounts, out var counterpartyAccount) && counterpartyAccount != null)
                 {
@@ -290,6 +315,55 @@ public class SellaCsvImportService : ISellaCsvImportService
         }
 
         return accounts;
+    }
+
+    private async Task ProcessTransferCandidateRow(
+        SellaCsvRow row,
+        Account sellaAccount,
+        List<Transaction> transactions,
+        List<Transfer> transferEntities,
+        List<Transaction> transferTransactions,
+        HashSet<int> consumedCandidateIds)
+    {
+        var description = BuildSafeDescription(row.Description, row.Identifier);
+
+        var matchResult = await _transferMatchingService.TryMatchAsync(
+            _options.DefaultAccountName, description, row.Amount, row.OperationDate, consumedCandidateIds);
+
+        if (matchResult.Candidate != null)
+        {
+            var transfer = new Transfer { CreatedOn = DateTime.UtcNow };
+            transferEntities.Add(transfer);
+
+            matchResult.Candidate.TransferNavigation = transfer;
+            matchResult.Candidate.CategoryId = (int)CategoryEnum.MoneyTransfers;
+            consumedCandidateIds.Add(matchResult.Candidate.Id);
+
+            transferTransactions.Add(new Transaction
+            {
+                AccountId          = sellaAccount.Id,
+                CategoryId         = (int)CategoryEnum.MoneyTransfers,
+                Amount             = row.Amount,
+                Description        = description,
+                Date               = row.OperationDate,
+                CreatedOn          = DateTime.UtcNow,
+                ExternalId         = row.Identifier,
+                TransferNavigation = transfer,
+            });
+        }
+        else
+        {
+            transactions.Add(new Transaction
+            {
+                AccountId   = sellaAccount.Id,
+                CategoryId  = (int)CategoryEnum.MoneyTransfers,
+                Amount      = row.Amount,
+                Description = description,
+                Date        = row.OperationDate,
+                CreatedOn   = DateTime.UtcNow,
+                ExternalId  = row.Identifier,
+            });
+        }
     }
 
     private bool TryResolveCounterpartyAccount(SellaCsvRow row, List<Account> accounts, out Account? account)
