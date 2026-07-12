@@ -45,13 +45,13 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
         ITransferMatchingService transferMatchingService,
         ILogger<SatisPayCsvImportService> logger)
     {
-        _transactionRepository   = transactionRepository   ?? throw new ArgumentNullException(nameof(transactionRepository));
-        _transferRepository      = transferRepository      ?? throw new ArgumentNullException(nameof(transferRepository));
-        _categoryRepository      = categoryRepository      ?? throw new ArgumentNullException(nameof(categoryRepository));
-        _accountRepository       = accountRepository       ?? throw new ArgumentNullException(nameof(accountRepository));
-        _csvOptions              = csvOptions              ?? throw new ArgumentNullException(nameof(csvOptions));
+        _transactionRepository = transactionRepository ?? throw new ArgumentNullException(nameof(transactionRepository));
+        _transferRepository = transferRepository ?? throw new ArgumentNullException(nameof(transferRepository));
+        _categoryRepository = categoryRepository ?? throw new ArgumentNullException(nameof(categoryRepository));
+        _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
+        _csvOptions = csvOptions ?? throw new ArgumentNullException(nameof(csvOptions));
         _transferMatchingService = transferMatchingService ?? throw new ArgumentNullException(nameof(transferMatchingService));
-        _logger                  = logger                  ?? throw new ArgumentNullException(nameof(logger));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     // ── Public API ──────────────────────────────────────────────────────────
@@ -441,7 +441,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             TransferNavigation = transferEntity,
         });
 
-        _logger.LogInformation("Created bank recharge transfer: {From} → {To} amount {Amount}", 
+        _logger.LogInformation("Created bank recharge transfer: {From} → {To} amount {Amount}",
             bankAccountName, _csvOptions.DefaultAccountName, amount);
 
         return Result.Ok();
@@ -462,8 +462,14 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             return;
         }
 
-        var date        = ParseDate(row.Date) ?? DateTime.UtcNow;
+        var date = ParseDate(row.Date) ?? DateTime.UtcNow;
         var description = BuildDescription(row);
+
+        if (string.Equals(description.Trim(), "Ricarica Fallita", StringComparison.OrdinalIgnoreCase) && amount.Value > 0)
+        {
+            amount = amount.Value * -1; // Failed recharge is a negative transaction
+        }
+
 
         var matchResult = await _transferMatchingService.TryMatchAsync(
             _csvOptions.DefaultAccountName, description, amount.Value, date, consumedCandidateIds);
@@ -479,13 +485,13 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
 
             transferTransactions.Add(new Transaction
             {
-                AccountId          = satispayAccount.Id,
-                CategoryId         = (int)CategoryEnum.MoneyTransfers,
-                Amount             = amount.Value,
-                Description        = description,
-                Date               = date,
-                CreatedOn          = DateTime.UtcNow,
-                ExternalId         = row.TransactionId,
+                AccountId = satispayAccount.Id,
+                CategoryId = (int)CategoryEnum.MoneyTransfers,
+                Amount = amount.Value,
+                Description = description,
+                Date = date,
+                CreatedOn = DateTime.UtcNow,
+                ExternalId = row.TransactionId,
                 TransferNavigation = transfer,
             });
         }
@@ -493,13 +499,13 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
         {
             transactions.Add(new Transaction
             {
-                AccountId   = satispayAccount.Id,
-                CategoryId  = (int)CategoryEnum.MoneyTransfers,
-                Amount      = amount.Value,
+                AccountId = satispayAccount.Id,
+                CategoryId = (int)CategoryEnum.MoneyTransfers,
+                Amount = amount.Value,
                 Description = description,
-                Date        = date,
-                CreatedOn   = DateTime.UtcNow,
-                ExternalId  = row.TransactionId,
+                Date = date,
+                CreatedOn = DateTime.UtcNow,
+                ExternalId = row.TransactionId,
             });
         }
     }
@@ -520,13 +526,13 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             return null;
         }
 
-        if(string.Equals(row.Description, "Ricarica Fallita", StringComparison.OrdinalIgnoreCase) && amount.Value > 0)
-        {
-            amount = -amount.Value; // Failed recharge is a negative transaction
-        }
-
         var date = ParseDate(row.Date) ?? DateTime.UtcNow;
         var description = BuildDescription(row);
+
+        if (string.Equals(description.Trim(), "Ricarica Fallita", StringComparison.OrdinalIgnoreCase) && amount.Value > 0)
+        {
+            amount = amount.Value * -1; // Failed recharge is a negative transaction
+        }
 
         var categoryId = GetCategoryForRow(row, categories, defaultCategoryId);
 
@@ -563,17 +569,17 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             return (int)CategoryEnum.Entertainment;
 
         // Check for food/dining
-        if (description.Contains("ristorante") || description.Contains("bar") || 
+        if (description.Contains("ristorante") || description.Contains("bar") ||
             description.Contains("pizza") || description.Contains("café"))
             return (int)CategoryEnum.FoodAndBeverage;
 
         // Check for transport
-        if (description.Contains("uber") || description.Contains("taxi") || 
+        if (description.Contains("uber") || description.Contains("taxi") ||
             description.Contains("benzina") || description.Contains("carburante"))
             return (int)CategoryEnum.Transportation;
 
         // Check for shopping
-        if (description.Contains("amazon") || description.Contains("ebay") || 
+        if (description.Contains("amazon") || description.Contains("ebay") ||
             description.Contains("negozio") || description.Contains("shop"))
             return (int)CategoryEnum.FoodAndBeverage;
 
