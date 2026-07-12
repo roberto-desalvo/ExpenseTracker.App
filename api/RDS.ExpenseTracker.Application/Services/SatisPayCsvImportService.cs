@@ -113,7 +113,8 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             }
 
             // 3. Deduplicate by ExternalId (transaction ID) ------------------
-            if (!importAll)
+            // Always run this check: the unique index on Transactions.ExternalId is unconditional,
+            // so importAll=true cannot bypass it without causing a constraint violation.
             {
                 var externalIds = rows
                     .Where(r => !string.IsNullOrWhiteSpace(r.TransactionId))
