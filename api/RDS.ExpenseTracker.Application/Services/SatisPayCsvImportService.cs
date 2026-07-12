@@ -85,7 +85,14 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
                     firstRow.Date, firstRow.Name, firstRow.Description, firstRow.AmountRaw, firstRow.Type, firstRow.TransactionId);
             }
 
-            // 2. Validate required identifier (Codice Identificativo / ID) --
+            // 2. Drop cancelled transactions ─────────────────────────────────
+            var cancelledCount = rows.RemoveAll(r =>
+                r.Stato != null && r.Stato.Contains("Annullato", StringComparison.OrdinalIgnoreCase));
+
+            if (cancelledCount > 0)
+                _logger.LogInformation("Skipped {Count} cancelled (Annullato) rows", cancelledCount);
+
+            // 3. Validate required identifier (Codice Identificativo / ID) --
             foreach (var row in rows)
             {
                 row.TransactionId = row.TransactionId?.Trim();
@@ -722,6 +729,9 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
 
         [Name("Tipo")]
         public string? Type { get; set; }
+
+        [Name("Stato")]
+        public string? Stato { get; set; }
 
         [Index(8)]
         [Name("ID", "ID (Comunicalo all'Assistenza Clienti in caso di problemi)")]

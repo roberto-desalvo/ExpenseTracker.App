@@ -310,7 +310,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         transferEntities.Add(transferEntity);
 
         var date        = ParseDate(row.Datetime) ?? DateTime.UtcNow;
-        var amount      = Math.Abs(row.Amount!.Value);
+        var amount      = Math.Abs((row.Amount ?? 0) + (row.Tax ?? 0) + (row.Fee ?? 0));
         var description = BuildDescription(row);
 
         // ExternalId is placed on the Trade Republic side of the pair so that
@@ -363,7 +363,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
             return;
         }
 
-        var amount      = row.Amount!.Value;
+        var amount      = (row.Amount ?? 0) + (row.Tax ?? 0) + (row.Fee ?? 0);
         var date        = ParseDate(row.Datetime) ?? DateTime.UtcNow;
         var description = BuildDescription(row);
 
@@ -430,11 +430,13 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
             return null;
         }
 
+        var amount = (row.Amount ?? 0) + (row.Tax ?? 0) + (row.Fee ?? 0);
+
         return new Transaction
         {
             AccountId   = account.Id,
             CategoryId  = DetermineCategory(row, categories, defaultCategoryId),
-            Amount      = row.Amount!.Value,
+            Amount      = amount,
             Description = BuildDescription(row),
             Date        = ParseDate(row.Datetime) ?? DateTime.UtcNow,
             CreatedOn   = DateTime.UtcNow,
@@ -495,6 +497,8 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         [Name("type")]              public string?  Type            { get; set; }
         [Name("name")]              public string?  Name            { get; set; }
         [Name("amount")]            public decimal? Amount          { get; set; }
+        [Name("fee")]               public decimal? Fee             { get; set; }
+        [Name("tax")]               public decimal? Tax             { get; set; }
         [Name("description")]       public string?  Description     { get; set; }
         [Name("transaction_id")]    public string?  TransactionId   { get; set; }
         [Name("counterparty_iban")] public string?  CounterpartyIban { get; set; }

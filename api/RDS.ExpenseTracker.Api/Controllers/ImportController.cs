@@ -600,7 +600,10 @@ public class ImportController : ControllerBase
                         csvBuilder.Append(delimiter);
                     }
 
-                    var value = reader.GetValue(columnIndex)?.ToString() ?? string.Empty;
+                    var rawValue = reader.GetValue(columnIndex);
+                    var value = rawValue is DateTime dt
+                        ? dt.ToString("dd/MM/yyyy HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)
+                        : rawValue?.ToString() ?? string.Empty;
                     csvBuilder.Append(EscapeCsvValue(value, delimiter));
                 }
 
