@@ -520,6 +520,11 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             return null;
         }
 
+        if(string.Equals(row.Description, "Ricarica Fallita", StringComparison.OrdinalIgnoreCase) && amount.Value > 0)
+        {
+            amount = -amount.Value; // Failed recharge is a negative transaction
+        }
+
         var date = ParseDate(row.Date) ?? DateTime.UtcNow;
         var description = BuildDescription(row);
 
