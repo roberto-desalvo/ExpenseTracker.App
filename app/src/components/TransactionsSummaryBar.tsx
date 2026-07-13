@@ -3,7 +3,11 @@ import { useTheme } from "@mui/material/styles";
 import { useTableContext } from "../stores/TableContext";
 import { useTransactions } from "../stores/TransactionContext";
 
-export default function TransactionsSummaryBar() {
+interface TransactionsSummaryBarProps {
+  showChips?: boolean;
+}
+
+export default function TransactionsSummaryBar({ showChips = true }: TransactionsSummaryBarProps) {
   const theme = useTheme();
   const c = theme.palette.custom;
   const tableContext = useTableContext();
@@ -17,6 +21,10 @@ export default function TransactionsSummaryBar() {
 
   const isMovementActive = (movementType: "incomes" | "outcomes") =>
     tableContext.movementType === movementType;
+
+  if (!showChips) {
+    return null;
+  }
 
   return (
     <Stack
@@ -100,7 +108,7 @@ export default function TransactionsSummaryBar() {
       >
         <Stack spacing={0.1}>
           <Typography sx={{ fontSize: "0.68rem", color: c.badgeText, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-            Saldo
+            Bilancio
           </Typography>
           <Typography
             sx={{

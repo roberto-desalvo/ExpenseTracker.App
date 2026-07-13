@@ -37,7 +37,8 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const location = useLocation();
-  const shouldLoadTransactionsData = location.pathname === "/transazioni";
+  const shouldLoadTransactionsData =
+    location.pathname === "/transazioni" || location.pathname === "/";
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [totalCount, setTotalCount] = useState<number>(0);

@@ -8,6 +8,10 @@ import { TimeSeriesRequest } from "../models/TimeSeriesRequest";
 import { LandingDashboard } from "../models/LandingDashboard";
 import { apiFetchJson, apiFetchVoid } from "./ApiClient";
 
+interface LandingRequestOptions {
+  excludeTransfers?: boolean;
+}
+
 const TransactionService = {
   getAll: async (request: TransactionQueryRequest): Promise<TransactionQueryResult> => {
     const payload: TransactionQueryRequest = {
@@ -37,9 +41,10 @@ const TransactionService = {
     );
   },
 
-  getLanding: async (): Promise<LandingDashboard> => {
+  getLanding: async ({ excludeTransfers = true }: LandingRequestOptions = {}): Promise<LandingDashboard> => {
+    const landingUrl = `${apiConfig.transactions.landing}?excludeTransfers=${excludeTransfers}`;
     return apiFetchJson<LandingDashboard>(
-      apiConfig.transactions.landing,
+      landingUrl,
       {
         method: "GET",
         headers: { "Content-Type": "application/json" },
@@ -53,6 +58,7 @@ const TransactionService = {
       ...request,
       idAccounts: request.idAccounts && request.idAccounts.length > 0 ? request.idAccounts : [],
       idCategories: request.idCategories && request.idCategories.length > 0 ? request.idCategories : [],
+      excludeTransfers: request.excludeTransfers ?? false,
     };
 
     return apiFetchJson<TimeSeriesList>(
@@ -71,6 +77,7 @@ const TransactionService = {
       ...request,
       idAccounts: request.idAccounts && request.idAccounts.length > 0 ? request.idAccounts : [],
       idCategories: request.idCategories && request.idCategories.length > 0 ? request.idCategories : [],
+      excludeTransfers: request.excludeTransfers ?? false,
     };
 
     return apiFetchJson<TimeSeriesList>(

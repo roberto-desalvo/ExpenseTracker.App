@@ -148,6 +148,9 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .Where(t => t.Date.HasValue)
             .Where(t => t.Date >= request.StartDate && t.Date <= request.EndDate);
 
+        if (request.ExcludeTransfers)
+            query = query.Where(t => t.TransferId == null);
+
         if (request.IdAccounts.Any())
             query = query.Where(t => request.IdAccounts.Contains(t.AccountId));
 
@@ -173,6 +176,9 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .AsNoTracking()
             .Where(t => t.Date.HasValue)
             .Where(t => t.Date <= request.EndDate);
+
+        if (request.ExcludeTransfers)
+            query = query.Where(t => t.TransferId == null);
 
         if (request.IdAccounts.Any())
             query = query.Where(t => request.IdAccounts.Contains(t.AccountId));
@@ -205,14 +211,43 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<(int CategoryId, decimal Spent, decimal Earned)>> GetCategoryMonthTotals(DateTime monthStart, DateTime asOfDate)
+    public async Task<IEnumerable<(int AccountId, decimal Spent, decimal Earned)>> GetAccountMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers)
     {
-        return await Context.Transactions
+        var query = Context.Transactions
+            .AsNoTracking()
+            .Where(t => t.Date.HasValue)
+            .Where(t => t.Date >= monthStart && t.Date <= asOfDate);
+
+        if (excludeTransfers)
+            query = query.Where(t => t.TransferId == null);
+
+        return await query
+            .GroupBy(t => t.AccountId)
+            .Select(group => ValueTuple.Create(
+                group.Key,
+                Math.Abs(group
+                    .Where(t => t.Amount < 0m)
+                    .Select(t => (decimal?)t.Amount)
+                    .Sum() ?? 0m),
+                group
+                    .Where(t => t.Amount > 0m)
+                    .Select(t => (decimal?)t.Amount)
+                    .Sum() ?? 0m))
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<(int CategoryId, decimal Spent, decimal Earned)>> GetCategoryMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers)
+    {
+        var query = Context.Transactions
             .AsNoTracking()
             .Where(t => t.Date.HasValue)
             .Where(t => t.Date >= monthStart && t.Date <= asOfDate)
-            .Where(t => t.TransferId == null)
-            .Where(t => t.CategoryId.HasValue)
+            .Where(t => t.CategoryId.HasValue);
+
+        if (excludeTransfers)
+            query = query.Where(t => t.TransferId == null);
+
+        return await query
             .GroupBy(t => t.CategoryId!.Value)
             .Select(group => ValueTuple.Create(
                 group.Key,
@@ -227,13 +262,15 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .ToListAsync();
     }
 
-    public async Task<(decimal Spent, decimal Earned)> GetMonthTotals(DateTime monthStart, DateTime asOfDate)
+    public async Task<(decimal Spent, decimal Earned)> GetMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers)
     {
         var query = Context.Transactions
             .AsNoTracking()
             .Where(t => t.Date.HasValue)
-            .Where(t => t.Date >= monthStart && t.Date <= asOfDate)
-            .Where(t => t.TransferId == null);
+            .Where(t => t.Date >= monthStart && t.Date <= asOfDate);
+
+        if (excludeTransfers)
+            query = query.Where(t => t.TransferId == null);
 
         var spent = Math.Abs(await query
             .Where(t => t.Amount < 0m)

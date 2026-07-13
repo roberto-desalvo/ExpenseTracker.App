@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { CHART_SERIES_COLORS } from "../theme/chartColors";
 
 export interface TimeSeriesLineChartSeries {
   name: string;
@@ -26,18 +27,6 @@ interface TimeSeriesLineChartProps {
   enableLegendToggle?: boolean;
   tightYAxis?: boolean;
 }
-
-const COLORS = [
-  "#4f46e5",
-  "#0891b2",
-  "#16a34a",
-  "#d97706",
-  "#db2777",
-  "#dc2626",
-  "#7c3aed",
-  "#0f766e",
-  "#334155",
-];
 
 const formatAmount = (value: number) =>
   value.toLocaleString("it-IT", {
@@ -144,11 +133,14 @@ export default function TimeSeriesLineChart({
 
   const data = buildChartData(series);
 
-  const yAxisDomain = tightYAxis
-    ? ([dataMin, dataMax]: [number, number]) => {
+  const yAxisDomain: ((
+    dataRange: [number, number],
+    allowDataOverflow: boolean,
+  ) => [number, number]) | undefined = tightYAxis
+    ? ([dataMin, dataMax]: [number, number], _allowDataOverflow: boolean) => {
         const range = Math.max(dataMax - dataMin, 1);
         const padding = range * 0.08;
-        return [dataMin - padding, dataMax + padding];
+        return [dataMin - padding, dataMax + padding] as [number, number];
       }
     : undefined;
 
@@ -182,7 +174,7 @@ export default function TimeSeriesLineChart({
               key={serie.name}
               type="monotone"
               dataKey={serie.name}
-              stroke={COLORS[index % COLORS.length]}
+              stroke={CHART_SERIES_COLORS[index % CHART_SERIES_COLORS.length]}
               strokeWidth={2}
               dot={false}
               connectNulls

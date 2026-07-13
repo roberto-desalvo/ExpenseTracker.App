@@ -27,8 +27,8 @@ public class TransactionController : ApiControllerBase
 
     [HttpGet("landing")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(LandingDashboardDto))]
-    public Task<IActionResult> GetLanding()
-        => ExecuteAsync(() => _service.GetLanding());
+    public Task<IActionResult> GetLanding([FromQuery] bool excludeTransfers = true)
+        => ExecuteAsync(() => _service.GetLanding(excludeTransfers));
 
     [HttpGet("{id}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TransactionDto))]

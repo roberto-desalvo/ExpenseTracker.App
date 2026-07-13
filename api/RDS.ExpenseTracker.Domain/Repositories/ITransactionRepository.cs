@@ -11,8 +11,9 @@ public interface ITransactionRepository : IRepositoryBase
     Task<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>> GetTimeSeriesTransactions(TimeSeriesRequestDto request);
     Task<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>> GetTimeSeriesTransactionsUntilDate(TimeSeriesRequestDto request);
     Task<IEnumerable<(int AccountId, decimal Balance)>> GetAccountBalances(DateTime asOfDate);
-    Task<IEnumerable<(int CategoryId, decimal Spent, decimal Earned)>> GetCategoryMonthTotals(DateTime monthStart, DateTime asOfDate);
-    Task<(decimal Spent, decimal Earned)> GetMonthTotals(DateTime monthStart, DateTime asOfDate);
+    Task<IEnumerable<(int AccountId, decimal Spent, decimal Earned)>> GetAccountMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers);
+    Task<IEnumerable<(int CategoryId, decimal Spent, decimal Earned)>> GetCategoryMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers);
+    Task<(decimal Spent, decimal Earned)> GetMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers);
     Task<IEnumerable<(DateTime StartDate, DateTime EndDate)>> GetAvailableMonthRanges();
     Task<IEnumerable<Transaction>> GetTransactionsByTransferId(int transferId);
     Task<Transaction> GetLatestTransaction();

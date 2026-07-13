@@ -10,19 +10,24 @@ import {
   Tooltip,
   TooltipProps,
 } from "recharts";
-import { LandingAccountBalance } from "../models/LandingDashboard";
 import { CHART_SERIES_COLORS } from "../theme/chartColors";
 
-interface AccountsPieChartProps {
-  accounts: LandingAccountBalance[];
-  height?: number;
+export interface MonthlyDistributionItem {
+  id: number;
+  name: string;
+  amount: number;
 }
 
-interface PieDataItem {
-  accountId: number;
-  name: string;
+interface MonthlyDistributionPieChartProps {
+  items: MonthlyDistributionItem[];
+  amountLabel: string;
+  height?: number;
+  emptyMessage?: string;
+  amountColor?: string;
+}
+
+interface PieDataItem extends MonthlyDistributionItem {
   value: number;
-  currentBalance: number;
 }
 
 const formatAmount = (value: number) =>
@@ -37,53 +42,48 @@ const formatPercent = (value: number) =>
     maximumFractionDigits: 1,
   });
 
-export default function AccountsPieChart({
-  accounts,
-  height = 320,
-}: AccountsPieChartProps) {
+export default function MonthlyDistributionPieChart({
+  items,
+  amountLabel,
+  height = 280,
+  emptyMessage = "Nessun dato disponibile",
+  amountColor,
+}: MonthlyDistributionPieChartProps) {
   const theme = useTheme();
   const c = theme.palette.custom;
-  const [hiddenAccountIds, setHiddenAccountIds] = useState<Set<number>>(new Set());
+  const [hiddenIds, setHiddenIds] = useState<Set<number>>(new Set());
 
   const baseChartData: PieDataItem[] = useMemo(
     () =>
-      accounts
-        .map((account) => ({
-          accountId: account.accountId,
-          name: account.name,
-          value: Math.abs(account.currentBalance),
-          currentBalance: account.currentBalance,
+      items
+        .map((item) => ({
+          ...item,
+          value: Math.abs(item.amount),
         }))
-        .filter((account) => account.value > 0),
-    [accounts],
+        .filter((item) => item.value > 0),
+    [items],
   );
 
   const chartData = useMemo(
-    () =>
-      baseChartData.filter(
-        (account) => !hiddenAccountIds.has(account.accountId),
-      ),
-    [baseChartData, hiddenAccountIds],
+    () => baseChartData.filter((item) => !hiddenIds.has(item.id)),
+    [baseChartData, hiddenIds],
   );
 
   const totalValue = chartData.reduce((sum, item) => sum + item.value, 0);
 
-  const toggleAccount = (accountId: number) => {
-    setHiddenAccountIds((prev) => {
+  const toggleItem = (id: number) => {
+    setHiddenIds((prev) => {
       const next = new Set(prev);
-      if (next.has(accountId)) {
-        next.delete(accountId);
+      if (next.has(id)) {
+        next.delete(id);
       } else {
-        next.add(accountId);
+        next.add(id);
       }
       return next;
     });
   };
 
-  const renderTooltip = ({
-    active,
-    payload,
-  }: TooltipProps<number, string>) => {
+  const renderTooltip = ({ active, payload }: TooltipProps<number, string>) => {
     if (!active || !payload || payload.length === 0) {
       return null;
     }
@@ -112,11 +112,8 @@ export default function AccountsPieChart({
         <Typography variant="body2" sx={{ color: "text.secondary", mb: 0.4 }}>
           Quota: {formatPercent(percentage)}%
         </Typography>
-        <Typography
-          variant="body2"
-          sx={{ color: item.currentBalance >= 0 ? c.amountPositive : c.amountNegative }}
-        >
-          Saldo: {item.currentBalance >= 0 ? "+" : "-"} {formatAmount(Math.abs(item.currentBalance))} EUR
+        <Typography variant="body2" sx={{ color: amountColor ?? "text.primary" }}>
+          {amountLabel}: {formatAmount(item.value)} EUR
         </Typography>
       </Box>
     );
@@ -133,7 +130,7 @@ export default function AccountsPieChart({
           color: "text.secondary",
         }}
       >
-        <Typography variant="body2">Nessun dato account disponibile</Typography>
+        <Typography variant="body2">{emptyMessage}</Typography>
       </Box>
     );
   }
@@ -151,18 +148,18 @@ export default function AccountsPieChart({
           }}
         >
           <Typography variant="body2">
-            Tutti gli account sono nascosti. Clicca sulla legenda per mostrarli.
+            Tutti gli elementi sono nascosti. Clicca sulla legenda per mostrarli.
           </Typography>
         </Box>
         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
           {baseChartData.map((item, index) => {
             const color = CHART_SERIES_COLORS[index % CHART_SERIES_COLORS.length];
-            const isHidden = hiddenAccountIds.has(item.accountId);
+            const isHidden = hiddenIds.has(item.id);
 
             return (
               <ButtonBase
-                key={item.accountId}
-                onClick={() => toggleAccount(item.accountId)}
+                key={item.id}
+                onClick={() => toggleItem(item.id)}
                 sx={{
                   borderRadius: 999,
                   border: `1px solid ${c.badgeBorder}`,
@@ -216,19 +213,14 @@ export default function AccountsPieChart({
               stroke={theme.palette.background.paper}
               strokeWidth={2}
               activeShape={(props: { outerRadius?: number }) => (
-                <Sector
-                  {...props}
-                  outerRadius={Number(props.outerRadius) + 6}
-                />
+                <Sector {...props} outerRadius={Number(props.outerRadius) + 6} />
               )}
             >
               {chartData.map((entry) => {
-                const baseIndex = baseChartData.findIndex(
-                  (item) => item.accountId === entry.accountId,
-                );
+                const baseIndex = baseChartData.findIndex((item) => item.id === entry.id);
                 return (
                   <Cell
-                    key={entry.accountId}
+                    key={entry.id}
                     fill={CHART_SERIES_COLORS[baseIndex % CHART_SERIES_COLORS.length]}
                   />
                 );
@@ -242,12 +234,12 @@ export default function AccountsPieChart({
       <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
         {baseChartData.map((item, index) => {
           const color = CHART_SERIES_COLORS[index % CHART_SERIES_COLORS.length];
-          const isHidden = hiddenAccountIds.has(item.accountId);
+          const isHidden = hiddenIds.has(item.id);
 
           return (
             <ButtonBase
-              key={item.accountId}
-              onClick={() => toggleAccount(item.accountId)}
+              key={item.id}
+              onClick={() => toggleItem(item.id)}
               sx={{
                 borderRadius: 999,
                 border: `1px solid ${c.badgeBorder}`,

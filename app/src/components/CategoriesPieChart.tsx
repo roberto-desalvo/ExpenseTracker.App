@@ -11,6 +11,7 @@ import {
   TooltipProps,
 } from "recharts";
 import { LandingCategorySummary } from "../models/LandingDashboard";
+import { CHART_SERIES_COLORS } from "../theme/chartColors";
 
 interface CategoriesPieChartProps {
   categories: LandingCategorySummary[];
@@ -25,21 +26,6 @@ interface PieDataItem {
   earnedMonth: number;
   netMonth: number;
 }
-
-const PIE_COLORS = [
-  "#4f46e5",
-  "#0891b2",
-  "#16a34a",
-  "#d97706",
-  "#db2777",
-  "#dc2626",
-  "#7c3aed",
-  "#0f766e",
-  "#334155",
-  "#1d4ed8",
-  "#059669",
-  "#ea580c",
-];
 
 const formatAmount = (value: number) =>
   value.toLocaleString("it-IT", {
@@ -140,7 +126,7 @@ export default function CategoriesPieChart({
           variant="body2"
           sx={{ color: item.netMonth >= 0 ? c.amountPositive : c.amountNegative }}
         >
-          Net: {item.netMonth >= 0 ? "+" : "-"} {formatAmount(Math.abs(item.netMonth))} EUR
+          Bilancio: {item.netMonth >= 0 ? "+" : "-"} {formatAmount(Math.abs(item.netMonth))} EUR
         </Typography>
       </Box>
     );
@@ -180,7 +166,7 @@ export default function CategoriesPieChart({
         </Box>
         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
           {baseChartData.map((item, index) => {
-            const color = PIE_COLORS[index % PIE_COLORS.length];
+            const color = CHART_SERIES_COLORS[index % CHART_SERIES_COLORS.length];
             const isHidden = hiddenCategoryIds.has(item.categoryId);
 
             return (
@@ -239,7 +225,7 @@ export default function CategoriesPieChart({
               paddingAngle={2}
               stroke={theme.palette.background.paper}
               strokeWidth={2}
-              activeShape={(props) => (
+              activeShape={(props: { outerRadius?: number }) => (
                 <Sector
                   {...props}
                   outerRadius={Number(props.outerRadius) + 6}
@@ -253,7 +239,7 @@ export default function CategoriesPieChart({
                 return (
                   <Cell
                     key={entry.categoryId}
-                    fill={PIE_COLORS[baseIndex % PIE_COLORS.length]}
+                    fill={CHART_SERIES_COLORS[baseIndex % CHART_SERIES_COLORS.length]}
                   />
                 );
               })}
@@ -265,7 +251,7 @@ export default function CategoriesPieChart({
 
       <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
         {baseChartData.map((item, index) => {
-          const color = PIE_COLORS[index % PIE_COLORS.length];
+          const color = CHART_SERIES_COLORS[index % CHART_SERIES_COLORS.length];
           const isHidden = hiddenCategoryIds.has(item.categoryId);
 
           return (

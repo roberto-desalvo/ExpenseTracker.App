@@ -339,7 +339,7 @@ public class TransactionService : ITransactionService
         });
     }
 
-    public async Task<Result<LandingDashboardDto>> GetLanding()
+    public async Task<Result<LandingDashboardDto>> GetLanding(bool excludeTransfers = true)
     {
         var asOf = DateTime.Now;
         var monthStart = new DateTime(asOf.Year, asOf.Month, 1);
@@ -347,19 +347,31 @@ public class TransactionService : ITransactionService
         var accounts = (await _accountRepository.GetAccounts()).ToList();
         var balances = (await _repository.GetAccountBalances(asOf))
             .ToDictionary(item => item.AccountId, item => item.Balance);
+        var accountTotals = (await _repository.GetAccountMonthTotals(monthStart, asOf, excludeTransfers))
+            .ToDictionary(item => item.AccountId);
 
         var accountItems = accounts
-            .Select(account => new LandingAccountBalanceDto
+            .Select(account =>
             {
-                AccountId = account.Id,
-                Name = account.Name,
-                CurrentBalance = balances.GetValueOrDefault(account.Id, 0m)
+                var hasItem = accountTotals.TryGetValue(account.Id, out var item);
+                var spent = hasItem ? item.Spent : 0m;
+                var earned = hasItem ? item.Earned : 0m;
+
+                return new LandingAccountBalanceDto
+                {
+                    AccountId = account.Id,
+                    Name = account.Name,
+                    CurrentBalance = balances.GetValueOrDefault(account.Id, 0m),
+                    SpentMonth = spent,
+                    EarnedMonth = earned,
+                    NetMonth = earned - spent
+                };
             })
             .OrderBy(item => item.Name)
             .ToList();
 
         var categories = (await _categoryRepository.GetCategories()).ToList();
-        var categoryTotals = (await _repository.GetCategoryMonthTotals(monthStart, asOf))
+        var categoryTotals = (await _repository.GetCategoryMonthTotals(monthStart, asOf, excludeTransfers))
             .ToDictionary(item => item.CategoryId);
 
         var categoryItems = categories
@@ -381,7 +393,7 @@ public class TransactionService : ITransactionService
             .OrderBy(item => item.Name)
             .ToList();
 
-        var monthTotals = await _repository.GetMonthTotals(monthStart, asOf);
+        var monthTotals = await _repository.GetMonthTotals(monthStart, asOf, excludeTransfers);
 
         var netWorthSeries = await BuildNetWorthSeries(asOf);
 
@@ -414,7 +426,8 @@ public class TransactionService : ITransactionService
             EndDate = asOf,
             Granularity = (int)TimeGranularityEnum.Monthly,
             IdAccounts = [],
-            IdCategories = []
+            IdCategories = [],
+            ExcludeTransfers = false
         };
 
         var stockResult = await GetStock(request);

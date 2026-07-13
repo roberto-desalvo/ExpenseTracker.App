@@ -33,7 +33,9 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const location = useLocation();
   const shouldLoadAccounts =
-    location.pathname === "/account" || location.pathname === "/transazioni";
+    location.pathname === "/account" ||
+    location.pathname === "/transazioni" ||
+    location.pathname === "/";
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [pagedAccounts, setPagedAccounts] = useState<Account[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);

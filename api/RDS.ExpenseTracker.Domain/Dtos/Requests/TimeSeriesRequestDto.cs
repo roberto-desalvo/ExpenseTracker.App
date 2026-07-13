@@ -7,4 +7,5 @@ public class TimeSeriesRequestDto
     public IEnumerable<int> IdAccounts { get; set; } = [];
     public IEnumerable<int> IdCategories { get; set; } = [];
     public int Granularity { get; set; } = 1; // TimeGranularityEnum
+    public bool ExcludeTransfers { get; set; } = false;
 }

@@ -4,6 +4,9 @@ export interface LandingAccountBalance {
   accountId: number;
   name: string;
   currentBalance: number;
+  spentMonth: number;
+  earnedMonth: number;
+  netMonth: number;
 }
 
 export interface LandingCategorySummary {

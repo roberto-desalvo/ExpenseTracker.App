@@ -4,4 +4,5 @@ export interface TimeSeriesRequest {
   idAccounts: number[];
   idCategories: number[];
   granularity: number;
+  excludeTransfers?: boolean;
 }
