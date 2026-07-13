@@ -6,6 +6,7 @@ import React, {
   useRef,
   ReactNode,
 } from "react";
+import { useLocation } from "react-router-dom";
 import Account from "../models/Account";
 import AccountService from "../services/AccountService";
 
@@ -30,6 +31,9 @@ const AccountsContext = createContext<AccountsContextType | undefined>(
 export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
+  const location = useLocation();
+  const shouldLoadAccounts =
+    location.pathname === "/account" || location.pathname === "/transazioni";
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [pagedAccounts, setPagedAccounts] = useState<Account[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -61,6 +65,10 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
   const isMountedRef = useRef(false);
 
   useEffect(() => {
+    if (!shouldLoadAccounts) {
+      return;
+    }
+
     if (!isMountedRef.current) {
       // Primo mount: carica tutto in parallelo
       isMountedRef.current = true;
@@ -76,7 +84,7 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
       // page o pageSize cambiati dopo il mount
       void refreshAccounts(currentNameRef.current);
     }
-  }, [page, pageSize]);
+  }, [page, pageSize, shouldLoadAccounts]);
 
   const modifyPage = (newPage: number) => {
     setPage(newPage);

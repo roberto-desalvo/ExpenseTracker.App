@@ -5,6 +5,7 @@ import React, {
   useEffect,
   type ReactNode,
 } from "react";
+import { useLocation } from "react-router-dom";
 import Transaction from "../models/Transaction";
 import { TransferPayload } from "../models/Transfer.ts";
 import { TransactionMonthOption } from "../models/TransactionMonthOption";
@@ -35,6 +36,8 @@ const TransactionsContext = createContext<TransactionsContextType | undefined>(
 export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
+  const location = useLocation();
+  const shouldLoadTransactionsData = location.pathname === "/transazioni";
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [totalCount, setTotalCount] = useState<number>(0);
@@ -92,8 +95,12 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   useEffect(() => {
+    if (!shouldLoadTransactionsData) {
+      return;
+    }
+
     void loadAvailableMonths();
-  }, []);
+  }, [shouldLoadTransactionsData]);
 
   const addTransaction = async (transaction: Transaction) => {
     try {

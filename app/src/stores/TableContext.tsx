@@ -5,6 +5,7 @@ import React, {
   ReactNode,
   useEffect,
 } from "react";
+import { useLocation } from "react-router-dom";
 import { useAccounts } from "./AccountContext";
 import { useCategories } from "./CategoryContext";
 import { useTransactions } from "./TransactionContext";
@@ -45,6 +46,8 @@ const TableContext = createContext<TableContextType | undefined>(undefined);
 export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
+  const location = useLocation();
+  const shouldLoadTableData = location.pathname === "/transazioni";
   const [columns] = useState<TableColumn[]>([
     {
       id: "date",
@@ -155,7 +158,7 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
   }, [transactionContext.availableMonths]);
 
   useEffect(() => {
-    if (!selectedMonth) {
+    if (!shouldLoadTableData || !selectedMonth) {
       return;
     }
 
@@ -170,6 +173,7 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
       ),
     );
   }, [
+    shouldLoadTableData,
     selectedMonth,
     page,
     pageSize,

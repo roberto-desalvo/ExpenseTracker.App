@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Box, CircularProgress, Divider, Grid, Stack, Typography } from "@mui/material";
+import { Alert, Box, CircularProgress, Grid, Stack, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import TimeSeriesLineChart, { TimeSeriesLineChartSeries } from "../components/TimeSeriesLineChart";
+import CategoriesPieChart from "../components/CategoriesPieChart";
+import AccountsPieChart from "../components/AccountsPieChart";
 import { LandingDashboard } from "../models/LandingDashboard";
 import TransactionService from "../services/TransactionService";
 
@@ -124,11 +126,11 @@ export default function LandingPage() {
             <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
               Andamento patrimonio ultimi 12 mesi
             </Typography>
-            <TimeSeriesLineChart series={chartSeries} />
+            <TimeSeriesLineChart series={chartSeries} tightYAxis />
           </Box>
 
           <Grid container spacing={1.5}>
-            <Grid item xs={12} md={5}>
+            <Grid item xs={12} md={6}>
               <Box
                 sx={{
                   border: `1px solid ${c.filterBorder}`,
@@ -140,24 +142,10 @@ export default function LandingPage() {
                 <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
                   Giacenze account
                 </Typography>
-                <Stack divider={<Divider flexItem />}>
-                  {data.accounts.map((account) => (
-                    <Stack
-                      key={account.accountId}
-                      direction="row"
-                      justifyContent="space-between"
-                      sx={{ py: 1 }}
-                    >
-                      <Typography sx={{ color: "text.secondary" }}>{account.name}</Typography>
-                      <Typography sx={{ fontWeight: 600, color: account.currentBalance >= 0 ? c.amountPositive : c.amountNegative }}>
-                        {account.currentBalance >= 0 ? "+" : "-"} {formatAmount(Math.abs(account.currentBalance))} EUR
-                      </Typography>
-                    </Stack>
-                  ))}
-                </Stack>
+                <AccountsPieChart accounts={data.accounts} />
               </Box>
             </Grid>
-            <Grid item xs={12} md={7}>
+            <Grid item xs={12} md={6}>
               <Box
                 sx={{
                   border: `1px solid ${c.filterBorder}`,
@@ -169,27 +157,7 @@ export default function LandingPage() {
                 <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
                   Categorie (mese corrente)
                 </Typography>
-                <Stack divider={<Divider flexItem />}>
-                  {data.categories.map((category) => (
-                    <Stack key={category.categoryId} spacing={0.4} sx={{ py: 1 }}>
-                      <Typography sx={{ fontWeight: 600 }}>{category.name}</Typography>
-                      <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                        <Typography variant="body2" sx={{ color: c.amountNegative }}>
-                          Uscite: - {formatAmount(category.spentMonth)} EUR
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: c.amountPositive }}>
-                          Entrate: + {formatAmount(category.earnedMonth)} EUR
-                        </Typography>
-                        <Typography
-                          variant="body2"
-                          sx={{ color: category.netMonth >= 0 ? c.amountPositive : c.amountNegative }}
-                        >
-                          Net: {category.netMonth >= 0 ? "+" : "-"} {formatAmount(Math.abs(category.netMonth))} EUR
-                        </Typography>
-                      </Stack>
-                    </Stack>
-                  ))}
-                </Stack>
+                <CategoriesPieChart categories={data.categories} />
               </Box>
             </Grid>
           </Grid>

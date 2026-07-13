@@ -65,7 +65,20 @@ export default function HomeHeader() {
               : "0 1px 0 rgba(255,255,255,0.03) inset",
         }}
       >
-        <Box sx={{ width: 44, height: 44 }} />
+        <IconButton
+          onClick={() => setOpen(true)}
+          sx={{
+            justifySelf: "start",
+            color: "text.secondary",
+            borderRadius: "10px",
+            border: `1px solid ${c.filterBorder}`,
+            backgroundColor: c.filterBackground,
+            p: 1,
+            "&:hover": { backgroundColor: c.rowHover },
+          }}
+        >
+          <MenuIcon fontSize="small" />
+        </IconButton>
         <Typography
           onClick={() => handleNavigate("/")}
           sx={{
@@ -79,31 +92,18 @@ export default function HomeHeader() {
         >
           Expense Tracker
         </Typography>
-        <IconButton
-          onClick={() => setOpen(true)}
-          sx={{
-            justifySelf: "end",
-            color: "text.secondary",
-            borderRadius: "10px",
-            border: `1px solid ${c.filterBorder}`,
-            backgroundColor: c.filterBackground,
-            p: 1,
-            "&:hover": { backgroundColor: c.rowHover },
-          }}
-        >
-          <MenuIcon fontSize="small" />
-        </IconButton>
+        <Box sx={{ width: 44, height: 44 }} />
       </Box>
 
       <Drawer
-        anchor="right"
+        anchor="left"
         open={open}
         onClose={() => setOpen(false)}
         PaperProps={{
           sx: {
             backgroundColor: c.drawerBackground,
             color: theme.palette.text.primary,
-            borderLeft: `1px solid ${c.drawerBorder}`,
+            borderRight: `1px solid ${c.drawerBorder}`,
             width: 240,
           },
         }}

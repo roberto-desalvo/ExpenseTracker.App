@@ -24,6 +24,7 @@ interface TimeSeriesLineChartProps {
   height?: number;
   emptyMessage?: string;
   enableLegendToggle?: boolean;
+  tightYAxis?: boolean;
 }
 
 const COLORS = [
@@ -65,6 +66,7 @@ export default function TimeSeriesLineChart({
   height = 380,
   emptyMessage = "Nessun dato disponibile",
   enableLegendToggle = true,
+  tightYAxis = false,
 }: TimeSeriesLineChartProps) {
   const theme = useTheme();
   const c = theme.palette.custom;
@@ -142,6 +144,14 @@ export default function TimeSeriesLineChart({
 
   const data = buildChartData(series);
 
+  const yAxisDomain = tightYAxis
+    ? ([dataMin, dataMax]: [number, number]) => {
+        const range = Math.max(dataMax - dataMin, 1);
+        const padding = range * 0.08;
+        return [dataMin - padding, dataMax + padding];
+      }
+    : undefined;
+
   return (
     <Box sx={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -154,6 +164,7 @@ export default function TimeSeriesLineChart({
           <YAxis
             tick={{ fill: c.tableHeaderText, fontSize: 12 }}
             tickFormatter={(value: number) => formatAmount(value)}
+            domain={yAxisDomain}
           />
           <Tooltip
             formatter={(value: number) => formatAmount(value)}

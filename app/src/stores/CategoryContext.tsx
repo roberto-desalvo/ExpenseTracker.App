@@ -1,4 +1,5 @@
 import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import Category from "../models/Category";
 import CategoryService from "../services/CategoryService";
 
@@ -24,6 +25,9 @@ const CategoriesContext = createContext<CategoriesContextType | undefined>(
 export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
+  const location = useLocation();
+  const shouldLoadCategories =
+    location.pathname === "/categorie" || location.pathname === "/transazioni";
   const [categories, setCategories] = useState<Category[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -64,6 +68,10 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
   const isMountedRef = useRef(false);
 
   useEffect(() => {
+    if (!shouldLoadCategories) {
+      return;
+    }
+
     if (!isMountedRef.current) {
       // Primo mount: carica tutto in parallelo
       isMountedRef.current = true;
@@ -75,7 +83,7 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
       // page o pageSize cambiati dopo il mount
       void refreshCategories(currentNameRef.current);
     }
-  }, [page, pageSize]);
+  }, [page, pageSize, shouldLoadCategories]);
 
   const addCategory = async (category: Category) => {
     try {

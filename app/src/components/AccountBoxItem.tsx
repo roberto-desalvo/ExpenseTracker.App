@@ -1,7 +1,7 @@
 import { Typography } from "@mui/material";
-import Account from "../models/Account.tsx";
+import Account from "../models/Account";
 import Stack from "@mui/material/Stack";
-import { useTableContext } from "../stores/TableContext.tsx";
+import { useTableContext } from "../stores/TableContext";
 
 interface AccountBoxItemProps {
   account: Account;
