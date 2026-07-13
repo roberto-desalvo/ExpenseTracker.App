@@ -50,7 +50,7 @@ export default function ExpenseTableRow({ transaction }: ExpenseTableRowProps) {
       fontWeight: column.id === "amount" ? 700 : 400,
       borderBottom: "none",
       backgroundColor: c.rowBackground,
-      py: 1.5,
+      py: 1,
     };
   };
 
@@ -72,14 +72,14 @@ export default function ExpenseTableRow({ transaction }: ExpenseTableRowProps) {
           sx={{
             display: "inline-flex",
             alignItems: "center",
-            px: 1.2,
-            py: 0.4,
+            px: 1,
+            py: 0.25,
             borderRadius: "6px",
             backgroundColor: c.badgeBackground,
             border: `1px solid ${c.badgeBorder}`,
             color: c.badgeText,
             fontWeight: 500,
-            fontSize: "0.8rem",
+            fontSize: "0.78rem",
           }}
         >
           {getValueAsString(column, value)}
@@ -89,7 +89,7 @@ export default function ExpenseTableRow({ transaction }: ExpenseTableRowProps) {
 
     if (column.id === "amount" && typeof value === "number") {
       return (
-        <Typography sx={{ color: value > 0 ? c.amountPositive : c.amountNegative, fontWeight: 600, fontSize: "0.92rem" }}>
+        <Typography sx={{ color: value > 0 ? c.amountPositive : c.amountNegative, fontWeight: 600, fontSize: "0.88rem" }}>
           {Math.abs(value).toLocaleString("it-IT", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
@@ -100,7 +100,7 @@ export default function ExpenseTableRow({ transaction }: ExpenseTableRowProps) {
     }
 
     return (
-      <Typography sx={{ color: theme.palette.text.secondary, fontWeight: 400, fontSize: "0.9rem" }}>
+      <Typography sx={{ color: theme.palette.text.secondary, fontWeight: 400, fontSize: "0.86rem" }}>
         {getValueAsString(column, value)}
       </Typography>
     );

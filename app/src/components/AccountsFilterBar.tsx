@@ -21,8 +21,8 @@ export default function AccountsFilterBar({
   const [searchTerm, setSearchTerm] = useState<string>("");
 
   const controlBoxSx = {
-    height: 44,
-    borderRadius: "10px",
+    height: 40,
+    borderRadius: "12px",
     border: `1px solid ${c.filterBorder}`,
     backgroundColor: c.filterBackground,
   };
@@ -43,7 +43,17 @@ export default function AccountsFilterBar({
   }, [searchTerm]);
 
   return (
-    <div className="flex flex-wrap items-center justify-start gap-3 px-3 py-3">
+    <Box
+      sx={{
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        justifyContent: "flex-start",
+        gap: 1.25,
+        px: 1.5,
+        py: 1.25,
+      }}
+    >
       <Box sx={{ ...controlBoxSx, minWidth: 280, display: "flex", alignItems: "center", px: 1 }}>
         <TextField
           value={searchTerm}
@@ -54,7 +64,7 @@ export default function AccountsFilterBar({
           sx={{
             width: "100%",
             "& .MuiOutlinedInput-notchedOutline": { border: "none" },
-            "& .MuiInputBase-input": { color: controlLabelColor, py: 1 },
+            "& .MuiInputBase-input": { color: controlLabelColor, py: 0.75, fontSize: "0.88rem" },
           }}
           slotProps={{
             input: {
@@ -75,7 +85,7 @@ export default function AccountsFilterBar({
       >
         <Tooltip title="Nuovo account">
           <IconButton
-            sx={{ ...controlBoxSx, color: controlLabelColor, px: 1.5 }}
+            sx={{ ...controlBoxSx, color: controlLabelColor, px: 1.25 }}
             onClick={onAddClick}
             disabled={isLoading}
           >
@@ -84,7 +94,7 @@ export default function AccountsFilterBar({
         </Tooltip>
         <Tooltip title="Aggiorna">
           <IconButton
-            sx={{ ...controlBoxSx, color: controlLabelColor, px: 1.5 }}
+            sx={{ ...controlBoxSx, color: controlLabelColor, px: 1.25 }}
             onClick={onRefresh}
             disabled={isLoading}
           >
@@ -92,6 +102,6 @@ export default function AccountsFilterBar({
           </IconButton>
         </Tooltip>
       </Stack>
-    </div>
+    </Box>
   );
 }

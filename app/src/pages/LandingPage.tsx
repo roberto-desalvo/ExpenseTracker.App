@@ -7,7 +7,6 @@ import {
   FormControl,
   Grid,
   IconButton,
-  InputLabel,
   MenuItem,
   Select,
   TextField,
@@ -68,18 +67,19 @@ function SummaryCard({
         border: "1px solid",
         borderColor: "divider",
         backgroundColor: "background.paper",
-        px: 2,
-        py: 1.5,
-        minHeight: 108,
+        px: 1.5,
+        py: 1,
+        minHeight: 84,
         transition: "all .2s ease",
         "&:hover": {
           borderColor: "text.disabled",
-          transform: "translateY(-1px)",
+          boxShadow: "0 0 0 1px",
+          boxShadowColor: "divider",
         },
       }}
     >
       <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={0.75}>
-        <Typography variant="caption" sx={{ color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+        <Typography variant="caption" sx={{ color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "0.66rem" }}>
           {title}
         </Typography>
         {canToggleVisibility && onToggleVisibility && (
@@ -94,7 +94,7 @@ function SummaryCard({
           </Tooltip>
         )}
       </Stack>
-      <Typography variant="h6" sx={{ fontWeight: 700, color: hidden ? "text.secondary" : (color ?? "text.primary") }}>
+      <Typography sx={{ fontWeight: 700, fontSize: "1.02rem", lineHeight: 1.25, color: hidden ? "text.secondary" : (color ?? "text.primary") }}>
         {formattedValue}
       </Typography>
     </Stack>
@@ -381,8 +381,72 @@ export default function LandingPage() {
     });
   }, [patrimonioCategoriesData, data?.categories]);
 
+  const sectionShellSx = {
+    border: `1px solid ${c.filterBorder}`,
+    borderRadius: 3,
+    backgroundColor: "background.paper",
+    px: { xs: 1.25, md: 1.5 },
+    py: { xs: 1.25, md: 1.5 },
+    boxShadow:
+      theme.palette.mode === "dark"
+        ? "0 8px 24px rgba(0,0,0,0.2)"
+        : "0 8px 20px rgba(15,23,42,0.05)",
+  };
+
+  const compactFilterBoxSx = {
+    borderRadius: "12px",
+    border: `1px solid ${c.filterBorder}`,
+    backgroundColor: c.filterBackground,
+    minWidth: { xs: "100%", sm: 180 },
+  };
+
+  const compactSelectSx = {
+    ".MuiOutlinedInput-notchedOutline": { border: "none" },
+    ".MuiSelect-select": { py: 1, fontSize: "0.88rem" },
+    ".MuiSelect-icon": { color: c.filterText },
+  };
+
+  const compactMenuProps = {
+    PaperProps: {
+      sx: {
+        mt: 0.75,
+        borderRadius: "12px",
+        border: `1px solid ${c.drawerBorder}`,
+        backgroundColor: c.drawerBackground,
+        color: "text.primary",
+      },
+    },
+  };
+
+  const innerPanelSx = {
+    border: `1px solid ${c.filterBorder}`,
+    borderRadius: 2,
+    backgroundColor: "background.paper",
+    p: 1.5,
+    boxShadow: theme.palette.mode === "dark"
+      ? "0 8px 24px rgba(0,0,0,0.2)"
+      : "0 8px 20px rgba(15,23,42,0.05)",
+  };
+
+  const miniChartCardSx = {
+    border: `1px solid ${c.filterBorder}`,
+    borderRadius: 2,
+    p: 1.25,
+    minHeight: 336,
+  };
+
   return (
-    <Stack spacing={2.5} sx={{ flex: 1, px: { xs: 2.5, md: 4 }, py: { xs: 2.5, md: 3 } }}>
+    <Stack
+      spacing={2}
+      sx={{
+        flex: 1,
+        width: "100%",
+        maxWidth: 1480,
+        mx: "auto",
+        px: { xs: 1.5, md: 3 },
+        py: { xs: 2, md: 2.5 },
+      }}
+    >
       <Typography
         variant="h5"
         sx={{
@@ -402,24 +466,29 @@ export default function LandingPage() {
       ) : !data ? (
         <Alert severity="warning">Nessun dato disponibile.</Alert>
       ) : (
-        <Stack spacing={2.5} sx={{ px: 1 }}>
-          <Stack spacing={2}>
+        <Stack spacing={2} sx={{ px: 1 }}>
+          <Stack spacing={2} sx={sectionShellSx}>
             <Stack
               direction={{ xs: "column", sm: "row" }}
-              alignItems={{ xs: "flex-start", sm: "center" }}
+              alignItems={{ xs: "flex-start", sm: "flex-start" }}
               justifyContent="space-between"
               spacing={1}
               sx={{ px: 0.5 }}
             >
-              <Stack direction="row" alignItems="center" spacing={0.5}>
-                <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                    Questo mese
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                    Sintesi, operazioni e distribuzione per account/categorie
-                  </Typography>
-                </Box>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  Questo mese
+                </Typography>
+                <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                  Sintesi, operazioni e distribuzione per account/categorie
+                </Typography>
+              </Box>
+
+              <Stack
+                spacing={0.75}
+                alignItems="flex-end"
+                sx={{ width: { xs: "100%", sm: "auto" } }}
+              >
                 <Tooltip title={isQuestoMeseExpanded ? "Comprimi" : "Espandi"}>
                   <IconButton
                     onClick={() => setQuestoMeseExpanded(!isQuestoMeseExpanded)}
@@ -432,22 +501,22 @@ export default function LandingPage() {
                     <ExpandMoreRounded />
                   </IconButton>
                 </Tooltip>
+                <Chip
+                  label={`Aggiornato: ${lastUpdateText}`}
+                  size="small"
+                  sx={{
+                    borderRadius: 1.5,
+                    border: `1px solid ${c.filterBorder}`,
+                    backgroundColor: c.filterBackground,
+                    color: "text.secondary",
+                  }}
+                />
               </Stack>
-              <Chip
-                label={`Aggiornato: ${lastUpdateText}`}
-                size="small"
-                sx={{
-                  borderRadius: 1.5,
-                  border: `1px solid ${c.filterBorder}`,
-                  backgroundColor: c.filterBackground,
-                  color: "text.secondary",
-                }}
-              />
             </Stack>
 
             {isQuestoMeseExpanded && (
               <Box sx={{ overflow: "hidden", animation: "slideDown 0.3s ease-out" }}>
-                <Grid container spacing={1.5}>
+                <Grid container spacing={1.25}>
               <Grid item xs={12} sm={6} md={3}>
                 <SummaryCard
                   title="Saldo totale"
@@ -471,13 +540,12 @@ export default function LandingPage() {
 
             <Box
               sx={{
+                mt: 1.25,
                 border: `1px solid ${c.filterBorder}`,
                 borderRadius: 2,
                 backgroundColor: "background.paper",
-                p: 1,
-                boxShadow: theme.palette.mode === "dark"
-                  ? "0 8px 24px rgba(0,0,0,0.28)"
-                  : "0 8px 20px rgba(15,23,42,0.06)",
+                p: 1.25,
+                boxShadow: "none",
               }}
             >
               <Typography sx={{ px: 2, pt: 1, pb: 0.2, fontWeight: 700, color: "text.secondary", fontSize: "0.88rem" }}>
@@ -485,31 +553,22 @@ export default function LandingPage() {
               </Typography>
               <TransactionsSummaryBar showChips={false} />
               <AccountsBar />
-              <main className="px-2 pb-2">
+              <Box component="main" sx={{ px: 1, pb: 1 }}>
                 <ExpenseTable />
-              </main>
+              </Box>
             </Box>
 
-            <Grid container spacing={1.5}>
+            <Grid container spacing={1.25}>
               <Grid item xs={12} md={6} sx={{ display: "flex" }}>
                 <Box
-                  sx={{
-                    border: `1px solid ${c.filterBorder}`,
-                    borderRadius: 2,
-                    backgroundColor: "background.paper",
-                    p: 2,
-                    width: "100%",
-                    boxShadow: theme.palette.mode === "dark"
-                      ? "0 8px 24px rgba(0,0,0,0.2)"
-                      : "0 8px 20px rgba(15,23,42,0.05)",
-                  }}
+                  sx={{ ...sectionShellSx, width: "100%" }}
                 >
                   <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
-                    Account (mese corrente)
+                    Account
                   </Typography>
-                  <Grid container spacing={1.5}>
+                  <Grid container spacing={1.25}>
                     <Grid item xs={12} lg={6}>
-                      <Box sx={{ border: `1px solid ${c.filterBorder}`, borderRadius: 2, p: 1.5, minHeight: 360 }}>
+                      <Box sx={miniChartCardSx}>
                         <Typography sx={{ fontWeight: 600, mb: 1, color: c.amountPositive }}>
                           Entrate
                         </Typography>
@@ -523,7 +582,7 @@ export default function LandingPage() {
                       </Box>
                     </Grid>
                     <Grid item xs={12} lg={6}>
-                      <Box sx={{ border: `1px solid ${c.filterBorder}`, borderRadius: 2, p: 1.5, minHeight: 360 }}>
+                      <Box sx={miniChartCardSx}>
                         <Typography sx={{ fontWeight: 600, mb: 1, color: c.amountNegative }}>
                           Uscite
                         </Typography>
@@ -542,23 +601,14 @@ export default function LandingPage() {
 
               <Grid item xs={12} md={6} sx={{ display: "flex" }}>
                 <Box
-                  sx={{
-                    border: `1px solid ${c.filterBorder}`,
-                    borderRadius: 2,
-                    backgroundColor: "background.paper",
-                    p: 2,
-                    width: "100%",
-                    boxShadow: theme.palette.mode === "dark"
-                      ? "0 8px 24px rgba(0,0,0,0.2)"
-                      : "0 8px 20px rgba(15,23,42,0.05)",
-                  }}
+                  sx={{ ...sectionShellSx, width: "100%" }}
                 >
                   <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
-                    Categorie (mese corrente)
+                    Categorie
                   </Typography>
-                  <Grid container spacing={1.5}>
+                  <Grid container spacing={1.25}>
                     <Grid item xs={12} lg={6}>
-                      <Box sx={{ border: `1px solid ${c.filterBorder}`, borderRadius: 2, p: 1.5, minHeight: 360 }}>
+                      <Box sx={miniChartCardSx}>
                         <Typography sx={{ fontWeight: 600, mb: 1, color: c.amountPositive }}>
                           Entrate
                         </Typography>
@@ -572,7 +622,7 @@ export default function LandingPage() {
                       </Box>
                     </Grid>
                     <Grid item xs={12} lg={6}>
-                      <Box sx={{ border: `1px solid ${c.filterBorder}`, borderRadius: 2, p: 1.5, minHeight: 360 }}>
+                      <Box sx={miniChartCardSx}>
                         <Typography sx={{ fontWeight: 600, mb: 1, color: c.amountNegative }}>
                           Uscite
                         </Typography>
@@ -593,11 +643,12 @@ export default function LandingPage() {
             )}
           </Stack>
 
-          <Stack spacing={1.5}>
+          <Stack spacing={1.5} sx={sectionShellSx}>
             <Stack
-              direction="row"
-              alignItems="center"
-              spacing={0.5}
+              direction={{ xs: "column", sm: "row" }}
+              alignItems={{ xs: "flex-start", sm: "flex-start" }}
+              justifyContent="space-between"
+              spacing={1}
               sx={{ px: 0.5 }}
             >
               <Box>
@@ -608,10 +659,12 @@ export default function LandingPage() {
                   Andamento complessivo e distribuzione per account/categorie
                 </Typography>
               </Box>
+
               <Tooltip title={isPatrimonioExpanded ? "Comprimi" : "Espandi"}>
                 <IconButton
                   onClick={() => setPatrimonioExpanded(!isPatrimonioExpanded)}
                   sx={{
+                    alignSelf: "flex-start",
                     transform: isPatrimonioExpanded ? "rotate(0deg)" : "rotate(-90deg)",
                     transition: "transform 0.3s ease",
                     color: "text.secondary",
@@ -623,39 +676,62 @@ export default function LandingPage() {
             </Stack>
             {isPatrimonioExpanded && (
               <Box sx={{ overflow: "hidden", animation: "slideDown 0.3s ease-out" }}>
-                <Stack spacing={2.5}>
+                <Stack spacing={2}>
                   {/* Filters */}
-                  <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+                  <Stack
+                    direction={{ xs: "column", md: "row" }}
+                    spacing={1.25}
+                    sx={{
+                      p: 1,
+                      borderRadius: 2,
+                      border: `1px solid ${c.filterBorder}`,
+                      backgroundColor: c.filterBackground,
+                    }}
+                  >
                     <TextField
-                      label="Data inizio"
                       type="date"
                       value={patrimonioStartDate}
                       onChange={(event) => setPatrimonioStartDate(event.target.value)}
-                      InputLabelProps={{ shrink: true }}
                       size="small"
+                      sx={compactFilterBoxSx}
+                      slotProps={{ htmlInput: { "aria-label": "Data inizio" } }}
                     />
                     <TextField
-                      label="Data fine"
                       type="date"
                       value={patrimonioEndDate}
                       onChange={(event) => setPatrimonioEndDate(event.target.value)}
-                      InputLabelProps={{ shrink: true }}
                       size="small"
+                      sx={compactFilterBoxSx}
+                      slotProps={{ htmlInput: { "aria-label": "Data fine" } }}
                     />
-                    <FormControl size="small" sx={{ minWidth: 180 }}>
-                      <InputLabel id="patrimonio-granularity-label">Granularità</InputLabel>
+                    <FormControl size="small" sx={compactFilterBoxSx}>
                       <Select
-                        labelId="patrimonio-granularity-label"
-                        value={patrimonioGranularity}
-                        label="Granularità"
+                        displayEmpty
+                        value={String(patrimonioGranularity)}
                         onChange={(event) =>
                           setPatrimonioGranularity(Number(event.target.value))
                         }
+                        MenuProps={compactMenuProps}
+                        sx={compactSelectSx}
+                        renderValue={(selected) => {
+                          const selectedGranularity = Number(selected);
+                          if (selectedGranularity === 1) {
+                            return "Giornaliero";
+                          }
+                          if (selectedGranularity === 2) {
+                            return "Settimanale";
+                          }
+                          if (selectedGranularity === 3) {
+                            return "Mensile";
+                          }
+
+                          return "Annuale";
+                        }}
                       >
-                        <MenuItem value={1}>Giornaliero</MenuItem>
-                        <MenuItem value={2}>Settimanale</MenuItem>
-                        <MenuItem value={3}>Mensile</MenuItem>
-                        <MenuItem value={4}>Annuale</MenuItem>
+                        <MenuItem value={"1"}>Giornaliero</MenuItem>
+                        <MenuItem value={"2"}>Settimanale</MenuItem>
+                        <MenuItem value={"3"}>Mensile</MenuItem>
+                        <MenuItem value={"4"}>Annuale</MenuItem>
                       </Select>
                     </FormControl>
                   </Stack>
@@ -668,15 +744,7 @@ export default function LandingPage() {
 
                   {/* Net worth chart */}
                   <Box
-                    sx={{
-                      border: `1px solid ${c.filterBorder}`,
-                      borderRadius: 2,
-                      backgroundColor: "background.paper",
-                      p: 2,
-                      boxShadow: theme.palette.mode === "dark"
-                        ? "0 8px 24px rgba(0,0,0,0.2)"
-                        : "0 8px 20px rgba(15,23,42,0.05)",
-                    }}
+                    sx={innerPanelSx}
                   >
                     <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
                       Andamento patrimonio {patrimonioStartDate} - {patrimonioEndDate}
@@ -699,16 +767,7 @@ export default function LandingPage() {
 
                   {/* Account charts */}
                   <Box
-                    sx={{
-                      border: `1px solid ${c.filterBorder}`,
-                      borderRadius: 2,
-                      backgroundColor: "background.paper",
-                      p: 2,
-                      boxShadow: theme.palette.mode === "dark"
-                        ? "0 8px 24px rgba(0,0,0,0.2)"
-                        : "0 8px 20px rgba(15,23,42,0.05)",
-                      minHeight: 430,
-                    }}
+                    sx={{ ...innerPanelSx, minHeight: 412 }}
                   >
                     <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
                       Account
@@ -743,16 +802,7 @@ export default function LandingPage() {
 
                   {/* Category charts */}
                   <Box
-                    sx={{
-                      border: `1px solid ${c.filterBorder}`,
-                      borderRadius: 2,
-                      backgroundColor: "background.paper",
-                      p: 2,
-                      boxShadow: theme.palette.mode === "dark"
-                        ? "0 8px 24px rgba(0,0,0,0.2)"
-                        : "0 8px 20px rgba(15,23,42,0.05)",
-                      minHeight: 430,
-                    }}
+                    sx={{ ...innerPanelSx, minHeight: 412 }}
                   >
                     <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
                       Categorie

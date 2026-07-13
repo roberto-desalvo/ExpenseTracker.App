@@ -42,6 +42,7 @@ export interface DataTableBaseProps<T> {
   showHeader?: boolean;
   rowsPerPageOptions?: number[];
   minTableWidth?: number;
+  tableViewportHeight?: number;
 }
 
 export default function DataTableBase<T>({
@@ -63,7 +64,8 @@ export default function DataTableBase<T>({
   headerRightContent,
   showHeader = false,
   rowsPerPageOptions = [10, 25, 100],
-  minTableWidth = 760,
+  minTableWidth = 700,
+  tableViewportHeight,
 }: DataTableBaseProps<T>) {
   void title;
   void subtitle;
@@ -90,9 +92,18 @@ export default function DataTableBase<T>({
       {/* Content Area */}
       <TableContainer
         sx={{
-          overflow: "visible",
-          px: { xs: 2, md: 2.5 },
-          py: { xs: 1.75, md: 2 },
+          overflowX: "auto",
+          overflowY: tableViewportHeight ? "auto" : "visible",
+          maxHeight: tableViewportHeight,
+          px: { xs: 1.25, md: 1.75 },
+          py: { xs: 1.25, md: 1.5 },
+          "& .MuiTableCell-head": tableViewportHeight
+            ? {
+                position: "sticky",
+                top: 0,
+                zIndex: 1,
+              }
+            : undefined,
         }}
       >
         {isLoading ? (
@@ -128,7 +139,7 @@ export default function DataTableBase<T>({
           <Table
             sx={{
               borderCollapse: "separate",
-              borderSpacing: "0 10px",
+              borderSpacing: "0 6px",
               minWidth: minTableWidth,
             }}
           >
@@ -143,11 +154,11 @@ export default function DataTableBase<T>({
                       background: "background.default",
                       color: c.tableHeaderText,
                       textTransform: "uppercase",
-                      fontSize: "0.68rem",
+                      fontSize: "0.66rem",
                       fontWeight: 700,
                       letterSpacing: "0.1em",
                       borderBottom: "none",
-                      px: 2,
+                      px: 1.5,
                       py: 0.5,
                     }}
                   >
@@ -182,7 +193,7 @@ export default function DataTableBase<T>({
           sx={{
             borderTop: `1px solid ${theme.palette.divider}`,
             ".MuiTablePagination-toolbar": {
-              px: { xs: 2, md: 2.5 },
+              px: { xs: 1.25, md: 1.75 },
             },
           }}
         />

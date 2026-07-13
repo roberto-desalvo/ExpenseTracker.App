@@ -49,10 +49,12 @@ export default function RowActionsMenu({
         aria-expanded={isOpen ? "true" : undefined}
         aria-haspopup="true"
         onClick={handleOpen}
+        size="small"
         sx={{
           color: c.actionButtonColor,
           border: `1px solid ${c.actionButtonBorder}`,
           backgroundColor: c.actionButtonBackground,
+          borderRadius: "10px",
           "&:hover": {
             color: theme.palette.text.secondary,
             backgroundColor: c.actionButtonHover,
@@ -67,6 +69,19 @@ export default function RowActionsMenu({
         open={isOpen}
         onClose={handleClose}
         disableScrollLock
+        PaperProps={{
+          sx: {
+            mt: 0.75,
+            borderRadius: "12px",
+            border: `1px solid ${c.drawerBorder}`,
+            backgroundColor: c.drawerBackground,
+            color: theme.palette.text.primary,
+            "& .MuiMenuItem-root": {
+              fontSize: "0.86rem",
+              minHeight: 36,
+            },
+          },
+        }}
       >
         {actions.map((action) => (
           <MenuItem

@@ -42,13 +42,13 @@ export default function AccountsBar() {
   const addMenuOpen = Boolean(addMenuAnchorEl);
 
   const controlBoxSx = {
-    height: 44,
-    borderRadius: "10px",
+    height: 40,
+    borderRadius: "12px",
     border: `1px solid ${c.filterBorder}`,
     backgroundColor: c.filterBackground,
     display: "flex",
     alignItems: "center",
-    px: 1.5,
+    px: 1.25,
   };
 
   const controlLabelColor = c.filterText;
@@ -59,16 +59,17 @@ export default function AccountsBar() {
     disableScrollLock: true,
     PaperProps: {
       sx: {
-        mt: 0.5,
+        mt: 0.75,
         maxHeight: 300,
         overflowY: "auto",
         backgroundColor: c.drawerBackground,
         border: `1px solid ${c.drawerBorder}`,
-        borderRadius: "10px",
+        borderRadius: "12px",
         boxShadow: theme.palette.mode === "dark" ? "0 8px 32px rgba(0,0,0,0.4)" : "0 8px 24px rgba(0,0,0,0.1)",
         color: c.filterText,
         "& .MuiMenuItem-root": {
-          fontSize: "0.88rem",
+          fontSize: "0.86rem",
+          minHeight: 36,
           "&:hover": {
             backgroundColor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(30,41,59,0.05)",
           },
@@ -91,6 +92,23 @@ export default function AccountsBar() {
         },
       },
     },
+  };
+
+  const selectSx = {
+    color: controlLabelColor,
+    ".MuiOutlinedInput-notchedOutline": {
+      border: "none",
+    },
+    ".MuiSelect-select": {
+      display: "flex",
+      alignItems: "center",
+      py: 0.75,
+      fontSize: "0.88rem",
+      whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+    },
+    ".MuiSelect-icon": { color: controlLabelColor },
   };
 
   const isAllSelected =
@@ -179,27 +197,26 @@ export default function AccountsBar() {
 
   return (
     <>
-      <div className="text-white flex flex-wrap items-center justify-start gap-3 px-3 py-3">
-        <Box sx={{ ...controlBoxSx, minWidth: 300 }}>
-          <FormControl size="small" sx={{ minWidth: 260, width: "100%" }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "flex-start",
+          gap: 1.25,
+          px: 1.5,
+          py: 1.25,
+        }}
+      >
+        <Box sx={{ ...controlBoxSx, minWidth: { xs: "100%", md: 280 } }}>
+          <FormControl size="small" sx={{ minWidth: 240, width: "100%" }}>
             <Select
               multiple
               value={tableContext.selectedAccountIds.map(String)}
               displayEmpty
               onChange={handleAccountChange}
               MenuProps={menuProps}
-              sx={{
-                color: controlLabelColor,
-                ".MuiOutlinedInput-notchedOutline": {
-                  border: "none",
-                },
-                ".MuiSelect-select": {
-                  display: "flex",
-                  alignItems: "center",
-                  py: 1,
-                },
-                ".MuiSelect-icon": { color: controlLabelColor },
-              }}
+              sx={selectSx}
               renderValue={(selected) => {
                 if (
                   selected.length === 0 ||
@@ -236,26 +253,15 @@ export default function AccountsBar() {
           </FormControl>
         </Box>
 
-        <Box sx={{ ...controlBoxSx, minWidth: 300 }}>
-          <FormControl size="small" sx={{ minWidth: 260, width: "100%" }}>
+        <Box sx={{ ...controlBoxSx, minWidth: { xs: "100%", md: 280 } }}>
+          <FormControl size="small" sx={{ minWidth: 240, width: "100%" }}>
             <Select
               multiple
               value={tableContext.selectedCategoryIds.map(String)}
               displayEmpty
               onChange={handleCategoryChange}
               MenuProps={menuProps}
-              sx={{
-                color: controlLabelColor,
-                ".MuiOutlinedInput-notchedOutline": {
-                  border: "none",
-                },
-                ".MuiSelect-select": {
-                  display: "flex",
-                  alignItems: "center",
-                  py: 1,
-                },
-                ".MuiSelect-icon": { color: controlLabelColor },
-              }}
+              sx={selectSx}
               renderValue={(selected) => {
                 if (
                   selected.length === 0 ||
@@ -293,8 +299,8 @@ export default function AccountsBar() {
           </FormControl>
         </Box>
 
-        <Box sx={{ ...controlBoxSx, minWidth: 240 }}>
-          <FormControl size="small" sx={{ minWidth: 200, width: "100%" }}>
+        <Box sx={{ ...controlBoxSx, minWidth: { xs: "100%", md: 220 } }}>
+          <FormControl size="small" sx={{ minWidth: 180, width: "100%" }}>
             <Select
               displayEmpty
               value={tableContext.selectedMonth?.startDate ?? ""}
@@ -304,18 +310,7 @@ export default function AccountsBar() {
                 tableContext.availableMonthsLoading ||
                 tableContext.availableMonths.length === 0
               }
-              sx={{
-                color: controlLabelColor,
-                ".MuiOutlinedInput-notchedOutline": {
-                  border: "none",
-                },
-                ".MuiSelect-select": {
-                  display: "flex",
-                  alignItems: "center",
-                  py: 1,
-                },
-                ".MuiSelect-icon": { color: controlLabelColor },
-              }}
+              sx={selectSx}
               renderValue={(selected) => {
                 const selectedMonth = tableContext.availableMonths.find(
                   (month) => month.startDate === selected,
@@ -336,7 +331,7 @@ export default function AccountsBar() {
         <Stack
           direction="row"
           spacing={1}
-          sx={{ ml: { xs: 0, md: "auto" }, width: { xs: "100%", md: "auto" } }}
+          sx={{ ml: { xs: 0, md: "auto" }, width: { xs: "100%", md: "auto" }, mt: { xs: 0.5, md: 0 } }}
         >
           <Tooltip title="Aggiungi">
             <IconButton
@@ -354,8 +349,8 @@ export default function AccountsBar() {
             transformOrigin={{ vertical: "top", horizontal: "left" }}
             PaperProps={{
               sx: {
-                mt: 0.5,
-                borderRadius: "10px",
+                mt: 0.75,
+                borderRadius: "12px",
                 border: `1px solid ${c.drawerBorder}`,
                 backgroundColor: c.drawerBackground,
                 color: theme.palette.text.primary,
@@ -384,7 +379,7 @@ export default function AccountsBar() {
             </IconButton>
           </Tooltip>
         </Stack>
-      </div>
+      </Box>
       <TransferModal open={transferModalOpen} onClose={() => setTransferModalOpen(false)} />
     </>
   );

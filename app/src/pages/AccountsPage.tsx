@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Stack, TableCell, TableRow, TextField, Typography } from "@mui/material";
+import { Box, Stack, TableCell, TableRow, TextField, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { EditRounded } from "@mui/icons-material";
 import Account from "../models/Account";
@@ -179,7 +179,7 @@ export default function AccountsPage({ embedded = false }: AccountsPageProps) {
           onRefresh={() => void refreshAccounts()}
           isLoading={isLoading}
         />
-        <main className="px-2 pb-2">
+        <Box component="main" sx={{ px: 1, pb: 1 }}>
           <DataTableBase
             title="Account"
             columns={columns}
@@ -217,7 +217,7 @@ export default function AccountsPage({ embedded = false }: AccountsPageProps) {
               disabled={operationInProgress}
             />
           </AppModal>
-        </main>
+        </Box>
       </Stack>
     </>
   );

@@ -34,7 +34,11 @@ const navItems = [
   },
 ];
 
-export default function HomeHeader() {
+interface HomeHeaderProps {
+  sticky?: boolean;
+}
+
+export default function HomeHeader({ sticky = false }: HomeHeaderProps) {
   const [open, setOpen] = useState(false);
   const [settingsExpanded, setSettingsExpanded] = useState(true);
   const navigate = useNavigate();
@@ -93,6 +97,9 @@ export default function HomeHeader() {
       <Box
         component="header"
         sx={{
+          position: sticky ? "sticky" : "relative",
+          top: sticky ? 0 : "auto",
+          zIndex: sticky ? theme.zIndex.appBar : "auto",
           display: "grid",
           gridTemplateColumns: "44px 1fr 44px",
           alignItems: "center",

@@ -21,7 +21,8 @@ export default function ExpenseTable() {
       totalCount={transactionContext.totalCount}
       onPageChange={(_event, newPage) => tableContext.modifyPage(newPage)}
       onPageSizeChange={(event) => tableContext.modifyPageSize(+event.target.value)}
-      rowsPerPageOptions={[10, 25, 100]}
+      rowsPerPageOptions={[10, 20, 50]}
+      tableViewportHeight={576}
       renderRow={(t) => <ExpenseTableRow transaction={t} key={t.id} />}    />
   );
 }

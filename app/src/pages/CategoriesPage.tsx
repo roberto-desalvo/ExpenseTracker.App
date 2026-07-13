@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Box,
   Chip,
   Stack,
   TableCell,
@@ -292,7 +293,7 @@ export default function CategoriesPage({ embedded = false }: CategoriesPageProps
           onRefresh={() => void refreshCategories()}
           isLoading={isLoading}
         />
-        <main className="px-2 pb-2">
+        <Box component="main" sx={{ px: 1, pb: 1 }}>
           <DataTableBase
             title="Categorie"
             columns={columns}
@@ -375,7 +376,7 @@ export default function CategoriesPage({ embedded = false }: CategoriesPageProps
               disabled={operationInProgress}
             />
           </AppModal>
-        </main>
+        </Box>
       </Stack>
     </>
   );

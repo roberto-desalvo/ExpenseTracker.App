@@ -87,7 +87,7 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
   const [selectedMonth, setSelectedMonth] = useState<TransactionMonthOption | null>(null);
   const [movementType, setMovementType] = useState<MovementType>("all");
   const [page, setPage] = useState<number>(0);
-  const [pageSize, setPageSize] = useState<number>(25);
+  const [pageSize, setPageSize] = useState<number>(10);
   const transactionContext = useTransactions();
 
   const buildRequest = (

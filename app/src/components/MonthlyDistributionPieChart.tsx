@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Box, ButtonBase, Stack, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import {
@@ -52,6 +52,7 @@ export default function MonthlyDistributionPieChart({
   const theme = useTheme();
   const c = theme.palette.custom;
   const [hiddenIds, setHiddenIds] = useState<Set<number>>(new Set());
+  const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
 
   const baseChartData: PieDataItem[] = useMemo(
     () =>
@@ -70,6 +71,28 @@ export default function MonthlyDistributionPieChart({
   );
 
   const totalValue = chartData.reduce((sum, item) => sum + item.value, 0);
+
+  useEffect(() => {
+    if (selectedItemId === null) {
+      return;
+    }
+
+    const selectedStillVisible = chartData.some((item) => item.id === selectedItemId);
+    if (!selectedStillVisible) {
+      setSelectedItemId(null);
+    }
+  }, [chartData, selectedItemId]);
+
+  const selectedItem = selectedItemId === null
+    ? null
+    : chartData.find((item) => item.id === selectedItemId) ?? null;
+
+  const selectedIndex = selectedItemId === null
+    ? -1
+    : chartData.findIndex((item) => item.id === selectedItemId);
+
+  const centerValue = selectedItem?.value ?? totalValue;
+  const centerLabel = selectedItem?.name ?? "Totale";
 
   const toggleItem = (id: number) => {
     setHiddenIds((prev) => {
@@ -196,13 +219,41 @@ export default function MonthlyDistributionPieChart({
     );
   }
 
+  const handleChartAreaClick = () => {
+    setSelectedItemId(null);
+  };
+
+  const handleSliceClick = (
+    item: PieDataItem,
+    _index: number,
+    event: React.MouseEvent<Element, MouseEvent>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectedItemId(item.id);
+  };
+
   return (
     <Stack spacing={1.5}>
-      <Box sx={{ width: "100%", height }}>
+      <Box
+        sx={{
+          width: "100%",
+          height,
+          position: "relative",
+          cursor: "pointer",
+          "& .recharts-wrapper:focus, & .recharts-surface:focus, & .recharts-sector:focus": {
+            outline: "none",
+          },
+        }}
+        onClick={handleChartAreaClick}
+      >
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={chartData}
+              onClick={handleSliceClick}
+              activeIndex={selectedIndex}
+              isAnimationActive={false}
               dataKey="value"
               nameKey="name"
               cx="50%"
@@ -229,6 +280,43 @@ export default function MonthlyDistributionPieChart({
             <Tooltip content={renderTooltip} />
           </PieChart>
         </ResponsiveContainer>
+
+        <Stack
+          spacing={0.2}
+          sx={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            alignItems: "center",
+            textAlign: "center",
+            pointerEvents: "none",
+            px: 0.5,
+            maxWidth: "62%",
+          }}
+        >
+          <Typography
+            variant="caption"
+            sx={{
+              color: "text.secondary",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              fontSize: "0.64rem",
+            }}
+          >
+            {centerLabel}
+          </Typography>
+          <Typography
+            sx={{
+              color: amountColor ?? "text.primary",
+              fontWeight: 700,
+              fontSize: "0.94rem",
+              lineHeight: 1.2,
+            }}
+          >
+            {formatAmount(centerValue)} EUR
+          </Typography>
+        </Stack>
       </Box>
 
       <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
