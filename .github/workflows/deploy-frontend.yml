@@ -1,16 +1,22 @@
-name: Azure Static Web Apps CI/CD
+name: Deploy Frontend (Azure Static Web Apps)
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'app/**'
+      - '.github/workflows/deploy-frontend.yml'
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches:
       - main
+    paths:
+      - 'app/**'
+      - '.github/workflows/deploy-frontend.yml'
 
 concurrency:
-  group: swa-thankful-island-${{ github.workflow }}-${{ github.ref }}
+  group: deploy-frontend-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
