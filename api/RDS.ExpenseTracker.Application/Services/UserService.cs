@@ -30,4 +30,25 @@ public class UserService : IUserService
         var user = await _repository.GetOrCreateUserAsync(azureOid, email);
         return Result.Ok(_mapper.Map<UserDto>(user));
     }
+
+    public async Task<Result<UserDto>> GetOrCreateUserForImportAsync(string oid, string? email, string? name)
+    {
+        if (string.IsNullOrWhiteSpace(oid))
+            return Result.Fail(DomainErrors.Required("oid"));
+
+        var byOid = await _repository.GetByAzureOid(oid);
+        if (byOid is not null)
+            return Result.Ok(_mapper.Map<UserDto>(byOid));
+
+        var byApp = await _repository.GetByAppOid(oid);
+        if (byApp is not null)
+            return Result.Ok(_mapper.Map<UserDto>(byApp));
+
+        if (string.IsNullOrWhiteSpace(email))
+            return Result.Fail(DomainErrors.Unauthorized(
+                "No user or associated app found for this identity, and no email available to provision a new one."));
+
+        var user = await _repository.GetOrCreateUserAsync(oid, email);
+        return Result.Ok(_mapper.Map<UserDto>(user));
+    }
 }

@@ -53,6 +53,9 @@ public static class DomainErrors
     public static ConflictResultError Conflict(string message)
         => new("conflict", message);
 
+    public static UnauthorizedResultError Unauthorized(string message)
+        => new("unauthorized", message);
+
     public static BadRequestResultError BadRequest(string message)
         => new("bad_request", message);
 }

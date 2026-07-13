@@ -42,4 +42,29 @@ public class CurrentUserAccessor : ICurrentUserAccessor
         _cachedUserId = result.Value.Id;
         return _cachedUserId.Value;
     }
+
+    public async Task<int> GetUserIdForImportAsync()
+    {
+        if (_cachedUserId.HasValue)
+            return _cachedUserId.Value;
+
+        var principal = _httpContextAccessor.HttpContext?.User
+            ?? throw new UnauthorizedDomainException("No authenticated user in current request.");
+
+        var oid = principal.GetObjectId();
+        if (string.IsNullOrEmpty(oid))
+            throw new UnauthorizedDomainException("Token does not contain an oid claim.");
+
+        var email = principal.FindFirst(ClaimTypes.Email)?.Value
+            ?? principal.FindFirst("preferred_username")?.Value;
+
+        var name = principal.FindFirst(ClaimTypes.Name)?.Value;
+
+        var result = await _userService.GetOrCreateUserForImportAsync(oid, email, name);
+        if (result.IsFailed)
+            throw new UnauthorizedDomainException(string.Join("; ", result.Errors.Select(e => e.Message)));
+
+        _cachedUserId = result.Value.Id;
+        return _cachedUserId.Value;
+    }
 }

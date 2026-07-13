@@ -1,7 +1,7 @@
 # 02 - Domain model (Tecnico)
 
 ## Entità (`Domain/Entities/`)
-- **`User`** — `Id`, `AzureOid?` (oid Azure AD, nullable, indice univoco filtrato), `Email` (required), `IsDemo`; 1-N `Account`. Rappresenta l'utente interno, creato via JIT provisioning al primo accesso (vedi [04-auth-and-request-pipeline](../../01-platform/tech/04-auth-and-request-pipeline.tech.md)).
+- **`User`** — `Id`, `AzureOid?` (oid Azure AD dell'utente umano, nullable, indice univoco filtrato), `AppOid?` (oid dell'app/managed identity associata manualmente a questo utente, stesso pattern di indice — usato solo dal fallback JIT dell'import, vedi [04-auth-and-request-pipeline](../../01-platform/tech/04-auth-and-request-pipeline.tech.md)), `Email` (required), `IsDemo`; 1-N `Account`. Rappresenta l'utente interno, creato via JIT provisioning al primo accesso.
 - **`Account`** — `Id`, `Name`, `UserId` (FK required verso `User`) + navigation `UserNavigation`; 1-N `Transaction`. Costruttore `Account(int id, string name, int userId)`.
 - **`Category`** — `Id`, `Name`, `Description?`, `Priority?`, `IsDefault?`, `Tags?` (keyword list per auto-categorizzazione); 1-N `Transaction`. Seed via `Category.CreateSeedCategories()` + `Application.Builders.CategorySeedBuilder`.
 - **`Transaction`** — record primario: `Amount`, `Description`, `Date?`, FK richiesta `AccountId`, FK opzionali `CategoryId`/`TransferId`, `ExternalId?` (fingerprint dedup import), `CreatedOn`/`UpdatedOn?`.
@@ -24,7 +24,7 @@ Richiesta: `PagedQueryRequest` (base astratta: `Page`, `PageSize`), `AccountQuer
 ## Interfacce repository/service (`Domain/Repositories/`, `Domain/Services/`)
 - `IUserRepository`, `IAccountRepository`, `ICategoryRepository`, `ITransferRepository`, `ITransactionRepository` — implementate in Infrastructure. `IAccountRepository` espone sia overload globali (`GetAccount(id)`, `GetAccounts()`, usati da `TransactionService`/`TransferService`, fuori scope per lo user-scoping) sia overload filtrati per utente (`GetAccount(id, userId)`, `GetAccounts(userId)`, `GetPagedAccounts(request, userId)`, usati da `AccountService`/`AccountController` e dalla pipeline di import).
 - `IUserService`, `IAccountService`, `ICategoryService`, `ITransactionService`, `ITransferService` — implementate in Application, ritornano `FluentResults.Result`/`Result<T>`.
-- `ICurrentUserAccessor` (`Task<int> GetUserIdAsync()`) — risolve l'utente interno dalla richiesta autenticata corrente, vedi [04-auth-and-request-pipeline](../../01-platform/tech/04-auth-and-request-pipeline.tech.md).
+- `ICurrentUserAccessor` — `GetUserIdAsync()` (usato da `AccountController`/`AuthController`, richiede sempre email) e `GetUserIdForImportAsync()` (usato solo da `ImportController`, tollera l'assenza di email e fa fallback sull'`AppOid`), vedi [04-auth-and-request-pipeline](../../01-platform/tech/04-auth-and-request-pipeline.tech.md).
 - `IExcelImportService`, `IBbvaCsvImportService`, `ISellaCsvImportService`, `ISatisPayCsvImportService`, `ITradeRepublicCsvImportService`, `ITransferMatchingService` — vedi modulo [08-import-overview-and-dedup](../../03-import-pipeline/tech/08-import-overview-and-dedup.tech.md).
 
 ## Contratti cross-cutting (`Domain/Common/`)

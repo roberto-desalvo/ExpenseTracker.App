@@ -4,15 +4,26 @@
 Azure AD (Entra ID) JWT bearer via `Microsoft.Identity.Web` (`AddMicrosoftIdentityWebApi`, sezione config `AzureAd`). Tutte le route richiedono autorizzazione di default; `ImportController` richiede in aggiunta il ruolo `Files.Sender`.
 
 ## Utente corrente & JIT provisioning (`Api/Auth/CurrentUserAccessor.cs`)
-`ICurrentUserAccessor` (`Domain/Services/`, singolo metodo `Task<int> GetUserIdAsync()`) risolve l'utente interno (`User.Id`) a partire dal `ClaimsPrincipal` della richiesta corrente:
+`ICurrentUserAccessor` (`Domain/Services/`) risolve l'utente interno (`User.Id`) a partire dal `ClaimsPrincipal` della richiesta corrente, con due metodi per due scenari diversi:
+
+### `GetUserIdAsync()` — utenti umani (`AuthController`, `AccountController`)
 1. Estrae l'oid Azure AD tramite `principal.GetObjectId()` (extension method di `Microsoft.Identity.Web`) — **non** `ClaimTypes.NameIdentifier`, usato erroneamente in una versione precedente di `AuthController`.
-2. Estrae l'email da `ClaimTypes.Email`, con fallback al claim `preferred_username`.
+2. Estrae l'email da `ClaimTypes.Email`, con fallback al claim `preferred_username`; se assente, **solleva subito** `UnauthorizedDomainException`.
 3. Chiama `IUserService.GetOrCreateUserAsync(oid, email, name)`, che fa da layer applicativo (validazione + mapping a `UserDto`) sopra `IUserRepository.GetOrCreateUserAsync(azureOid, email)`: cerca l'utente per `AzureOid`, lo crea al volo se non esiste (**JIT — Just-In-Time provisioning**), e gestisce le race condition concorrenti ritentando la lettura in caso di violazione dell'indice univoco filtrato su `AzureOid` (`SqlException` 2601/2627).
-4. Se manca l'oid o l'email nel token, o il provisioning fallisce, viene sollevata `UnauthorizedDomainException`.
+4. Se manca l'oid nel token, o il provisioning fallisce, viene sollevata `UnauthorizedDomainException`.
 
-Il risultato è cachato in un campo privato per la durata della request (`CurrentUserAccessor` è registrato **Scoped** in `Program.cs`), quindi chiamate multiple a `GetUserIdAsync()` nello stesso request scope non ripetono la query.
+### `GetUserIdForImportAsync()` — solo `ImportController` (chiamato anche da app/managed identity)
+Il flusso di import è chiamato anche da un'app Azure con **managed identity**, il cui token (app-only, client credentials) ha un `oid` diverso da qualunque utente umano e tipicamente **non porta claim `email`/`name`**. Questo metodo:
+1. Estrae l'oid come sopra (sempre richiesto).
+2. Estrae l'email **senza sollevare eccezione se assente** (`email` può essere `null`).
+3. Chiama `IUserService.GetOrCreateUserForImportAsync(oid, email, name)`, che prova in ordine: `IUserRepository.GetByAzureOid(oid)` → `IUserRepository.GetByAppOid(oid)` (fallback: l'oid della managed identity è stato pre-associato manualmente via SQL a un utente esistente, colonna `User.AppOid`) → se nessuno dei due trova un utente e `email` è presente, crea un nuovo utente (stesso path di `GetOrCreateUserAsync`) → altrimenti fallisce con `DomainErrors.Unauthorized` (nessuna creazione automatica di utenti senza email).
+4. Se il provisioning/lookup fallisce, viene sollevata `UnauthorizedDomainException` (401) — stessa gestione di `GetUserIdAsync()`.
 
-Usato da `AuthController` (`GET /api/Auth` → `{ UserId }`, non più email/name grezzi dal token), `AccountController` e `ImportController` (risolto a inizio di ogni action, per tutti e 16 gli endpoint di import) per scopare le query per utente.
+Entrambi i metodi condividono lo stesso `_cachedUserId` per request (nessuna richiesta chiama entrambi i metodi nello stesso scope, dato che sono usati da controller diversi).
+
+Il risultato è cachato in un campo privato per la durata della request (`CurrentUserAccessor` è registrato **Scoped** in `Program.cs`), quindi chiamate multiple nello stesso request scope non ripetono la query.
+
+Usato da `AuthController` (`GET /api/Auth` → `{ UserId }`, non più email/name grezzi dal token) e `AccountController` via `GetUserIdAsync()`; `ImportController` usa `GetUserIdForImportAsync()` (risolto a inizio di ogni action, per tutti gli endpoint di import) per scopare le query per utente.
 
 ## CORS
 Due policy nominate, selezionate in base all'ambiente (`Program.cs`):
