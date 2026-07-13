@@ -1,8 +1,10 @@
 ﻿using RDS.ExpenseTracker.Api.Middlewares;
 using Scalar.AspNetCore;
+using RDS.ExpenseTracker.Api.Auth;
 using RDS.ExpenseTracker.Api.Configuration;
 using RDS.ExpenseTracker.Api.Options;
 using RDS.ExpenseTracker.Domain.Common;
+using RDS.ExpenseTracker.Domain.Services;
 using RDS.ExpenseTracker.Infrastructure;
 using Microsoft.Extensions.Options;
 using RDS.ExpenseTracker.Application;
@@ -81,6 +83,9 @@ builder.Services.AddScoped<ITransferMatchingOptions>(sp =>
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 builder.Services.AddAuthorization();
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
 
 builder.Services.AddControllers();
 

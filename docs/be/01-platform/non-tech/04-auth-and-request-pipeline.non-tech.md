@@ -3,6 +3,9 @@
 ## Come si accede
 L'accesso avviene tramite l'account Microsoft/Azure AD dell'utente: nessuna password è gestita direttamente dall'applicazione.
 
+## Cosa succede al primo accesso
+La prima volta che una persona accede, l'applicazione la riconosce tramite l'identità Microsoft/Azure AD e crea automaticamente il suo profilo interno, senza bisogno di una registrazione separata. Agli accessi successivi il profilo esistente viene semplicemente riconosciuto e riutilizzato.
+
 ## Cosa è protetto
 Tutte le funzionalità richiedono che l'utente sia autenticato. Il caricamento di estratti conto è ulteriormente riservato a chi ha un permesso dedicato.
 

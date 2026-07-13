@@ -36,6 +36,7 @@ public class TransferMatchingService : ITransferMatchingService
         string description,
         decimal signedAmount,
         DateTime date,
+        int userId,
         HashSet<int> consumedCandidateIds)
     {
         var matches = FindMatchingRules(accountName, description).ToList();
@@ -56,6 +57,7 @@ public class TransferMatchingService : ITransferMatchingService
                 expectedDate,
                 match.OtherDescriptionPattern,
                 match.OtherMatchMode,
+                userId,
                 consumedCandidateIds);
 
             if (candidate != null)
@@ -71,9 +73,10 @@ public class TransferMatchingService : ITransferMatchingService
         DateTime expectedDate,
         string otherDescriptionPattern,
         DescriptionMatchMode otherMatchMode,
+        int userId,
         HashSet<int> consumedCandidateIds)
     {
-        var accounts = await _accountRepository.GetAccounts();
+        var accounts = await _accountRepository.GetAccounts(userId);
         var otherAccount = accounts.FirstOrDefault(a =>
             a.Name.Equals(otherAccountName, StringComparison.OrdinalIgnoreCase));
 

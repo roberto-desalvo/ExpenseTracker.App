@@ -50,7 +50,7 @@ public class BbvaCsvImportService : IBbvaCsvImportService
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, bool importAll = false)
+    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false)
     {
         try
         {
@@ -92,7 +92,7 @@ public class BbvaCsvImportService : IBbvaCsvImportService
                 return Result.Ok(0);
             }
 
-            var accounts = await EnsureAccountsExistAsync([_csvOptions.DefaultAccountName]);
+            var accounts = await EnsureAccountsExistAsync([_csvOptions.DefaultAccountName], userId);
             var categories = (await _categoryRepository.GetCategories())
                 .OrderBy(c => c.Priority ?? int.MaxValue)
                 .ToList();
@@ -321,9 +321,9 @@ public class BbvaCsvImportService : IBbvaCsvImportService
                 .Replace('\u00A0', ' ')
                 .Trim();
 
-    private async Task<List<Account>> EnsureAccountsExistAsync(IEnumerable<string> requiredAccountNames)
+    private async Task<List<Account>> EnsureAccountsExistAsync(IEnumerable<string> requiredAccountNames, int userId)
     {
-        var accounts = (await _accountRepository.GetAccounts()).ToList();
+        var accounts = (await _accountRepository.GetAccounts(userId)).ToList();
 
         var missingNames = requiredAccountNames
             .Where(name => !accounts.Any(a =>
@@ -332,10 +332,10 @@ public class BbvaCsvImportService : IBbvaCsvImportService
 
         if (missingNames.Count > 0)
         {
-            var newAccounts = missingNames.Select(name => new Account(0, name)).ToList();
+            var newAccounts = missingNames.Select(name => new Account(0, name, userId)).ToList();
             await _accountRepository.AddAccounts(newAccounts);
             await _accountRepository.SaveChangesAsync();
-            accounts = (await _accountRepository.GetAccounts()).ToList();
+            accounts = (await _accountRepository.GetAccounts(userId)).ToList();
         }
 
         return accounts;

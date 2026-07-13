@@ -1,6 +1,6 @@
 # 09 - Bank-specific importers (Tecnico)
 
-Tutti implementano `I*CsvImportService` (`Domain/Services/`) e sono configurati via `I*CsvOptions` (`Domain/Common/`, bind in `Api/Options/`).
+Tutti implementano `I*CsvImportService` (`Domain/Services/`) e sono configurati via `I*CsvOptions` (`Domain/Common/`, bind in `Api/Options/`). Ciascuno riceve `int userId` come parametro di `ImportFromCsvAsync` e lo usa nel proprio metodo privato `EnsureAccountsExistAsync(names, userId)`, che cerca/crea gli `Account` richiesti filtrati per quello specifico utente (`IAccountRepository.GetAccounts(userId)` / `AddAccounts` con `new Account(0, name, userId)`) — vedi [08-import-overview-and-dedup](08-import-overview-and-dedup.tech.md).
 
 ## BBVA (`BbvaCsvImportService`)
 - Parser custom, delimitatore `;` (gestisce campi quotati).

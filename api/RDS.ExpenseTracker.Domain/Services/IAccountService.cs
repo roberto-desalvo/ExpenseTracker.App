@@ -7,9 +7,9 @@ namespace RDS.ExpenseTracker.Domain.Services;
 
 public interface IAccountService : IService
 {
-    Task<Result<PagedResult<AccountDto>>> GetAccounts(AccountQueryRequest request);
-    Task<Result<AccountDto?>> GetAccount(int id);
-    Task<Result<decimal>> GetAvailability(int accountId);
-    Task<Result> AddAccounts(IEnumerable<AccountDto> accounts);
-    Task<Result> UpdateAccount(AccountDto account);
+    Task<Result<PagedResult<AccountDto>>> GetAccounts(AccountQueryRequest request, int userId);
+    Task<Result<AccountDto?>> GetAccount(int id, int userId);
+    Task<Result<decimal>> GetAvailability(int accountId, int userId);
+    Task<Result> AddAccounts(IEnumerable<AccountDto> accounts, int userId);
+    Task<Result> UpdateAccount(AccountDto account, int userId);
 }

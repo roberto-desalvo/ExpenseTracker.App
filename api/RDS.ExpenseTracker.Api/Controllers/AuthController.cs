@@ -1,6 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
+using RDS.ExpenseTracker.Domain.Services;
 
 namespace RDS.ExpenseTracker.Api.Controllers;
 
@@ -8,18 +7,21 @@ namespace RDS.ExpenseTracker.Api.Controllers;
 [ApiController]
 public class AuthController : ControllerBase
 {
-    [HttpGet]
-    public IResult GetProfile()
+    private readonly ICurrentUserAccessor _currentUserAccessor;
+
+    public AuthController(ICurrentUserAccessor currentUserAccessor)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var email = User.FindFirst(ClaimTypes.Email)?.Value;
-        var name = User.FindFirst(ClaimTypes.Name)?.Value;
+        _currentUserAccessor = currentUserAccessor ?? throw new ArgumentNullException(nameof(currentUserAccessor));
+    }
+
+    [HttpGet]
+    public async Task<IResult> GetProfile()
+    {
+        var userId = await _currentUserAccessor.GetUserIdAsync();
 
         return TypedResults.Ok(new
         {
-            UserId = userId,
-            Email = email,
-            Name = name
+            UserId = userId
         });
     }
 }

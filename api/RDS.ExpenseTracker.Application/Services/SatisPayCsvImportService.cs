@@ -56,7 +56,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
 
     // ── Public API ──────────────────────────────────────────────────────────
 
-    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, bool importAll = false)
+    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false)
     {
         try
         {
@@ -145,7 +145,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
 
             // 3. Ensure accounts ──────────────────────────────────────────────
             var requiredAccountNames = GetRequiredAccountNames(rows);
-            var accounts = await EnsureAccountsExistAsync(requiredAccountNames);
+            var accounts = await EnsureAccountsExistAsync(requiredAccountNames, userId);
 
             // 4. Get categories ───────────────────────────────────────────────
             var categories = (await _categoryRepository.GetCategories()).ToList();
@@ -185,7 +185,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             foreach (var row in candidateRows.OrderBy(r => ParseDate(r.Date) ?? DateTime.UtcNow))
             {
                 await ProcessTransferCandidateRow(
-                    row, satispayAccount, transactions, transferEntities, transferTransactions, consumedCandidateIds);
+                    row, satispayAccount, transactions, transferEntities, transferTransactions, userId, consumedCandidateIds);
             }
 
             foreach (var row in remainingRows)
@@ -316,9 +316,9 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
         return names;
     }
 
-    private async Task<List<Account>> EnsureAccountsExistAsync(IEnumerable<string> requiredAccountNames)
+    private async Task<List<Account>> EnsureAccountsExistAsync(IEnumerable<string> requiredAccountNames, int userId)
     {
-        var accounts = (await _accountRepository.GetAccounts()).ToList();
+        var accounts = (await _accountRepository.GetAccounts(userId)).ToList();
 
         var missingNames = requiredAccountNames
             .Where(name => !accounts.Any(a =>
@@ -327,10 +327,10 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
 
         if (missingNames.Count > 0)
         {
-            var newAccounts = missingNames.Select(name => new Account(0, name)).ToList();
+            var newAccounts = missingNames.Select(name => new Account(0, name, userId)).ToList();
             await _accountRepository.AddAccounts(newAccounts);
             await _accountRepository.SaveChangesAsync();
-            accounts = (await _accountRepository.GetAccounts()).ToList();
+            accounts = (await _accountRepository.GetAccounts(userId)).ToList();
         }
 
         return accounts;
@@ -454,6 +454,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
         List<Transaction> transactions,
         List<Transfer> transferEntities,
         List<Transaction> transferTransactions,
+        int userId,
         HashSet<int> consumedCandidateIds)
     {
         var amount = ParseAmount(row.AmountRaw);
@@ -473,7 +474,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
 
 
         var matchResult = await _transferMatchingService.TryMatchAsync(
-            _csvOptions.DefaultAccountName, description, amount.Value, date, consumedCandidateIds);
+            _csvOptions.DefaultAccountName, description, amount.Value, date, userId, consumedCandidateIds);
 
         if (matchResult.Candidate != null)
         {

@@ -31,5 +31,6 @@ public interface ITransferMatchingService : IService
         string description,
         decimal signedAmount,
         DateTime date,
+        int userId,
         HashSet<int> consumedCandidateIds);
 }

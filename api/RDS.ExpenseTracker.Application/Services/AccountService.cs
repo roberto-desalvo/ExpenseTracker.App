@@ -20,9 +20,9 @@ public class AccountService : IAccountService
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
     }
 
-    public async Task<Result<PagedResult<AccountDto>>> GetAccounts(AccountQueryRequest request)
+    public async Task<Result<PagedResult<AccountDto>>> GetAccounts(AccountQueryRequest request, int userId)
     {
-        var (items, totalCount) = await _repository.GetPagedAccounts(request);
+        var (items, totalCount) = await _repository.GetPagedAccounts(request, userId);
         return Result.Ok(new PagedResult<AccountDto>
         {
             Items = _mapper.Map<IEnumerable<AccountDto>>(items),
@@ -32,52 +32,58 @@ public class AccountService : IAccountService
         });
     }
 
-    public async Task<Result<AccountDto?>> GetAccount(int id)
+    public async Task<Result<AccountDto?>> GetAccount(int id, int userId)
     {
         if (id <= 0)
             return Result.Fail(DomainErrors.InvalidId("account", id));
 
-        var account = await _repository.GetAccount(id);
+        var account = await _repository.GetAccount(id, userId);
         if (account is null)
             return Result.Fail(DomainErrors.NotFound("Account", id));
 
         return Result.Ok(_mapper.Map<AccountDto?>(account));
     }
 
-    public async Task<Result<decimal>> GetAvailability(int accountId)
+    public async Task<Result<decimal>> GetAvailability(int accountId, int userId)
     {
         if (accountId <= 0)
             return Result.Fail(DomainErrors.InvalidId("account", accountId));
 
-        var account = await _repository.GetAccount(accountId);
+        var account = await _repository.GetAccount(accountId, userId);
         if (account is null)
             return Result.Fail(DomainErrors.NotFound("Account", accountId));
 
-        var availability = await _repository.GetAvailability(accountId);
+        var availability = await _repository.GetAvailability(accountId, userId);
         return Result.Ok(availability);
     }
 
-    public async Task<Result> AddAccounts(IEnumerable<AccountDto> dtos)
+    public async Task<Result> AddAccounts(IEnumerable<AccountDto> dtos, int userId)
     {
         if (dtos is null || !dtos.Any())
             return Result.Fail(DomainErrors.Required("accounts"));
 
         var entities = _mapper.Map<IEnumerable<Account>>(dtos);
+        foreach (var entity in entities)
+        {
+            entity.UserId = userId;
+        }
+
         await _repository.AddAccounts(entities);
         await _repository.SaveChangesAsync();
         return Result.Ok();
     }
 
-    public async Task<Result> UpdateAccount(AccountDto dto)
+    public async Task<Result> UpdateAccount(AccountDto dto, int userId)
     {
         if (dto.Id <= 0)
             return Result.Fail(DomainErrors.InvalidId("account", dto.Id));
 
-        var current = await _repository.GetAccount(dto.Id);
+        var current = await _repository.GetAccount(dto.Id, userId);
         if (current is null)
             return Result.Fail(DomainErrors.NotFound("Account", dto.Id));
 
         var entity = _mapper.Map<Account>(dto);
+        entity.UserId = userId;
         await _repository.UpdateAccount(entity);
         await _repository.SaveChangesAsync();
         return Result.Ok();

@@ -11,13 +11,15 @@ namespace RDS.ExpenseTracker.Tests;
 
 public class BbvaCsvImportServiceTests
 {
+    private const int TestUserId = 1;
+
     [Fact]
     public async Task ImportFromCsvAsync_ImportsRowsFromRepositoryBbvaCsvFile()
     {
         var transactionRepository = new FakeTransactionRepository();
         var categoryRepository = new FakeCategoryRepository();
         var accountRepository = new FakeAccountRepository([
-            new Account(1, "BBVA"),
+            new Account(1, "BBVA", TestUserId),
         ]);
 
         var service = new BbvaCsvImportService(
@@ -32,7 +34,7 @@ public class BbvaCsvImportServiceTests
 
         using var stream = File.OpenRead(filePath!);
 
-        var result = await service.ImportFromCsvAsync(stream, "transazioni-bbva.csv");
+        var result = await service.ImportFromCsvAsync(stream, "transazioni-bbva.csv", TestUserId);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeGreaterThan(0);
@@ -45,7 +47,7 @@ public class BbvaCsvImportServiceTests
         var transactionRepository = new FakeTransactionRepository();
         var categoryRepository = new FakeCategoryRepository();
         var accountRepository = new FakeAccountRepository([
-            new Account(1, "BBVA"),
+            new Account(1, "BBVA", TestUserId),
         ]);
 
         var service = new BbvaCsvImportService(
@@ -105,7 +107,7 @@ Data valuta;Data;Parola chiave;Movimento;Importo;Valuta;Disponibile;Valuta;Osser
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
 
-        var result = await service.ImportFromCsvAsync(stream, "transazioni-bbva.csv");
+        var result = await service.ImportFromCsvAsync(stream, "transazioni-bbva.csv", TestUserId);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(40);
@@ -123,7 +125,7 @@ Data valuta;Data;Parola chiave;Movimento;Importo;Valuta;Disponibile;Valuta;Osser
         var transactionRepository = new FakeTransactionRepository();
         var categoryRepository = new FakeCategoryRepository();
         var accountRepository = new FakeAccountRepository([
-            new Account(1, "BBVA"),
+            new Account(1, "BBVA", TestUserId),
         ]);
 
         var service = new BbvaCsvImportService(
@@ -142,7 +144,7 @@ Data valuta;Data;Parola chiave;Movimento;Importo;Valuta;Disponibile;Valuta;Osser
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
 
-        var result = await service.ImportFromCsvAsync(stream, "transazioni-bbva.csv");
+        var result = await service.ImportFromCsvAsync(stream, "transazioni-bbva.csv", TestUserId);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(2);
@@ -248,14 +250,18 @@ Data valuta;Data;Parola chiave;Movimento;Importo;Valuta;Disponibile;Valuta;Osser
         public Task<IEnumerable<Account>> GetAccounts()
             => Task.FromResult<IEnumerable<Account>>(_accounts);
 
+        public Task<IEnumerable<Account>> GetAccounts(int userId)
+            => Task.FromResult<IEnumerable<Account>>(_accounts.Where(a => a.UserId == userId));
+
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(1);
 
         public Task UpdateAccount(Account account) => throw new NotImplementedException();
         public Task<Account?> GetAccount(int id) => throw new NotImplementedException();
-        public Task<(IEnumerable<Account> Items, int TotalCount)> GetPagedAccounts(AccountQueryRequest request) => throw new NotImplementedException();
+        public Task<Account?> GetAccount(int id, int userId) => throw new NotImplementedException();
+        public Task<(IEnumerable<Account> Items, int TotalCount)> GetPagedAccounts(AccountQueryRequest request, int userId) => throw new NotImplementedException();
         public Task<bool> UpdateAvailability(int accountId, decimal amount, bool saveChanges) => throw new NotImplementedException();
-        public Task<decimal> GetAvailability(int accountId) => throw new NotImplementedException();
+        public Task<decimal> GetAvailability(int accountId, int userId) => throw new NotImplementedException();
         public Task CalculateAvailabilities(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
     }
 }

@@ -13,5 +13,5 @@ public interface ITradeRepublicCsvImportService : IService
     ///   When <c>true</c> all rows are imported regardless.
     /// </param>
     /// <returns>Number of <see cref="Domain.Entities.Transaction"/> records inserted.</returns>
-    Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, bool importAll = false);
+    Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false);
 }

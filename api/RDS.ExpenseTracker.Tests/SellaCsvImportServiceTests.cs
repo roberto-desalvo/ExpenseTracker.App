@@ -13,6 +13,8 @@ namespace RDS.ExpenseTracker.Tests;
 
 public class SellaCsvImportServiceTests
 {
+    private const int TestUserId = 1;
+
     private static readonly TransferMatchRule SellaSatispayRule = new()
     {
         AccountName1 = "Sella",
@@ -35,7 +37,7 @@ public class SellaCsvImportServiceTests
             + "\"\",\"10/06/2026\",\"10/06/2026\",\"Pagamento prova\",\"EUR\",\"-12,00\",\"\",\"Altre spese\",\"Varie\",\"Bonifico\",\"\",\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-        var result = await service.ImportFromCsvAsync(stream, "sella.csv");
+        var result = await service.ImportFromCsvAsync(stream, "sella.csv", TestUserId);
 
         result.IsFailed.Should().BeTrue();
         result.Errors.Should().ContainSingle(e => e.Message.Contains("Codice identificativo", StringComparison.OrdinalIgnoreCase));
@@ -56,7 +58,7 @@ public class SellaCsvImportServiceTests
             + "\"\",\"\",\"\",\"Saldo al 10/06/2026 10:00:00\",\"0,00\",\"\",\"\",\"\",\"\",\"\",\"\",\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-        var result = await service.ImportFromCsvAsync(stream, "sella.csv");
+        var result = await service.ImportFromCsvAsync(stream, "sella.csv", TestUserId);
 
         result.IsSuccess.Should().BeTrue(string.Join(",", result.Errors.Select(e => e.Message)));
         result.Value.Should().Be(2);
@@ -83,7 +85,7 @@ public class SellaCsvImportServiceTests
             + "\"SEL-2002\",\"11/06/2026\",\"11/06/2026\",\"Spesa nuova\",\"EUR\",\"-20,00\",\"\",\"Altre spese\",\"Varie\",\"Bonifico\",\"\",\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-        var result = await service.ImportFromCsvAsync(stream, "sella.csv", importAll: false);
+        var result = await service.ImportFromCsvAsync(stream, "sella.csv", TestUserId, importAll: false);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(1);
@@ -106,7 +108,7 @@ public class SellaCsvImportServiceTests
             + "\"SEL-DUP-2\",\"11/06/2026\",\"11/06/2026\",\"Riga diversa\",\"EUR\",\"-5,00\",\"\",\"Altre spese\",\"Varie\",\"Bonifico\",\"\",\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-        var result = await service.ImportFromCsvAsync(stream, "sella.csv", importAll: false);
+        var result = await service.ImportFromCsvAsync(stream, "sella.csv", TestUserId, importAll: false);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(2);
@@ -131,13 +133,13 @@ public class SellaCsvImportServiceTests
             out var transactionRepository,
             out var transferRepository,
             options,
-            accounts: [new Account(1, "Sella"), new Account(2, "Satispay")]);
+            accounts: [new Account(1, "Sella", TestUserId), new Account(2, "Satispay", TestUserId)]);
 
         const string csv = "\"Codice identificativo\",\"Data operazione\",\"Data valuta\",\"Descrizione\",\"Divisa\",\"Debito\",\"Credito\",\"Categoria\",\"Sottocategoria\",\"Etichette\",\"Note\",\n"
             + "\"SEL-TR-1\",\"12/06/2026\",\"12/06/2026\",\"Ricarica verso wallet (IT21W0367401600000921182111)\",\"EUR\",\"-50,00\",\"\",\"Trasferimenti\",\"Varie\",\"Bonifico\",\"\",\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-        var result = await service.ImportFromCsvAsync(stream, "sella.csv");
+        var result = await service.ImportFromCsvAsync(stream, "sella.csv", TestUserId);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(2);
@@ -164,7 +166,7 @@ public class SellaCsvImportServiceTests
             + "\"SEL-SAT-1\",\"17/06/2026\",\"17/06/2026\",\"Satispay Europe S.A. - Ricarica wallet\",\"EUR\",\"-50,00\",\"\",\"Trasferimenti\",\"Varie\",\"Bonifico\",\"\",\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-        var result = await service.ImportFromCsvAsync(stream, "sella.csv");
+        var result = await service.ImportFromCsvAsync(stream, "sella.csv", TestUserId);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(1);
@@ -184,7 +186,7 @@ public class SellaCsvImportServiceTests
             out var transferRepository,
             new FakeSellaCsvOptions(),
             rules: [SellaSatispayRule],
-            accounts: [new Account(1, "Sella"), new Account(2, "Satispay")]);
+            accounts: [new Account(1, "Sella", TestUserId), new Account(2, "Satispay", TestUserId)]);
 
         // Pre-existing unlinked Satispay recharge, dated one day before the Sella debit.
         await transactionRepository.AddTransactions([
@@ -203,7 +205,7 @@ public class SellaCsvImportServiceTests
             + "\"SEL-SAT-2\",\"17/06/2026\",\"17/06/2026\",\"Satispay Europe S.A. - Ricarica wallet\",\"EUR\",\"-50,00\",\"\",\"Trasferimenti\",\"Varie\",\"Bonifico\",\"\",\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-        var result = await service.ImportFromCsvAsync(stream, "sella.csv");
+        var result = await service.ImportFromCsvAsync(stream, "sella.csv", TestUserId);
 
         result.IsSuccess.Should().BeTrue();
         transferRepository.AddedTransfers.Should().ContainSingle();
@@ -227,7 +229,7 @@ public class SellaCsvImportServiceTests
         transferRepository = new FakeTransferRepository();
 
         var categoryRepository = new FakeCategoryRepository();
-        var accountRepository = new FakeAccountRepository(accounts ?? [new Account(1, "Sella")]);
+        var accountRepository = new FakeAccountRepository(accounts ?? [new Account(1, "Sella", TestUserId)]);
 
         var transferMatchingOptions = new FakeTransferMatchingOptions { Rules = rules?.ToList() ?? [] };
         var transferMatchingService = new TransferMatchingService(transactionRepository, accountRepository, transferMatchingOptions);
@@ -382,14 +384,18 @@ public class SellaCsvImportServiceTests
         public Task<IEnumerable<Account>> GetAccounts()
             => Task.FromResult<IEnumerable<Account>>(_accounts);
 
+        public Task<IEnumerable<Account>> GetAccounts(int userId)
+            => Task.FromResult<IEnumerable<Account>>(_accounts.Where(a => a.UserId == userId));
+
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(1);
 
         public Task UpdateAccount(Account account) => throw new NotImplementedException();
         public Task<Account?> GetAccount(int id) => throw new NotImplementedException();
-        public Task<(IEnumerable<Account> Items, int TotalCount)> GetPagedAccounts(AccountQueryRequest request) => throw new NotImplementedException();
+        public Task<Account?> GetAccount(int id, int userId) => throw new NotImplementedException();
+        public Task<(IEnumerable<Account> Items, int TotalCount)> GetPagedAccounts(AccountQueryRequest request, int userId) => throw new NotImplementedException();
         public Task<bool> UpdateAvailability(int accountId, decimal amount, bool saveChanges) => throw new NotImplementedException();
-        public Task<decimal> GetAvailability(int accountId) => throw new NotImplementedException();
+        public Task<decimal> GetAvailability(int accountId, int userId) => throw new NotImplementedException();
         public Task CalculateAvailabilities(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
     }
 }

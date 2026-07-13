@@ -26,19 +26,6 @@ public class AccountRepository : RepositoryBase, IAccountRepository
         }
     }
 
-    public async Task<decimal> GetAvailability(int accountId)
-    {
-        var exists = await Context.Accounts.AnyAsync(x => x.Id == accountId);
-        if (!exists)
-        {
-            return 0;
-        }
-
-        return await Context.Transactions
-            .Where(x => x.AccountId == accountId)
-            .SumAsync(x => x.Amount);
-    }
-
     public async Task<Account?> GetAccount(int id)
     {
         return await Context.Accounts.FirstOrDefaultAsync(x => x.Id == id);
@@ -51,9 +38,35 @@ public class AccountRepository : RepositoryBase, IAccountRepository
             .ToListAsync();
     }
 
-    public async Task<(IEnumerable<Account> Items, int TotalCount)> GetPagedAccounts(AccountQueryRequest request)
+    public async Task<decimal> GetAvailability(int accountId, int userId)
     {
-        var query = Context.Accounts.AsQueryable();
+        var exists = await Context.Accounts.AnyAsync(x => x.Id == accountId && x.UserId == userId);
+        if (!exists)
+        {
+            return 0;
+        }
+
+        return await Context.Transactions
+            .Where(x => x.AccountId == accountId)
+            .SumAsync(x => x.Amount);
+    }
+
+    public async Task<Account?> GetAccount(int id, int userId)
+    {
+        return await Context.Accounts.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
+    }
+
+    public async Task<IEnumerable<Account>> GetAccounts(int userId)
+    {
+        return await Context.Accounts
+            .Where(a => a.UserId == userId)
+            .OrderBy(a => a.Name)
+            .ToListAsync();
+    }
+
+    public async Task<(IEnumerable<Account> Items, int TotalCount)> GetPagedAccounts(AccountQueryRequest request, int userId)
+    {
+        var query = Context.Accounts.Where(a => a.UserId == userId);
 
         if (!string.IsNullOrWhiteSpace(request.Name))
         {

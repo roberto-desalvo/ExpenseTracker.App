@@ -68,7 +68,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
 
     // ── Public API ──────────────────────────────────────────────────────────
 
-    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, bool importAll = false)
+    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false)
     {
         try
         {
@@ -115,7 +115,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
                 return Result.Ok(0);
 
             // 3. Ensure all referenced accounts exist (auto-create if needed) -
-            var accounts = await EnsureAccountsExistAsync(GetRequiredAccountNames(rows));
+            var accounts = await EnsureAccountsExistAsync(GetRequiredAccountNames(rows), userId);
 
             // 4. Load categories ---------------------------------------------
             var categories = (await _categoryRepository.GetCategories())
@@ -153,7 +153,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
             foreach (var row in candidateRows.OrderBy(r => ParseDate(r.Datetime) ?? DateTime.UtcNow))
             {
                 await ProcessTransferCandidateRow(
-                    row, accounts, transactions, transferEntities, transferTransactions, consumedCandidateIds);
+                    row, accounts, transactions, transferEntities, transferTransactions, userId, consumedCandidateIds);
             }
 
             foreach (var row in remainingRows)
@@ -255,9 +255,9 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         return names;
     }
 
-    private async Task<List<Account>> EnsureAccountsExistAsync(IEnumerable<string> requiredAccountNames)
+    private async Task<List<Account>> EnsureAccountsExistAsync(IEnumerable<string> requiredAccountNames, int userId)
     {
-        var accounts = (await _accountRepository.GetAccounts()).ToList();
+        var accounts = (await _accountRepository.GetAccounts(userId)).ToList();
 
         var missingNames = requiredAccountNames
             .Where(name => !accounts.Any(a =>
@@ -266,10 +266,10 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
 
         if (missingNames.Count > 0)
         {
-            var newAccounts = missingNames.Select(name => new Account(0, name)).ToList();
+            var newAccounts = missingNames.Select(name => new Account(0, name, userId)).ToList();
             await _accountRepository.AddAccounts(newAccounts);
             await _accountRepository.SaveChangesAsync();
-            accounts = (await _accountRepository.GetAccounts()).ToList();
+            accounts = (await _accountRepository.GetAccounts(userId)).ToList();
         }
 
         return accounts;
@@ -349,6 +349,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         List<Transaction> transactions,
         List<Transfer> transferEntities,
         List<Transaction> transferTransactions,
+        int userId,
         HashSet<int> consumedCandidateIds)
     {
         var accountName = ResolveAccountName(row);
@@ -368,7 +369,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         var description = BuildDescription(row);
 
         var matchResult = await _transferMatchingService.TryMatchAsync(
-            accountName, description, amount, date, consumedCandidateIds);
+            accountName, description, amount, date, userId, consumedCandidateIds);
 
         if (matchResult.Candidate != null)
         {

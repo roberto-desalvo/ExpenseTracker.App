@@ -45,7 +45,7 @@ public class SellaCsvImportService : ISellaCsvImportService
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, bool importAll = false)
+    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false)
     {
         try
         {
@@ -84,7 +84,7 @@ public class SellaCsvImportService : ISellaCsvImportService
             if (rows.Count == 0)
                 return Result.Ok(0);
 
-            var accounts = await EnsureAccountsExistAsync(GetRequiredAccountNames(rows));
+            var accounts = await EnsureAccountsExistAsync(GetRequiredAccountNames(rows), userId);
             var defaultCategory = await _categoryRepository.GetDefaultCategory();
             var defaultCategoryId = defaultCategory?.Id ?? (int)CategoryEnum.Default;
 
@@ -117,7 +117,7 @@ public class SellaCsvImportService : ISellaCsvImportService
             foreach (var row in candidateRows.OrderBy(r => r.OperationDate))
             {
                 await ProcessTransferCandidateRow(
-                    row, sellaAccount, transactions, transferEntities, transferTransactions, consumedCandidateIds);
+                    row, sellaAccount, transactions, transferEntities, transferTransactions, userId, consumedCandidateIds);
             }
 
             foreach (var row in remainingRows)
@@ -299,9 +299,9 @@ public class SellaCsvImportService : ISellaCsvImportService
         return names;
     }
 
-    private async Task<List<Account>> EnsureAccountsExistAsync(IEnumerable<string> requiredAccountNames)
+    private async Task<List<Account>> EnsureAccountsExistAsync(IEnumerable<string> requiredAccountNames, int userId)
     {
-        var accounts = (await _accountRepository.GetAccounts()).ToList();
+        var accounts = (await _accountRepository.GetAccounts(userId)).ToList();
 
         var missing = requiredAccountNames
             .Where(name => !accounts.Any(a => a.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
@@ -309,9 +309,9 @@ public class SellaCsvImportService : ISellaCsvImportService
 
         if (missing.Count > 0)
         {
-            await _accountRepository.AddAccounts(missing.Select(name => new Account(0, name)));
+            await _accountRepository.AddAccounts(missing.Select(name => new Account(0, name, userId)));
             await _accountRepository.SaveChangesAsync();
-            accounts = (await _accountRepository.GetAccounts()).ToList();
+            accounts = (await _accountRepository.GetAccounts(userId)).ToList();
         }
 
         return accounts;
@@ -323,12 +323,13 @@ public class SellaCsvImportService : ISellaCsvImportService
         List<Transaction> transactions,
         List<Transfer> transferEntities,
         List<Transaction> transferTransactions,
+        int userId,
         HashSet<int> consumedCandidateIds)
     {
         var description = BuildSafeDescription(row.Description, row.Identifier);
 
         var matchResult = await _transferMatchingService.TryMatchAsync(
-            _options.DefaultAccountName, description, row.Amount, row.OperationDate, consumedCandidateIds);
+            _options.DefaultAccountName, description, row.Amount, row.OperationDate, userId, consumedCandidateIds);
 
         if (matchResult.Candidate != null)
         {

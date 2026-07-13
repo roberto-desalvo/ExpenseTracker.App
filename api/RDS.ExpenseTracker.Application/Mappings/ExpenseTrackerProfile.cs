@@ -11,7 +11,10 @@ public class ExpenseTrackerProfile : Profile
     public ExpenseTrackerProfile()
     {
         CreateMap<Account, AccountDto>()
-            .ReverseMap();
+            .ReverseMap()
+            .ForMember(dest => dest.UserId, opt => opt.Ignore());
+
+        CreateMap<User, UserDto>();
 
         CreateMap<Transaction, TransactionDto>()
             .ForMember(dest => dest.CategoryId, opt => opt.MapFrom(src => src.CategoryId ?? 0))

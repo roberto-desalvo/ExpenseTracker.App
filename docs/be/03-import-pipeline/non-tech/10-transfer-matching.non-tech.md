@@ -9,5 +9,8 @@ L'applicazione riconosce automaticamente queste coppie confrontando importo, dat
 ## Cosa succede se non trova subito la coppia
 Il movimento viene comunque salvato normalmente; verrà collegato automaticamente non appena verrà importato anche il movimento della banca controparte.
 
+## Isolamento tra utenti
+La ricerca della controparte avviene solo tra i conti della stessa persona che ha effettuato l'import: un movimento non può mai essere abbinato per errore a un conto di un altro utente dell'applicazione.
+
 ## Valore
-I trasferimenti tra i propri conti non vengono mai conteggiati per errore come spese o entrate reali.
+I trasferimenti tra i propri conti non vengono mai conteggiati per errore come spese o entrate reali, e restano sempre correttamente separati tra le diverse persone che usano l'applicazione.

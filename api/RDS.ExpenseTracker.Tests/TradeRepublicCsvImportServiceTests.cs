@@ -13,6 +13,8 @@ namespace RDS.ExpenseTracker.Tests;
 
 public class TradeRepublicCsvImportServiceTests
 {
+    private const int TestUserId = 1;
+
     private static readonly TransferMatchRule TradeRepublicRule = new()
     {
         AccountName1 = "Trade Republic",
@@ -35,7 +37,7 @@ public class TradeRepublicCsvImportServiceTests
             + "2026-06-10T08:00:00Z,CURRENT,PAYMENT_OUTBOUND,Supermarket,-12.50,Supermarket purchase,tr-1,\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-        var result = await service.ImportFromCsvAsync(stream, "traderepublic.csv");
+        var result = await service.ImportFromCsvAsync(stream, "traderepublic.csv", TestUserId);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(1);
@@ -59,7 +61,7 @@ public class TradeRepublicCsvImportServiceTests
             + "2026-06-17T08:00:00Z,CURRENT,PAYMENT_OUTBOUND,Satispay Europe S.A.,-50.00,Sepa Direct Debit transfer to Satispay Europe S.A.,tr-2,\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-        var result = await service.ImportFromCsvAsync(stream, "traderepublic.csv");
+        var result = await service.ImportFromCsvAsync(stream, "traderepublic.csv", TestUserId);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(1);
@@ -79,7 +81,7 @@ public class TradeRepublicCsvImportServiceTests
             out var transferRepository,
             out _,
             rules: [TradeRepublicRule],
-            accounts: [new Account(1, "Trade Republic"), new Account(2, "Satispay")]);
+            accounts: [new Account(1, "Trade Republic", TestUserId), new Account(2, "Satispay", TestUserId)]);
 
         // Pre-existing unlinked Satispay recharge, dated one day before the TR debit.
         await transactionRepository.AddTransactions([
@@ -98,7 +100,7 @@ public class TradeRepublicCsvImportServiceTests
             + "2026-06-17T08:00:00Z,CURRENT,PAYMENT_OUTBOUND,Satispay Europe S.A.,-50.00,Sepa Direct Debit transfer to Satispay Europe S.A.,tr-3,\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-        var result = await service.ImportFromCsvAsync(stream, "traderepublic.csv");
+        var result = await service.ImportFromCsvAsync(stream, "traderepublic.csv", TestUserId);
 
         result.IsSuccess.Should().BeTrue();
         transferRepository.AddedTransfers.Should().ContainSingle();
@@ -127,13 +129,13 @@ public class TradeRepublicCsvImportServiceTests
             out var transferRepository,
             out _,
             options: options,
-            accounts: [new Account(1, "Trade Republic"), new Account(2, "Sella")]);
+            accounts: [new Account(1, "Trade Republic", TestUserId), new Account(2, "Sella", TestUserId)]);
 
         const string csv = Header
             + "2026-06-10T08:00:00Z,CURRENT,TRANSFER_INSTANT_OUTBOUND,Sella,-100.00,Transfer to Sella,tr-iban-1,IT60X0542811101000000123456\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-        var result = await service.ImportFromCsvAsync(stream, "traderepublic.csv");
+        var result = await service.ImportFromCsvAsync(stream, "traderepublic.csv", TestUserId);
 
         result.IsSuccess.Should().BeTrue();
         transferRepository.AddedTransfers.Should().ContainSingle();
@@ -153,7 +155,7 @@ public class TradeRepublicCsvImportServiceTests
     {
         transactionRepository = new FakeTransactionRepository();
         transferRepository = new FakeTransferRepository();
-        accountRepository = new FakeAccountRepository(accounts ?? [new Account(1, "Trade Republic")]);
+        accountRepository = new FakeAccountRepository(accounts ?? [new Account(1, "Trade Republic", TestUserId)]);
 
         var categoryRepository = new FakeCategoryRepository();
         var transferMatchingOptions = new FakeTransferMatchingOptions { Rules = rules?.ToList() ?? [] };
@@ -296,14 +298,18 @@ public class TradeRepublicCsvImportServiceTests
         public Task<IEnumerable<Account>> GetAccounts()
             => Task.FromResult<IEnumerable<Account>>(_accounts);
 
+        public Task<IEnumerable<Account>> GetAccounts(int userId)
+            => Task.FromResult<IEnumerable<Account>>(_accounts.Where(a => a.UserId == userId));
+
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(1);
 
         public Task UpdateAccount(Account account) => throw new NotImplementedException();
         public Task<Account?> GetAccount(int id) => throw new NotImplementedException();
-        public Task<(IEnumerable<Account> Items, int TotalCount)> GetPagedAccounts(AccountQueryRequest request) => throw new NotImplementedException();
+        public Task<Account?> GetAccount(int id, int userId) => throw new NotImplementedException();
+        public Task<(IEnumerable<Account> Items, int TotalCount)> GetPagedAccounts(AccountQueryRequest request, int userId) => throw new NotImplementedException();
         public Task<bool> UpdateAvailability(int accountId, decimal amount, bool saveChanges) => throw new NotImplementedException();
-        public Task<decimal> GetAvailability(int accountId) => throw new NotImplementedException();
+        public Task<decimal> GetAvailability(int accountId, int userId) => throw new NotImplementedException();
         public Task CalculateAvailabilities(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
     }
 }

@@ -24,6 +24,7 @@ public static class AddServicesExtensions
         services.AddScoped<ITransactionRepository, TransactionRepository>();
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<ITransferRepository, TransferRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
 
         return services;
     }

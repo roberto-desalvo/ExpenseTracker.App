@@ -40,7 +40,7 @@ public class ExcelImportService : IExcelImportService
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task<Result<int>> ImportFromExcelAsync(Stream fileStream, string fileName, bool importAll = false)
+    public async Task<Result<int>> ImportFromExcelAsync(Stream fileStream, string fileName, int userId, bool importAll = false)
     {
         try
         {
@@ -57,7 +57,7 @@ public class ExcelImportService : IExcelImportService
                 transactionsBySheet = await FilterSheetsByLatestTransactionAsync(transactionsBySheet);
             }
 
-            var importTransactions = await EnrichTransactionsAsync(transactionsBySheet);
+            var importTransactions = await EnrichTransactionsAsync(transactionsBySheet, userId);
             var saveResult = await SaveTransactionsAsync(importTransactions);
             if (saveResult.IsFailed)
             {
@@ -74,7 +74,7 @@ public class ExcelImportService : IExcelImportService
         }
     }
 
-    public async Task<Result<int>> ImportFromExcelBase64Async(string base64Content, string fileName, bool importAll = false)
+    public async Task<Result<int>> ImportFromExcelBase64Async(string base64Content, string fileName, int userId, bool importAll = false)
     {
         if (string.IsNullOrWhiteSpace(base64Content))
         {
@@ -87,7 +87,7 @@ public class ExcelImportService : IExcelImportService
             var fileBytes = Convert.FromBase64String(normalizedBase64);
 
             using var stream = new MemoryStream(fileBytes);
-            return await ImportFromExcelAsync(stream, fileName, importAll);
+            return await ImportFromExcelAsync(stream, fileName, userId, importAll);
         }
         catch (FormatException ex)
         {
@@ -280,7 +280,7 @@ public class ExcelImportService : IExcelImportService
         return transactionsBySheet;
     }
 
-    private async Task<EnrichedImportBatch> EnrichTransactionsAsync(List<TransactionsBySheetModel> transactionsBySheet)
+    private async Task<EnrichedImportBatch> EnrichTransactionsAsync(List<TransactionsBySheetModel> transactionsBySheet, int userId)
     {
         var categories = (await _categoryRepository.GetCategories()).ToList();
         var defaultCategory = await _categoryRepository.GetDefaultCategory();
@@ -292,7 +292,7 @@ public class ExcelImportService : IExcelImportService
             .Distinct()
             .ToList();
 
-        var accounts = (await _accountRepository.GetAccounts()).ToList();
+        var accounts = (await _accountRepository.GetAccounts(userId)).ToList();
 
         var missingNames = accountNames
             .Where(name => !accounts.Any(a => a.Name != null && a.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
@@ -301,12 +301,12 @@ public class ExcelImportService : IExcelImportService
         if (missingNames.Any())
         {
             var newAccounts = missingNames
-                .Select(name => new Account(0, name))
+                .Select(name => new Account(0, name, userId))
                 .ToList();
             await _accountRepository.AddAccounts(newAccounts);
             await _accountRepository.SaveChangesAsync();
 
-            accounts = (await _accountRepository.GetAccounts()).ToList();
+            accounts = (await _accountRepository.GetAccounts(userId)).ToList();
         }
 
         categories = categories.OrderBy(c => c.Priority ?? int.MaxValue).ToList();

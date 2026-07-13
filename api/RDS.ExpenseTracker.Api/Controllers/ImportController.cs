@@ -17,14 +17,16 @@ public class ImportController : ControllerBase
     private readonly ITradeRepublicCsvImportService _tradeRepublicCsvImportService;
     private readonly ISatisPayCsvImportService _satisPayCsvImportService;
     private readonly ISellaCsvImportService _sellaCsvImportService;
+    private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly ILogger<ImportController> _logger;
 
     public ImportController(
         IExcelImportService excelImportService,
         IBbvaCsvImportService bbvaCsvImportService,
-        ITradeRepublicCsvImportService tradeRepublicCsvImportService,       
+        ITradeRepublicCsvImportService tradeRepublicCsvImportService,
         ISatisPayCsvImportService satisPayCsvImportService,
         ISellaCsvImportService sellaCsvImportService,
+        ICurrentUserAccessor currentUserAccessor,
         ILogger<ImportController> logger)
     {
         _excelImportService              = excelImportService              ?? throw new ArgumentNullException(nameof(excelImportService));
@@ -32,6 +34,7 @@ public class ImportController : ControllerBase
         _tradeRepublicCsvImportService   = tradeRepublicCsvImportService   ?? throw new ArgumentNullException(nameof(tradeRepublicCsvImportService));
         _satisPayCsvImportService        = satisPayCsvImportService        ?? throw new ArgumentNullException(nameof(satisPayCsvImportService));
         _sellaCsvImportService           = sellaCsvImportService           ?? throw new ArgumentNullException(nameof(sellaCsvImportService));
+        _currentUserAccessor             = currentUserAccessor             ?? throw new ArgumentNullException(nameof(currentUserAccessor));
         _logger                          = logger                          ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -48,8 +51,9 @@ public class ImportController : ControllerBase
         _logger.LogInformation("Excel import received. FileName={FileName}, Size={Size} bytes, ImportAll={ImportAll}",
             file.FileName, file.Length, importAll);
 
+        var userId = await _currentUserAccessor.GetUserIdAsync();
         using var stream = file.OpenReadStream();
-        var result = await _excelImportService.ImportFromExcelAsync(stream, file.FileName, importAll);
+        var result = await _excelImportService.ImportFromExcelAsync(stream, file.FileName, userId, importAll);
 
         if (result.IsFailed)
         {
@@ -75,7 +79,8 @@ public class ImportController : ControllerBase
         _logger.LogInformation("Excel base64 import received. FileName={FileName}, Base64Length={Base64Length}, ImportAll={ImportAll}",
             fileName, request.Base64Content.Length, importAll);
 
-        var result = await _excelImportService.ImportFromExcelBase64Async(request.Base64Content, fileName, importAll);
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        var result = await _excelImportService.ImportFromExcelBase64Async(request.Base64Content, fileName, userId, importAll);
 
         if (result.IsFailed)
         {
@@ -110,8 +115,9 @@ public class ImportController : ControllerBase
         _logger.LogInformation("BBVA CSV import received. FileName={FileName}, Size={Size} bytes, ImportAll={ImportAll}",
             file.FileName, file.Length, importAll);
 
+        var userId = await _currentUserAccessor.GetUserIdAsync();
         using var stream = file.OpenReadStream();
-        var result = await _bbvaCsvImportService.ImportFromCsvAsync(stream, file.FileName, importAll);
+        var result = await _bbvaCsvImportService.ImportFromCsvAsync(stream, file.FileName, userId, importAll);
 
         if (result.IsFailed)
         {
@@ -147,8 +153,9 @@ public class ImportController : ControllerBase
         _logger.LogInformation("Trade Republic CSV import received. FileName={FileName}, Size={Size} bytes, ImportAll={ImportAll}",
             file.FileName, file.Length, importAll);
 
+        var userId = await _currentUserAccessor.GetUserIdAsync();
         using var stream = file.OpenReadStream();
-        var result = await _tradeRepublicCsvImportService.ImportFromCsvAsync(stream, file.FileName, importAll);
+        var result = await _tradeRepublicCsvImportService.ImportFromCsvAsync(stream, file.FileName, userId, importAll);
 
         if (result.IsFailed)
         {
@@ -184,8 +191,9 @@ public class ImportController : ControllerBase
         _logger.LogInformation("Satispay CSV import received. FileName={FileName}, Size={Size} bytes, ImportAll={ImportAll}",
             file.FileName, file.Length, importAll);
 
+        var userId = await _currentUserAccessor.GetUserIdAsync();
         using var stream = file.OpenReadStream();
-        var result = await _satisPayCsvImportService.ImportFromCsvAsync(stream, file.FileName, importAll);
+        var result = await _satisPayCsvImportService.ImportFromCsvAsync(stream, file.FileName, userId, importAll);
 
         if (result.IsFailed)
         {
@@ -221,8 +229,9 @@ public class ImportController : ControllerBase
         _logger.LogInformation("Sella CSV import received. FileName={FileName}, Size={Size} bytes, ImportAll={ImportAll}",
             file.FileName, file.Length, importAll);
 
+        var userId = await _currentUserAccessor.GetUserIdAsync();
         using var stream = file.OpenReadStream();
-        var result = await _sellaCsvImportService.ImportFromCsvAsync(stream, file.FileName, importAll);
+        var result = await _sellaCsvImportService.ImportFromCsvAsync(stream, file.FileName, userId, importAll);
 
         if (result.IsFailed)
         {
@@ -252,11 +261,12 @@ public class ImportController : ControllerBase
         _logger.LogInformation("Excel stream import received. FileName={FileName}, ContentLength={ContentLength}, ImportAll={ImportAll}",
             fileName, Request.ContentLength, importAll);
 
+        var userId = await _currentUserAccessor.GetUserIdAsync();
         using var memoryStream = new MemoryStream();
         await Request.Body.CopyToAsync(memoryStream);
         memoryStream.Position = 0;
 
-        var result = await _excelImportService.ImportFromExcelAsync(memoryStream, fileName, importAll);
+        var result = await _excelImportService.ImportFromExcelAsync(memoryStream, fileName, userId, importAll);
 
         if (result.IsFailed)
         {
@@ -290,11 +300,12 @@ public class ImportController : ControllerBase
         _logger.LogInformation("BBVA CSV stream import received. FileName={FileName}, ContentLength={ContentLength}, ImportAll={ImportAll}",
             fileName, Request.ContentLength, importAll);
 
+        var userId = await _currentUserAccessor.GetUserIdAsync();
         using var memoryStream = new MemoryStream();
         await Request.Body.CopyToAsync(memoryStream);
         memoryStream.Position = 0;
 
-        var result = await _bbvaCsvImportService.ImportFromCsvAsync(memoryStream, fileName, importAll);
+        var result = await _bbvaCsvImportService.ImportFromCsvAsync(memoryStream, fileName, userId, importAll);
 
         if (result.IsFailed)
         {
@@ -328,11 +339,12 @@ public class ImportController : ControllerBase
         _logger.LogInformation("Trade Republic CSV stream import received. FileName={FileName}, ContentLength={ContentLength}, ImportAll={ImportAll}",
             fileName, Request.ContentLength, importAll);
 
+        var userId = await _currentUserAccessor.GetUserIdAsync();
         using var memoryStream = new MemoryStream();
         await Request.Body.CopyToAsync(memoryStream);
         memoryStream.Position = 0;
 
-        var result = await _tradeRepublicCsvImportService.ImportFromCsvAsync(memoryStream, fileName, importAll);
+        var result = await _tradeRepublicCsvImportService.ImportFromCsvAsync(memoryStream, fileName, userId, importAll);
 
         if (result.IsFailed)
         {
@@ -366,11 +378,12 @@ public class ImportController : ControllerBase
         _logger.LogInformation("Satispay CSV stream import received. FileName={FileName}, ContentLength={ContentLength}, ImportAll={ImportAll}",
             fileName, Request.ContentLength, importAll);
 
+        var userId = await _currentUserAccessor.GetUserIdAsync();
         using var memoryStream = new MemoryStream();
         await Request.Body.CopyToAsync(memoryStream);
         memoryStream.Position = 0;
 
-        var result = await _satisPayCsvImportService.ImportFromCsvAsync(memoryStream, fileName, importAll);
+        var result = await _satisPayCsvImportService.ImportFromCsvAsync(memoryStream, fileName, userId, importAll);
 
         if (result.IsFailed)
         {
@@ -404,11 +417,12 @@ public class ImportController : ControllerBase
         _logger.LogInformation("Sella CSV stream import received. FileName={FileName}, ContentLength={ContentLength}, ImportAll={ImportAll}",
             fileName, Request.ContentLength, importAll);
 
+        var userId = await _currentUserAccessor.GetUserIdAsync();
         using var memoryStream = new MemoryStream();
         await Request.Body.CopyToAsync(memoryStream);
         memoryStream.Position = 0;
 
-        var result = await _sellaCsvImportService.ImportFromCsvAsync(memoryStream, fileName, importAll);
+        var result = await _sellaCsvImportService.ImportFromCsvAsync(memoryStream, fileName, userId, importAll);
 
         if (result.IsFailed)
         {
@@ -471,8 +485,9 @@ public class ImportController : ControllerBase
         _logger.LogInformation("BBVA XLSX import received. ByteCount={ByteCount}, ImportAll={ImportAll}",
             xlsxStream.Length, importAll);
 
+        var userId = await _currentUserAccessor.GetUserIdAsync();
         using var csvPayload = await PrepareCsvPayloadAsync(xlsxStream, "bbva.xlsx");
-        var result = await _bbvaCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
+        var result = await _bbvaCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, userId, importAll);
 
         if (result.IsFailed)
         {
@@ -499,8 +514,9 @@ public class ImportController : ControllerBase
         _logger.LogInformation("Trade Republic XLSX import received. ByteCount={ByteCount}, ImportAll={ImportAll}",
             xlsxStream.Length, importAll);
 
+        var userId = await _currentUserAccessor.GetUserIdAsync();
         using var csvPayload = await PrepareCsvPayloadAsync(xlsxStream, "traderepublic.xlsx");
-        var result = await _tradeRepublicCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
+        var result = await _tradeRepublicCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, userId, importAll);
 
         if (result.IsFailed)
         {
@@ -527,8 +543,9 @@ public class ImportController : ControllerBase
         _logger.LogInformation("Satispay XLSX import received. ByteCount={ByteCount}, ImportAll={ImportAll}",
             xlsxStream.Length, importAll);
 
+        var userId = await _currentUserAccessor.GetUserIdAsync();
         using var csvPayload = await PrepareCsvPayloadAsync(xlsxStream, "satispay.xlsx", ';');
-        var result = await _satisPayCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
+        var result = await _satisPayCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, userId, importAll);
 
         if (result.IsFailed)
         {
@@ -555,8 +572,9 @@ public class ImportController : ControllerBase
         _logger.LogInformation("Sella XLSX import received. ByteCount={ByteCount}, ImportAll={ImportAll}",
             xlsxStream.Length, importAll);
 
+        var userId = await _currentUserAccessor.GetUserIdAsync();
         using var csvPayload = await PrepareCsvPayloadAsync(xlsxStream, "sella.xlsx");
-        var result = await _sellaCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, importAll);
+        var result = await _sellaCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, userId, importAll);
 
         if (result.IsFailed)
         {
