@@ -91,3 +91,17 @@ Backend: connection string and Azure AD settings in `appsettings.json` / environ
 ## Testing
 
 Tests are in `RDS.ExpenseTracker.Tests` using **xUnit**, **FluentAssertions**, and **ArchUnitNET** (architecture rule tests). Coverage via Coverlet.
+
+## Documentation
+
+In-depth, modular documentation lives under `docs/`, mirrored for backend and frontend:
+
+- `docs/be/` — backend (`RDS.ExpenseTracker.*` projects). Start at `docs/be/_index/tech/00-docs-index.tech.md`.
+- `docs/fe/` — frontend (`app/`). Start at `docs/fe/_index/tech/00-docs-index.tech.md`.
+
+Each side is split into numbered topic folders (`00-foundation`, `01-platform`, ...), and every numbered module exists in two parallel versions:
+
+- `tech/NN-topic.tech.md` — implementation-level detail (files, classes, endpoints, config keys) for engineers.
+- `non-tech/NN-topic.non-tech.md` — functional, code-free explanation of value and behavior, for non-technical readers.
+
+**Maintenance rule — always follow this after making a code change:** whenever a change affects backend or frontend behavior, structure, endpoints, configuration, or data model (i.e. anything a module in `docs/be/` or `docs/fe/` describes), update the corresponding `.tech.md` module **and** its paired `.non-tech.md` module in the same change. Keep the module ID and logical title identical between the two versions. If a change introduces a new topic that doesn't fit an existing module, add a new numbered module pair (tech + non-tech) in the appropriate folder and register it in both `_index` files (`00-docs-index.tech.md` / `00-docs-index.non-tech.md`). Do not leave the two versions of a module out of sync.
