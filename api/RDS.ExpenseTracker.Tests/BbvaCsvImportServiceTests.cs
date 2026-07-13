@@ -213,6 +213,7 @@ Data valuta;Data;Parola chiave;Movimento;Importo;Valuta;Disponibile;Valuta;Osser
         public Task UpdateTransaction(Transaction transaction) => throw new NotImplementedException();
         public Task DeleteTransaction(int id) => throw new NotImplementedException();
         public Task DeleteAllTransactions() => throw new NotImplementedException();
+        public Task<IEnumerable<int>> DeleteTransactionsByAccountIds(IEnumerable<int> accountIds) => throw new NotImplementedException();
         public Task<int> AddTransaction(Transaction transaction) => throw new NotImplementedException();
         public Task<int> AddTransaction(Transaction transaction, bool saveChanges) => throw new NotImplementedException();
         public Task ResetTransactions(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
@@ -258,6 +259,7 @@ Data valuta;Data;Parola chiave;Movimento;Importo;Valuta;Disponibile;Valuta;Osser
             => Task.FromResult(1);
 
         public Task UpdateAccount(Account account) => throw new NotImplementedException();
+        public Task DeleteAccounts(IEnumerable<int> accountIds) => throw new NotImplementedException();
         public Task<Account?> GetAccount(int id) => throw new NotImplementedException();
         public Task<Account?> GetAccount(int id, int userId) => throw new NotImplementedException();
         public Task<(IEnumerable<Account> Items, int TotalCount)> GetPagedAccounts(AccountQueryRequest request, int userId) => throw new NotImplementedException();

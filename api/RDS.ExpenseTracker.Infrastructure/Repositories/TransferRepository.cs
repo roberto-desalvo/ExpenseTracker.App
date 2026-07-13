@@ -89,4 +89,15 @@ public class TransferRepository : RepositoryBase, ITransferRepository
             Context.Transfers.Remove(entity);
         }
     }
+
+    public async Task DeleteTransfers(IEnumerable<int> transferIds)
+    {
+        var ids = transferIds.ToList();
+        if (ids.Count == 0) return;
+
+        var transfers = await Context.Transfers
+            .Where(x => ids.Contains(x.Id))
+            .ToListAsync();
+        Context.Transfers.RemoveRange(transfers);
+    }
 }

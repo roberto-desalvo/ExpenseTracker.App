@@ -18,6 +18,18 @@ public class UserService : IUserService
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
     }
 
+    public async Task<Result<UserDto?>> GetUserAsync(int id)
+    {
+        if (id <= 0)
+            return Result.Fail(DomainErrors.InvalidId("user", id));
+
+        var user = await _repository.GetById(id);
+        if (user is null)
+            return Result.Fail(DomainErrors.NotFound("User", id));
+
+        return Result.Ok(_mapper.Map<UserDto?>(user));
+    }
+
     public async Task<Result<UserDto>> GetOrCreateUserAsync(string azureOid, string email, string? name)
     {
         if (string.IsNullOrWhiteSpace(azureOid))

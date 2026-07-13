@@ -6,6 +6,8 @@ namespace RDS.ExpenseTracker.Domain.Services;
 
 public interface IUserService : IService
 {
+    Task<Result<UserDto?>> GetUserAsync(int id);
+
     Task<Result<UserDto>> GetOrCreateUserAsync(string azureOid, string email, string? name);
 
     // Usato solo dal flusso di import (chiamato anche da app/managed identity con token

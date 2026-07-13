@@ -23,6 +23,7 @@ public interface ITransactionRepository : IRepositoryBase
     Task UpdateTransaction(Transaction transaction);
     Task DeleteTransaction(int id);
     Task DeleteAllTransactions();
+    Task<IEnumerable<int>> DeleteTransactionsByAccountIds(IEnumerable<int> accountIds);
     Task<int> AddTransaction(Transaction transaction);
     Task<int> AddTransaction(Transaction transaction, bool saveChanges);
     Task ResetTransactions(IEnumerable<Transaction> transactions);

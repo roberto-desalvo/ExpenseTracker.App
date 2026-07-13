@@ -56,6 +56,9 @@ public static class DomainErrors
     public static UnauthorizedResultError Unauthorized(string message)
         => new("unauthorized", message);
 
+    public static ForbiddenResultError Forbidden(string message)
+        => new("forbidden", message);
+
     public static BadRequestResultError BadRequest(string message)
         => new("bad_request", message);
 }

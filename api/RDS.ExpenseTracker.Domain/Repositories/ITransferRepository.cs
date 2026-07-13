@@ -11,4 +11,5 @@ public interface ITransferRepository : IRepositoryBase
     Task AddTransfer(Transfer transfer);
     Task UpdateTransfer(Transfer transfer);
     Task DeleteTransfer(int id);
+    Task DeleteTransfers(IEnumerable<int> transferIds);
 }

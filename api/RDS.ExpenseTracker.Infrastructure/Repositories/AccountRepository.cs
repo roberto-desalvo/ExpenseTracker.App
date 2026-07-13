@@ -17,6 +17,17 @@ public class AccountRepository : RepositoryBase, IAccountRepository
         await Context.Accounts.AddRangeAsync(accounts);
     }
 
+    public async Task DeleteAccounts(IEnumerable<int> accountIds)
+    {
+        var ids = accountIds.ToList();
+        if (ids.Count == 0) return;
+
+        var accounts = await Context.Accounts
+            .Where(a => ids.Contains(a.Id))
+            .ToListAsync();
+        Context.Accounts.RemoveRange(accounts);
+    }
+
     public async Task UpdateAccount(Account account)
     {
         var current = await Context.Accounts.FirstOrDefaultAsync(x => x.Id == account.Id);

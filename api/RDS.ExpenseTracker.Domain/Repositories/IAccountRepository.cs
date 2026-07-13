@@ -7,6 +7,7 @@ public interface IAccountRepository : IRepositoryBase
 {
     Task AddAccounts(IEnumerable<Account> accounts);
     Task UpdateAccount(Account account);
+    Task DeleteAccounts(IEnumerable<int> accountIds);
 
     // Non filtrati per utente: usati da TransactionService/TransferService, fuori
     // scope per lo scoping esplicito per utente in questa iterazione.

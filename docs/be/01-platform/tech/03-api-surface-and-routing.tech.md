@@ -40,6 +40,9 @@ Tutti i controller (tranne `ImportController`) ereditano da `ApiControllerBase`,
 - `PUT /{id}` — aggiorna (ricrea le due leg).
 - `DELETE /{id}` — elimina trasferimento + leg.
 
+## `DemoController` — `api/Demo`
+- `POST /generate` — rigenera da zero i dati demo (account, transazioni, trasferimenti) per l'utente autenticato. Fallisce con 403 se l'utente corrente non ha `IsDemo = true` sul record `User`. Vedi [07-application-services-and-mapping](../../02-data-persistence/tech/07-application-services-and-mapping.tech.md) per la logica di generazione.
+
 ## `ImportController` (`[Authorize(Roles = "Files.Sender")]`) — `api/Import`
 Vedi [08-import-overview-and-dedup](../../03-import-pipeline/tech/08-import-overview-and-dedup.tech.md).
 - `POST /excel`, `/excel/base64`, `/excel/stream` — import Excel legacy multi-sheet.

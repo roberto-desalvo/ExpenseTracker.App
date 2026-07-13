@@ -330,6 +330,26 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
         Context.Transactions.RemoveRange(transactions);
     }
 
+    public async Task<IEnumerable<int>> DeleteTransactionsByAccountIds(IEnumerable<int> accountIds)
+    {
+        var ids = accountIds.ToList();
+        if (ids.Count == 0) return [];
+
+        var transactions = await Context.Transactions
+            .Where(t => ids.Contains(t.AccountId))
+            .ToListAsync();
+
+        var transferIds = transactions
+            .Where(t => t.TransferId.HasValue)
+            .Select(t => t.TransferId!.Value)
+            .Distinct()
+            .ToList();
+
+        Context.Transactions.RemoveRange(transactions);
+
+        return transferIds;
+    }
+
     public async Task ResetTransactions(IEnumerable<Transaction> transactions)
     {
         await DeleteAllTransactions();

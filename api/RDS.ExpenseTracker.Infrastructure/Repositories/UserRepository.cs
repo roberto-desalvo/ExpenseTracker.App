@@ -22,6 +22,11 @@ public class UserRepository : RepositoryBase, IUserRepository
         return await Context.Users.FirstOrDefaultAsync(u => u.AppOid == appOid);
     }
 
+    public async Task<User?> GetById(int id)
+    {
+        return await Context.Users.FirstOrDefaultAsync(u => u.Id == id);
+    }
+
     public async Task<User> GetOrCreateUserAsync(string azureOid, string email)
     {
         var existing = await GetByAzureOid(azureOid);
