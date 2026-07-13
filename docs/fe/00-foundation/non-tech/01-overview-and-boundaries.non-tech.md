@@ -4,9 +4,10 @@
 Il frontend è l'interfaccia con cui l'utente consulta e gestisce spese, categorie e account.
 
 ## Cosa fa
-- Mostra dati e indicatori.
-- Permette inserimento, modifica e ricerca.
+- Mostra dati e indicatori nella pagina principale.
+- Permette inserimento, modifica e ricerca dei movimenti.
 - Gestisce l'accesso utente.
+- Offre un'area "Impostazioni" con due schede per gestire Categorie e Account.
 
 ## Cosa non fa
 - Non decide logiche contabili profonde.
