@@ -1,9 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import {
-  Alert,
-  Box,
   Chip,
-  CircularProgress,
   Stack,
   TableCell,
   TableRow,
@@ -42,12 +39,15 @@ const parseTags = (tags: string): string[] =>
 
 const formatTags = (tags: string[]): string => tags.join(", ");
 
-export default function CategoriesPage() {
+type CategoriesPageProps = {
+  embedded?: boolean;
+};
+
+export default function CategoriesPage({ embedded = false }: CategoriesPageProps) {
   const theme = useTheme();
   const c = theme.palette.custom;
   const {
     categories,
-    allCategories,
     isLoading,
     page,
     pageSize,
@@ -265,18 +265,27 @@ export default function CategoriesPage() {
 
   return (
     <>
-      <Stack spacing={2.5} sx={{ flex: 1, px: { xs: 2.5, md: 4 }, py: { xs: 2.5, md: 3 } }}>
-        <Typography
-          variant="h5"
-          sx={{
-            color: "text.primary",
-            fontWeight: 700,
-            letterSpacing: "-0.02em",
-            px: 1,
-          }}
-        >
-          Categorie
-        </Typography>
+      <Stack
+        spacing={2.5}
+        sx={{
+          flex: 1,
+          px: embedded ? 1 : { xs: 2.5, md: 4 },
+          py: embedded ? 0 : { xs: 2.5, md: 3 },
+        }}
+      >
+        {!embedded && (
+          <Typography
+            variant="h5"
+            sx={{
+              color: "text.primary",
+              fontWeight: 700,
+              letterSpacing: "-0.02em",
+              px: 1,
+            }}
+          >
+            Categorie
+          </Typography>
+        )}
         <CategoriesFilterBar
           onSearch={handleSearch}
           onAddClick={openCreateModal}

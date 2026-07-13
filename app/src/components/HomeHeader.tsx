@@ -1,41 +1,86 @@
-import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
 import {
   Box,
+  Collapse,
   Drawer,
   IconButton,
   List,
   ListItemButton,
+  ListItemIcon,
   ListItemText,
   Divider,
   Typography,
 } from "@mui/material";
-import { Menu as MenuIcon } from "@mui/icons-material";
+import {
+  ExpandLess,
+  ExpandMore,
+  Menu as MenuIcon,
+  SettingsOutlined,
+} from "@mui/icons-material";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useIsAuthenticated, useMsal } from "@azure/msal-react";
 
 const navItems = [
   { label: "Home", path: "/" },
-  { label: "Transazioni", path: "/transazioni" },
-  { label: "Categorie", path: "/categorie" },
-  { label: "Account", path: "/account" },
+  {
+    label: "Impostazioni",
+    path: "/impostazioni",
+    children: [
+      { label: "Categorie", path: "/impostazioni?tab=categorie" },
+      { label: "Account", path: "/impostazioni?tab=account" },
+    ],
+  },
 ];
 
 export default function HomeHeader() {
   const [open, setOpen] = useState(false);
+  const [settingsExpanded, setSettingsExpanded] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const theme = useTheme();
   const c = theme.palette.custom;
   const { instance, accounts } = useMsal();
   const isAuthenticated = useIsAuthenticated();
+
+  const activeSettingsTab = useMemo(() => {
+    const tab = searchParams.get("tab");
+    return tab === "account" ? "account" : "categorie";
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (location.pathname === "/impostazioni") {
+      setSettingsExpanded(true);
+    }
+  }, [location.pathname]);
 
   const userName = accounts[0]?.name ?? accounts[0]?.username ?? "";
 
   const handleNavigate = (path: string) => {
     navigate(path);
     setOpen(false);
+  };
+
+  const isItemSelected = (path: string) => {
+    if (path === "/") {
+      return location.pathname === "/";
+    }
+
+    if (path.startsWith("/impostazioni")) {
+      return location.pathname === "/impostazioni";
+    }
+
+    return location.pathname === path;
+  };
+
+  const isChildSelected = (path: string) => {
+    if (path.endsWith("tab=account")) {
+      return location.pathname === "/impostazioni" && activeSettingsTab === "account";
+    }
+
+    return location.pathname === "/impostazioni" && activeSettingsTab === "categorie";
   };
 
   const handleLogout = () => {
@@ -125,26 +170,95 @@ export default function HomeHeader() {
           />
           <Divider sx={{ borderColor: c.drawerBorder, mb: 1 }} />
           {isAuthenticated &&
-            navItems.map((item) => (
-              <ListItemButton
-                key={item.path}
-                selected={location.pathname === item.path}
-                onClick={() => handleNavigate(item.path)}
-                sx={{
-                  mx: 1,
-                  borderRadius: "8px",
-                  color: theme.palette.text.secondary,
-                  "&.Mui-selected": {
-                    backgroundColor: c.accentHover,
-                    color: c.accentColor,
-                    "& .MuiListItemText-primary": { fontWeight: 600 },
-                  },
-                  "&:hover": { backgroundColor: c.rowHover },
-                }}
-              >
-                <ListItemText primary={item.label} />
-              </ListItemButton>
-            ))}
+            navItems.map((item) => {
+              const children = item.children ?? [];
+              const hasChildren = children.length > 0;
+
+              if (!hasChildren) {
+                return (
+                  <ListItemButton
+                    key={item.path}
+                    selected={isItemSelected(item.path)}
+                    onClick={() => handleNavigate(item.path)}
+                    sx={{
+                      mx: 1,
+                      borderRadius: "8px",
+                      color: theme.palette.text.secondary,
+                      "&.Mui-selected": {
+                        backgroundColor: c.accentHover,
+                        color: c.accentColor,
+                        "& .MuiListItemText-primary": { fontWeight: 600 },
+                      },
+                      "&:hover": { backgroundColor: c.rowHover },
+                    }}
+                  >
+                    <ListItemText primary={item.label} />
+                  </ListItemButton>
+                );
+              }
+
+              return (
+                <Box key={item.path}>
+                  <ListItemButton
+                    selected={isItemSelected(item.path)}
+                    onClick={() => handleNavigate(item.path)}
+                    sx={{
+                      mx: 1,
+                      borderRadius: "8px",
+                      color: theme.palette.text.secondary,
+                      "&.Mui-selected": {
+                        backgroundColor: c.accentHover,
+                        color: c.accentColor,
+                        "& .MuiListItemText-primary": { fontWeight: 600 },
+                      },
+                      "&:hover": { backgroundColor: c.rowHover },
+                    }}
+                  >
+                    <ListItemText primary={item.label} />
+                    <IconButton
+                      size="small"
+                      edge="end"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setSettingsExpanded((prev) => !prev);
+                      }}
+                      sx={{ color: "inherit", p: 0.5 }}
+                    >
+                      {settingsExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                    </IconButton>
+                  </ListItemButton>
+                  <Collapse in={settingsExpanded} timeout="auto" unmountOnExit>
+                    <List component="div" disablePadding>
+                      {children.map((child) => (
+                        <ListItemButton
+                          key={child.path}
+                          selected={isChildSelected(child.path)}
+                          onClick={() => handleNavigate(child.path)}
+                          sx={{
+                            mx: 1,
+                            mt: 0.25,
+                            pl: 3,
+                            borderRadius: "8px",
+                            color: theme.palette.text.secondary,
+                            "&.Mui-selected": {
+                              backgroundColor: c.accentHover,
+                              color: c.accentColor,
+                              "& .MuiListItemText-primary": { fontWeight: 600 },
+                            },
+                            "&:hover": { backgroundColor: c.rowHover },
+                          }}
+                        >
+                          <ListItemIcon sx={{ minWidth: 28, color: "inherit" }}>
+                            <SettingsOutlined fontSize="small" />
+                          </ListItemIcon>
+                          <ListItemText primary={child.label} />
+                        </ListItemButton>
+                      ))}
+                    </List>
+                  </Collapse>
+                </Box>
+              );
+            })}
           {isAuthenticated && (
             <>
               <Divider sx={{ borderColor: c.drawerBorder, mt: 1 }} />

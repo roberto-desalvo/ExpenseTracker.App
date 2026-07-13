@@ -27,8 +27,7 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const location = useLocation();
   const shouldLoadCategories =
-    location.pathname === "/categorie" ||
-    location.pathname === "/transazioni" ||
+    location.pathname === "/impostazioni" ||
     location.pathname === "/";
   const [categories, setCategories] = useState<Category[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);

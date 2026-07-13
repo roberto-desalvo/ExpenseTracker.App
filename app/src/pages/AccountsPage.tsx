@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Box, Stack, TableCell, TableRow, TextField, Typography, Alert, CircularProgress } from "@mui/material";
+import { useState } from "react";
+import { Stack, TableCell, TableRow, TextField, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { EditRounded } from "@mui/icons-material";
 import Account from "../models/Account";
@@ -17,7 +17,11 @@ const createInitialForm = (): AccountFormState => ({
   name: "",
 });
 
-export default function AccountsPage() {
+type AccountsPageProps = {
+  embedded?: boolean;
+};
+
+export default function AccountsPage({ embedded = false }: AccountsPageProps) {
   const theme = useTheme();
   const c = theme.palette.custom;
   const {
@@ -148,18 +152,27 @@ export default function AccountsPage() {
 
   return (
     <>
-      <Stack spacing={2.5} sx={{ flex: 1, px: { xs: 2.5, md: 4 }, py: { xs: 2.5, md: 3 } }}>
-        <Typography
-          variant="h5"
-          sx={{
-            color: "text.primary",
-            fontWeight: 700,
-            letterSpacing: "-0.02em",
-            px: 1,
-          }}
-        >
-          Account
-        </Typography>
+      <Stack
+        spacing={2.5}
+        sx={{
+          flex: 1,
+          px: embedded ? 1 : { xs: 2.5, md: 4 },
+          py: embedded ? 0 : { xs: 2.5, md: 3 },
+        }}
+      >
+        {!embedded && (
+          <Typography
+            variant="h5"
+            sx={{
+              color: "text.primary",
+              fontWeight: 700,
+              letterSpacing: "-0.02em",
+              px: 1,
+            }}
+          >
+            Account
+          </Typography>
+        )}
         <AccountsFilterBar
           onSearch={handleSearch}
           onAddClick={openCreateModal}

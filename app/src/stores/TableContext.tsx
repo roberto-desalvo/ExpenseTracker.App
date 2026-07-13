@@ -47,8 +47,7 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const location = useLocation();
-  const shouldLoadTableData =
-    location.pathname === "/transazioni" || location.pathname === "/";
+  const shouldLoadTableData = location.pathname === "/";
   const [columns] = useState<TableColumn[]>([
     {
       id: "date",

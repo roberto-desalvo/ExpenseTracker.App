@@ -8,15 +8,12 @@ import {
   Grid,
   IconButton,
   InputLabel,
-  ListItemText,
   MenuItem,
-  OutlinedInput,
   Select,
   TextField,
   Tooltip,
   Stack,
   Typography,
-  Checkbox,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import TimeSeriesLineChart, { TimeSeriesLineChartSeries } from "../components/TimeSeriesLineChart";
@@ -156,7 +153,6 @@ export default function LandingPage() {
 
   // State for Patrimonio section filters and data
   const [patrimonioDashboardLoading, setPatrimonioDashboardLoading] = useState<boolean>(false);
-  const [patrimonioDashboardData, setPatrimonioDashboardData] = useState<TimeSeriesList | null>(null);
   const [patrimonioStartDate, setPatrimonioStartDate] = useState<string>(() => {
     const now = new Date();
     const start = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
@@ -203,7 +199,7 @@ export default function LandingPage() {
       const accountIds = data.accounts.map((a) => a.accountId);
       const categoryIds = data.categories.map((c) => c.categoryId);
 
-      const [netWorthResult, accountsResult, categoriesResult] = await Promise.all([
+      const [, accountsResult, categoriesResult] = await Promise.all([
         TransactionService.getStock({
           startDate: toIsoDateStart(patrimonioStartDate),
           endDate: toIsoDateEnd(patrimonioEndDate),
@@ -229,7 +225,6 @@ export default function LandingPage() {
           excludeTransfers: true,
         }),
       ]);
-      setPatrimonioDashboardData(netWorthResult);
       setPatrimonioAccountsData(accountsResult);
       setPatrimonioCategoriesData(categoriesResult);
     } finally {
