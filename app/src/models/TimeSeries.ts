@@ -6,6 +6,8 @@ export interface TimeSeriesDimension {
 export interface TimeSeriesPoint {
   period: string;
   amount: number;
+  earned: number;
+  spent: number;
 }
 
 export interface TimeSeries {

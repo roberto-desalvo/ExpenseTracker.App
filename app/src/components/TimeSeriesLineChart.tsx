@@ -26,6 +26,7 @@ interface TimeSeriesLineChartProps {
   emptyMessage?: string;
   enableLegendToggle?: boolean;
   tightYAxis?: boolean;
+  stepped?: boolean;
 }
 
 const formatAmount = (value: number) =>
@@ -56,6 +57,7 @@ export default function TimeSeriesLineChart({
   emptyMessage = "Nessun dato disponibile",
   enableLegendToggle = true,
   tightYAxis = false,
+  stepped = false,
 }: TimeSeriesLineChartProps) {
   const theme = useTheme();
   const c = theme.palette.custom;
@@ -172,7 +174,7 @@ export default function TimeSeriesLineChart({
           {series.map((serie, index) => (
             <Line
               key={serie.name}
-              type="monotone"
+              type={stepped ? "stepAfter" : "monotone"}
               dataKey={serie.name}
               stroke={CHART_SERIES_COLORS[index % CHART_SERIES_COLORS.length]}
               strokeWidth={2}

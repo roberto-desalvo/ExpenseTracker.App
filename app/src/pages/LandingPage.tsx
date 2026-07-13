@@ -16,6 +16,9 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import TimeSeriesLineChart, { TimeSeriesLineChartSeries } from "../components/TimeSeriesLineChart";
+import TimeSeriesGroupedBarChart, {
+  TimeSeriesGroupedBarChartSeries,
+} from "../components/TimeSeriesGroupedBarChart";
 import { VisibilityOffRounded, VisibilityRounded, ExpandMoreRounded } from "@mui/icons-material";
 import { LandingDashboard } from "../models/LandingDashboard";
 import TransactionService from "../services/TransactionService";
@@ -164,6 +167,9 @@ export default function LandingPage() {
   });
   const [patrimonioGranularity, setPatrimonioGranularity] = useState<number>(3);
 
+  // State for patrimonio total (all accounts combined) series data
+  const [patrimonioTotalData, setPatrimonioTotalData] = useState<TimeSeriesList | null>(null);
+
   // State for patrimonio accounts series data
   const [patrimonioAccountsData, setPatrimonioAccountsData] = useState<TimeSeriesList | null>(null);
   const [patrimonioAccountsLoading, setPatrimonioAccountsLoading] = useState<boolean>(false);
@@ -199,14 +205,15 @@ export default function LandingPage() {
       const accountIds = data.accounts.map((a) => a.accountId);
       const categoryIds = data.categories.map((c) => c.categoryId);
 
-      const [, accountsResult, categoriesResult] = await Promise.all([
+      const [totalResult, accountsResult, categoriesResult] = await Promise.all([
+        // Nota: getStock (saldo/giacenza) ignora sempre i trasferimenti, che sono movimenti di
+        // denaro reali per il singolo conto anche se si annullano a livello di patrimonio totale.
         TransactionService.getStock({
           startDate: toIsoDateStart(patrimonioStartDate),
           endDate: toIsoDateEnd(patrimonioEndDate),
           idAccounts: [],
           idCategories: [],
           granularity: patrimonioGranularity,
-          excludeTransfers: true,
         }),
         TransactionService.getStock({
           startDate: toIsoDateStart(patrimonioStartDate),
@@ -214,7 +221,6 @@ export default function LandingPage() {
           idAccounts: accountIds,
           idCategories: [],
           granularity: patrimonioGranularity,
-          excludeTransfers: true,
         }),
         TransactionService.getTimeSeries({
           startDate: toIsoDateStart(patrimonioStartDate),
@@ -225,6 +231,7 @@ export default function LandingPage() {
           excludeTransfers: true,
         }),
       ]);
+      setPatrimonioTotalData(totalResult);
       setPatrimonioAccountsData(accountsResult);
       setPatrimonioCategoriesData(categoriesResult);
     } finally {
@@ -337,29 +344,24 @@ export default function LandingPage() {
       };
     });
 
-    const totalByPeriod = new Map<string, number>();
-    patrimonioAccountsData.series.forEach((serie) => {
-      serie.values.forEach((point) => {
-        totalByPeriod.set(point.period, (totalByPeriod.get(point.period) ?? 0) + point.amount);
-      });
-    });
-
-    const totalSeries: TimeSeriesLineChartSeries = {
-      name: "Totale",
-      values: Array.from(totalByPeriod.entries())
-        .map(([period, amount]) => ({ period, amount }))
-        .sort((a, b) => a.period.localeCompare(b.period)),
-    };
-
     if (accountSeries.length <= 1) {
       return accountSeries;
     }
 
+    // Nota: la serie "Totale" non può essere ottenuta sommando le medie per-account periodo per periodo,
+    // perché la media della giacenza di ogni account è calcolata sui propri eventi (transazioni), non su
+    // una griglia temporale comune: sommare medie indipendenti non equivale alla media del patrimonio
+    // combinato. Usiamo quindi la serie "totale" calcolata lato backend (stesso calcolo, senza filtro account).
+    const totalSeries: TimeSeriesLineChartSeries = {
+      name: "Totale",
+      values: patrimonioTotalData?.series[0]?.values ?? [],
+    };
+
     return [totalSeries, ...accountSeries];
-  }, [patrimonioAccountsData, data?.accounts]);
+  }, [patrimonioAccountsData, patrimonioTotalData, data?.accounts]);
 
   // Computed data for patrimonio categories series
-  const patrimonioCategoriesChartSeries = useMemo<TimeSeriesLineChartSeries[]>(() => {
+  const patrimonioCategoriesChartSeries = useMemo<TimeSeriesGroupedBarChartSeries[]>(() => {
     if (!patrimonioCategoriesData) {
       return [];
     }
@@ -376,7 +378,11 @@ export default function LandingPage() {
 
       return {
         name: categoryName,
-        values: serie.values,
+        values: serie.values.map((point) => ({
+          period: point.period,
+          earned: point.earned,
+          spent: point.spent,
+        })),
       };
     });
   }, [patrimonioCategoriesData, data?.categories]);
@@ -760,7 +766,7 @@ export default function LandingPage() {
                         <CircularProgress size={28} />
                       </Box>
                     ) : (
-                      <TimeSeriesLineChart series={chartSeries} tightYAxis />
+                      <TimeSeriesLineChart series={chartSeries} tightYAxis stepped />
                     )}
                   </Box>
 
@@ -783,7 +789,7 @@ export default function LandingPage() {
                         <CircularProgress size={28} />
                       </Box>
                     ) : patrimonioAccountsData && patrimonioAccountsChartSeries.length > 0 ? (
-                      <TimeSeriesLineChart series={patrimonioAccountsChartSeries} enableLegendToggle />
+                      <TimeSeriesLineChart series={patrimonioAccountsChartSeries} enableLegendToggle stepped />
                     ) : (
                       <Box
                         sx={{
@@ -818,7 +824,7 @@ export default function LandingPage() {
                         <CircularProgress size={28} />
                       </Box>
                     ) : patrimonioCategoriesData && patrimonioCategoriesChartSeries.length > 0 ? (
-                      <TimeSeriesLineChart series={patrimonioCategoriesChartSeries} emptyMessage="Nessuna serie disponibile per i filtri selezionati" />
+                      <TimeSeriesGroupedBarChart series={patrimonioCategoriesChartSeries} emptyMessage="Nessuna serie disponibile per i filtri selezionati" />
                     ) : (
                       <Box
                         sx={{

@@ -178,7 +178,9 @@ public class TransactionService : ITransactionService
                     .Select(g => new TimeSeriesPointDto
                     {
                         Period = g.Key,
-                        Amount = g.Sum(x => x.Amount)
+                        Amount = g.Sum(x => x.Amount),
+                        Earned = g.Where(x => x.Amount > 0).Sum(x => x.Amount),
+                        Spent = Math.Abs(g.Where(x => x.Amount < 0).Sum(x => x.Amount))
                     })
                     .ToList();
 
@@ -200,7 +202,9 @@ public class TransactionService : ITransactionService
                     .Select(g => new TimeSeriesPointDto
                     {
                         Period = g.Key,
-                        Amount = g.Sum(x => x.Amount)
+                        Amount = g.Sum(x => x.Amount),
+                        Earned = g.Where(x => x.Amount > 0).Sum(x => x.Amount),
+                        Spent = Math.Abs(g.Where(x => x.Amount < 0).Sum(x => x.Amount))
                     })
                     .ToList();
 
@@ -219,7 +223,9 @@ public class TransactionService : ITransactionService
                 .Select(g => new TimeSeriesPointDto
                 {
                     Period = g.Key,
-                    Amount = g.Sum(x => x.Amount)
+                    Amount = g.Sum(x => x.Amount),
+                    Earned = g.Where(x => x.Amount > 0).Sum(x => x.Amount),
+                    Spent = Math.Abs(g.Where(x => x.Amount < 0).Sum(x => x.Amount))
                 })
                 .ToList();
 
@@ -250,16 +256,22 @@ public class TransactionService : ITransactionService
             ? (TimeGranularityEnum)rawGranularity
             : TimeGranularityEnum.Daily;
 
-        var startPeriodKey = GetPeriodKey(request.StartDate, granularity);
+        // La giacenza di un conto deve riflettere ogni movimento di denaro reale, trasferimenti
+        // compresi: un giroconto sposta denaro dentro/fuori dal singolo conto anche se si annulla
+        // a livello di patrimonio totale. Escluderlo (come fa invece GetTimeSeries per i flussi
+        // entrate/uscite) renderebbe il saldo calcolato sistematicamente errato per i conti con
+        // trasferimenti, quindi qui il flag ExcludeTransfers del chiamante viene ignorato.
+        var balanceRequest = new TimeSeriesRequestDto
+        {
+            StartDate = request.StartDate,
+            EndDate = request.EndDate,
+            IdAccounts = request.IdAccounts,
+            IdCategories = request.IdCategories,
+            Granularity = request.Granularity,
+            ExcludeTransfers = false
+        };
 
-        var filtered = (await _repository.GetTimeSeriesTransactionsUntilDate(request)).ToList();
-
-        if (!filtered.Any())
-            return Result.Ok(new TimeSeriesListDto
-            {
-                Granularity = granularity.ToString(),
-                Series = []
-            });
+        var filtered = (await _repository.GetTimeSeriesTransactionsUntilDate(balanceRequest)).ToList();
 
         var series = new List<TimeSeriesDto>();
 
@@ -267,23 +279,15 @@ public class TransactionService : ITransactionService
         {
             foreach (var accountId in request.IdAccounts)
             {
-                var points = filtered
+                var accountTransactions = filtered
                     .Where(t => t.AccountId == accountId)
-                    .GroupBy(t => GetPeriodKey(t.Date, granularity))
-                    .OrderBy(g => g.Key)
-                    .Select(g => new TimeSeriesPointDto
-                    {
-                        Period = g.Key,
-                        Amount = g.Sum(x => x.Amount)
-                    })
+                    .Select(t => (t.Date, t.Amount))
                     .ToList();
-
-                var incrementalPoints = BuildIncrementalPoints(points, startPeriodKey);
 
                 series.Add(new TimeSeriesDto
                 {
                     Dimensions = [new TimeSeriesDimensionDto { Key = "AccountId", Value = accountId.ToString() }],
-                    Values = incrementalPoints
+                    Values = BuildAveragePoints(accountTransactions, request.StartDate, request.EndDate, granularity)
                 });
             }
         }
@@ -291,44 +295,28 @@ public class TransactionService : ITransactionService
         {
             foreach (var categoryId in request.IdCategories)
             {
-                var points = filtered
+                var categoryTransactions = filtered
                     .Where(t => t.CategoryId == categoryId)
-                    .GroupBy(t => GetPeriodKey(t.Date, granularity))
-                    .OrderBy(g => g.Key)
-                    .Select(g => new TimeSeriesPointDto
-                    {
-                        Period = g.Key,
-                        Amount = g.Sum(x => x.Amount)
-                    })
+                    .Select(t => (t.Date, t.Amount))
                     .ToList();
-
-                var incrementalPoints = BuildIncrementalPoints(points, startPeriodKey);
 
                 series.Add(new TimeSeriesDto
                 {
                     Dimensions = [new TimeSeriesDimensionDto { Key = "CategoryId", Value = categoryId.ToString() }],
-                    Values = incrementalPoints
+                    Values = BuildAveragePoints(categoryTransactions, request.StartDate, request.EndDate, granularity)
                 });
             }
         }
         else
         {
-            var points = filtered
-                .GroupBy(t => GetPeriodKey(t.Date, granularity))
-                .OrderBy(g => g.Key)
-                .Select(g => new TimeSeriesPointDto
-                {
-                    Period = g.Key,
-                    Amount = g.Sum(x => x.Amount)
-                })
+            var totalTransactions = filtered
+                .Select(t => (t.Date, t.Amount))
                 .ToList();
-
-            var incrementalPoints = BuildIncrementalPoints(points, startPeriodKey);
 
             series.Add(new TimeSeriesDto
             {
                 Dimensions = [],
-                Values = incrementalPoints
+                Values = BuildAveragePoints(totalTransactions, request.StartDate, request.EndDate, granularity)
             });
         }
 
@@ -417,8 +405,6 @@ public class TransactionService : ITransactionService
     private async Task<TimeSeriesListDto> BuildNetWorthSeries(DateTime asOf)
     {
         var startMonth = new DateTime(asOf.Year, asOf.Month, 1).AddMonths(-11);
-        var baselineDate = startMonth.AddTicks(-1);
-        var baselineBalance = (await _repository.GetAccountBalances(baselineDate)).Sum(item => item.Balance);
 
         var request = new TimeSeriesRequestDto
         {
@@ -431,71 +417,80 @@ public class TransactionService : ITransactionService
         };
 
         var stockResult = await GetStock(request);
-        var stockSeries = stockResult.IsSuccess
+        return stockResult.IsSuccess
             ? stockResult.Value
             : new TimeSeriesListDto
             {
                 Granularity = TimeGranularityEnum.Monthly.ToString(),
                 Series = []
             };
-
-        var rawPoints = stockSeries.Series.FirstOrDefault()?.Values ?? [];
-        var pointByPeriod = rawPoints
-            .OrderBy(point => point.Period)
-            .ToDictionary(point => point.Period, point => point.Amount);
-
-        var normalized = new List<TimeSeriesPointDto>();
-        var runningAmount = baselineBalance;
-
-        for (var month = startMonth; month <= asOf; month = month.AddMonths(1))
-        {
-            var periodKey = month.ToString("yyyy-MM", CultureInfo.InvariantCulture);
-            if (pointByPeriod.TryGetValue(periodKey, out var amount))
-            {
-                runningAmount = amount;
-            }
-
-            normalized.Add(new TimeSeriesPointDto
-            {
-                Period = periodKey,
-                Amount = runningAmount
-            });
-        }
-
-        return new TimeSeriesListDto
-        {
-            Granularity = TimeGranularityEnum.Monthly.ToString(),
-            Series =
-            [
-                new TimeSeriesDto
-                {
-                    Dimensions = [],
-                    Values = normalized
-                }
-            ]
-        };
     }
 
-    private static List<TimeSeriesPointDto> BuildIncrementalPoints(IEnumerable<TimeSeriesPointDto> points, string startPeriodKey)
+    private static List<TimeSeriesPointDto> BuildAveragePoints(
+        IEnumerable<(DateTime Date, decimal Amount)> orderedTransactions,
+        DateTime startDate,
+        DateTime endDate,
+        TimeGranularityEnum granularity)
     {
+        var startPeriodKey = GetPeriodKey(startDate, granularity);
+
         var runningTotal = 0m;
-        var incrementalPoints = new List<TimeSeriesPointDto>();
+        var carryBalance = 0m;
+        var samplesByPeriod = new Dictionary<string, List<decimal>>();
+        var lastBalanceByPeriod = new Dictionary<string, decimal>();
 
-        foreach (var point in points)
+        foreach (var (date, amount) in orderedTransactions)
         {
-            runningTotal += point.Amount;
+            runningTotal += amount;
+            var periodKey = GetPeriodKey(date, granularity);
 
-            if (string.Compare(point.Period, startPeriodKey, StringComparison.Ordinal) >= 0)
+            if (string.Compare(periodKey, startPeriodKey, StringComparison.Ordinal) < 0)
             {
-                incrementalPoints.Add(new TimeSeriesPointDto
-                {
-                    Period = point.Period,
-                    Amount = runningTotal
-                });
+                carryBalance = runningTotal;
+                continue;
+            }
+
+            if (!samplesByPeriod.TryGetValue(periodKey, out var samples))
+            {
+                samples = [];
+                samplesByPeriod[periodKey] = samples;
+            }
+
+            samples.Add(runningTotal);
+            lastBalanceByPeriod[periodKey] = runningTotal;
+        }
+
+        var points = new List<TimeSeriesPointDto>();
+
+        foreach (var periodKey in EnumeratePeriodKeys(startDate, endDate, granularity))
+        {
+            if (samplesByPeriod.TryGetValue(periodKey, out var samples))
+            {
+                points.Add(new TimeSeriesPointDto { Period = periodKey, Amount = samples.Average() });
+                carryBalance = lastBalanceByPeriod[periodKey];
+            }
+            else
+            {
+                points.Add(new TimeSeriesPointDto { Period = periodKey, Amount = carryBalance });
             }
         }
 
-        return incrementalPoints;
+        return points;
+    }
+
+    private static IEnumerable<string> EnumeratePeriodKeys(DateTime startDate, DateTime endDate, TimeGranularityEnum granularity)
+    {
+        string? lastKey = null;
+
+        for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
+        {
+            var key = GetPeriodKey(date, granularity);
+            if (key != lastKey)
+            {
+                yield return key;
+                lastKey = key;
+            }
+        }
     }
 
     private static string GetPeriodKey(DateTime date, TimeGranularityEnum granularity)
