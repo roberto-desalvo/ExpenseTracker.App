@@ -1,4 +1,5 @@
 import { Box, Stack, Tab, Tabs, Typography } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { type SyntheticEvent, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import CategoriesPage from "./CategoriesPage";
@@ -19,6 +20,9 @@ const normalizeTab = (value: string | null): SettingsTab => {
 export default function SettingsPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const theme = useTheme();
+  const divider = theme.palette.divider;
+  const mode = theme.palette.mode;
 
   const activeTab = useMemo<SettingsTab>(() => {
     return normalizeTab(searchParams.get("tab"));
@@ -29,8 +33,29 @@ export default function SettingsPage() {
     navigate(`/impostazioni${query}`);
   };
 
+  const sectionShellSx = {
+    border: `1px solid ${divider}`,
+    borderRadius: 3,
+    backgroundColor: "background.paper",
+    boxShadow:
+      mode === "dark"
+        ? "0 8px 24px rgba(0,0,0,0.2)"
+        : "0 8px 20px rgba(15,23,42,0.05)",
+    overflow: "hidden",
+  };
+
   return (
-    <Stack spacing={2.5} sx={{ flex: 1, px: { xs: 2.5, md: 4 }, py: { xs: 2.5, md: 3 } }}>
+    <Stack
+      spacing={2}
+      sx={{
+        flex: 1,
+        width: "100%",
+        maxWidth: 1480,
+        mx: "auto",
+        px: { xs: 1.5, md: 3 },
+        py: { xs: 2, md: 2.5 },
+      }}
+    >
       <Typography
         variant="h5"
         sx={{
@@ -43,19 +68,40 @@ export default function SettingsPage() {
         Impostazioni
       </Typography>
 
-      <Box sx={{ px: { xs: 0.5, md: 1 } }}>
-        <Tabs
-          value={activeTab}
-          onChange={handleTabChange}
-          textColor="inherit"
-          indicatorColor="primary"
+      <Box sx={sectionShellSx}>
+        <Box
+          sx={{
+            px: { xs: 1.5, md: 2 },
+            pt: { xs: 1.25, md: 1.5 },
+            borderBottom: `1px solid ${divider}`,
+          }}
         >
-          <Tab value="categorie" label="Categorie" />
-          <Tab value="account" label="Account" />
-        </Tabs>
-      </Box>
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            textColor="inherit"
+            indicatorColor="primary"
+            sx={{
+              minHeight: 40,
+              "& .MuiTab-root": {
+                minHeight: 40,
+                fontSize: "0.88rem",
+                fontWeight: 600,
+                textTransform: "none",
+                letterSpacing: 0,
+                px: 1.5,
+              },
+            }}
+          >
+            <Tab value="categorie" label="Categorie" />
+            <Tab value="account" label="Account" />
+          </Tabs>
+        </Box>
 
-      {activeTab === "categorie" ? <CategoriesPage embedded /> : <AccountsPage embedded />}
+        <Box sx={{ px: { xs: 0.75, md: 1 }, py: { xs: 1, md: 1.25 } }}>
+          {activeTab === "categorie" ? <CategoriesPage embedded /> : <AccountsPage embedded />}
+        </Box>
+      </Box>
     </Stack>
   );
 }

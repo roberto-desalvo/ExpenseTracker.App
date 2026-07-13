@@ -23,7 +23,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import { useIsAuthenticated, useMsal } from "@azure/msal-react";
 
 const navItems = [
-  { label: "Home", path: "/" },
+  { label: "Dashboard", path: "/" },
   {
     label: "Impostazioni",
     path: "/impostazioni",
@@ -40,7 +40,7 @@ interface HomeHeaderProps {
 
 export default function HomeHeader({ sticky = false }: HomeHeaderProps) {
   const [open, setOpen] = useState(false);
-  const [settingsExpanded, setSettingsExpanded] = useState(true);
+  const [settingsExpanded, setSettingsExpanded] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();

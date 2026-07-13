@@ -118,11 +118,11 @@ export default function AccountsPage({ embedded = false }: AccountsPageProps) {
         sx={{
           borderBottom: "none",
           backgroundColor: c.rowBackground,
-          py: 1.5,
+          py: 1,
         }}
       >
         <Stack direction="row" spacing={1} alignItems="center">
-          <Typography sx={{ color: "text.primary", fontWeight: 500 }}>
+          <Typography sx={{ color: "text.primary", fontWeight: 500, fontSize: "0.88rem" }}>
             {account.name}
           </Typography>
         </Stack>
@@ -132,7 +132,7 @@ export default function AccountsPage({ embedded = false }: AccountsPageProps) {
         sx={{
           borderBottom: "none",
           backgroundColor: c.rowBackground,
-          py: 1.5,
+          py: 1,
         }}
       >
         <RowActionsMenu
@@ -153,10 +153,10 @@ export default function AccountsPage({ embedded = false }: AccountsPageProps) {
   return (
     <>
       <Stack
-        spacing={2.5}
+        spacing={1.5}
         sx={{
           flex: 1,
-          px: embedded ? 1 : { xs: 2.5, md: 4 },
+          px: embedded ? 0 : { xs: 2.5, md: 4 },
           py: embedded ? 0 : { xs: 2.5, md: 3 },
         }}
       >

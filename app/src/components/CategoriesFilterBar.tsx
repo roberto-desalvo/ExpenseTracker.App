@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Box, IconButton, InputAdornment, Stack, TextField, Tooltip } from "@mui/material";
 import { Add, Refresh, Search } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
@@ -19,6 +19,7 @@ export default function CategoriesFilterBar({
   const theme = useTheme();
   const c = theme.palette.custom;
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const isFirstRender = useRef(true);
 
   const controlBoxSx = {
     height: 40,
@@ -30,6 +31,11 @@ export default function CategoriesFilterBar({
   const controlLabelColor = c.filterText;
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
     const timeoutId = setTimeout(() => {
       const normalized = searchTerm.trim();
       if (normalized.length === 0) {
@@ -60,7 +66,6 @@ export default function CategoriesFilterBar({
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Filtra per nome"
           size="small"
-          disabled={isLoading}
           sx={{
             width: "100%",
             "& .MuiOutlinedInput-notchedOutline": { border: "none" },

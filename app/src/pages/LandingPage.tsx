@@ -456,7 +456,7 @@ export default function LandingPage() {
           px: 1,
         }}
       >
-        Home
+        Dashboard
       </Typography>
 
       {loading ? (
@@ -484,38 +484,35 @@ export default function LandingPage() {
                 </Typography>
               </Box>
 
-              <Stack
-                spacing={0.75}
-                alignItems="flex-end"
-                sx={{ width: { xs: "100%", sm: "auto" } }}
-              >
-                <Tooltip title={isQuestoMeseExpanded ? "Comprimi" : "Espandi"}>
-                  <IconButton
-                    onClick={() => setQuestoMeseExpanded(!isQuestoMeseExpanded)}
-                    sx={{
-                      transform: isQuestoMeseExpanded ? "rotate(0deg)" : "rotate(-90deg)",
-                      transition: "transform 0.3s ease",
-                      color: "text.secondary",
-                    }}
-                  >
-                    <ExpandMoreRounded />
-                  </IconButton>
-                </Tooltip>
-                <Chip
-                  label={`Aggiornato: ${lastUpdateText}`}
-                  size="small"
+              <Tooltip title={isQuestoMeseExpanded ? "Comprimi" : "Espandi"}>
+                <IconButton
+                  onClick={() => setQuestoMeseExpanded(!isQuestoMeseExpanded)}
                   sx={{
-                    borderRadius: 1.5,
-                    border: `1px solid ${c.filterBorder}`,
-                    backgroundColor: c.filterBackground,
+                    alignSelf: "flex-start",
+                    transform: isQuestoMeseExpanded ? "rotate(0deg)" : "rotate(-90deg)",
+                    transition: "transform 0.3s ease",
                     color: "text.secondary",
                   }}
-                />
-              </Stack>
+                >
+                  <ExpandMoreRounded />
+                </IconButton>
+              </Tooltip>
             </Stack>
 
             {isQuestoMeseExpanded && (
               <Box sx={{ overflow: "hidden", animation: "slideDown 0.3s ease-out" }}>
+                <Box sx={{ px: 0.5, pb: 1 }}>
+                  <Chip
+                    label={`Aggiornato: ${lastUpdateText}`}
+                    size="small"
+                    sx={{
+                      borderRadius: 1.5,
+                      border: `1px solid ${c.filterBorder}`,
+                      backgroundColor: c.filterBackground,
+                      color: "text.secondary",
+                    }}
+                  />
+                </Box>
                 <Grid container spacing={1.25}>
               <Grid item xs={12} sm={6} md={3}>
                 <SummaryCard
@@ -558,87 +555,89 @@ export default function LandingPage() {
               </Box>
             </Box>
 
-            <Grid container spacing={1.25}>
-              <Grid item xs={12} md={6} sx={{ display: "flex" }}>
-                <Box
-                  sx={{ ...sectionShellSx, width: "100%" }}
-                >
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
-                    Account
-                  </Typography>
-                  <Grid container spacing={1.25}>
-                    <Grid item xs={12} lg={6}>
-                      <Box sx={miniChartCardSx}>
-                        <Typography sx={{ fontWeight: 600, mb: 1, color: c.amountPositive }}>
-                          Entrate
-                        </Typography>
-                        <MonthlyDistributionPieChart
-                          items={accountIncomeItems}
-                          amountLabel="Entrate"
-                          amountColor={c.amountPositive}
-                          emptyMessage="Nessuna entrata disponibile"
-                          height={240}
-                        />
-                      </Box>
+            <Box sx={{ mt: 1.25 }}>
+              <Grid container spacing={1.25}>
+                <Grid item xs={12} md={6} sx={{ display: "flex" }}>
+                  <Box
+                    sx={{ ...sectionShellSx, width: "100%" }}
+                  >
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
+                      Account
+                    </Typography>
+                    <Grid container spacing={1.25}>
+                      <Grid item xs={12} lg={6}>
+                        <Box sx={miniChartCardSx}>
+                          <Typography sx={{ fontWeight: 600, mb: 1, color: c.amountPositive }}>
+                            Entrate
+                          </Typography>
+                          <MonthlyDistributionPieChart
+                            items={accountIncomeItems}
+                            amountLabel="Entrate"
+                            amountColor={c.amountPositive}
+                            emptyMessage="Nessuna entrata disponibile"
+                            height={240}
+                          />
+                        </Box>
+                      </Grid>
+                      <Grid item xs={12} lg={6}>
+                        <Box sx={miniChartCardSx}>
+                          <Typography sx={{ fontWeight: 600, mb: 1, color: c.amountNegative }}>
+                            Uscite
+                          </Typography>
+                          <MonthlyDistributionPieChart
+                            items={accountOutcomeItems}
+                            amountLabel="Uscite"
+                            amountColor={c.amountNegative}
+                            emptyMessage="Nessuna uscita disponibile"
+                            height={240}
+                          />
+                        </Box>
+                      </Grid>
                     </Grid>
-                    <Grid item xs={12} lg={6}>
-                      <Box sx={miniChartCardSx}>
-                        <Typography sx={{ fontWeight: 600, mb: 1, color: c.amountNegative }}>
-                          Uscite
-                        </Typography>
-                        <MonthlyDistributionPieChart
-                          items={accountOutcomeItems}
-                          amountLabel="Uscite"
-                          amountColor={c.amountNegative}
-                          emptyMessage="Nessuna uscita disponibile"
-                          height={240}
-                        />
-                      </Box>
-                    </Grid>
-                  </Grid>
-                </Box>
-              </Grid>
+                  </Box>
+                </Grid>
 
-              <Grid item xs={12} md={6} sx={{ display: "flex" }}>
-                <Box
-                  sx={{ ...sectionShellSx, width: "100%" }}
-                >
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
-                    Categorie
-                  </Typography>
-                  <Grid container spacing={1.25}>
-                    <Grid item xs={12} lg={6}>
-                      <Box sx={miniChartCardSx}>
-                        <Typography sx={{ fontWeight: 600, mb: 1, color: c.amountPositive }}>
-                          Entrate
-                        </Typography>
-                        <MonthlyDistributionPieChart
-                          items={categoryIncomeItems}
-                          amountLabel="Entrate"
-                          amountColor={c.amountPositive}
-                          emptyMessage="Nessuna entrata disponibile"
-                          height={240}
-                        />
-                      </Box>
+                <Grid item xs={12} md={6} sx={{ display: "flex" }}>
+                  <Box
+                    sx={{ ...sectionShellSx, width: "100%" }}
+                  >
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
+                      Categorie
+                    </Typography>
+                    <Grid container spacing={1.25}>
+                      <Grid item xs={12} lg={6}>
+                        <Box sx={miniChartCardSx}>
+                          <Typography sx={{ fontWeight: 600, mb: 1, color: c.amountPositive }}>
+                            Entrate
+                          </Typography>
+                          <MonthlyDistributionPieChart
+                            items={categoryIncomeItems}
+                            amountLabel="Entrate"
+                            amountColor={c.amountPositive}
+                            emptyMessage="Nessuna entrata disponibile"
+                            height={240}
+                          />
+                        </Box>
+                      </Grid>
+                      <Grid item xs={12} lg={6}>
+                        <Box sx={miniChartCardSx}>
+                          <Typography sx={{ fontWeight: 600, mb: 1, color: c.amountNegative }}>
+                            Uscite
+                          </Typography>
+                          <MonthlyDistributionPieChart
+                            items={categoryOutcomeItems}
+                            amountLabel="Uscite"
+                            amountColor={c.amountNegative}
+                            emptyMessage="Nessuna uscita disponibile"
+                            height={240}
+                          />
+                        </Box>
+                      </Grid>
                     </Grid>
-                    <Grid item xs={12} lg={6}>
-                      <Box sx={miniChartCardSx}>
-                        <Typography sx={{ fontWeight: 600, mb: 1, color: c.amountNegative }}>
-                          Uscite
-                        </Typography>
-                        <MonthlyDistributionPieChart
-                          items={categoryOutcomeItems}
-                          amountLabel="Uscite"
-                          amountColor={c.amountNegative}
-                          emptyMessage="Nessuna uscita disponibile"
-                          height={240}
-                        />
-                      </Box>
-                    </Grid>
-                  </Grid>
-                </Box>
+                  </Box>
+                </Grid>
               </Grid>
-            </Grid>
+            </Box>
               </Box>
             )}
           </Stack>

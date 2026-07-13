@@ -241,6 +241,9 @@ export default function MonthlyDistributionPieChart({
           height,
           position: "relative",
           cursor: "pointer",
+          "& .recharts-tooltip-wrapper": {
+            zIndex: 20,
+          },
           "& .recharts-wrapper:focus, & .recharts-surface:focus, & .recharts-sector:focus": {
             outline: "none",
           },
@@ -288,6 +291,7 @@ export default function MonthlyDistributionPieChart({
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
+            zIndex: 1,
             alignItems: "center",
             textAlign: "center",
             pointerEvents: "none",

@@ -183,11 +183,11 @@ export default function CategoriesPage({ embedded = false }: CategoriesPageProps
         sx={{
           borderBottom: "none",
           backgroundColor: c.rowBackground,
-          py: 1.5,
+          py: 1,
         }}
       >
         <Stack direction="row" spacing={1} alignItems="center">
-          <Typography sx={{ color: "text.primary", fontWeight: 500 }}>
+          <Typography sx={{ color: "text.primary", fontWeight: 500, fontSize: "0.88rem" }}>
             {category.name}
           </Typography>
           {category.isDefault && (
@@ -209,7 +209,8 @@ export default function CategoriesPage({ embedded = false }: CategoriesPageProps
           borderBottom: "none",
           backgroundColor: c.rowBackground,
           color: "text.secondary",
-          py: 1.5,
+          fontSize: "0.86rem",
+          py: 1,
         }}
       >
         {category.description || "-"}
@@ -219,7 +220,8 @@ export default function CategoriesPage({ embedded = false }: CategoriesPageProps
           borderBottom: "none",
           backgroundColor: c.rowBackground,
           color: "text.secondary",
-          py: 1.5,
+          fontSize: "0.86rem",
+          py: 1,
         }}
       >
         {category.tags.length > 0 ? category.tags.join(", ") : "-"}
@@ -230,7 +232,8 @@ export default function CategoriesPage({ embedded = false }: CategoriesPageProps
           borderBottom: "none",
           backgroundColor: c.rowBackground,
           color: "text.primary",
-          py: 1.5,
+          fontSize: "0.88rem",
+          py: 1,
         }}
       >
         {category.priority}
@@ -240,7 +243,7 @@ export default function CategoriesPage({ embedded = false }: CategoriesPageProps
         sx={{
           borderBottom: "none",
           backgroundColor: c.rowBackground,
-          py: 1.5,
+          py: 1,
         }}
       >
         <RowActionsMenu
@@ -267,10 +270,10 @@ export default function CategoriesPage({ embedded = false }: CategoriesPageProps
   return (
     <>
       <Stack
-        spacing={2.5}
+        spacing={1.5}
         sx={{
           flex: 1,
-          px: embedded ? 1 : { xs: 2.5, md: 4 },
+          px: embedded ? 0 : { xs: 2.5, md: 4 },
           py: embedded ? 0 : { xs: 2.5, md: 3 },
         }}
       >

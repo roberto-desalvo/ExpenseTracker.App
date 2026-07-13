@@ -1,9 +1,8 @@
 import React from "react";
 import {
   Box,
+  CircularProgress,
   Paper,
-  Skeleton,
-  Stack,
   Table,
   TableBody,
   TableCell,
@@ -65,7 +64,7 @@ export default function DataTableBase<T>({
   showHeader = false,
   rowsPerPageOptions = [10, 25, 100],
   minTableWidth = 700,
-  tableViewportHeight,
+  tableViewportHeight = 576,
 }: DataTableBaseProps<T>) {
   void title;
   void subtitle;
@@ -86,35 +85,50 @@ export default function DataTableBase<T>({
         flexDirection: "column",
         borderRadius: 4,
         border: `1px solid ${theme.palette.divider}`,
+        position: "relative",
       }}
     >
+      {/* Loading overlay — keeps table layout stable */}
+      {isLoading && (
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 2,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: 4,
+            backgroundColor:
+              theme.palette.mode === "dark"
+                ? "rgba(15,23,42,0.55)"
+                : "rgba(255,255,255,0.65)",
+            backdropFilter: "blur(2px)",
+          }}
+        >
+          <CircularProgress size={32} thickness={3.5} />
+        </Box>
+      )}
 
       {/* Content Area */}
       <TableContainer
         sx={{
           overflowX: "auto",
           overflowY: tableViewportHeight ? "auto" : "visible",
-          maxHeight: tableViewportHeight,
+          scrollbarGutter: "stable",
+          height: tableViewportHeight,
           px: { xs: 1.25, md: 1.75 },
           py: { xs: 1.25, md: 1.5 },
           "& .MuiTableCell-head": tableViewportHeight
             ? {
                 position: "sticky",
                 top: 0,
-                zIndex: 1,
+                zIndex: 3,
               }
             : undefined,
         }}
       >
-        {isLoading ? (
-          <Box sx={{ p: 3 }}>
-            <Stack spacing={1}>
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} variant="rectangular" height={40} />
-              ))}
-            </Stack>
-          </Box>
-        ) : isEmpty ? (
+        {isEmpty && !isLoading ? (
           <Box
             sx={{
               display: "flex",
@@ -151,7 +165,7 @@ export default function DataTableBase<T>({
                     align={column.align}
                     sx={{
                       width: column.minWidth,
-                      background: "background.default",
+                      backgroundColor: theme.palette.background.paper,
                       color: c.tableHeaderText,
                       textTransform: "uppercase",
                       fontSize: "0.66rem",
@@ -168,16 +182,52 @@ export default function DataTableBase<T>({
               </TableRow>
             </TableHead>
             <TableBody>
-              {rows.map((row, index) => (
-                <React.Fragment key={index}>{renderRow(row, index)}</React.Fragment>
-              ))}
+              {isLoading
+                ? [...Array(pageSize)].map((_, i) => (
+                    <TableRow
+                      key={i}
+                      sx={{
+                        "& td:first-of-type": {
+                          borderTopLeftRadius: 8,
+                          borderBottomLeftRadius: 8,
+                        },
+                        "& td:last-of-type": {
+                          borderTopRightRadius: 8,
+                          borderBottomRightRadius: 8,
+                        },
+                      }}
+                    >
+                      {columns.map((column) => (
+                        <TableCell
+                          key={column.id}
+                          sx={{
+                            borderBottom: "none",
+                            backgroundColor: c.rowBackground,
+                            py: 1,
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              height: 14,
+                              width: "60%",
+                              borderRadius: 1,
+                              backgroundColor: theme.palette.action.hover,
+                            }}
+                          />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                : rows.map((row, index) => (
+                    <React.Fragment key={index}>{renderRow(row, index)}</React.Fragment>
+                  ))}
             </TableBody>
           </Table>
         )}
       </TableContainer>
 
       {/* Pagination */}
-      {!isLoading && !isEmpty && (
+      {!isEmpty && (
         <TablePagination
           rowsPerPageOptions={rowsPerPageOptions}
           component="div"
@@ -191,6 +241,9 @@ export default function DataTableBase<T>({
           onPageChange={onPageChange}
           onRowsPerPageChange={onPageSizeChange}
           sx={{
+            position: "relative",
+            zIndex: 3,
+            backgroundColor: theme.palette.background.paper,
             borderTop: `1px solid ${theme.palette.divider}`,
             ".MuiTablePagination-toolbar": {
               px: { xs: 1.25, md: 1.75 },
