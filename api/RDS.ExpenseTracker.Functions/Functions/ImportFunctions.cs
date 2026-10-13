@@ -1,33 +1,41 @@
 using ExcelDataReader;
-using Microsoft.AspNetCore.Authorization;
+using FluentResults;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.Logging;
 using RDS.ExpenseTracker.Domain.Dtos.Requests;
 using RDS.ExpenseTracker.Domain.Services;
+using RDS.ExpenseTracker.Functions.Auth;
 using System.Text;
 
-namespace RDS.ExpenseTracker.Api.Controllers;
+namespace RDS.ExpenseTracker.Functions.Functions;
 
-[ApiController]
-[Route("api/[controller]")]
-[Authorize(Roles = "Files.Sender")]
-public class ImportController : ControllerBase
+/// <summary>
+/// File import endpoints. Every function requires the <c>Files.Sender</c> app role.
+/// Rows already known (by fingerprint / external id) are skipped unless <c>importAll=true</c>.
+/// </summary>
+[RequireRole("Files.Sender")]
+public class ImportFunctions : FunctionBase
 {
+    private const string XlsxContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
     private readonly IExcelImportService _excelImportService;
     private readonly IBbvaCsvImportService _bbvaCsvImportService;
     private readonly ITradeRepublicCsvImportService _tradeRepublicCsvImportService;
     private readonly ISatisPayCsvImportService _satisPayCsvImportService;
     private readonly ISellaCsvImportService _sellaCsvImportService;
     private readonly ICurrentUserAccessor _currentUserAccessor;
-    private readonly ILogger<ImportController> _logger;
+    private readonly ILogger<ImportFunctions> _logger;
 
-    public ImportController(
+    public ImportFunctions(
         IExcelImportService excelImportService,
         IBbvaCsvImportService bbvaCsvImportService,
         ITradeRepublicCsvImportService tradeRepublicCsvImportService,
         ISatisPayCsvImportService satisPayCsvImportService,
         ISellaCsvImportService sellaCsvImportService,
         ICurrentUserAccessor currentUserAccessor,
-        ILogger<ImportController> logger)
+        ILogger<ImportFunctions> logger)
     {
         _excelImportService              = excelImportService              ?? throw new ArgumentNullException(nameof(excelImportService));
         _bbvaCsvImportService            = bbvaCsvImportService            ?? throw new ArgumentNullException(nameof(bbvaCsvImportService));
@@ -38,41 +46,49 @@ public class ImportController : ControllerBase
         _logger                          = logger                          ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    [HttpPost("excel")]
-    [Consumes("multipart/form-data")]
-    public async Task<IActionResult> ImportExcel(IFormFile file, [FromQuery] bool importAll = false)
+    // -------------------------------------------------------------------------
+    // Multipart/form-data variants (form field "file")
+    // -------------------------------------------------------------------------
+
+    [Function("Import_Excel")]
+    public Task<IActionResult> ImportExcel(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/excel")] HttpRequest req)
+        => ImportFormFileAsync(req, "Excel", requireCsv: false, _excelImportService.ImportFromExcelAsync);
+
+    [Function("Import_BbvaCsv")]
+    public Task<IActionResult> ImportBbvaCsv(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/bbva-csv")] HttpRequest req)
+        => ImportFormFileAsync(req, "BBVA CSV", requireCsv: true, _bbvaCsvImportService.ImportFromCsvAsync);
+
+    [Function("Import_TradeRepublicCsv")]
+    public Task<IActionResult> ImportTradeRepublicCsv(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/traderepublic-csv")] HttpRequest req)
+        => ImportFormFileAsync(req, "Trade Republic CSV", requireCsv: true, _tradeRepublicCsvImportService.ImportFromCsvAsync);
+
+    [Function("Import_SatisPayCsv")]
+    public Task<IActionResult> ImportSatisPayCsv(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/satispay-csv")] HttpRequest req)
+        => ImportFormFileAsync(req, "Satispay CSV", requireCsv: true, _satisPayCsvImportService.ImportFromCsvAsync);
+
+    [Function("Import_SellaCsv")]
+    public Task<IActionResult> ImportSellaCsv(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/sella-csv")] HttpRequest req)
+        => ImportFormFileAsync(req, "Sella CSV", requireCsv: true, _sellaCsvImportService.ImportFromCsvAsync);
+
+    // -------------------------------------------------------------------------
+    // Base64 JSON variant
+    // -------------------------------------------------------------------------
+
+    [Function("Import_ExcelBase64")]
+    public async Task<IActionResult> ImportExcelBase64(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/excel/base64")] HttpRequest req)
     {
-        if (file == null || file.Length == 0)
-        {
-            _logger.LogWarning("Import attempt with invalid file");
-            return BadRequest("No file provided");
-        }
-
-        _logger.LogInformation("Excel import received. FileName={FileName}, Size={Size} bytes, ImportAll={ImportAll}",
-            file.FileName, file.Length, importAll);
-
-        var userId = await _currentUserAccessor.GetUserIdForImportAsync();
-        using var stream = file.OpenReadStream();
-        var result = await _excelImportService.ImportFromExcelAsync(stream, file.FileName, userId, importAll);
-
-        if (result.IsFailed)
-        {
-            _logger.LogWarning("Import failed: {errors}", string.Join(", ", result.Errors.Select(e => e.Message)));
-            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
-        }
-
-        _logger.LogInformation("Excel import succeeded. FileName={FileName}, ImportedCount={ImportedCount}", file.FileName, result.Value);
-        return Ok(new { importedCount = result.Value });
-    }
-
-    [HttpPost("excel/base64")]
-    [Consumes("application/json")]
-    public async Task<IActionResult> ImportExcelBase64([FromBody] ImportExcelBase64Request request, [FromQuery] bool importAll = false)
-    {
-        if (request == null || string.IsNullOrWhiteSpace(request.Base64Content))
+        var importAll = GetQueryBool(req, "importAll", false);
+        var request = await ReadBodyAsync<ImportExcelBase64Request>(req);
+        if (string.IsNullOrWhiteSpace(request.Base64Content))
         {
             _logger.LogWarning("Import attempt with invalid base64 payload");
-            return BadRequest("No base64 content provided");
+            return new BadRequestObjectResult("No base64 content provided");
         }
 
         var fileName = string.IsNullOrWhiteSpace(request.FileName) ? "import.xlsx" : request.FileName;
@@ -82,370 +98,175 @@ public class ImportController : ControllerBase
         var userId = await _currentUserAccessor.GetUserIdForImportAsync();
         var result = await _excelImportService.ImportFromExcelBase64Async(request.Base64Content, fileName, userId, importAll);
 
-        if (result.IsFailed)
-        {
-            _logger.LogWarning("Base64 import failed: {errors}", string.Join(", ", result.Errors.Select(e => e.Message)));
-            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
-        }
-
-        _logger.LogInformation("Excel base64 import succeeded. FileName={FileName}, ImportedCount={ImportedCount}", fileName, result.Value);
-        return Ok(new { importedCount = result.Value });
-    }
-
-    /// <summary>
-    /// Imports transactions from a BBVA CSV export.
-    /// Rows with an already known fingerprint are skipped automatically
-    /// unless <paramref name="importAll"/> is <c>true</c>.
-    /// </summary>
-    [HttpPost("bbva-csv")]
-    [Consumes("multipart/form-data")]
-    public async Task<IActionResult> ImportBbvaCsv(IFormFile file, [FromQuery] bool importAll = false)
-    {
-        if (file == null || file.Length == 0)
-        {
-            _logger.LogWarning("BBVA CSV import attempt with invalid file");
-            return BadRequest("No file provided");
-        }
-
-        if (!IsCsvFileName(file.FileName))
-        {
-            return BadRequest("Invalid file type. Use a .csv file for this endpoint.");
-        }
-
-        _logger.LogInformation("BBVA CSV import received. FileName={FileName}, Size={Size} bytes, ImportAll={ImportAll}",
-            file.FileName, file.Length, importAll);
-
-        var userId = await _currentUserAccessor.GetUserIdForImportAsync();
-        using var stream = file.OpenReadStream();
-        var result = await _bbvaCsvImportService.ImportFromCsvAsync(stream, file.FileName, userId, importAll);
-
-        if (result.IsFailed)
-        {
-            _logger.LogWarning("BBVA CSV import failed: {Errors}",
-                string.Join(", ", result.Errors.Select(e => e.Message)));
-            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
-        }
-
-        _logger.LogInformation("BBVA CSV import succeeded. ImportedCount={ImportedCount}", result.Value);
-        return Ok(new { importedCount = result.Value });
-    }
-
-    /// <summary>
-    /// Imports transactions from a Trade Republic CSV export.
-    /// Rows whose <c>transaction_id</c> already exist in the database are skipped automatically
-    /// unless <paramref name="importAll"/> is <c>true</c>.
-    /// </summary>
-    [HttpPost("traderepublic-csv")]
-    [Consumes("multipart/form-data")]
-    public async Task<IActionResult> ImportTradeRepublicCsv(IFormFile file, [FromQuery] bool importAll = false)
-    {
-        if (file == null || file.Length == 0)
-        {
-            _logger.LogWarning("Trade Republic CSV import attempt with invalid file");
-            return BadRequest("No file provided");
-        }
-
-        if (!IsCsvFileName(file.FileName))
-        {
-            return BadRequest("Invalid file type. Use a .csv file for this endpoint.");
-        }
-
-        _logger.LogInformation("Trade Republic CSV import received. FileName={FileName}, Size={Size} bytes, ImportAll={ImportAll}",
-            file.FileName, file.Length, importAll);
-
-        var userId = await _currentUserAccessor.GetUserIdForImportAsync();
-        using var stream = file.OpenReadStream();
-        var result = await _tradeRepublicCsvImportService.ImportFromCsvAsync(stream, file.FileName, userId, importAll);
-
-        if (result.IsFailed)
-        {
-            _logger.LogWarning("Trade Republic CSV import failed: {Errors}",
-                string.Join(", ", result.Errors.Select(e => e.Message)));
-            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
-        }
-
-        _logger.LogInformation("Trade Republic CSV import succeeded. ImportedCount={ImportedCount}", result.Value);
-        return Ok(new { importedCount = result.Value });
-    }
-
-    /// <summary>
-    /// Imports transactions from a Satispay CSV export.
-    /// Rows whose <c>ID</c> already exist in the database are skipped automatically
-    /// unless <paramref name="importAll"/> is <c>true</c>.
-    /// </summary>
-    [HttpPost("satispay-csv")]
-    [Consumes("multipart/form-data")]
-    public async Task<IActionResult> ImportSatisPayCsv(IFormFile file, [FromQuery] bool importAll = false)
-    {
-        if (file == null || file.Length == 0)
-        {
-            _logger.LogWarning("Satispay CSV import attempt with invalid file");
-            return BadRequest("No file provided");
-        }
-
-        if (!IsCsvFileName(file.FileName))
-        {
-            return BadRequest("Invalid file type. Use a .csv file for this endpoint.");
-        }
-
-        _logger.LogInformation("Satispay CSV import received. FileName={FileName}, Size={Size} bytes, ImportAll={ImportAll}",
-            file.FileName, file.Length, importAll);
-
-        var userId = await _currentUserAccessor.GetUserIdForImportAsync();
-        using var stream = file.OpenReadStream();
-        var result = await _satisPayCsvImportService.ImportFromCsvAsync(stream, file.FileName, userId, importAll);
-
-        if (result.IsFailed)
-        {
-            _logger.LogWarning("Satispay CSV import failed: {Errors}",
-                string.Join(", ", result.Errors.Select(e => e.Message)));
-            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
-        }
-
-        _logger.LogInformation("Satispay CSV import succeeded. ImportedCount={ImportedCount}", result.Value);
-        return Ok(new { importedCount = result.Value });
-    }
-
-    /// <summary>
-    /// Imports transactions from a Sella CSV export.
-    /// Rows whose <c>CodiceIdentificativo</c> already exist in the database are skipped automatically
-    /// unless <paramref name="importAll"/> is <c>true</c>.
-    /// </summary>
-    [HttpPost("sella-csv")]
-    [Consumes("multipart/form-data")]
-    public async Task<IActionResult> ImportSellaCsv(IFormFile file, [FromQuery] bool importAll = false)
-    {
-        if (file == null || file.Length == 0)
-        {
-            _logger.LogWarning("Sella CSV import attempt with invalid file");
-            return BadRequest("No file provided");
-        }
-
-        if (!IsCsvFileName(file.FileName))
-        {
-            return BadRequest("Invalid file type. Use a .csv file for this endpoint.");
-        }
-
-        _logger.LogInformation("Sella CSV import received. FileName={FileName}, Size={Size} bytes, ImportAll={ImportAll}",
-            file.FileName, file.Length, importAll);
-
-        var userId = await _currentUserAccessor.GetUserIdForImportAsync();
-        using var stream = file.OpenReadStream();
-        var result = await _sellaCsvImportService.ImportFromCsvAsync(stream, file.FileName, userId, importAll);
-
-        if (result.IsFailed)
-        {
-            _logger.LogWarning("Sella CSV import failed: {Errors}",
-                string.Join(", ", result.Errors.Select(e => e.Message)));
-            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
-        }
-
-        _logger.LogInformation("Sella CSV import succeeded. ImportedCount={ImportedCount}", result.Value);
-        return Ok(new { importedCount = result.Value });
+        return ToImportResult("Excel base64", result);
     }
 
     // -------------------------------------------------------------------------
-    // Octet-stream variants
+    // Octet-stream variants (raw body, file name in query string)
     // -------------------------------------------------------------------------
 
-    [HttpPost("excel/stream")]
-    [Consumes("application/octet-stream")]
-    public async Task<IActionResult> ImportExcelStream([FromQuery] string fileName = "import.xlsx", [FromQuery] bool importAll = false)
+    [Function("Import_ExcelStream")]
+    public Task<IActionResult> ImportExcelStream(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/excel/stream")] HttpRequest req)
+        => ImportRawBodyAsync(req, "Excel stream", "import.xlsx", requireCsv: false, _excelImportService.ImportFromExcelAsync);
+
+    [Function("Import_BbvaCsvStream")]
+    public Task<IActionResult> ImportBbvaCsvStream(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/bbva-csv/stream")] HttpRequest req)
+        => ImportRawBodyAsync(req, "BBVA CSV stream", "bbva.csv", requireCsv: true, _bbvaCsvImportService.ImportFromCsvAsync);
+
+    [Function("Import_TradeRepublicCsvStream")]
+    public Task<IActionResult> ImportTradeRepublicCsvStream(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/traderepublic-csv/stream")] HttpRequest req)
+        => ImportRawBodyAsync(req, "Trade Republic CSV stream", "traderepublic.csv", requireCsv: true, _tradeRepublicCsvImportService.ImportFromCsvAsync);
+
+    [Function("Import_SatisPayCsvStream")]
+    public Task<IActionResult> ImportSatisPayCsvStream(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/satispay-csv/stream")] HttpRequest req)
+        => ImportRawBodyAsync(req, "Satispay CSV stream", "satispay.csv", requireCsv: true, _satisPayCsvImportService.ImportFromCsvAsync);
+
+    [Function("Import_SellaCsvStream")]
+    public Task<IActionResult> ImportSellaCsvStream(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/sella-csv/stream")] HttpRequest req)
+        => ImportRawBodyAsync(req, "Sella CSV stream", "sella.csv", requireCsv: true, _sellaCsvImportService.ImportFromCsvAsync);
+
+    // -------------------------------------------------------------------------
+    // XLSX variants (raw XLSX body converted to CSV before import)
+    // -------------------------------------------------------------------------
+
+    [Function("Import_BbvaXlsx")]
+    public Task<IActionResult> ImportBbvaCsvFromXlsx(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/bbva-xlsx")] HttpRequest req)
+        => ImportXlsxAsCsvAsync(req, "BBVA XLSX", "bbva.xlsx", ',', _bbvaCsvImportService.ImportFromCsvAsync);
+
+    [Function("Import_TradeRepublicXlsx")]
+    public Task<IActionResult> ImportTradeRepublicCsvFromXlsx(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/traderepublic-xlsx")] HttpRequest req)
+        => ImportXlsxAsCsvAsync(req, "Trade Republic XLSX", "traderepublic.xlsx", ',', _tradeRepublicCsvImportService.ImportFromCsvAsync);
+
+    [Function("Import_SatisPayXlsx")]
+    public Task<IActionResult> ImportSatisPayCsvFromXlsx(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/satispay-xlsx")] HttpRequest req)
+        => ImportXlsxAsCsvAsync(req, "Satispay XLSX", "satispay.xlsx", ';', _satisPayCsvImportService.ImportFromCsvAsync);
+
+    [Function("Import_SellaXlsx")]
+    public Task<IActionResult> ImportSellaCsvFromXlsx(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/sella-xlsx")] HttpRequest req)
+        => ImportXlsxAsCsvAsync(req, "Sella XLSX", "sella.xlsx", ',', _sellaCsvImportService.ImportFromCsvAsync);
+
+    // -------------------------------------------------------------------------
+    // Shared pipeline
+    // -------------------------------------------------------------------------
+
+    private delegate Task<Result<int>> ImportDelegate(Stream stream, string fileName, int userId, bool importAll);
+
+    private async Task<IActionResult> ImportFormFileAsync(HttpRequest req, string label, bool requireCsv, ImportDelegate import)
     {
-        if (Request.ContentLength is null or 0)
+        var importAll = GetQueryBool(req, "importAll", false);
+
+        if (!req.HasFormContentType)
+            return new BadRequestObjectResult("Expected a multipart/form-data request with a 'file' field.");
+
+        var form = await req.ReadFormAsync(req.HttpContext.RequestAborted);
+        var file = form.Files.GetFile("file") ?? form.Files.FirstOrDefault();
+
+        if (file == null || file.Length == 0)
         {
-            _logger.LogWarning("Excel stream import attempt with empty body");
-            return BadRequest("No file content provided");
+            _logger.LogWarning("{Label} import attempt with invalid file", label);
+            return new BadRequestObjectResult("No file provided");
         }
 
-        _logger.LogInformation("Excel stream import received. FileName={FileName}, ContentLength={ContentLength}, ImportAll={ImportAll}",
-            fileName, Request.ContentLength, importAll);
+        if (requireCsv && !IsCsvFileName(file.FileName))
+            return new BadRequestObjectResult("Invalid file type. Use a .csv file for this endpoint.");
+
+        _logger.LogInformation("{Label} import received. FileName={FileName}, Size={Size} bytes, ImportAll={ImportAll}",
+            label, file.FileName, file.Length, importAll);
 
         var userId = await _currentUserAccessor.GetUserIdForImportAsync();
-        using var memoryStream = new MemoryStream();
-        await Request.Body.CopyToAsync(memoryStream);
-        memoryStream.Position = 0;
+        using var stream = file.OpenReadStream();
+        var result = await import(stream, file.FileName, userId, importAll);
 
-        var result = await _excelImportService.ImportFromExcelAsync(memoryStream, fileName, userId, importAll);
-
-        if (result.IsFailed)
-        {
-            _logger.LogWarning("Excel stream import failed: {Errors}",
-                string.Join(", ", result.Errors.Select(e => e.Message)));
-            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
-        }
-
-        _logger.LogInformation("Excel stream import succeeded. FileName={FileName}, ImportedCount={ImportedCount}", fileName, result.Value);
-        return Ok(new { importedCount = result.Value });
+        return ToImportResult(label, result);
     }
 
-    /// <summary>
-    /// Imports transactions from a BBVA CSV export sent as raw octet-stream.
-    /// </summary>
-    [HttpPost("bbva-csv/stream")]
-    [Consumes("application/octet-stream")]
-    public async Task<IActionResult> ImportBbvaCsvStream([FromQuery] string fileName = "bbva.csv", [FromQuery] bool importAll = false)
+    private async Task<IActionResult> ImportRawBodyAsync(HttpRequest req, string label, string defaultFileName, bool requireCsv, ImportDelegate import)
     {
-        if (Request.ContentLength is null or 0)
+        var importAll = GetQueryBool(req, "importAll", false);
+        var fileName = GetQueryString(req, "fileName", defaultFileName);
+
+        if (req.ContentLength is null or 0)
         {
-            _logger.LogWarning("BBVA CSV stream import attempt with empty body");
-            return BadRequest("No file content provided");
+            _logger.LogWarning("{Label} import attempt with empty body", label);
+            return new BadRequestObjectResult("No file content provided");
         }
 
-        if (!IsCsvFileName(fileName))
-        {
-            return BadRequest("Invalid file type. Use a .csv file for this endpoint.");
-        }
+        if (requireCsv && !IsCsvFileName(fileName))
+            return new BadRequestObjectResult("Invalid file type. Use a .csv file for this endpoint.");
 
-        _logger.LogInformation("BBVA CSV stream import received. FileName={FileName}, ContentLength={ContentLength}, ImportAll={ImportAll}",
-            fileName, Request.ContentLength, importAll);
+        _logger.LogInformation("{Label} import received. FileName={FileName}, ContentLength={ContentLength}, ImportAll={ImportAll}",
+            label, fileName, req.ContentLength, importAll);
 
         var userId = await _currentUserAccessor.GetUserIdForImportAsync();
-        using var memoryStream = new MemoryStream();
-        await Request.Body.CopyToAsync(memoryStream);
-        memoryStream.Position = 0;
+        using var memoryStream = await ReadBodyToMemoryAsync(req);
+        var result = await import(memoryStream, fileName, userId, importAll);
 
-        var result = await _bbvaCsvImportService.ImportFromCsvAsync(memoryStream, fileName, userId, importAll);
-
-        if (result.IsFailed)
-        {
-            _logger.LogWarning("BBVA CSV stream import failed: {Errors}",
-                string.Join(", ", result.Errors.Select(e => e.Message)));
-            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
-        }
-
-        _logger.LogInformation("BBVA CSV stream import succeeded. ImportedCount={ImportedCount}", result.Value);
-        return Ok(new { importedCount = result.Value });
+        return ToImportResult(label, result);
     }
 
-    /// <summary>
-    /// Imports transactions from a Trade Republic CSV export sent as raw octet-stream.
-    /// </summary>
-    [HttpPost("traderepublic-csv/stream")]
-    [Consumes("application/octet-stream")]
-    public async Task<IActionResult> ImportTradeRepublicCsvStream([FromQuery] string fileName = "traderepublic.csv", [FromQuery] bool importAll = false)
+    private async Task<IActionResult> ImportXlsxAsCsvAsync(HttpRequest req, string label, string fileName, char delimiter, ImportDelegate import)
     {
-        if (Request.ContentLength is null or 0)
+        var importAll = GetQueryBool(req, "importAll", false);
+
+        if (!string.IsNullOrEmpty(req.ContentType)
+            && !req.ContentType.StartsWith(XlsxContentType, StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogWarning("Trade Republic CSV stream import attempt with empty body");
-            return BadRequest("No file content provided");
+            return new UnsupportedMediaTypeResult();
         }
 
-        if (!IsCsvFileName(fileName))
+        using var xlsxStream = await ReadBodyToMemoryAsync(req);
+        if (xlsxStream.Length == 0)
         {
-            return BadRequest("Invalid file type. Use a .csv file for this endpoint.");
+            _logger.LogWarning("{Label} import attempt with no content provided", label);
+            return new BadRequestObjectResult("No file content provided");
         }
 
-        _logger.LogInformation("Trade Republic CSV stream import received. FileName={FileName}, ContentLength={ContentLength}, ImportAll={ImportAll}",
-            fileName, Request.ContentLength, importAll);
+        _logger.LogInformation("{Label} import received. ByteCount={ByteCount}, ImportAll={ImportAll}",
+            label, xlsxStream.Length, importAll);
 
         var userId = await _currentUserAccessor.GetUserIdForImportAsync();
-        using var memoryStream = new MemoryStream();
-        await Request.Body.CopyToAsync(memoryStream);
-        memoryStream.Position = 0;
+        using var csvPayload = PrepareCsvPayload(xlsxStream, fileName, delimiter);
+        var result = await import(csvPayload.Stream, csvPayload.FileName, userId, importAll);
 
-        var result = await _tradeRepublicCsvImportService.ImportFromCsvAsync(memoryStream, fileName, userId, importAll);
-
-        if (result.IsFailed)
-        {
-            _logger.LogWarning("Trade Republic CSV stream import failed: {Errors}",
-                string.Join(", ", result.Errors.Select(e => e.Message)));
-            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
-        }
-
-        _logger.LogInformation("Trade Republic CSV stream import succeeded. ImportedCount={ImportedCount}", result.Value);
-        return Ok(new { importedCount = result.Value });
+        return ToImportResult(label, result);
     }
 
-    /// <summary>
-    /// Imports transactions from a Satispay CSV export sent as raw octet-stream.
-    /// </summary>
-    [HttpPost("satispay-csv/stream")]
-    [Consumes("application/octet-stream")]
-    public async Task<IActionResult> ImportSatisPayCsvStream([FromQuery] string fileName = "satispay.csv", [FromQuery] bool importAll = false)
+    private IActionResult ToImportResult(string label, Result<int> result)
     {
-        if (Request.ContentLength is null or 0)
-        {
-            _logger.LogWarning("Satispay CSV stream import attempt with empty body");
-            return BadRequest("No file content provided");
-        }
-
-        if (!IsCsvFileName(fileName))
-        {
-            return BadRequest("Invalid file type. Use a .csv file for this endpoint.");
-        }
-
-        _logger.LogInformation("Satispay CSV stream import received. FileName={FileName}, ContentLength={ContentLength}, ImportAll={ImportAll}",
-            fileName, Request.ContentLength, importAll);
-
-        var userId = await _currentUserAccessor.GetUserIdForImportAsync();
-        using var memoryStream = new MemoryStream();
-        await Request.Body.CopyToAsync(memoryStream);
-        memoryStream.Position = 0;
-
-        var result = await _satisPayCsvImportService.ImportFromCsvAsync(memoryStream, fileName, userId, importAll);
-
         if (result.IsFailed)
         {
-            _logger.LogWarning("Satispay CSV stream import failed: {Errors}",
-                string.Join(", ", result.Errors.Select(e => e.Message)));
-            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
+            _logger.LogWarning("{Label} import failed: {Errors}",
+                label, string.Join(", ", result.Errors.Select(e => e.Message)));
+            return new BadRequestObjectResult(new { errors = result.Errors.Select(e => e.Message) });
         }
 
-        _logger.LogInformation("Satispay CSV stream import succeeded. ImportedCount={ImportedCount}", result.Value);
-        return Ok(new { importedCount = result.Value });
+        _logger.LogInformation("{Label} import succeeded. ImportedCount={ImportedCount}", label, result.Value);
+        return new OkObjectResult(new { importedCount = result.Value });
     }
 
-    /// <summary>
-    /// Imports transactions from a Sella CSV export sent as raw octet-stream.
-    /// </summary>
-    [HttpPost("sella-csv/stream")]
-    [Consumes("application/octet-stream")]
-    public async Task<IActionResult> ImportSellaCsvStream([FromQuery] string fileName = "sella.csv", [FromQuery] bool importAll = false)
+    private static async Task<MemoryStream> ReadBodyToMemoryAsync(HttpRequest req)
     {
-        if (Request.ContentLength is null or 0)
-        {
-            _logger.LogWarning("Sella CSV stream import attempt with empty body");
-            return BadRequest("No file content provided");
-        }
-
-        if (!IsCsvFileName(fileName))
-        {
-            return BadRequest("Invalid file type. Use a .csv file for this endpoint.");
-        }
-
-        _logger.LogInformation("Sella CSV stream import received. FileName={FileName}, ContentLength={ContentLength}, ImportAll={ImportAll}",
-            fileName, Request.ContentLength, importAll);
-
-        var userId = await _currentUserAccessor.GetUserIdForImportAsync();
-        using var memoryStream = new MemoryStream();
-        await Request.Body.CopyToAsync(memoryStream);
-        memoryStream.Position = 0;
-
-        var result = await _sellaCsvImportService.ImportFromCsvAsync(memoryStream, fileName, userId, importAll);
-
-        if (result.IsFailed)
-        {
-            _logger.LogWarning("Sella CSV stream import failed: {Errors}",
-                string.Join(", ", result.Errors.Select(e => e.Message)));
-            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
-        }
-
-        _logger.LogInformation("Sella CSV stream import succeeded. ImportedCount={ImportedCount}", result.Value);
-        return Ok(new { importedCount = result.Value });
+        var stream = new MemoryStream();
+        await req.Body.CopyToAsync(stream, req.HttpContext.RequestAborted);
+        stream.Position = 0;
+        return stream;
     }
 
-    private async Task<CsvPayload> PrepareCsvPayloadAsync(Stream sourceStream, string fileName, char delimiter = ',')
+    private CsvPayload PrepareCsvPayload(Stream sourceStream, string fileName, char delimiter)
     {
         var normalizedFileName = string.IsNullOrWhiteSpace(fileName) ? "import.xlsx" : fileName;
+        _logger.LogDebug("Read XLSX source stream for {FileName}: {ByteCount} bytes", normalizedFileName, sourceStream.Length);
 
-        var buffer = new MemoryStream();
-        await sourceStream.CopyToAsync(buffer);
-        buffer.Position = 0;
-        _logger.LogDebug("Read XLSX source stream for {FileName}: {ByteCount} bytes", normalizedFileName, buffer.Length);
-
-        var csvContent = ConvertExcelToCsv(buffer, delimiter);
-        buffer.Dispose();
+        var csvContent = ConvertExcelToCsv(sourceStream, delimiter);
 
         var lineCount = csvContent.Count(c => c == '\n');
         _logger.LogDebug("Converted XLSX to CSV for {FileName}: {LineCount} lines, delimiter='{Delimiter}'",
@@ -467,132 +288,6 @@ public class ImportController : ControllerBase
             lineCount);
 
         return new CsvPayload(csvStream, csvFileName);
-    }
-
-    private const string XlsxContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-
-    [HttpPost("bbva-xlsx")]
-    [Consumes(XlsxContentType)]
-    public async Task<IActionResult> ImportBbvaCsvFromXlsx([FromQuery] bool importAll = false)
-    {
-        using var xlsxStream = await ReadXlsxBodyAsync();
-        if (xlsxStream.Length == 0)
-        {
-            _logger.LogWarning("BBVA XLSX import attempt with no content provided");
-            return BadRequest("No file content provided");
-        }
-
-        _logger.LogInformation("BBVA XLSX import received. ByteCount={ByteCount}, ImportAll={ImportAll}",
-            xlsxStream.Length, importAll);
-
-        var userId = await _currentUserAccessor.GetUserIdForImportAsync();
-        using var csvPayload = await PrepareCsvPayloadAsync(xlsxStream, "bbva.xlsx");
-        var result = await _bbvaCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, userId, importAll);
-
-        if (result.IsFailed)
-        {
-            _logger.LogWarning("BBVA XLSX import failed: {Errors}",
-                string.Join(", ", result.Errors.Select(e => e.Message)));
-            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
-        }
-
-        _logger.LogInformation("BBVA XLSX import succeeded. ImportedCount={ImportedCount}", result.Value);
-        return Ok(new { importedCount = result.Value });
-    }
-
-    [HttpPost("traderepublic-xlsx")]
-    [Consumes(XlsxContentType)]
-    public async Task<IActionResult> ImportTradeRepublicCsvFromXlsx([FromQuery] bool importAll = false)
-    {
-        using var xlsxStream = await ReadXlsxBodyAsync();
-        if (xlsxStream.Length == 0)
-        {
-            _logger.LogWarning("Trade Republic XLSX import attempt with no content provided");
-            return BadRequest("No file content provided");
-        }
-
-        _logger.LogInformation("Trade Republic XLSX import received. ByteCount={ByteCount}, ImportAll={ImportAll}",
-            xlsxStream.Length, importAll);
-
-        var userId = await _currentUserAccessor.GetUserIdForImportAsync();
-        using var csvPayload = await PrepareCsvPayloadAsync(xlsxStream, "traderepublic.xlsx");
-        var result = await _tradeRepublicCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, userId, importAll);
-
-        if (result.IsFailed)
-        {
-            _logger.LogWarning("Trade Republic XLSX import failed: {Errors}",
-                string.Join(", ", result.Errors.Select(e => e.Message)));
-            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
-        }
-
-        _logger.LogInformation("Trade Republic XLSX import succeeded. ImportedCount={ImportedCount}", result.Value);
-        return Ok(new { importedCount = result.Value });
-    }
-
-    [HttpPost("satispay-xlsx")]
-    [Consumes(XlsxContentType)]
-    public async Task<IActionResult> ImportSatisPayCsvFromXlsx([FromQuery] bool importAll = false)
-    {
-        using var xlsxStream = await ReadXlsxBodyAsync();
-        if (xlsxStream.Length == 0)
-        {
-            _logger.LogWarning("Satispay XLSX import attempt with no content provided");
-            return BadRequest("No file content provided");
-        }
-
-        _logger.LogInformation("Satispay XLSX import received. ByteCount={ByteCount}, ImportAll={ImportAll}",
-            xlsxStream.Length, importAll);
-
-        var userId = await _currentUserAccessor.GetUserIdForImportAsync();
-        using var csvPayload = await PrepareCsvPayloadAsync(xlsxStream, "satispay.xlsx", ';');
-        var result = await _satisPayCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, userId, importAll);
-
-        if (result.IsFailed)
-        {
-            _logger.LogWarning("Satispay XLSX import failed: {Errors}",
-                string.Join(", ", result.Errors.Select(e => e.Message)));
-            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
-        }
-
-        _logger.LogInformation("Satispay XLSX import succeeded. ImportedCount={ImportedCount}", result.Value);
-        return Ok(new { importedCount = result.Value });
-    }
-
-    [HttpPost("sella-xlsx")]
-    [Consumes(XlsxContentType)]
-    public async Task<IActionResult> ImportSellaCsvFromXlsx([FromQuery] bool importAll = false)
-    {
-        using var xlsxStream = await ReadXlsxBodyAsync();
-        if (xlsxStream.Length == 0)
-        {
-            _logger.LogWarning("Sella XLSX import attempt with no content provided");
-            return BadRequest("No file content provided");
-        }
-
-        _logger.LogInformation("Sella XLSX import received. ByteCount={ByteCount}, ImportAll={ImportAll}",
-            xlsxStream.Length, importAll);
-
-        var userId = await _currentUserAccessor.GetUserIdForImportAsync();
-        using var csvPayload = await PrepareCsvPayloadAsync(xlsxStream, "sella.xlsx");
-        var result = await _sellaCsvImportService.ImportFromCsvAsync(csvPayload.Stream, csvPayload.FileName, userId, importAll);
-
-        if (result.IsFailed)
-        {
-            _logger.LogWarning("Sella XLSX import failed: {Errors}",
-                string.Join(", ", result.Errors.Select(e => e.Message)));
-            return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
-        }
-
-        _logger.LogInformation("Sella XLSX import succeeded. ImportedCount={ImportedCount}", result.Value);
-        return Ok(new { importedCount = result.Value });
-    }
-
-    private async Task<MemoryStream> ReadXlsxBodyAsync()
-    {
-        var stream = new MemoryStream();
-        await Request.Body.CopyToAsync(stream);
-        stream.Position = 0;
-        return stream;
     }
 
     private static bool IsCsvFileName(string? fileName)

@@ -1,44 +1,52 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.Functions.Worker;
 using RDS.ExpenseTracker.Domain.Dtos;
 using RDS.ExpenseTracker.Domain.Services;
 
-namespace RDS.ExpenseTracker.Api.Controllers;
+namespace RDS.ExpenseTracker.Functions.Functions;
 
-[Route("api/[controller]")]
-public class TransferController : ApiControllerBase
+public class TransferFunctions : FunctionBase
 {
     private readonly ITransferService _service;
 
-    public TransferController(ITransferService service)
+    public TransferFunctions(ITransferService service)
     {
         _service = service ?? throw new ArgumentNullException(nameof(service));
     }
 
-    [HttpGet]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<TransferDto>))]
-    public Task<IActionResult> Get()
+    [Function("Transfer_GetAll")]
+    public Task<IActionResult> GetAll(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "transfer")] HttpRequest req)
         => ExecuteAsync(() => _service.GetTransfers());
 
-    [HttpGet("{id}")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TransferDto))]
-    public Task<IActionResult> Get(int id)
+    [Function("Transfer_Get")]
+    public Task<IActionResult> Get(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "transfer/{id:int}")] HttpRequest req,
+        int id)
         => ExecuteAsync(() => _service.GetTransfer(id));
 
-    [HttpPost]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(int))]
-    public Task<IActionResult> Post([FromBody] TransferDto dto)
-        => ExecuteAsync(() => _service.AddTransfer(dto));
-
-    [HttpPut("{id}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public Task<IActionResult> Put(int id, [FromBody] TransferDto dto)
+    [Function("Transfer_Post")]
+    public async Task<IActionResult> Post(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "transfer")] HttpRequest req)
     {
-        dto.Id = id;
-        return ExecuteAsync(() => _service.UpdateTransfer(dto));
+        var dto = await ReadBodyAsync<TransferDto>(req);
+        return await ExecuteAsync(() => _service.AddTransfer(dto));
     }
 
-    [HttpDelete("{id}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public Task<IActionResult> Delete(int id)
+    [Function("Transfer_Put")]
+    public async Task<IActionResult> Put(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "transfer/{id:int}")] HttpRequest req,
+        int id)
+    {
+        var dto = await ReadBodyAsync<TransferDto>(req);
+        dto.Id = id;
+        return await ExecuteAsync(() => _service.UpdateTransfer(dto));
+    }
+
+    [Function("Transfer_Delete")]
+    public Task<IActionResult> Delete(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "transfer/{id:int}")] HttpRequest req,
+        int id)
         => ExecuteAsync(() => _service.DeleteTransfer(id));
 }

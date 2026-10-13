@@ -1,17 +1,44 @@
 # 12 - CI/CD and configuration (Tecnico)
 
-## Workflow (`api/.github/workflows/`)
-Due workflow GitHub Actions, entrambi `on: push: branches: [master]` + `workflow_dispatch`, `runs-on: windows-latest`:
+## Workflow (`.github/workflows/deploy-backend.yml`)
+`on: push` su `main` (path `api/**` o il workflow stesso) + `workflow_dispatch`, runner `ubuntu-latest`:
 
-- **`master_expensetracker-api.yml`** — build (`actions/setup-dotnet@v4`, .NET 9.x) → `dotnet build`/`publish` Release → deploy su Azure Web App `ExpenseTracker-Api` (slot `Production`, via `azure/webapps-deploy@v3`).
-- **`master_moneytracker-api.yml`** — stesso build, deploy su `MoneyTracker-Api` (nome legacy/parallelo), con in più `azure/login@v2` (OIDC) e `az webapp config appsettings set` per iniettare `AZUREAD__*`/`KEYVAULT__*` da GitHub Secrets prima del deploy.
+1. **build** — `actions/setup-dotnet@v4` (.NET 10.x) → `dotnet build` della solution in Release → `dotnet publish` di `RDS.ExpenseTracker.Functions` → upload artifact `functions-app` (con `include-hidden-files: true`, necessario per la cartella `.azurefunctions` generata dal worker SDK).
+2. **deploy** — download artifact → `azure/login@v2` (OIDC, secret `AZUREAPPSERVICE_CLIENTID_*`/`TENANTID_*`/`SUBSCRIPTIONID_*`) → sync CORS opzionale → `Azure/functions-action@v1` sulla Function App.
 
-**Nota**: nessuno dei due workflow esegue `dotnet test` — il deploy avviene senza gate di test automatico. I workflow installano .NET 9.x mentre tutti i `.csproj` puntano a `net10.0` — da verificare/allineare.
+Variabili di repository (GitHub → Settings → Variables):
 
-## Configurazione (`appsettings.json` / `appsettings.Development.json`)
-Sezioni principali: `Logging`, `AllowedHosts`, `AzureAd` (Instance/TenantId/ClientId/Audience), `TradeRepublicCsv`, `BbvaCsv`, `SatisPayCsv`, `SellaCsv` (default account + IBAN map), `TransferMatching:Rules[]` (solo in `appsettings.json` base), `App` (FEUrl/AllowedLocalOrigins).
+| Variabile | Obbligatoria | Uso |
+|---|---|---|
+| `AZURE_FUNCTIONAPP_NAME` | Sì | Nome della Function App di destinazione |
+| `AZURE_RESOURCE_GROUP` | No | Resource group, usato solo dallo step CORS |
+| `FE_URL` | No | Origine del frontend aggiunta alla CORS della Function App (idempotente) |
 
-`appsettings.Development.json` aggiunge `ConnectionStrings:DefaultConnection` per lo sviluppo locale — file non da committare con credenziali reali.
+L'identità federata usata da `azure/login` deve avere un ruolo (es. *Website Contributor*) sulla Function App.
 
-## Variabili d'ambiente
-Connection string e impostazioni Azure AD sono sovrascrivibili via variabili d'ambiente (`AddEnvironmentVariables()` in `Program.cs`), coerentemente con il deploy su Azure App Service (`az webapp config appsettings set`).
+**Nota**: il workflow non esegue `dotnet test` — il deploy avviene senza gate di test automatico.
+
+## Hosting
+Function App Linux o Windows, runtime `dotnet-isolated`, Functions v4, .NET 10. Il progetto è `api/RDS.ExpenseTracker.Functions` (`OutputType=Exe`, `Microsoft.Azure.Functions.Worker.Sdk`).
+
+## Configurazione
+Ordine di caricamento nel worker (`Program.cs`): `appsettings.json` → `appsettings.{AZURE_FUNCTIONS_ENVIRONMENT}.json` → variabili d'ambiente (incluse le app settings della Function App e i `Values` di `local.settings.json`).
+
+- **`appsettings.json`** (copiato in output e pubblicato) — sezioni strutturate: `Logging`, `AzureAd` (vuota), `TradeRepublicCsv`, `BbvaCsv`, `SatisPayCsv`, `SellaCsv` (default account + IBAN map), `TransferMatching:Rules[]`, `App`.
+- **`appsettings.Development.json`** — override locali (es. `ConnectionStrings:DefaultConnection`); gitignored e mai pubblicato.
+- **`host.json`** — configurazione dell'host Functions: `routePrefix: "api"` e sampling Application Insights.
+- **`local.settings.json`** — solo locale, gitignored. Template committato: `local.settings.example.json` (`FUNCTIONS_WORKER_RUNTIME=dotnet-isolated`, `AZURE_FUNCTIONS_ENVIRONMENT=Development`, `AzureAd__*`, `ConnectionStrings:DefaultConnection`, `Host.LocalHttpPort=7120`, `Host.CORS`).
+
+### App settings richieste su Azure
+- `FUNCTIONS_WORKER_RUNTIME=dotnet-isolated`, `AzureWebJobsStorage` (create con la Function App).
+- `AzureAd__TenantId`, `AzureAd__ClientId`, `AzureAd__Audience` (opzionale).
+- Connection string `DefaultConnection` (tipo SQLAzure → esposta come `ConnectionStrings:DefaultConnection`).
+- `APPLICATIONINSIGHTS_CONNECTION_STRING`.
+
+## Esecuzione locale
+```powershell
+copy api\RDS.ExpenseTracker.Functions\local.settings.example.json api\RDS.ExpenseTracker.Functions\local.settings.json
+cd api\RDS.ExpenseTracker.Functions
+func start   # Azure Functions Core Tools v4 → http://localhost:7120/api/...
+```
+Il task VS Code `Avvia FE + BE` avvia `func start` insieme al dev server Vite; la configurazione `Attach to .NET Functions` in `.vscode/launch.json` permette il debug del processo worker. Gli script in `scripts/` puntano a `http://localhost:7120/api/import/...`.

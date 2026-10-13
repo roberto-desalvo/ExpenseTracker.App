@@ -1,23 +1,24 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.Functions.Worker;
 using RDS.ExpenseTracker.Domain.Services;
 
-namespace RDS.ExpenseTracker.Api.Controllers;
+namespace RDS.ExpenseTracker.Functions.Functions;
 
-[Route("api/[controller]")]
-public class DemoController : ApiControllerBase
+public class DemoFunctions : FunctionBase
 {
     private readonly IDemoDataService _service;
     private readonly ICurrentUserAccessor _currentUserAccessor;
 
-    public DemoController(IDemoDataService service, ICurrentUserAccessor currentUserAccessor)
+    public DemoFunctions(IDemoDataService service, ICurrentUserAccessor currentUserAccessor)
     {
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _currentUserAccessor = currentUserAccessor ?? throw new ArgumentNullException(nameof(currentUserAccessor));
     }
 
-    [HttpPost("generate")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> Generate()
+    [Function("Demo_Generate")]
+    public async Task<IActionResult> Generate(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "demo/generate")] HttpRequest req)
     {
         var userId = await _currentUserAccessor.GetUserIdAsync();
         return await ExecuteAsync(() => _service.GenerateDemoDataAsync(userId));

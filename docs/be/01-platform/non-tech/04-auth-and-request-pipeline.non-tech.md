@@ -13,7 +13,10 @@ Tutte le funzionalità richiedono che l'utente sia autenticato. Il caricamento d
 Il caricamento degli estratti conto può avvenire anche in automatico, tramite un'app che opera per conto di un utente specifico invece che tramite una persona che carica manualmente un file dal browser. In questo caso l'app deve essere collegata in anticipo, una sola volta, all'utente per cui importa i dati; se non è ancora stata collegata, il caricamento automatico viene rifiutato.
 
 ## Cosa succede a ogni richiesta
-Ogni richiesta viene verificata, tracciata e, in caso di problema, trasformata in un messaggio d'errore comprensibile invece di un blocco improvviso dell'applicazione.
+Ogni richiesta viene verificata, tracciata e, in caso di problema, trasformata in un messaggio d'errore comprensibile invece di un blocco improvviso dell'applicazione. La verifica dell'identità avviene direttamente nel backend a ogni chiamata: anche un accesso negato (identità mancante, scaduta o senza il permesso richiesto) produce un messaggio chiaro.
+
+## Da quali siti si può usare
+Solo il sito ufficiale del frontend (e, durante lo sviluppo, quello locale) è autorizzato a dialogare con il backend dal browser; l'elenco dei siti ammessi è gestito nella configurazione del servizio cloud.
 
 ## Valore
 L'utente ha la garanzia che solo lui (o chi autorizzato) possa vedere e modificare i propri dati economici.

@@ -12,18 +12,18 @@
       "problemMatcher": []
     },
     {
-      "label": "BE: dotnet run",
+      "label": "BE: func start",
       "type": "shell",
-      "command": "dotnet",
-      "args": ["run"],
+      "command": "func",
+      "args": ["start"],
       "options": {
-        "cwd": "${workspaceFolder}\\api\\RDS.ExpenseTracker.Api"
+        "cwd": "${workspaceFolder}\\api\\RDS.ExpenseTracker.Functions"
       },
       "problemMatcher": []
     },
     {
       "label": "Avvia FE + BE",
-      "dependsOn": ["FE: npm run dev", "BE: dotnet run"],
+      "dependsOn": ["FE: npm run dev", "BE: func start"],
       "dependsOrder": "parallel"
     }
   ]

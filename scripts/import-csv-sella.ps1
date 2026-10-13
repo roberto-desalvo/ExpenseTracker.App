@@ -91,7 +91,7 @@ $resolvedPath = (Resolve-Path -LiteralPath $FilePath).Path
 Write-Host "Import Sella CSV in corso..."
 Write-Host "File: $resolvedPath"
 
-$endpoint = "https://localhost:7120/api/import/sella-csv"
+$endpoint = "http://localhost:7120/api/import/sella-csv"
 if ($ImportAll) {
     $endpoint += "?importAll=true"
 }

@@ -26,9 +26,9 @@ Indice tecnico della documentazione modulare BE.
 - `api/RDS.ExpenseTracker.Domain/*`
 - `api/RDS.ExpenseTracker.Application/*`
 - `api/RDS.ExpenseTracker.Infrastructure/*`
-- `api/RDS.ExpenseTracker.Api/*`
+- `api/RDS.ExpenseTracker.Functions/*`
 - `api/RDS.ExpenseTracker.Tests/*`
-- `api/.github/workflows/*`
+- `.github/workflows/deploy-backend.yml`
 
 ## Regole di manutenzione
 - Quando cambia una feature BE, aggiornare sia il file `.tech.md` sia il file `.non-tech.md` corrispondente.

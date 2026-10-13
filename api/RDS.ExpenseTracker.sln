@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.33530.505
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RDS.ExpenseTracker.Api", "RDS.ExpenseTracker.Api\RDS.ExpenseTracker.Api.csproj", "{C8D94FED-6F89-4900-B970-8134C516A8D8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RDS.ExpenseTracker.Functions", "RDS.ExpenseTracker.Functions\RDS.ExpenseTracker.Functions.csproj", "{C8D94FED-6F89-4900-B970-8134C516A8D8}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RDS.ExpenseTracker.Infrastructure", "RDS.ExpenseTracker.Infrastructure\RDS.ExpenseTracker.Infrastructure.csproj", "{C13640B4-EB8C-45E6-887A-1D3B566ED31B}"
 EndProject

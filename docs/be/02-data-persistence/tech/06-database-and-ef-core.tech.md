@@ -32,8 +32,8 @@ Nuova entità (`Domain/Entities/User.cs`): `Id` (identity), `AzureOid` (`nvarcha
 
 ## Comandi
 ```powershell
-dotnet ef migrations add <MigrationName> -p api/RDS.ExpenseTracker.Infrastructure -s api/RDS.ExpenseTracker.Api -o Migrations
-dotnet ef database update -p api/RDS.ExpenseTracker.Infrastructure -s api/RDS.ExpenseTracker.Api
+dotnet ef migrations add <MigrationName> -p api/RDS.ExpenseTracker.Infrastructure -s api/RDS.ExpenseTracker.Functions -o Migrations
+dotnet ef database update -p api/RDS.ExpenseTracker.Infrastructure -s api/RDS.ExpenseTracker.Functions
 ```
 
 ## DI

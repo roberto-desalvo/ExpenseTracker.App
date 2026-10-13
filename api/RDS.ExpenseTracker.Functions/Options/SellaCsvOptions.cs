@@ -1,6 +1,6 @@
 using RDS.ExpenseTracker.Domain.Common;
 
-namespace RDS.ExpenseTracker.Api.Options;
+namespace RDS.ExpenseTracker.Functions.Options;
 
 public class SellaCsvOptions : IAppOptions, ISellaCsvOptions
 {

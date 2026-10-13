@@ -1,7 +1,9 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using RDS.ExpenseTracker.Domain.Common;
 using System.Reflection;
 
-namespace RDS.ExpenseTracker.Api.Configuration;
+namespace RDS.ExpenseTracker.Functions.Configuration;
 
 public static class OptionsRegistrationExtensions
 {
@@ -11,7 +13,7 @@ public static class OptionsRegistrationExtensions
 
     public static IServiceCollection AddOptions(this IServiceCollection services, IConfiguration configuration)
     {
-        var optionTypes = typeof(IAppOptions).Assembly
+        var optionTypes = typeof(OptionsRegistrationExtensions).Assembly
             .GetTypes()
             .Where(t =>
                 t is { IsClass: true, IsAbstract: false } &&

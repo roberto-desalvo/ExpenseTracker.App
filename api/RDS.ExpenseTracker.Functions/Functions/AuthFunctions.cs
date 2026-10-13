@@ -1,25 +1,26 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.Functions.Worker;
 using RDS.ExpenseTracker.Domain.Services;
 
-namespace RDS.ExpenseTracker.Api.Controllers;
+namespace RDS.ExpenseTracker.Functions.Functions;
 
-[Route("api/[controller]")]
-[ApiController]
-public class AuthController : ControllerBase
+public class AuthFunctions
 {
     private readonly ICurrentUserAccessor _currentUserAccessor;
 
-    public AuthController(ICurrentUserAccessor currentUserAccessor)
+    public AuthFunctions(ICurrentUserAccessor currentUserAccessor)
     {
         _currentUserAccessor = currentUserAccessor ?? throw new ArgumentNullException(nameof(currentUserAccessor));
     }
 
-    [HttpGet]
-    public async Task<IResult> GetProfile()
+    [Function("Auth_GetProfile")]
+    public async Task<IActionResult> GetProfile(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "auth")] HttpRequest req)
     {
         var userId = await _currentUserAccessor.GetUserIdAsync();
 
-        return TypedResults.Ok(new
+        return new OkObjectResult(new
         {
             UserId = userId
         });

@@ -1,19 +1,18 @@
 using System.Security.Claims;
-using Microsoft.Identity.Web;
 using RDS.ExpenseTracker.Domain.Exceptions;
 using RDS.ExpenseTracker.Domain.Services;
 
-namespace RDS.ExpenseTracker.Api.Auth;
+namespace RDS.ExpenseTracker.Functions.Auth;
 
 public class CurrentUserAccessor : ICurrentUserAccessor
 {
-    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly RequestPrincipalAccessor _principalAccessor;
     private readonly IUserService _userService;
     private int? _cachedUserId;
 
-    public CurrentUserAccessor(IHttpContextAccessor httpContextAccessor, IUserService userService)
+    public CurrentUserAccessor(RequestPrincipalAccessor principalAccessor, IUserService userService)
     {
-        _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
+        _principalAccessor = principalAccessor ?? throw new ArgumentNullException(nameof(principalAccessor));
         _userService = userService ?? throw new ArgumentNullException(nameof(userService));
     }
 
@@ -22,18 +21,19 @@ public class CurrentUserAccessor : ICurrentUserAccessor
         if (_cachedUserId.HasValue)
             return _cachedUserId.Value;
 
-        var principal = _httpContextAccessor.HttpContext?.User
+        var principal = _principalAccessor.Principal
             ?? throw new UnauthorizedDomainException("No authenticated user in current request.");
 
-        var oid = principal.GetObjectId();
+        var oid = GetObjectId(principal);
         if (string.IsNullOrEmpty(oid))
             throw new UnauthorizedDomainException("Token does not contain an oid claim.");
 
         var email = principal.FindFirst(ClaimTypes.Email)?.Value
+            ?? principal.FindFirst("email")?.Value
             ?? principal.FindFirst("preferred_username")?.Value
             ?? throw new UnauthorizedDomainException("Token does not contain an email claim.");
 
-        var name = principal.FindFirst(ClaimTypes.Name)?.Value;
+        var name = principal.FindFirst(ClaimTypes.Name)?.Value ?? principal.FindFirst("name")?.Value;
 
         var result = await _userService.GetOrCreateUserAsync(oid, email, name);
         if (result.IsFailed)
@@ -48,17 +48,18 @@ public class CurrentUserAccessor : ICurrentUserAccessor
         if (_cachedUserId.HasValue)
             return _cachedUserId.Value;
 
-        var principal = _httpContextAccessor.HttpContext?.User
+        var principal = _principalAccessor.Principal
             ?? throw new UnauthorizedDomainException("No authenticated user in current request.");
 
-        var oid = principal.GetObjectId();
+        var oid = GetObjectId(principal);
         if (string.IsNullOrEmpty(oid))
             throw new UnauthorizedDomainException("Token does not contain an oid claim.");
 
         var email = principal.FindFirst(ClaimTypes.Email)?.Value
+            ?? principal.FindFirst("email")?.Value
             ?? principal.FindFirst("preferred_username")?.Value;
 
-        var name = principal.FindFirst(ClaimTypes.Name)?.Value;
+        var name = principal.FindFirst(ClaimTypes.Name)?.Value ?? principal.FindFirst("name")?.Value;
 
         var result = await _userService.GetOrCreateUserForImportAsync(oid, email, name);
         if (result.IsFailed)
@@ -67,4 +68,8 @@ public class CurrentUserAccessor : ICurrentUserAccessor
         _cachedUserId = result.Value.Id;
         return _cachedUserId.Value;
     }
+
+    private static string? GetObjectId(ClaimsPrincipal principal)
+        => principal.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
+            ?? principal.FindFirst("oid")?.Value;
 }

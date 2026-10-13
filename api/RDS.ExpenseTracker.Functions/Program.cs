@@ -1,59 +1,38 @@
-﻿using RDS.ExpenseTracker.Api.Middlewares;
-using Scalar.AspNetCore;
-using RDS.ExpenseTracker.Api.Auth;
-using RDS.ExpenseTracker.Api.Configuration;
-using RDS.ExpenseTracker.Api.Options;
-using RDS.ExpenseTracker.Domain.Common;
-using RDS.ExpenseTracker.Domain.Services;
-using RDS.ExpenseTracker.Infrastructure;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Builder;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using RDS.ExpenseTracker.Application;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Identity.Web;
+using RDS.ExpenseTracker.Domain.Common;
+using RDS.ExpenseTracker.Domain.Services;
+using RDS.ExpenseTracker.Functions.Auth;
+using RDS.ExpenseTracker.Functions.Configuration;
+using RDS.ExpenseTracker.Functions.Middlewares;
+using RDS.ExpenseTracker.Functions.Options;
+using RDS.ExpenseTracker.Infrastructure;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = FunctionsApplication.CreateBuilder(args);
 
-builder.Services.AddApplicationInsightsTelemetry();
+builder.Configuration
+    .SetBasePath(AppContext.BaseDirectory)
+    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: false)
+    .AddEnvironmentVariables();
 
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddOpenApi();
+builder.ConfigureFunctionsWebApplication();
 
-var feCorsPolicy = "FEPolicy";
-var debugCorsPolicy = "DebugPolicy";
+// Order matters: logging -> exception handling -> authentication/authorization -> function
+builder.UseMiddleware<RequestLoggingMiddleware>();
+builder.UseMiddleware<ExceptionHandlingMiddleware>();
+builder.UseMiddleware<AuthenticationMiddleware>();
 
-builder.Services.AddCors(options =>
-{
-    var appSection = builder.Configuration.GetSection("App");
-    options.AddPolicy(feCorsPolicy,
-        b =>
-        {
-            var feUrl = appSection["FEUrl"] ?? string.Empty;
-            b.WithOrigins(feUrl)
-                   .AllowAnyMethod()
-                   .AllowAnyHeader();
-        });
+builder.Services
+    .AddApplicationInsightsTelemetryWorkerService()
+    .ConfigureFunctionsApplicationInsights();
 
-    if(builder.Environment.IsDevelopment())
-    {
-        options.AddPolicy(debugCorsPolicy,
-            b =>
-            {
-                b.WithOrigins(appSection.GetSection("AllowedLocalOrigins").Get<string[]>() ?? [])
-                    .AllowAnyMethod()
-                   .AllowAnyHeader();
-        });
-    }
-});
-
-
-builder.Configuration.AddEnvironmentVariables();
 builder.Services.AddOptions(builder.Configuration);
-builder.Services.Configure<BbvaCsvOptions>(builder.Configuration.GetSection(BbvaCsvOptions.SectionName));
-builder.Services.Configure<SatisPayCsvOptions>(builder.Configuration.GetSection(SatisPayCsvOptions.SectionName));
-builder.Services.Configure<SellaCsvOptions>(builder.Configuration.GetSection(SellaCsvOptions.SectionName));
-builder.Services.Configure<TransferMatchingOptions>(builder.Configuration.GetSection(TransferMatchingOptions.SectionName));
-
-builder.Services.AddProblemDetails();
 
 // var kvOptions = builder.Configuration.BindFromSectionName<KeyVaultOptions>();
 // var connectionString = AzureKeyVaultHandler.GetKeyVaultSecret(kvOptions.Uri, kvOptions.ConnectionStringSecretName);
@@ -80,33 +59,8 @@ builder.Services.AddScoped<ISellaCsvOptions>(sp =>
 builder.Services.AddScoped<ITransferMatchingOptions>(sp =>
     sp.GetRequiredService<IOptions<TransferMatchingOptions>>().Value);
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
-builder.Services.AddAuthorization();
-
-builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<JwtTokenValidator>();
+builder.Services.AddScoped<RequestPrincipalAccessor>();
 builder.Services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
 
-builder.Services.AddControllers();
-
-var app = builder.Build();
-
-app.UseHttpsRedirection();
-
-app.UseCors(builder.Environment.IsDevelopment() ? debugCorsPolicy : feCorsPolicy);
-app.UseAuthentication();
-app.UseAuthorization();
-
-
-app.UseMiddleware<ExceptionHandlingMiddleware>();
-app.UseStatusCodePages();
-app.UseMiddleware<RequestLoggingMiddleware>();
-
-app.MapOpenApi();
-app.MapScalarApiReference();
-
-app.MapControllers()
-    .RequireAuthorization();
-
-app.Run();
-
+builder.Build().Run();

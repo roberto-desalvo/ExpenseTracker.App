@@ -92,7 +92,7 @@ $fileName = [System.IO.Path]::GetFileName($resolvedPath)
 Write-Host "Import in corso..."
 Write-Host "File: $resolvedPath"
 
-$endpoint = "https://localhost:7120/api/import/excel"
+$endpoint = "http://localhost:7120/api/import/excel"
 if ($ImportAll) {
     $endpoint += "?importAll=true"
 }

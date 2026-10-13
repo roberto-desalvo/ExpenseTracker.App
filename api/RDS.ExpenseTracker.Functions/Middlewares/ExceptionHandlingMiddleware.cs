@@ -1,35 +1,45 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Middleware;
+using Microsoft.Extensions.Logging;
 using RDS.ExpenseTracker.Domain.Exceptions;
 using System.Text.Json;
 
-namespace RDS.ExpenseTracker.Api.Middlewares;
+namespace RDS.ExpenseTracker.Functions.Middlewares;
 
-public class ExceptionHandlingMiddleware
+public class ExceptionHandlingMiddleware : IFunctionsWorkerMiddleware
 {
-    private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionHandlingMiddleware> _logger;
 
-    public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
+    public ExceptionHandlingMiddleware(ILogger<ExceptionHandlingMiddleware> logger)
     {
-        _next = next;
         _logger = logger;
     }
 
-    public async Task InvokeAsync(HttpContext context)
+    public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
         try
         {
-            await _next(context);
-        }
-        catch (DomainException ex)
-        {
-            _logger.LogWarning(ex, "Handled domain exception for {Method} {Path}", context.Request.Method, context.Request.Path);
-            await WriteProblemDetailsAsync(context, ex.StatusCode, ex.Title, ex.Message);
+            await next(context);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unhandled exception for {Method} {Path}", context.Request.Method, context.Request.Path);
-            await WriteProblemDetailsAsync(context, StatusCodes.Status500InternalServerError, "An unexpected error occurred.", ex.Message);
+            var httpContext = context.GetHttpContext();
+            if (httpContext is null)
+                throw;
+
+            // Function exceptions may be wrapped by the worker invocation pipeline
+            var domainException = ex as DomainException ?? ex.InnerException as DomainException;
+            if (domainException is not null)
+            {
+                _logger.LogWarning(domainException, "Handled domain exception for {Method} {Path}", httpContext.Request.Method, httpContext.Request.Path);
+                await WriteProblemDetailsAsync(httpContext, domainException.StatusCode, domainException.Title, domainException.Message);
+                return;
+            }
+
+            _logger.LogError(ex, "Unhandled exception for {Method} {Path}", httpContext.Request.Method, httpContext.Request.Path);
+            await WriteProblemDetailsAsync(httpContext, StatusCodes.Status500InternalServerError, "An unexpected error occurred.", ex.Message);
         }
     }
 

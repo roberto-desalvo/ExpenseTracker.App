@@ -10,5 +10,8 @@
 ## Chi può farlo
 Solo utenti autenticati. L'importazione dei file richiede inoltre un permesso specifico dedicato, non assegnato a tutti gli utenti. La rigenerazione dei dati demo è riservata al solo account contrassegnato come dimostrativo: chiunque altro provi a richiederla riceve un rifiuto.
 
+## Dove girano queste funzionalità
+Ogni operazione è una piccola "funzione" ospitata su un servizio cloud serverless: si attiva quando arriva una richiesta e scala automaticamente con il carico, senza un server sempre acceso. Gli indirizzi usati dal frontend e dagli script di importazione sono rimasti gli stessi.
+
 ## Valore
-Un unico punto di accesso, coerente e protetto, per tutte le operazioni sui dati economici.
+Un unico punto di accesso, coerente e protetto, per tutte le operazioni sui dati economici, con costi proporzionati all'uso effettivo.

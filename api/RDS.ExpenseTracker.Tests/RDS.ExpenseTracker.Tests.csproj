@@ -23,7 +23,6 @@
     <ProjectReference Include="..\RDS.ExpenseTracker.Infrastructure\RDS.ExpenseTracker.Infrastructure.csproj" />
     <ProjectReference Include="..\RDS.ExpenseTracker.Domain\RDS.ExpenseTracker.Domain.csproj" />
     <ProjectReference Include="..\RDS.ExpenseTracker.Application\RDS.ExpenseTracker.Application.csproj" />
-    <ProjectReference Include="..\RDS.ExpenseTracker.Api\RDS.ExpenseTracker.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>

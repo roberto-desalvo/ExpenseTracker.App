@@ -401,3 +401,5 @@ FodyWeavers.xsd
 **/appsettings.Development.json
 **/appsettings.Production.json
 **/app.config.dev
+# Azure Functions local settings (secrets)
+**/local.settings.json

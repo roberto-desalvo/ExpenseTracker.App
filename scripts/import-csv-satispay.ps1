@@ -91,7 +91,7 @@ $resolvedPath = (Resolve-Path -LiteralPath $FilePath).Path
 Write-Host "Import Satispay CSV in corso..."
 Write-Host "File: $resolvedPath"
 
-$endpoint = "https://localhost:7120/api/import/satispay-csv"
+$endpoint = "http://localhost:7120/api/import/satispay-csv"
 if ($ImportAll) {
     $endpoint += "?importAll=true"
 }

@@ -91,7 +91,7 @@ $resolvedPath = (Resolve-Path -LiteralPath $FilePath).Path
 Write-Host "Import Trade Republic CSV in corso..."
 Write-Host "File: $resolvedPath"
 
-$endpoint = "https://localhost:7120/api/import/traderepublic-csv"
+$endpoint = "http://localhost:7120/api/import/traderepublic-csv"
 if ($ImportAll) {
     $endpoint += "?importAll=true"
 }
