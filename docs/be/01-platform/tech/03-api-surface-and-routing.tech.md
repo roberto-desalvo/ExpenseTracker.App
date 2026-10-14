@@ -60,3 +60,6 @@ Tutti gli endpoint di import accettano il flag opzionale `?importAll`. Le tre va
 
 ## OpenAPI
 Con la migrazione ad Azure Functions la UI Scalar (`/scalar`) e il documento OpenAPI built-in non sono più esposti.
+
+## Collection Postman
+In `tools/postman/ExpenseTracker.postman_collection.json` c'è una collection Postman (schema v2.1) con tutte le function sopra elencate, organizzate per classe. Usa le variabili di collection `baseUrl` (default `http://localhost:7120/api`), `accessToken` (Bearer applicato a livello di collection), `accountId`/`toAccountId`/`categoryId`/`transactionId`/`transferId` e `importAll`. Accanto c'è l'environment `ExpenseTracker.Local.postman_environment.json` con gli stessi valori per l'esecuzione locale (`accessToken` è di tipo secret e va valorizzato a mano). Quando si aggiunge o modifica un endpoint, va aggiornata anche la collection.

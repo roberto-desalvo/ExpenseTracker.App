@@ -1,0 +1,1364 @@
+{
+  "info": {
+    "_postman_id": "3d8f2b61-9a4c-4e2f-8b7a-5c1e0d9f4a27",
+    "name": "ExpenseTracker API",
+    "description": "Chiamate al backend ExpenseTracker (Azure Functions, prefisso `api`).\n\n**Autenticazione**: tutte le function richiedono un Bearer token Azure AD. La collection usa `Bearer {{accessToken}}`: valorizzare la variabile `accessToken` con un token emesso per lo scope dell'API (`api://<client-id>/access_as_user`), ad esempio copiandolo dalle richieste del frontend (DevTools \u2192 Network) oppure con `az account get-access-token --scope api://<client-id>/.default` se Azure CLI \u00e8 autorizzata sull'app. Gli endpoint di import richiedono anche il ruolo `Files.Sender`.\n\n**Variabili**: `baseUrl` (default locale `http://localhost:7120/api`), `accountId`, `toAccountId`, `categoryId`, `transactionId`, `transferId`, `importAll`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:7120/api"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "accountId",
+      "value": "1"
+    },
+    {
+      "key": "toAccountId",
+      "value": "2"
+    },
+    {
+      "key": "categoryId",
+      "value": "1"
+    },
+    {
+      "key": "transactionId",
+      "value": "1"
+    },
+    {
+      "key": "transferId",
+      "value": "1"
+    },
+    {
+      "key": "importAll",
+      "value": "false"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "`api/auth`",
+      "item": [
+        {
+          "name": "Auth_GetProfile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth"
+              ]
+            },
+            "description": "Restituisce l'id utente interno (`{ userId }`) risolto dal token."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Account",
+      "description": "`api/account`",
+      "item": [
+        {
+          "name": "Account_Query",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/account/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "account",
+                "query"
+              ]
+            },
+            "description": "Ricerca paginata degli account dell'utente.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"page\": 0,\n  \"pageSize\": 25,\n  \"name\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Account_Get",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/account/{{accountId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "account",
+                "{{accountId}}"
+              ]
+            },
+            "description": "Account singolo."
+          }
+        },
+        {
+          "name": "Account_GetAvailability",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/account/{{accountId}}/availability",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "account",
+                "{{accountId}}",
+                "availability"
+              ]
+            },
+            "description": "Saldo calcolato dell'account."
+          }
+        },
+        {
+          "name": "Account_Post",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/account",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "account"
+              ]
+            },
+            "description": "Creazione bulk di account (body = array).",
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"name\": \"Conto corrente\"\n  }\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Account_Put",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/account",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "account"
+              ]
+            },
+            "description": "Aggiorna un account.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{accountId}},\n  \"name\": \"Conto corrente (rinominato)\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Category",
+      "description": "`api/category`",
+      "item": [
+        {
+          "name": "Category_Query",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/category/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "category",
+                "query"
+              ]
+            },
+            "description": "Ricerca paginata delle categorie.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"page\": 0,\n  \"pageSize\": 25,\n  \"name\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Category_Get",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/category/{{categoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "category",
+                "{{categoryId}}"
+              ]
+            },
+            "description": "Categoria singola."
+          }
+        },
+        {
+          "name": "Category_GetDefault",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/category/default",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "category",
+                "default"
+              ]
+            },
+            "description": "Categoria di default."
+          }
+        },
+        {
+          "name": "Category_Post",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/category",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "category"
+              ]
+            },
+            "description": "Creazione bulk di categorie (body = array).",
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"name\": \"Spesa\",\n    \"description\": \"Supermercato\",\n    \"priority\": 1,\n    \"isDefault\": false,\n    \"tags\": [\n      \"esselunga\",\n      \"coop\"\n    ]\n  }\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Category_Put",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/category",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "category"
+              ]
+            },
+            "description": "Aggiorna una categoria.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{categoryId}},\n  \"name\": \"Spesa\",\n  \"description\": \"Supermercato e alimentari\",\n  \"priority\": 1,\n  \"isDefault\": false,\n  \"tags\": [\n    \"esselunga\",\n    \"coop\",\n    \"conad\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Category_Delete",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/category/{{categoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "category",
+                "{{categoryId}}"
+              ]
+            },
+            "description": "Elimina la categoria (le transazioni vengono prima riassegnate alla categoria di default)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Transaction",
+      "description": "`api/transaction`",
+      "item": [
+        {
+          "name": "Transaction_Query",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transaction/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transaction",
+                "query"
+              ]
+            },
+            "description": "Ricerca paginata con totali income/outcome/net.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"page\": 0,\n  \"pageSize\": 25,\n  \"fromDate\": \"2026-01-01T00:00:00\",\n  \"toDate\": null,\n  \"idAccounts\": null,\n  \"idCategories\": null,\n  \"isIncome\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Transaction_GetMonthOptions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/transaction/month-options",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transaction",
+                "month-options"
+              ]
+            },
+            "description": "Mesi disponibili per i filtri UI."
+          }
+        },
+        {
+          "name": "Transaction_GetLanding",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/transaction/landing?excludeTransfers=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transaction",
+                "landing"
+              ],
+              "query": [
+                {
+                  "key": "excludeTransfers",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Aggregazione dashboard (saldi, riepilogo categorie, serie net-worth). `excludeTransfers` default `true`."
+          }
+        },
+        {
+          "name": "Transaction_Get",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/transaction/{{transactionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transaction",
+                "{{transactionId}}"
+              ]
+            },
+            "description": "Transazione singola."
+          }
+        },
+        {
+          "name": "Transaction_GetLatest",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/transaction/latest",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transaction",
+                "latest"
+              ]
+            },
+            "description": "Transazione pi\u00f9 recente."
+          }
+        },
+        {
+          "name": "Transaction_Post",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transaction",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transaction"
+              ]
+            },
+            "description": "Crea una transazione (importo negativo = uscita).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": -42.5,\n  \"description\": \"Spesa settimanale\",\n  \"date\": \"2026-10-14T00:00:00\",\n  \"accountId\": {{accountId}},\n  \"categoryId\": {{categoryId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Transaction_Put",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transaction",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transaction"
+              ]
+            },
+            "description": "Aggiorna una transazione.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{transactionId}},\n  \"amount\": -45.0,\n  \"description\": \"Spesa settimanale\",\n  \"date\": \"2026-10-14T00:00:00\",\n  \"accountId\": {{accountId}},\n  \"categoryId\": {{categoryId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Transaction_Delete",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/transaction/{{transactionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transaction",
+                "{{transactionId}}"
+              ]
+            },
+            "description": "Elimina una transazione."
+          }
+        },
+        {
+          "name": "Transaction_GetTimeSeries",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transaction/series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transaction",
+                "series"
+              ]
+            },
+            "description": "Time-series per periodo (somme). `granularity`: 1 = Daily, 2 = Weekly, 3 = Monthly, 4 = Yearly.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"2026-01-01T00:00:00\",\n  \"endDate\": \"2026-12-31T23:59:59\",\n  \"idAccounts\": [],\n  \"idCategories\": [],\n  \"granularity\": 3,\n  \"excludeTransfers\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Transaction_GetStock",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transaction/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transaction",
+                "stock"
+              ]
+            },
+            "description": "Time-series cumulativa. `granularity`: 1 = Daily, 2 = Weekly, 3 = Monthly, 4 = Yearly.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"2026-01-01T00:00:00\",\n  \"endDate\": \"2026-12-31T23:59:59\",\n  \"idAccounts\": [],\n  \"idCategories\": [],\n  \"granularity\": 3,\n  \"excludeTransfers\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Transfer",
+      "description": "`api/transfer`",
+      "item": [
+        {
+          "name": "Transfer_GetAll",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/transfer",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transfer"
+              ]
+            },
+            "description": "Elenco trasferimenti."
+          }
+        },
+        {
+          "name": "Transfer_Get",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/transfer/{{transferId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transfer",
+                "{{transferId}}"
+              ]
+            },
+            "description": "Trasferimento singolo."
+          }
+        },
+        {
+          "name": "Transfer_Post",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transfer",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transfer"
+              ]
+            },
+            "description": "Crea un trasferimento (due leg collegate).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fromAccountId\": {{accountId}},\n  \"toAccountId\": {{toAccountId}},\n  \"amount\": 100.0,\n  \"description\": \"Giroconto\",\n  \"date\": \"2026-10-14T00:00:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Transfer_Put",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transfer/{{transferId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transfer",
+                "{{transferId}}"
+              ]
+            },
+            "description": "Aggiorna un trasferimento (ricrea le due leg). L'id \u00e8 preso dalla route.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fromAccountId\": {{accountId}},\n  \"toAccountId\": {{toAccountId}},\n  \"amount\": 100.0,\n  \"description\": \"Giroconto\",\n  \"date\": \"2026-10-14T00:00:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Transfer_Delete",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/transfer/{{transferId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transfer",
+                "{{transferId}}"
+              ]
+            },
+            "description": "Elimina trasferimento e leg."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Demo",
+      "description": "`api/demo`",
+      "item": [
+        {
+          "name": "Demo_Generate",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/demo/generate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "demo",
+                "generate"
+              ]
+            },
+            "description": "Rigenera da zero i dati demo dell'utente autenticato. 403 se l'utente non ha `IsDemo = true`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Import",
+      "description": "`api/import` \u2014 richiede il ruolo applicativo **Files.Sender** nel token. Tutti gli endpoint accettano `?importAll=true` per reimportare anche le righe gi\u00e0 note. Risposta: `200 { importedCount }` oppure `400 { errors: [...] }`.",
+      "item": [
+        {
+          "name": "Excel (legacy)",
+          "description": "Import Excel multi-sheet.",
+          "item": [
+            {
+              "name": "Import_Excel",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/import/excel?importAll={{importAll}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "import",
+                    "excel"
+                  ],
+                  "query": [
+                    {
+                      "key": "importAll",
+                      "value": "{{importAll}}"
+                    }
+                  ]
+                },
+                "description": "Import Excel multipart. Selezionare il file nel campo `file` (form-data).",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": ""
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Import_ExcelBase64",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/import/excel/base64?importAll={{importAll}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "import",
+                    "excel",
+                    "base64"
+                  ],
+                  "query": [
+                    {
+                      "key": "importAll",
+                      "value": "{{importAll}}"
+                    }
+                  ]
+                },
+                "description": "Import Excel con contenuto base64 nel body JSON.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"base64Content\": \"<BASE64>\",\n  \"fileName\": \"import.xlsx\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Import_ExcelStream",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/octet-stream"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/import/excel/stream?importAll={{importAll}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "import",
+                    "excel",
+                    "stream"
+                  ],
+                  "query": [
+                    {
+                      "key": "importAll",
+                      "value": "{{importAll}}"
+                    },
+                    {
+                      "key": "fileName",
+                      "value": "import.xlsx",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Import Excel raw. Body binario (raw octet-stream); `fileName` opzionale, default `import.xlsx`.",
+                "body": {
+                  "mode": "file",
+                  "file": {
+                    "src": ""
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bbva",
+          "description": "Import CSV/XLSX Bbva.",
+          "item": [
+            {
+              "name": "Import_BbvaCsv",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/import/bbva-csv?importAll={{importAll}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "import",
+                    "bbva-csv"
+                  ],
+                  "query": [
+                    {
+                      "key": "importAll",
+                      "value": "{{importAll}}"
+                    }
+                  ]
+                },
+                "description": "Import CSV Bbva (estensione `.csv`). Selezionare il file nel campo `file` (form-data).",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": ""
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Import_BbvaCsvStream",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/octet-stream"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/import/bbva-csv/stream?importAll={{importAll}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "import",
+                    "bbva-csv",
+                    "stream"
+                  ],
+                  "query": [
+                    {
+                      "key": "importAll",
+                      "value": "{{importAll}}"
+                    },
+                    {
+                      "key": "fileName",
+                      "value": "bbva.csv",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Import CSV Bbva raw. Body binario (raw octet-stream); `fileName` opzionale, default `bbva.csv`.",
+                "body": {
+                  "mode": "file",
+                  "file": {
+                    "src": ""
+                  }
+                }
+              }
+            },
+            {
+              "name": "Import_BbvaXlsx",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/import/bbva-xlsx?importAll={{importAll}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "import",
+                    "bbva-xlsx"
+                  ],
+                  "query": [
+                    {
+                      "key": "importAll",
+                      "value": "{{importAll}}"
+                    }
+                  ]
+                },
+                "description": "Import XLSX Bbva. Body binario `.xlsx`, convertito in CSV in-memory. Content-Type diverso da XLSX \u2192 415.",
+                "body": {
+                  "mode": "file",
+                  "file": {
+                    "src": ""
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sella",
+          "description": "Import CSV/XLSX Sella.",
+          "item": [
+            {
+              "name": "Import_SellaCsv",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/import/sella-csv?importAll={{importAll}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "import",
+                    "sella-csv"
+                  ],
+                  "query": [
+                    {
+                      "key": "importAll",
+                      "value": "{{importAll}}"
+                    }
+                  ]
+                },
+                "description": "Import CSV Sella (estensione `.csv`). Selezionare il file nel campo `file` (form-data).",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": ""
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Import_SellaCsvStream",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/octet-stream"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/import/sella-csv/stream?importAll={{importAll}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "import",
+                    "sella-csv",
+                    "stream"
+                  ],
+                  "query": [
+                    {
+                      "key": "importAll",
+                      "value": "{{importAll}}"
+                    },
+                    {
+                      "key": "fileName",
+                      "value": "sella.csv",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Import CSV Sella raw. Body binario (raw octet-stream); `fileName` opzionale, default `sella.csv`.",
+                "body": {
+                  "mode": "file",
+                  "file": {
+                    "src": ""
+                  }
+                }
+              }
+            },
+            {
+              "name": "Import_SellaXlsx",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/import/sella-xlsx?importAll={{importAll}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "import",
+                    "sella-xlsx"
+                  ],
+                  "query": [
+                    {
+                      "key": "importAll",
+                      "value": "{{importAll}}"
+                    }
+                  ]
+                },
+                "description": "Import XLSX Sella. Body binario `.xlsx`, convertito in CSV in-memory. Content-Type diverso da XLSX \u2192 415.",
+                "body": {
+                  "mode": "file",
+                  "file": {
+                    "src": ""
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "SatisPay",
+          "description": "Import CSV/XLSX SatisPay.",
+          "item": [
+            {
+              "name": "Import_SatisPayCsv",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/import/satispay-csv?importAll={{importAll}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "import",
+                    "satispay-csv"
+                  ],
+                  "query": [
+                    {
+                      "key": "importAll",
+                      "value": "{{importAll}}"
+                    }
+                  ]
+                },
+                "description": "Import CSV SatisPay (estensione `.csv`). Selezionare il file nel campo `file` (form-data).",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": ""
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Import_SatisPayCsvStream",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/octet-stream"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/import/satispay-csv/stream?importAll={{importAll}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "import",
+                    "satispay-csv",
+                    "stream"
+                  ],
+                  "query": [
+                    {
+                      "key": "importAll",
+                      "value": "{{importAll}}"
+                    },
+                    {
+                      "key": "fileName",
+                      "value": "satispay.csv",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Import CSV SatisPay raw. Body binario (raw octet-stream); `fileName` opzionale, default `satispay.csv`.",
+                "body": {
+                  "mode": "file",
+                  "file": {
+                    "src": ""
+                  }
+                }
+              }
+            },
+            {
+              "name": "Import_SatisPayXlsx",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/import/satispay-xlsx?importAll={{importAll}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "import",
+                    "satispay-xlsx"
+                  ],
+                  "query": [
+                    {
+                      "key": "importAll",
+                      "value": "{{importAll}}"
+                    }
+                  ]
+                },
+                "description": "Import XLSX SatisPay. Body binario `.xlsx`, convertito in CSV in-memory. Content-Type diverso da XLSX \u2192 415.",
+                "body": {
+                  "mode": "file",
+                  "file": {
+                    "src": ""
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "TradeRepublic",
+          "description": "Import CSV/XLSX TradeRepublic.",
+          "item": [
+            {
+              "name": "Import_TradeRepublicCsv",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/import/traderepublic-csv?importAll={{importAll}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "import",
+                    "traderepublic-csv"
+                  ],
+                  "query": [
+                    {
+                      "key": "importAll",
+                      "value": "{{importAll}}"
+                    }
+                  ]
+                },
+                "description": "Import CSV TradeRepublic (estensione `.csv`). Selezionare il file nel campo `file` (form-data).",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": ""
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Import_TradeRepublicCsvStream",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/octet-stream"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/import/traderepublic-csv/stream?importAll={{importAll}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "import",
+                    "traderepublic-csv",
+                    "stream"
+                  ],
+                  "query": [
+                    {
+                      "key": "importAll",
+                      "value": "{{importAll}}"
+                    },
+                    {
+                      "key": "fileName",
+                      "value": "traderepublic.csv",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Import CSV TradeRepublic raw. Body binario (raw octet-stream); `fileName` opzionale, default `traderepublic.csv`.",
+                "body": {
+                  "mode": "file",
+                  "file": {
+                    "src": ""
+                  }
+                }
+              }
+            },
+            {
+              "name": "Import_TradeRepublicXlsx",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/import/traderepublic-xlsx?importAll={{importAll}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "import",
+                    "traderepublic-xlsx"
+                  ],
+                  "query": [
+                    {
+                      "key": "importAll",
+                      "value": "{{importAll}}"
+                    }
+                  ]
+                },
+                "description": "Import XLSX TradeRepublic. Body binario `.xlsx`, convertito in CSV in-memory. Content-Type diverso da XLSX \u2192 415.",
+                "body": {
+                  "mode": "file",
+                  "file": {
+                    "src": ""
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

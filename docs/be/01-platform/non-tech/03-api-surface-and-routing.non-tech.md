@@ -13,5 +13,8 @@ Solo utenti autenticati. L'importazione dei file richiede inoltre un permesso sp
 ## Dove girano queste funzionalità
 Ogni operazione è una piccola "funzione" ospitata su un servizio cloud serverless: si attiva quando arriva una richiesta e scala automaticamente con il carico, senza un server sempre acceso. Gli indirizzi usati dal frontend e dagli script di importazione sono rimasti gli stessi.
 
+## Provare le operazioni a mano
+Per chi sviluppa o verifica il sistema c'è una raccolta pronta da importare in Postman (uno strumento per inviare richieste a un servizio web) con tutte le operazioni disponibili e dati di esempio, insieme a una configurazione già pronta per il servizio avviato in locale. Basta indicare l'indirizzo del servizio e un accesso valido per provarle una per una.
+
 ## Valore
 Un unico punto di accesso, coerente e protetto, per tutte le operazioni sui dati economici, con costi proporzionati all'uso effettivo.
