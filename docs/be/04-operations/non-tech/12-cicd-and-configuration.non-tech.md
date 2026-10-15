@@ -10,4 +10,4 @@ Il nome del servizio cloud di destinazione e, facoltativamente, l'indirizzo del 
 Il rilascio automatico non include, al momento, un controllo automatico che i test passino prima della pubblicazione: è un miglioramento di processo da valutare.
 
 ## Come viene configurato l'ambiente
-Le impostazioni sensibili (accessi, connessioni al database) sono gestite separatamente dal codice, cambiano tra ambiente di sviluppo e produzione, e non vengono mai pubblicate insieme al codice sorgente. In locale ogni sviluppatore parte da un modello di configurazione condiviso e inserisce i propri valori in un file personale non salvato nel repository.
+Le impostazioni sensibili (accessi, connessioni al database) sono gestite separatamente dal codice, cambiano tra ambiente di sviluppo e produzione, e non vengono mai pubblicate insieme al codice sorgente. In locale ogni sviluppatore parte da un modello di configurazione condiviso e inserisce i propri valori in un file personale non salvato nel repository. Il modello locale attiva già l'accesso semplificato di sviluppo (solo nome utente), così non serve configurare l'identità Microsoft per provare l'app sul proprio computer.

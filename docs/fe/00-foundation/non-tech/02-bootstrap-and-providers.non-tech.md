@@ -2,7 +2,7 @@
 
 ## Cosa succede all'apertura
 - L'app verifica la configurazione.
-- Prepara l'accesso utente prima di mostrare qualsiasi contenuto.
+- Prepara l'accesso utente prima di mostrare qualsiasi contenuto (in sviluppo locale chiede solo il nome utente).
 - Carica impostazioni visive e notifiche.
 - Dopo il login, prepara i dati di base (account, transazioni, categorie e le informazioni delle tabelle) così sono pronti non appena l'utente naviga tra le pagine.
 

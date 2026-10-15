@@ -34,6 +34,13 @@ builder.Services
 
 builder.Services.AddOptions(builder.Configuration);
 
+// The dev authentication bypass must never be active outside local development.
+var devAuthOptions = builder.Configuration.BindFromSectionName<DevAuthOptions>();
+var isDevelopment = builder.Environment.IsDevelopment()
+    || string.Equals(builder.Configuration["AZURE_FUNCTIONS_ENVIRONMENT"], Environments.Development, StringComparison.OrdinalIgnoreCase);
+if (devAuthOptions.Enabled && !isDevelopment)
+    throw new InvalidOperationException("DevAuth:Enabled can only be set in the Development environment.");
+
 // var kvOptions = builder.Configuration.BindFromSectionName<KeyVaultOptions>();
 // var connectionString = AzureKeyVaultHandler.GetKeyVaultSecret(kvOptions.Uri, kvOptions.ConnectionStringSecretName);
 

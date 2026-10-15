@@ -6,7 +6,8 @@
     "AZURE_FUNCTIONS_ENVIRONMENT": "Development",
     "AzureAd__TenantId": "",
     "AzureAd__ClientId": "",
-    "AzureAd__Audience": ""
+    "AzureAd__Audience": "",
+    "DevAuth__Enabled": "true"
   },
   "ConnectionStrings": {
     "DefaultConnection": ""

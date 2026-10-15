@@ -5,8 +5,10 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RDS.ExpenseTracker.Domain.Exceptions;
 using RDS.ExpenseTracker.Functions.Auth;
+using RDS.ExpenseTracker.Functions.Options;
 
 namespace RDS.ExpenseTracker.Functions.Middlewares;
 
@@ -18,12 +20,20 @@ public class AuthenticationMiddleware : IFunctionsWorkerMiddleware
 {
     private static readonly ConcurrentDictionary<string, FunctionAuthMetadata> MetadataCache = new();
 
+    private const string DevUserScheme = "DevUser ";
+    private const int DevUserMaxLength = 60;
+
     private readonly JwtTokenValidator _tokenValidator;
+    private readonly DevAuthOptions _devAuthOptions;
     private readonly ILogger<AuthenticationMiddleware> _logger;
 
-    public AuthenticationMiddleware(JwtTokenValidator tokenValidator, ILogger<AuthenticationMiddleware> logger)
+    public AuthenticationMiddleware(
+        JwtTokenValidator tokenValidator,
+        IOptions<DevAuthOptions> devAuthOptions,
+        ILogger<AuthenticationMiddleware> logger)
     {
         _tokenValidator = tokenValidator ?? throw new ArgumentNullException(nameof(tokenValidator));
+        _devAuthOptions = devAuthOptions?.Value ?? throw new ArgumentNullException(nameof(devAuthOptions));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -38,7 +48,21 @@ public class AuthenticationMiddleware : IFunctionsWorkerMiddleware
             return;
         }
 
-        var token = GetBearerToken(httpContext.Request.Headers.Authorization.ToString())
+        var authorizationHeader = httpContext.Request.Headers.Authorization.ToString();
+
+        if (_devAuthOptions.Enabled
+            && authorizationHeader.StartsWith(DevUserScheme, StringComparison.OrdinalIgnoreCase))
+        {
+            // Local development only (enforced at startup): trust the username and skip role checks.
+            var devPrincipal = CreateDevPrincipal(authorizationHeader[DevUserScheme.Length..]);
+            httpContext.User = devPrincipal;
+            context.InstanceServices.GetRequiredService<RequestPrincipalAccessor>().Principal = devPrincipal;
+
+            await next(context);
+            return;
+        }
+
+        var token = GetBearerToken(authorizationHeader)
             ?? throw new UnauthorizedDomainException("Missing bearer token.");
 
         ClaimsPrincipal? principal;
@@ -73,6 +97,28 @@ public class AuthenticationMiddleware : IFunctionsWorkerMiddleware
 
         var token = authorizationHeader[prefix.Length..].Trim();
         return string.IsNullOrEmpty(token) ? null : token;
+    }
+
+    private static ClaimsPrincipal CreateDevPrincipal(string rawUserName)
+    {
+        var userName = rawUserName.Trim();
+        if (userName.Length == 0 || userName.Length > DevUserMaxLength)
+            throw new UnauthorizedDomainException($"Dev username must be between 1 and {DevUserMaxLength} characters.");
+
+        var normalized = userName.ToLowerInvariant();
+        var email = normalized.Contains('@') ? normalized : $"{normalized}@dev.local";
+
+        var identity = new ClaimsIdentity(
+            [
+                new Claim("oid", $"dev:{normalized}"),
+                new Claim(ClaimTypes.Email, email),
+                new Claim(ClaimTypes.Name, userName)
+            ],
+            authenticationType: "DevUser",
+            nameType: ClaimTypes.Name,
+            roleType: ClaimTypes.Role);
+
+        return new ClaimsPrincipal(identity);
     }
 
     private static bool HasRole(ClaimsPrincipal principal, string role)

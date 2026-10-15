@@ -5,6 +5,7 @@ Azure AD (Entra ID) JWT bearer, validato dal worker stesso (le function HTTP son
 
 - **`Functions/Auth/JwtTokenValidator.cs`** (singleton) — scarica e cacha i metadata OIDC da `{AzureAd:Instance}{AzureAd:TenantId}/v2.0/.well-known/openid-configuration` (`ConfigurationManager<OpenIdConnectConfiguration>`) e valida il token con `JsonWebTokenHandler` (`MapInboundClaims = true`, quindi gli stessi claim type mappati della precedente pipeline `Microsoft.Identity.Web`). Controlli: firma, lifetime, issuer (v1 `https://sts.windows.net/{tid}/` e v2 `https://login.microsoftonline.com/{tid}/v2.0`), audience (`AzureAd:Audience`, `AzureAd:ClientId`, `api://{ClientId}`). Su chiave di firma sconosciuta forza il refresh dei metadata.
 - **`Functions/Middlewares/AuthenticationMiddleware.cs`** — per ogni invocazione HTTP legge `Authorization: Bearer ...`, valida il token e salva il `ClaimsPrincipal` sia in `HttpContext.User` sia nel servizio scoped `RequestPrincipalAccessor`. Token assente/non valido → `UnauthorizedDomainException` (401).
+- **Bypass di sviluppo (`DevAuth`)** — se `DevAuth:Enabled=true` (`DevAuthOptions`), il middleware accetta anche `Authorization: DevUser <username>` (1–60 caratteri) senza validare alcun token: costruisce un `ClaimsPrincipal` con `oid = dev:{username}` (lowercase), `ClaimTypes.Email` = username se contiene `@`, altrimenti `{username}@dev.local`, e `ClaimTypes.Name` = username, e **salta i controlli `[RequireRole]`**. L'utente interno viene creato via JIT provisioning come per i token reali. Con `DevAuth` attivo un header `Bearer` continua a essere validato normalmente. `Program.cs` fa fallire l'avvio se `DevAuth:Enabled` è attivo fuori dall'ambiente `Development` (`IHostEnvironment.IsDevelopment()` o `AZURE_FUNCTIONS_ENVIRONMENT=Development`).
 - **Attributi (`Functions/Auth/AuthorizationAttributes.cs`)** — `[RequireRole("...")]` (su classe o metodo) richiede almeno uno dei ruoli app (claim `roles`), altrimenti `ForbiddenDomainException` (403); `[AllowAnonymousFunction]` salta la validazione. Il middleware risolve gli attributi per riflessione da `FunctionDefinition.EntryPoint` e li cacha per function. `ImportFunctions` è decorata con `[RequireRole("Files.Sender")]`; nessuna function è attualmente anonima.
 
 ## Utente corrente & JIT provisioning (`Functions/Auth/CurrentUserAccessor.cs`)
@@ -51,6 +52,7 @@ Ogni classe implementa `IAppOptions` e si lega a una sezione di config; `Options
 | Classe | Sezione | Scopo |
 |---|---|---|
 | `AzureAdOptions` | `AzureAd` | Registrazione app Entra ID (Instance/TenantId/ClientId/Audience) usata da `JwtTokenValidator` |
+| `DevAuthOptions` | `DevAuth` | `Enabled`: bypass dell'autenticazione con `Authorization: DevUser <username>`, ammesso solo in `Development` |
 | `AppOptions` | `App` | `FEUrl`, `AllowedLocalOrigins` (legacy, non usata) |
 | `ExpenseExcelFileOptions` | `ExpenseTrackerExcel` | Indici colonna importer Excel legacy |
 | `BbvaCsvOptions` / `SellaCsvOptions` / `SatisPayCsvOptions` / `TradeRepublicCsvOptions` | `BbvaCsv` / `SellaCsv` / `SatisPayCsv` / `TradeRepublicCsv` | Default e IBAN-to-account map per importer |

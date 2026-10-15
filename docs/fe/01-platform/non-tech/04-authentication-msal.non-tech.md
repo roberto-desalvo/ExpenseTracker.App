@@ -9,3 +9,6 @@ L'accesso avviene tramite account aziendale Microsoft (Azure AD). Dopo il primo 
 
 ## Se qualcosa va storto
 L'utente riceve una schermata d'errore con opzione di nuovo tentativo.
+
+## In sviluppo
+Quando l'app viene avviata in locale dallo sviluppatore, l'accesso Microsoft è saltato: viene chiesto solo il nome utente con cui entrare, ed è possibile cambiare utente uscendo e indicando un altro nome. Questa modalità esiste solo in sviluppo e non è mai presente nella versione pubblicata.

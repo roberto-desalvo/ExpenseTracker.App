@@ -1,4 +1,6 @@
+import { PublicClientApplication } from "@azure/msal-browser";
 import { msalInstance } from "../auth/msalInstance";
+import { devAuthorizationHeader, getDevUser } from "../auth/devAuth";
 import { apiTokenRequest } from "../config/authConfig";
 
 export const API_ERROR_EVENT = "expense-tracker:api-error";
@@ -28,27 +30,38 @@ const emitApiError = (message: string) => {
  * Tenta di acquisire silenziosamente un access token per le API.
  * Se non ci sono account loggati restituisce null.
  */
-const getAccessToken = async (): Promise<string | null> => {
-  const account = msalInstance.getActiveAccount() ?? msalInstance.getAllAccounts()[0];
+const getAccessToken = async (instance: PublicClientApplication): Promise<string | null> => {
+  const account = instance.getActiveAccount() ?? instance.getAllAccounts()[0];
   if (!account) return null;
   try {
-    const result = await msalInstance.acquireTokenSilent(apiTokenRequest(account));
+    const result = await instance.acquireTokenSilent(apiTokenRequest(account));
     return result.accessToken;
   } catch {
     // Token silenzioso fallito: forza redirect
-    await msalInstance.acquireTokenRedirect(apiTokenRequest(account));
+    await instance.acquireTokenRedirect(apiTokenRequest(account));
     return null;
   }
 };
 
+const getAuthorizationHeader = async (): Promise<string | null> => {
+  if (!msalInstance) {
+    // Bypass di sviluppo: il BE accetta il nome utente con lo schema DevUser
+    const devUser = getDevUser();
+    return devUser ? devAuthorizationHeader(devUser) : null;
+  }
+
+  const token = await getAccessToken(msalInstance);
+  return token ? `Bearer ${token}` : null;
+};
+
 const withAuthHeader = async (init: RequestInit): Promise<RequestInit> => {
-  const token = await getAccessToken();
-  if (!token) return init;
+  const authorization = await getAuthorizationHeader();
+  if (!authorization) return init;
   return {
     ...init,
     headers: {
       ...(init.headers ?? {}),
-      Authorization: `Bearer ${token}`,
+      Authorization: authorization,
     },
   };
 };
