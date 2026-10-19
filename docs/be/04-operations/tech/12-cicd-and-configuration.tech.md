@@ -4,7 +4,7 @@
 `on: push` su `main` (path `api/**` o il workflow stesso) + `workflow_dispatch`, runner `ubuntu-latest`:
 
 1. **build** — `actions/setup-dotnet@v4` (.NET 10.0.x) → `dotnet build` della solution in Release → `dotnet publish` di `RDS.ExpenseTracker.Functions` → upload artifact `functions-app` (con `include-hidden-files: true`, necessario per la cartella `.azurefunctions` generata dal worker SDK).
-2. **deploy** — download artifact → (solo se configurata la sync CORS) `azure/login@v2` OIDC + sync CORS → `Azure/functions-action@v1` sulla Function App, slot `Production`, autenticato con **publish profile** (secret `AZUREAPPSERVICE_PUBLISHPROFILE_*`, creato dal Deployment Center di Azure).
+2. **deploy** — download artifact → (solo se configurata la sync CORS) `azure/login@v2` OIDC + sync CORS → `Azure/functions-action@v1` sulla Function App (piano **Flex Consumption**: `sku: flexconsumption`, deploy via One Deploy, niente slot), autenticato con **publish profile** (secret `AZUREAPPSERVICE_PUBLISHPROFILE_*`, creato dal Deployment Center di Azure; richiede *SCM Basic Auth Publishing Credentials* = On sulla Function App, altrimenti Kudu risponde 401).
 
 Secret di repository (GitHub → Settings → Secrets):
 
