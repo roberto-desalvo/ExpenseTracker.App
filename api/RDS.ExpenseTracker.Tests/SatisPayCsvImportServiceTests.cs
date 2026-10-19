@@ -267,7 +267,7 @@ public class SatisPayCsvImportServiceTests
             return Task.CompletedTask;
         }
 
-        public Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds)
+        public Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds, int userId)
             => Task.FromResult(Enumerable.Empty<string>());
 
         public Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains)
@@ -291,25 +291,25 @@ public class SatisPayCsvImportServiceTests
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(1);
 
-        public Task<Transaction?> GetTransaction(int id) => throw new NotImplementedException();
-        public Task<IEnumerable<Transaction>> GetTransactions() => throw new NotImplementedException();
-        public Task<(IEnumerable<Transaction> Items, int TotalCount, decimal TotalIncomes, decimal TotalOutcomes, decimal TotalNet)> GetPagedTransactions(TransactionQueryRequest request) => throw new NotImplementedException();
-        public Task<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>> GetTimeSeriesTransactions(TimeSeriesRequestDto request) => throw new NotImplementedException();
-        public Task<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>> GetTimeSeriesTransactionsUntilDate(TimeSeriesRequestDto request) => throw new NotImplementedException();
-        public Task<IEnumerable<(int AccountId, decimal Balance)>> GetAccountBalances(DateTime asOfDate) => throw new NotImplementedException();
-        public Task<IEnumerable<(int AccountId, decimal Spent, decimal Earned)>> GetAccountMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers) => throw new NotImplementedException();
-        public Task<IEnumerable<(int CategoryId, decimal Spent, decimal Earned)>> GetCategoryMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers) => throw new NotImplementedException();
-        public Task<(decimal Spent, decimal Earned)> GetMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers) => throw new NotImplementedException();
-        public Task<IEnumerable<(DateTime StartDate, DateTime EndDate)>> GetAvailableMonthRanges() => throw new NotImplementedException();
+        public Task<Transaction?> GetTransaction(int id, int userId) => throw new NotImplementedException();
+        public Task<IEnumerable<Transaction>> GetTransactions(int userId) => throw new NotImplementedException();
+        public Task<(IEnumerable<Transaction> Items, int TotalCount, decimal TotalIncomes, decimal TotalOutcomes, decimal TotalNet)> GetPagedTransactions(TransactionQueryRequest request, int userId) => throw new NotImplementedException();
+        public Task<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>> GetTimeSeriesTransactions(TimeSeriesRequestDto request, int userId) => throw new NotImplementedException();
+        public Task<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>> GetTimeSeriesTransactionsUntilDate(TimeSeriesRequestDto request, int userId) => throw new NotImplementedException();
+        public Task<IEnumerable<(int AccountId, decimal Balance)>> GetAccountBalances(DateTime asOfDate, int userId) => throw new NotImplementedException();
+        public Task<IEnumerable<(int AccountId, decimal Spent, decimal Earned)>> GetAccountMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers, int userId) => throw new NotImplementedException();
+        public Task<IEnumerable<(int CategoryId, decimal Spent, decimal Earned)>> GetCategoryMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers, int userId) => throw new NotImplementedException();
+        public Task<(decimal Spent, decimal Earned)> GetMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers, int userId) => throw new NotImplementedException();
+        public Task<IEnumerable<(DateTime StartDate, DateTime EndDate)>> GetAvailableMonthRanges(int userId) => throw new NotImplementedException();
         public Task<IEnumerable<Transaction>> GetTransactionsByTransferId(int transferId) => throw new NotImplementedException();
-        public Task<Transaction> GetLatestTransaction() => throw new NotImplementedException();
+        public Task<Transaction> GetLatestTransaction(int userId) => throw new NotImplementedException();
         public Task UpdateTransaction(Transaction transaction) => throw new NotImplementedException();
         public Task DeleteTransaction(int id) => throw new NotImplementedException();
-        public Task DeleteAllTransactions() => throw new NotImplementedException();
+        public Task DeleteAllTransactions(int userId) => throw new NotImplementedException();
         public Task<IEnumerable<int>> DeleteTransactionsByAccountIds(IEnumerable<int> accountIds) => throw new NotImplementedException();
         public Task<int> AddTransaction(Transaction transaction) => throw new NotImplementedException();
         public Task<int> AddTransaction(Transaction transaction, bool saveChanges) => throw new NotImplementedException();
-        public Task ResetTransactions(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
+        public Task ResetTransactions(IEnumerable<Transaction> transactions, int userId) => throw new NotImplementedException();
     }
 
     private sealed class FakeTransferRepository : ITransferRepository
@@ -319,9 +319,9 @@ public class SatisPayCsvImportServiceTests
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(1);
 
-        public Task<Transfer?> GetTransfer(int id) => throw new NotImplementedException();
-        public Task<Transfer?> GetTransferByExternalId(string externalId) => throw new NotImplementedException();
-        public Task<IEnumerable<Transfer>> GetTransfers() => throw new NotImplementedException();
+        public Task<Transfer?> GetTransfer(int id, int userId) => throw new NotImplementedException();
+        public Task<Transfer?> GetTransferByExternalId(string externalId, int userId) => throw new NotImplementedException();
+        public Task<IEnumerable<Transfer>> GetTransfers(int userId) => throw new NotImplementedException();
         public Task<Transfer?> GetExistingTransfer(int fromAccountId, int toAccountId, decimal amount, DateTime? date) => Task.FromResult<Transfer?>(null);
         public Task AddTransfer(Transfer transfer)
         {
@@ -361,9 +361,6 @@ public class SatisPayCsvImportServiceTests
             return Task.CompletedTask;
         }
 
-        public Task<IEnumerable<Account>> GetAccounts()
-            => Task.FromResult<IEnumerable<Account>>(_accounts);
-
         public Task<IEnumerable<Account>> GetAccounts(int userId)
             => Task.FromResult<IEnumerable<Account>>(_accounts.Where(a => a.UserId == userId));
 
@@ -372,7 +369,6 @@ public class SatisPayCsvImportServiceTests
 
         public Task UpdateAccount(Account account) => throw new NotImplementedException();
         public Task DeleteAccounts(IEnumerable<int> accountIds) => throw new NotImplementedException();
-        public Task<Account?> GetAccount(int id) => throw new NotImplementedException();
         public Task<Account?> GetAccount(int id, int userId) => throw new NotImplementedException();
         public Task<(IEnumerable<Account> Items, int TotalCount)> GetPagedAccounts(AccountQueryRequest request, int userId) => throw new NotImplementedException();
         public Task<bool> UpdateAvailability(int accountId, decimal amount, bool saveChanges) => throw new NotImplementedException();

@@ -30,9 +30,9 @@ public class TransactionService : ITransactionService
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
     }
 
-    public async Task<Result<TransactionQueryResult>> GetPagedTransactions(TransactionQueryRequest request)
+    public async Task<Result<TransactionQueryResult>> GetPagedTransactions(TransactionQueryRequest request, int userId)
     {
-        var (items, totalCount, totalIncomes, totalOutcomes, totalNet) = await _repository.GetPagedTransactions(request);
+        var (items, totalCount, totalIncomes, totalOutcomes, totalNet) = await _repository.GetPagedTransactions(request, userId);
         return Result.Ok(new TransactionQueryResult
         {
             Items = _mapper.Map<IEnumerable<TransactionDto>>(items),
@@ -45,10 +45,10 @@ public class TransactionService : ITransactionService
         });
     }
 
-    public async Task<Result<IEnumerable<TransactionMonthOptionDto>>> GetAvailableMonthOptions()
+    public async Task<Result<IEnumerable<TransactionMonthOptionDto>>> GetAvailableMonthOptions(int userId)
     {
         var cultureInfo = new CultureInfo("it-IT");
-        var monthOptions = (await _repository.GetAvailableMonthRanges())
+        var monthOptions = (await _repository.GetAvailableMonthRanges(userId))
             .Select(range => new TransactionMonthOptionDto
             {
                 StartDate = range.StartDate,
@@ -60,31 +60,36 @@ public class TransactionService : ITransactionService
         return Result.Ok(monthOptions);
     }
 
-    public async Task<Result<TransactionDto?>> GetTransaction(int id)
+    public async Task<Result<TransactionDto?>> GetTransaction(int id, int userId)
     {
         if (id <= 0)
             return Result.Fail(DomainErrors.InvalidId("transaction", id));
 
-        var transaction = await _repository.GetTransaction(id);
+        var transaction = await _repository.GetTransaction(id, userId);
         if (transaction is null)
             return Result.Fail(DomainErrors.NotFound("Transaction", id));
 
         return Result.Ok(_mapper.Map<TransactionDto?>(transaction));
     }
 
-    public async Task<Result<TransactionDto?>> GetLatestTransaction()
+    public async Task<Result<TransactionDto?>> GetLatestTransaction(int userId)
     {
-        var transaction = await _repository.GetLatestTransaction();
+        var transaction = await _repository.GetLatestTransaction(userId);
         if (transaction is null || transaction.Id <= 0)
             return Result.Fail(DomainErrors.NotFound("Latest transaction"));
 
         return Result.Ok(_mapper.Map<TransactionDto?>(transaction));
     }
 
-    public async Task<Result> AddTransactions(IEnumerable<TransactionDto> dtos)
+    public async Task<Result> AddTransactions(IEnumerable<TransactionDto> dtos, int userId)
     {
         if (dtos is null || !dtos.Any())
             return Result.Fail(DomainErrors.Required("transactions"));
+
+        var userAccountIds = (await _accountRepository.GetAccounts(userId)).Select(a => a.Id).ToHashSet();
+        var foreignAccountId = dtos.Select(d => d.AccountId).FirstOrDefault(id => !userAccountIds.Contains(id), -1);
+        if (foreignAccountId != -1)
+            return Result.Fail(DomainErrors.NotFound("Account", foreignAccountId));
 
         var entities = _mapper.Map<IEnumerable<Transaction>>(dtos);
         await _repository.AddTransactions(entities);
@@ -92,12 +97,12 @@ public class TransactionService : ITransactionService
         return Result.Ok();
     }
 
-    public async Task<Result<int>> AddTransaction(TransactionDto dto)
+    public async Task<Result<int>> AddTransaction(TransactionDto dto, int userId)
     {
         if (dto.AccountId <= 0)
             return Result.Fail(DomainErrors.InvalidId("account", dto.AccountId));
 
-        var account = await _accountRepository.GetAccount(dto.AccountId);
+        var account = await _accountRepository.GetAccount(dto.AccountId, userId);
         if (account is null)
             return Result.Fail(DomainErrors.NotFound("Account", dto.AccountId));
 
@@ -107,14 +112,19 @@ public class TransactionService : ITransactionService
         return Result.Ok(entity.Id);
     }
 
-    public async Task<Result> UpdateTransaction(TransactionDto dto)
+    public async Task<Result> UpdateTransaction(TransactionDto dto, int userId)
     {
         if (dto.Id <= 0)
             return Result.Fail(DomainErrors.InvalidId("transaction", dto.Id));
 
-        var existing = await _repository.GetTransaction(dto.Id);
+        var existing = await _repository.GetTransaction(dto.Id, userId);
         if (existing is null)
             return Result.Fail(DomainErrors.NotFound("Transaction", dto.Id));
+
+        // il movimento può essere spostato solo su un altro conto dello stesso utente
+        if (dto.AccountId != existing.AccountId
+            && await _accountRepository.GetAccount(dto.AccountId, userId) is null)
+            return Result.Fail(DomainErrors.NotFound("Account", dto.AccountId));
 
         var entity = _mapper.Map<Transaction>(dto);
         await _repository.UpdateTransaction(entity);
@@ -122,12 +132,12 @@ public class TransactionService : ITransactionService
         return Result.Ok();
     }
 
-    public async Task<Result> DeleteTransaction(int id)
+    public async Task<Result> DeleteTransaction(int id, int userId)
     {
         if (id <= 0)
             return Result.Fail(DomainErrors.InvalidId("transaction", id));
 
-        var existing = await _repository.GetTransaction(id);
+        var existing = await _repository.GetTransaction(id, userId);
         if (existing is null)
             return Result.Fail(DomainErrors.NotFound("Transaction", id));
 
@@ -136,14 +146,14 @@ public class TransactionService : ITransactionService
         return Result.Ok();
     }
 
-    public async Task<Result> DeleteAllTransactions()
+    public async Task<Result> DeleteAllTransactions(int userId)
     {
-        await _repository.DeleteAllTransactions();
+        await _repository.DeleteAllTransactions(userId);
         await _repository.SaveChangesAsync();
         return Result.Ok();
     }
 
-    public async Task<Result<TimeSeriesListDto>> GetTimeSeries(TimeSeriesRequestDto request)
+    public async Task<Result<TimeSeriesListDto>> GetTimeSeries(TimeSeriesRequestDto request, int userId)
     {
         if (request == null)
             return Result.Fail(DomainErrors.Required("request"));
@@ -156,7 +166,7 @@ public class TransactionService : ITransactionService
             ? (TimeGranularityEnum)rawGranularity
             : TimeGranularityEnum.Daily;
 
-        var filtered = (await _repository.GetTimeSeriesTransactions(request)).ToList();
+        var filtered = (await _repository.GetTimeSeriesTransactions(request, userId)).ToList();
 
         if (!filtered.Any())
             return Result.Ok(new TimeSeriesListDto
@@ -243,7 +253,7 @@ public class TransactionService : ITransactionService
         });
     }
 
-    public async Task<Result<TimeSeriesListDto>> GetStock(TimeSeriesRequestDto request)
+    public async Task<Result<TimeSeriesListDto>> GetStock(TimeSeriesRequestDto request, int userId)
     {
         if (request == null)
             return Result.Fail(DomainErrors.Required("request"));
@@ -271,7 +281,7 @@ public class TransactionService : ITransactionService
             ExcludeTransfers = false
         };
 
-        var filtered = (await _repository.GetTimeSeriesTransactionsUntilDate(balanceRequest)).ToList();
+        var filtered = (await _repository.GetTimeSeriesTransactionsUntilDate(balanceRequest, userId)).ToList();
 
         var series = new List<TimeSeriesDto>();
 
@@ -327,15 +337,15 @@ public class TransactionService : ITransactionService
         });
     }
 
-    public async Task<Result<LandingDashboardDto>> GetLanding(bool excludeTransfers = true)
+    public async Task<Result<LandingDashboardDto>> GetLanding(int userId, bool excludeTransfers = true)
     {
         var asOf = DateTime.Now;
         var monthStart = new DateTime(asOf.Year, asOf.Month, 1);
 
-        var accounts = (await _accountRepository.GetAccounts()).ToList();
-        var balances = (await _repository.GetAccountBalances(asOf))
+        var accounts = (await _accountRepository.GetAccounts(userId)).ToList();
+        var balances = (await _repository.GetAccountBalances(asOf, userId))
             .ToDictionary(item => item.AccountId, item => item.Balance);
-        var accountTotals = (await _repository.GetAccountMonthTotals(monthStart, asOf, excludeTransfers))
+        var accountTotals = (await _repository.GetAccountMonthTotals(monthStart, asOf, excludeTransfers, userId))
             .ToDictionary(item => item.AccountId);
 
         var accountItems = accounts
@@ -359,7 +369,7 @@ public class TransactionService : ITransactionService
             .ToList();
 
         var categories = (await _categoryRepository.GetCategories()).ToList();
-        var categoryTotals = (await _repository.GetCategoryMonthTotals(monthStart, asOf, excludeTransfers))
+        var categoryTotals = (await _repository.GetCategoryMonthTotals(monthStart, asOf, excludeTransfers, userId))
             .ToDictionary(item => item.CategoryId);
 
         var categoryItems = categories
@@ -381,9 +391,9 @@ public class TransactionService : ITransactionService
             .OrderBy(item => item.Name)
             .ToList();
 
-        var monthTotals = await _repository.GetMonthTotals(monthStart, asOf, excludeTransfers);
+        var monthTotals = await _repository.GetMonthTotals(monthStart, asOf, excludeTransfers, userId);
 
-        var netWorthSeries = await BuildNetWorthSeries(asOf);
+        var netWorthSeries = await BuildNetWorthSeries(asOf, userId);
 
         return Result.Ok(new LandingDashboardDto
         {
@@ -402,7 +412,7 @@ public class TransactionService : ITransactionService
         });
     }
 
-    private async Task<TimeSeriesListDto> BuildNetWorthSeries(DateTime asOf)
+    private async Task<TimeSeriesListDto> BuildNetWorthSeries(DateTime asOf, int userId)
     {
         var startMonth = new DateTime(asOf.Year, asOf.Month, 1).AddMonths(-11);
 
@@ -416,7 +426,7 @@ public class TransactionService : ITransactionService
             ExcludeTransfers = false
         };
 
-        var stockResult = await GetStock(request);
+        var stockResult = await GetStock(request, userId);
         return stockResult.IsSuccess
             ? stockResult.Value
             : new TimeSeriesListDto

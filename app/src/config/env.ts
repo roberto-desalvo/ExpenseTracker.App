@@ -26,9 +26,13 @@ const devAuthBypass = import.meta.env.DEV && import.meta.env.VITE_DEV_AUTH_BYPAS
 // Con il bypass attivo le variabili MSAL non vengono usate e possono mancare.
 const msalEnv = (key: keyof ImportMetaEnv) => (devAuthBypass ? "" : requireEnv(key));
 
+/** Pulsante "Prova la demo" nella pagina di login (richiede DemoAuth abilitato sul BE). Attivo salvo VITE_DEMO_LOGIN_ENABLED=false. */
+const demoLoginEnabled = import.meta.env.VITE_DEMO_LOGIN_ENABLED !== "false";
+
 export const appEnv = {
   apiBaseUrl: normalizeBaseUrl(requireEnv("VITE_EXPENSE_TRACKER_API_BASE_URL")),
   devAuthBypass,
+  demoLoginEnabled,
   msalClientId: msalEnv("VITE_MSAL_CLIENT_ID"),
   msalTenantId: msalEnv("VITE_MSAL_TENANT_ID"),
   msalApiScope: msalEnv("VITE_MSAL_API_SCOPE"),

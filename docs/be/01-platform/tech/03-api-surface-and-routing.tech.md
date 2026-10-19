@@ -11,6 +11,7 @@ Il nome di ogni function segue la convenzione `<Risorsa>_<Azione>` (es. `Account
 
 ## `AuthFunctions` — `api/auth`
 - `GET /` (`Auth_GetProfile`) — id utente interno (`{ userId }`) risolto dal token.
+- `POST /demo` (`Auth_DemoLogin`, `[AllowAnonymousFunction]`) — login demo: emette un bearer token firmato dall'API per l'utente di test `test@dev.local` (`{ accessToken, expiresOn, userName }`). 404 se `DemoAuth:Enabled=false` o se l'utente di test non esiste ancora (lo crea `Import_TestSeed`). Vedi [04-auth-and-request-pipeline](04-auth-and-request-pipeline.tech.md).
 
 ## `AccountFunctions` — `api/account`
 - `POST /query` — ricerca paginata account.
@@ -28,6 +29,7 @@ Il nome di ogni function segue la convenzione `<Risorsa>_<Azione>` (es. `Account
 - `DELETE /{id}` — elimina (riassegna prima le transazioni alla categoria di default).
 
 ## `TransactionFunctions` — `api/transaction`
+Tutte le route risolvono l'utente con `ICurrentUserAccessor.GetUserIdAsync()` e operano solo sui movimenti dei conti di quell'utente; un id altrui risponde 404.
 - `POST /query` — ricerca paginata con totali income/outcome/net.
 - `GET /month-options` — mesi disponibili per i filtri UI.
 - `GET /landing?excludeTransfers=true` — aggregazione dashboard (saldi, riepilogo categorie, serie net-worth).
@@ -40,6 +42,7 @@ Il nome di ogni function segue la convenzione `<Risorsa>_<Azione>` (es. `Account
 - `POST /stock` — time-series cumulativa.
 
 ## `TransferFunctions` — `api/transfer`
+Come per le transazioni: user-scoped tramite `GetUserIdAsync()`, entrambi i conti devono appartenere all'utente.
 - `GET /` — elenco trasferimenti.
 - `GET /{id}` — trasferimento singolo.
 - `POST /` — crea (due leg collegate).
@@ -55,8 +58,9 @@ Vedi [08-import-overview-and-dedup](../../03-import-pipeline/tech/08-import-over
 - `POST /bbva-csv`, `/sella-csv`, `/satispay-csv`, `/traderepublic-csv` — import CSV bancario (multipart, campo `file`, estensione `.csv`).
 - `POST /{bank}-csv/stream` — variante raw octet-stream (`?fileName=` opzionale).
 - `POST /{bank}-xlsx` — variante `.xlsx` raw, convertita in CSV in-memory prima dell'import. Un `Content-Type` diverso da XLSX restituisce 415.
+- `POST /test-seed` (`Import_TestSeed`) — nessun body: elimina e rigenera conti/movimenti/trasferimenti fittizi dell'utente `test@dev.local`, creandolo se non esiste (`ITestSeedService.ResetTestUserDataAsync`). Non usa l'identità del chiamante (nessun `GetUserIdForImportAsync`), ma resta soggetto a `[RequireRole("Files.Sender")]` come gli altri import. Passa da `FunctionBase.ExecuteAsync`: `200` con `TestSeedResultDto` (`userId`, `email`, `userCreated`, `accountCount`, `transactionCount`, `transferCount`, `fromDate`, `toDate`), errori come problem details. Pensato per un job schedulato che riporta i dati di test a uno stato pulito; logica in [07-application-services-and-mapping](../../02-data-persistence/tech/07-application-services-and-mapping.tech.md).
 
-Tutti gli endpoint di import accettano il flag opzionale `?importAll`. Le tre varianti (multipart, stream, xlsx) condividono la pipeline privata `ImportFormFileAsync` / `ImportRawBodyAsync` / `ImportXlsxAsCsvAsync` → `ToImportResult` (`200 { importedCount }` oppure `400 { errors: [...] }`).
+Tutti gli endpoint di import di file accettano il flag opzionale `?importAll`. Le tre varianti (multipart, stream, xlsx) condividono la pipeline privata `ImportFormFileAsync` / `ImportRawBodyAsync` / `ImportXlsxAsCsvAsync` → `ToImportResult` (`200 { importedCount }` oppure `400 { errors: [...] }`).
 
 ## OpenAPI
 Con la migrazione ad Azure Functions la UI Scalar (`/scalar`) e il documento OpenAPI built-in non sono più esposti.

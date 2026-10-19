@@ -16,6 +16,8 @@
 
 Entrambe iniettano l'header `Authorization: Bearer <token>` tramite `withAuthHeader`/`getAccessToken` (token silenzioso MSAL, vedi modulo 04) prima di eseguire la `fetch`.
 
+`apiFetchJson` è usata solo per letture (anche le query in `POST`; le scritture passano da `apiFetchVoid`) e deduplica le richieste in volo: la mappa `inFlightRequests` è indicizzata per `metodo + url + body` (solo body stringa) e una richiesta identica a una ancora pendente riceve la stessa promise, che viene rimossa dalla mappa al completamento. Così il doppio effect di `StrictMode` in sviluppo o più componenti che chiedono lo stesso dato insieme producono una sola chiamata HTTP (ed eventualmente una sola notifica d'errore).
+
 ## Gestione errori
 - Se la response non è `ok`, `buildErrorMessage` estrae il messaggio dal body JSON: prova prima `detail`, poi `title`, poi il primo valore in `errors` (dizionario campo→messaggi); se non estrae nulla usa il testo grezzo del body o `${fallbackMessage} (HTTP {status})`.
 - Il messaggio viene emesso come evento globale `window` `expense-tracker:api-error` (costante `API_ERROR_EVENT`) e poi rilanciato come eccezione (`ApiRequestError`, con flag interno `alreadyNotified` per evitare doppie notifiche se l'errore risale nello stack).

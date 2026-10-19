@@ -10,6 +10,9 @@ const categoryBase = resource("category");
 const transferBase = resource("transfer");
 
 export const apiConfig = {
+  auth: {
+    demo: resource("auth/demo"),
+  },
   accounts: {
     base: accountBase,
     query: `${accountBase}/query`,

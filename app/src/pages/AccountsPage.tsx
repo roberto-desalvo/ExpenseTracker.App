@@ -31,6 +31,7 @@ export default function AccountsPage() {
   const { dataVersion } = useTransactions();
   const {
     accounts,
+    accountsLoaded,
     pagedAccounts,
     isLoading,
     page,
@@ -40,6 +41,7 @@ export default function AccountsPage() {
     addAccount,
     updateAccount,
     refreshAccounts,
+    activatePagedList,
   } = useAccounts();
 
   const [balances, setBalances] = useState<Map<number, LandingAccountBalance>>(new Map());
@@ -49,7 +51,15 @@ export default function AccountsPage() {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // la lista paginata si carica solo mentre questa sezione è visibile
+  useEffect(() => activatePagedList(), [activatePagedList]);
+
+  // chiave stabile: cambia solo se cambia l'insieme dei conti (es. conto aggiunto), non il riferimento all'array
+  const accountIdsKey = useMemo(() => accounts.map((x) => x.id).join(","), [accounts]);
+
   useEffect(() => {
+    if (!accountsLoaded) return;
+
     const load = async () => {
       setBalancesLoading(true);
       try {
@@ -62,7 +72,7 @@ export default function AccountsPage() {
       }
     };
     void load();
-  }, [dataVersion, accounts.length]);
+  }, [dataVersion, accountsLoaded, accountIdsKey]);
 
   // stessi colori dei grafici: l'identità del conto resta coerente in tutta l'app
   const colorMap = useMemo(
@@ -109,10 +119,7 @@ export default function AccountsPage() {
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "flex-start" }}>
         <SearchField
           placeholder="Cerca conto per nome"
-          onSearch={(term) => {
-            modifyPage(0);
-            void refreshAccounts(term);
-          }}
+          onSearch={(term) => refreshAccounts(term)}
         />
         <Box sx={{ flex: 1 }} />
         <Button variant="contained" startIcon={<AddRounded />} onClick={openCreate}>

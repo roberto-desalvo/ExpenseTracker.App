@@ -4,6 +4,7 @@ import React, {
   useState,
   useEffect,
   useRef,
+  useCallback,
   ReactNode,
 } from "react";
 import { useLocation } from "react-router-dom";
@@ -13,6 +14,8 @@ import AccountService from "../services/AccountService";
 
 interface AccountsContextType {
   accounts: Account[];
+  /** true dopo il primo caricamento (anche fallito) dell'elenco completo */
+  accountsLoaded: boolean;
   pagedAccounts: Account[];
   isLoading: boolean;
   page: number;
@@ -20,7 +23,10 @@ interface AccountsContextType {
   totalCount: number;
   modifyPage: (newPage: number) => void;
   modifyPageSize: (newPageSize: number) => void;
-  refreshAccounts: (name?: string) => Promise<void>;
+  /** applica il filtro per nome alla lista paginata, ripartendo dalla prima pagina */
+  refreshAccounts: (name?: string) => void;
+  /** attiva la lista paginata finché la vista che la mostra è montata; restituisce la funzione di disattivazione */
+  activatePagedList: () => () => void;
   addAccount: (account: Account) => Promise<void>;
   updateAccount: (account: Account) => Promise<void>;
 }
@@ -36,7 +42,9 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
   const shouldLoadAccounts =
     DATA_ROUTES.includes(location.pathname);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accountsLoaded, setAccountsLoaded] = useState<boolean>(false);
   const [pagedAccounts, setPagedAccounts] = useState<Account[]>([]);
+  const [pagedListActive, setPagedListActive] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [page, setPage] = useState<number>(0);
   const [pageSize, setPageSize] = useState<number>(10);
@@ -44,15 +52,22 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
   const currentNameRef = useRef<string | undefined>(undefined);
 
   const refreshAllAccounts = async () => {
-    const result = await AccountService.query({ page: 0, pageSize: 10000 });
-    setAccounts(result.items);
+    try {
+      const result = await AccountService.query({ page: 0, pageSize: 10000 });
+      setAccounts(result.items);
+    } finally {
+      setAccountsLoaded(true);
+    }
   };
 
-  const refreshAccounts = async (name?: string) => {
-    currentNameRef.current = name;
+  const loadPagedAccounts = async () => {
     setIsLoading(true);
     try {
-      const result = await AccountService.query({ name, page, pageSize });
+      const result = await AccountService.query({
+        name: currentNameRef.current,
+        page,
+        pageSize,
+      });
       setPagedAccounts(result.items);
       setTotalCount(result.totalCount);
     } catch (error) {
@@ -63,29 +78,45 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
-  const isMountedRef = useRef(false);
+  /** torna alla prima pagina (l'effect ricarica) oppure, se già lì, ricarica direttamente */
+  const reloadFromFirstPage = async () => {
+    if (page !== 0) {
+      setPage(0);
+      return;
+    }
+    await loadPagedAccounts();
+  };
 
+  // elenco completo: una sola volta, condiviso da tutte le pagine
   useEffect(() => {
-    if (!shouldLoadAccounts) {
+    if (!shouldLoadAccounts || accountsLoaded) {
       return;
     }
 
-    if (!isMountedRef.current) {
-      // Primo mount: carica tutto in parallelo
-      isMountedRef.current = true;
-      const load = async () => {
-        try {
-          await Promise.all([refreshAllAccounts(), refreshAccounts()]);
-        } catch {
-          // gestito dall'error layer
-        }
-      };
-      void load();
-    } else {
-      // page o pageSize cambiati dopo il mount
-      void refreshAccounts(currentNameRef.current);
+    refreshAllAccounts().catch(() => {
+      // gestito dall'error layer
+    });
+  }, [shouldLoadAccounts]);
+
+  // lista paginata: solo mentre la vista Conti è montata, e a ogni cambio pagina
+  useEffect(() => {
+    if (!pagedListActive) {
+      return;
     }
-  }, [page, pageSize, shouldLoadAccounts]);
+
+    loadPagedAccounts().catch(() => {
+      // gestito dall'error layer
+    });
+  }, [pagedListActive, page, pageSize]);
+
+  const activatePagedList = useCallback(() => {
+    setPagedListActive(true);
+    return () => {
+      setPagedListActive(false);
+      currentNameRef.current = undefined;
+      setPage(0);
+    };
+  }, []);
 
   const modifyPage = (newPage: number) => {
     setPage(newPage);
@@ -96,14 +127,17 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
     setPage(0);
   };
 
+  const refreshAccounts = (name?: string) => {
+    currentNameRef.current = name;
+    reloadFromFirstPage().catch(() => {
+      // gestito dall'error layer
+    });
+  };
+
   const addAccount = async (account: Account) => {
     try {
       await AccountService.add(account);
-      setPage(0);
-      await Promise.all([
-        refreshAllAccounts(),
-        refreshAccounts(currentNameRef.current),
-      ]);
+      await Promise.all([refreshAllAccounts(), reloadFromFirstPage()]);
     } catch (error) {
       console.error("Errore nell'aggiunta dell'account:", error);
       throw error;
@@ -113,10 +147,7 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
   const updateAccount = async (account: Account) => {
     try {
       await AccountService.update(account);
-      await Promise.all([
-        refreshAllAccounts(),
-        refreshAccounts(currentNameRef.current),
-      ]);
+      await Promise.all([refreshAllAccounts(), loadPagedAccounts()]);
     } catch (error) {
       console.error("Errore nella modifica dell'account:", error);
       throw error;
@@ -127,6 +158,7 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
     <AccountsContext.Provider
       value={{
         accounts,
+        accountsLoaded,
         pagedAccounts,
         isLoading,
         page,
@@ -135,6 +167,7 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
         modifyPage,
         modifyPageSize,
         refreshAccounts,
+        activatePagedList,
         addAccount,
         updateAccount,
       }}

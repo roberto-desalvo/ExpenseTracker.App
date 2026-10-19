@@ -10,6 +10,10 @@ public interface IUserService : IService
 
     Task<Result<UserDto>> GetOrCreateUserAsync(string azureOid, string email, string? name);
 
+    // Usato solo dal login di sviluppo (DevAuth): recupera l'utente esistente per email
+    // senza mai crearne uno nuovo.
+    Task<Result<UserDto>> GetUserByEmailAsync(string email);
+
     // Usato solo dal flusso di import (chiamato anche da app/managed identity con token
     // app-only, prive di claim email): prova AzureOid, poi il fallback su AppOid, e crea
     // un nuovo utente solo se è disponibile un'email.

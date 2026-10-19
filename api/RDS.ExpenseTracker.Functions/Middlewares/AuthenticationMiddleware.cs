@@ -20,19 +20,25 @@ public class AuthenticationMiddleware : IFunctionsWorkerMiddleware
 {
     private static readonly ConcurrentDictionary<string, FunctionAuthMetadata> MetadataCache = new();
 
+    /// <summary>Authentication type of the principals created by the local dev bypass.</summary>
+    public const string DevAuthenticationType = "DevUser";
+
     private const string DevUserScheme = "DevUser ";
     private const int DevUserMaxLength = 60;
 
     private readonly JwtTokenValidator _tokenValidator;
+    private readonly DemoTokenService _demoTokenService;
     private readonly DevAuthOptions _devAuthOptions;
     private readonly ILogger<AuthenticationMiddleware> _logger;
 
     public AuthenticationMiddleware(
         JwtTokenValidator tokenValidator,
+        DemoTokenService demoTokenService,
         IOptions<DevAuthOptions> devAuthOptions,
         ILogger<AuthenticationMiddleware> logger)
     {
         _tokenValidator = tokenValidator ?? throw new ArgumentNullException(nameof(tokenValidator));
+        _demoTokenService = demoTokenService ?? throw new ArgumentNullException(nameof(demoTokenService));
         _devAuthOptions = devAuthOptions?.Value ?? throw new ArgumentNullException(nameof(devAuthOptions));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -68,7 +74,10 @@ public class AuthenticationMiddleware : IFunctionsWorkerMiddleware
         ClaimsPrincipal? principal;
         try
         {
-            principal = await _tokenValidator.ValidateAsync(token, context.CancellationToken);
+            // Demo tokens (own issuer, no roles) are validated locally; everything else must be an Entra ID token.
+            principal = _demoTokenService.IsDemoToken(token)
+                ? await _demoTokenService.ValidateAsync(token)
+                : await _tokenValidator.ValidateAsync(token, context.CancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -114,7 +123,7 @@ public class AuthenticationMiddleware : IFunctionsWorkerMiddleware
                 new Claim(ClaimTypes.Email, email),
                 new Claim(ClaimTypes.Name, userName)
             ],
-            authenticationType: "DevUser",
+            authenticationType: DevAuthenticationType,
             nameType: ClaimTypes.Name,
             roleType: ClaimTypes.Role);
 

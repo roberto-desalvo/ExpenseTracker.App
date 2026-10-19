@@ -34,7 +34,7 @@ Ordine di caricamento nel worker (`Program.cs`): `appsettings.json` → `appsett
 - **`appsettings.json`** (copiato in output e pubblicato) — sezioni strutturate: `Logging`, `AzureAd` (vuota), `TradeRepublicCsv`, `BbvaCsv`, `SatisPayCsv`, `SellaCsv` (default account + IBAN map), `TransferMatching:Rules[]`, `App`.
 - **`appsettings.Development.json`** — override locali (es. `ConnectionStrings:DefaultConnection`); gitignored e mai pubblicato.
 - **`host.json`** — configurazione dell'host Functions: `routePrefix: "api"` e sampling Application Insights.
-- **`local.settings.json`** — solo locale, gitignored. Template committato: `local.settings.example.json` (`FUNCTIONS_WORKER_RUNTIME=dotnet-isolated`, `AZURE_FUNCTIONS_ENVIRONMENT=Development`, `AzureAd__*`, `DevAuth__Enabled=true` (bypass di autenticazione per il FE locale, vedi [04-auth-and-request-pipeline](../../01-platform/tech/04-auth-and-request-pipeline.tech.md)), `ConnectionStrings:DefaultConnection`, `Host.LocalHttpPort=7120`, `Host.CORS`).
+- **`local.settings.json`** — solo locale, gitignored. Template committato: `local.settings.example.json` (`FUNCTIONS_WORKER_RUNTIME=dotnet-isolated`, `AZURE_FUNCTIONS_ENVIRONMENT=Development`, `AzureAd__*`, `DevAuth__Enabled=true` (bypass di autenticazione per il FE locale, vedi [04-auth-and-request-pipeline](../../01-platform/tech/04-auth-and-request-pipeline.tech.md)), `DemoAuth__Enabled=false` / `DemoAuth__SigningKey` / `DemoAuth__TokenLifetimeMinutes` (login demo, spento di default), `ConnectionStrings:DefaultConnection`, `Host.LocalHttpPort=7120`, `Host.CORS`).
 
 ### App settings richieste su Azure
 - `FUNCTIONS_WORKER_RUNTIME=dotnet-isolated`, `AzureWebJobsStorage` (create con la Function App).
@@ -42,6 +42,7 @@ Ordine di caricamento nel worker (`Program.cs`): `appsettings.json` → `appsett
 - Connection string `DefaultConnection` (tipo SQLAzure → esposta come `ConnectionStrings:DefaultConnection`).
 - `APPLICATIONINSIGHTS_CONNECTION_STRING`.
 - **Non** impostare `DevAuth__Enabled`: fuori da `Development` l'host non si avvia.
+- Per il login demo (opzionale): `DemoAuth__Enabled=true`, `DemoAuth__SigningKey` (stringa casuale di almeno 32 byte, es. `openssl rand -base64 48`; meglio come riferimento Key Vault) ed eventualmente `DemoAuth__TokenLifetimeMinutes`. Con chiave mancante o troppo corta l'host non si avvia. Ruotare la chiave invalida tutti i token demo emessi. Serve anche che l'utente di test esista, quindi che il job di `Import_TestSeed` sia già girato almeno una volta.
 
 ## Esecuzione locale
 ```powershell

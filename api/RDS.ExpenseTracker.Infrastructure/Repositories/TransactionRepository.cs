@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RDS.ExpenseTracker.Domain.Dtos.Requests;
 using RDS.ExpenseTracker.Domain.Entities;
+using RDS.ExpenseTracker.Domain.Enums;
 using RDS.ExpenseTracker.Domain.Repositories;
 
 namespace RDS.ExpenseTracker.Infrastructure.Repositories;
@@ -11,6 +12,18 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
         : base(context)
     {
     }
+
+    // Un movimento appartiene all'utente proprietario del conto su cui è registrato.
+    private IQueryable<Transaction> ForUser(int userId)
+        => Context.Transactions.Where(t => t.AccountNavigation.UserId == userId);
+
+    private const int MoneyTransfersCategoryId = (int)CategoryEnum.MoneyTransfers;
+
+    // Un trasferimento sposta denaro tra conti dell'utente: non è né entrata né uscita.
+    // Oltre ai movimenti collegati a un Transfer, si considerano tali anche quelli in categoria
+    // "Money transfers" rimasti senza controparte (es. import senza match del conto opposto).
+    private static IQueryable<Transaction> ExcludingTransfers(IQueryable<Transaction> query)
+        => query.Where(t => t.TransferId == null && t.CategoryId != MoneyTransfersCategoryId);
 
     public async Task AddTransactions(IEnumerable<Transaction> transactions)
     {
@@ -43,24 +56,25 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
         }
     }
 
-    public async Task<Transaction?> GetTransaction(int id)
+    public async Task<Transaction?> GetTransaction(int id, int userId)
     {
-        return await Context.Transactions.FirstOrDefaultAsync(x => x.Id == id);
+        return await ForUser(userId).FirstOrDefaultAsync(x => x.Id == id);
     }
 
-    public async Task<Transaction> GetLatestTransaction()
+    public async Task<Transaction> GetLatestTransaction(int userId)
     {
-        return await Context.Transactions
+        return await ForUser(userId)
             .OrderByDescending(x => x.Date)
             .FirstOrDefaultAsync() ?? new Transaction();
     }
 
-    public async Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds)
+    public async Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds, int userId)
     {
         var list = externalIds.ToList();
         if (list.Count == 0) return [];
 
-        return await Context.Transactions
+        // deduplica per utente: lo stesso movimento può essere importato da utenti diversi
+        return await ForUser(userId)
             .Where(t => t.ExternalId != null && list.Contains(t.ExternalId))
             .Select(t => t.ExternalId!)
             .ToListAsync();
@@ -92,17 +106,17 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
         }
     }
 
-    public async Task<IEnumerable<Transaction>> GetTransactions()
+    public async Task<IEnumerable<Transaction>> GetTransactions(int userId)
     {
-        return await Context.Transactions
+        return await ForUser(userId)
             .Include(transaction => transaction.AccountNavigation)
             .Include(transaction => transaction.CategoryNavigation)
             .ToListAsync();
     }
 
-    public async Task<(IEnumerable<Transaction> Items, int TotalCount, decimal TotalIncomes, decimal TotalOutcomes, decimal TotalNet)> GetPagedTransactions(TransactionQueryRequest request)
+    public async Task<(IEnumerable<Transaction> Items, int TotalCount, decimal TotalIncomes, decimal TotalOutcomes, decimal TotalNet)> GetPagedTransactions(TransactionQueryRequest request, int userId)
     {
-        var query = Context.Transactions
+        var query = ForUser(userId)
             .Include(t => t.AccountNavigation)
             .Include(t => t.CategoryNavigation)
             .AsQueryable();
@@ -121,13 +135,14 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
                 : query.Where(t => t.Amount < 0m);
 
         var totalCount = await query.CountAsync();
-        var totalIncomes = await query
-            .Where(t => t.Amount > 0m && t.TransferId == null)
+        var flows = ExcludingTransfers(query);
+        var totalIncomes = await flows
+            .Where(t => t.Amount > 0m)
             .Select(t => (decimal?)t.Amount)
             .SumAsync() ?? 0m;
         var totalOutcomes = Math.Abs(
-            await query
-                .Where(t => t.Amount < 0m && t.TransferId == null)
+            await flows
+                .Where(t => t.Amount < 0m)
                 .Select(t => (decimal?)t.Amount)
                 .SumAsync() ?? 0m);
         var totalNet = totalIncomes - totalOutcomes;
@@ -141,15 +156,15 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
         return (items, totalCount, totalIncomes, totalOutcomes, totalNet);
     }
 
-    public async Task<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>> GetTimeSeriesTransactions(TimeSeriesRequestDto request)
+    public async Task<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>> GetTimeSeriesTransactions(TimeSeriesRequestDto request, int userId)
     {
-        var query = Context.Transactions
+        var query = ForUser(userId)
             .AsNoTracking()
             .Where(t => t.Date.HasValue)
             .Where(t => t.Date >= request.StartDate && t.Date <= request.EndDate);
 
         if (request.ExcludeTransfers)
-            query = query.Where(t => t.TransferId == null);
+            query = ExcludingTransfers(query);
 
         if (request.IdAccounts.Any())
             query = query.Where(t => request.IdAccounts.Contains(t.AccountId));
@@ -170,15 +185,15 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>> GetTimeSeriesTransactionsUntilDate(TimeSeriesRequestDto request)
+    public async Task<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>> GetTimeSeriesTransactionsUntilDate(TimeSeriesRequestDto request, int userId)
     {
-        var query = Context.Transactions
+        var query = ForUser(userId)
             .AsNoTracking()
             .Where(t => t.Date.HasValue)
             .Where(t => t.Date <= request.EndDate);
 
         if (request.ExcludeTransfers)
-            query = query.Where(t => t.TransferId == null);
+            query = ExcludingTransfers(query);
 
         if (request.IdAccounts.Any())
             query = query.Where(t => request.IdAccounts.Contains(t.AccountId));
@@ -199,9 +214,9 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<(int AccountId, decimal Balance)>> GetAccountBalances(DateTime asOfDate)
+    public async Task<IEnumerable<(int AccountId, decimal Balance)>> GetAccountBalances(DateTime asOfDate, int userId)
     {
-        return await Context.Transactions
+        return await ForUser(userId)
             .AsNoTracking()
             .Where(t => t.Date.HasValue && t.Date <= asOfDate)
             .GroupBy(t => t.AccountId)
@@ -211,15 +226,15 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<(int AccountId, decimal Spent, decimal Earned)>> GetAccountMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers)
+    public async Task<IEnumerable<(int AccountId, decimal Spent, decimal Earned)>> GetAccountMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers, int userId)
     {
-        var query = Context.Transactions
+        var query = ForUser(userId)
             .AsNoTracking()
             .Where(t => t.Date.HasValue)
             .Where(t => t.Date >= monthStart && t.Date <= asOfDate);
 
         if (excludeTransfers)
-            query = query.Where(t => t.TransferId == null);
+            query = ExcludingTransfers(query);
 
         return await query
             .GroupBy(t => t.AccountId)
@@ -236,16 +251,16 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<(int CategoryId, decimal Spent, decimal Earned)>> GetCategoryMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers)
+    public async Task<IEnumerable<(int CategoryId, decimal Spent, decimal Earned)>> GetCategoryMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers, int userId)
     {
-        var query = Context.Transactions
+        var query = ForUser(userId)
             .AsNoTracking()
             .Where(t => t.Date.HasValue)
             .Where(t => t.Date >= monthStart && t.Date <= asOfDate)
             .Where(t => t.CategoryId.HasValue);
 
         if (excludeTransfers)
-            query = query.Where(t => t.TransferId == null);
+            query = ExcludingTransfers(query);
 
         return await query
             .GroupBy(t => t.CategoryId!.Value)
@@ -262,15 +277,15 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .ToListAsync();
     }
 
-    public async Task<(decimal Spent, decimal Earned)> GetMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers)
+    public async Task<(decimal Spent, decimal Earned)> GetMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers, int userId)
     {
-        var query = Context.Transactions
+        var query = ForUser(userId)
             .AsNoTracking()
             .Where(t => t.Date.HasValue)
             .Where(t => t.Date >= monthStart && t.Date <= asOfDate);
 
         if (excludeTransfers)
-            query = query.Where(t => t.TransferId == null);
+            query = ExcludingTransfers(query);
 
         var spent = Math.Abs(await query
             .Where(t => t.Amount < 0m)
@@ -285,9 +300,9 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
         return (spent, earned);
     }
 
-    public async Task<IEnumerable<(DateTime StartDate, DateTime EndDate)>> GetAvailableMonthRanges()
+    public async Task<IEnumerable<(DateTime StartDate, DateTime EndDate)>> GetAvailableMonthRanges(int userId)
     {
-        var dateBounds = await Context.Transactions
+        var dateBounds = await ForUser(userId)
             .Where(transaction => transaction.Date.HasValue)
             .Select(transaction => transaction.Date!.Value)
             .GroupBy(_ => 1)
@@ -324,9 +339,9 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .ToListAsync();
     }
 
-    public async Task DeleteAllTransactions()
+    public async Task DeleteAllTransactions(int userId)
     {
-        var transactions = await Context.Transactions.ToListAsync();
+        var transactions = await ForUser(userId).ToListAsync();
         Context.Transactions.RemoveRange(transactions);
     }
 
@@ -350,9 +365,9 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
         return transferIds;
     }
 
-    public async Task ResetTransactions(IEnumerable<Transaction> transactions)
+    public async Task ResetTransactions(IEnumerable<Transaction> transactions, int userId)
     {
-        await DeleteAllTransactions();
+        await DeleteAllTransactions(userId);
         await AddTransactions(transactions);
     }
 }

@@ -41,6 +41,9 @@ var isDevelopment = builder.Environment.IsDevelopment()
 if (devAuthOptions.Enabled && !isDevelopment)
     throw new InvalidOperationException("DevAuth:Enabled can only be set in the Development environment.");
 
+// The demo login may run in any environment, but only with a strong signing key.
+DemoTokenService.EnsureValid(builder.Configuration.BindFromSectionName<DemoAuthOptions>());
+
 // var kvOptions = builder.Configuration.BindFromSectionName<KeyVaultOptions>();
 // var connectionString = AzureKeyVaultHandler.GetKeyVaultSecret(kvOptions.Uri, kvOptions.ConnectionStringSecretName);
 
@@ -67,6 +70,7 @@ builder.Services.AddScoped<ITransferMatchingOptions>(sp =>
     sp.GetRequiredService<IOptions<TransferMatchingOptions>>().Value);
 
 builder.Services.AddSingleton<JwtTokenValidator>();
+builder.Services.AddSingleton<DemoTokenService>();
 builder.Services.AddScoped<RequestPrincipalAccessor>();
 builder.Services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
 

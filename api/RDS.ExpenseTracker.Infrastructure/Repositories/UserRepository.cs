@@ -27,6 +27,17 @@ public class UserRepository : RepositoryBase, IUserRepository
         return await Context.Users.FirstOrDefaultAsync(u => u.Id == id);
     }
 
+    public async Task<User?> GetByEmail(string email)
+    {
+        // L'email non è univoca (lo stesso indirizzo può avere più utenti): si privilegia
+        // l'utente con AppOid valorizzato, poi il più vecchio.
+        return await Context.Users
+            .Where(u => u.Email == email)
+            .OrderByDescending(u => u.AppOid != null)
+            .ThenBy(u => u.Id)
+            .FirstOrDefaultAsync();
+    }
+
     public async Task<User> GetOrCreateUserAsync(string azureOid, string email)
     {
         var existing = await GetByAzureOid(azureOid);
@@ -50,6 +61,11 @@ public class UserRepository : RepositoryBase, IUserRepository
             return await GetByAzureOid(azureOid)
                 ?? throw new InvalidOperationException("Concurrent user creation failed unexpectedly.", ex);
         }
+    }
+
+    public async Task AddUser(User user)
+    {
+        await Context.Users.AddAsync(user);
     }
 
     private static bool IsUniqueConstraintViolation(DbUpdateException ex)

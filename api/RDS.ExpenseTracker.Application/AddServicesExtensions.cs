@@ -28,6 +28,7 @@ public static class AddServicesExtensions
         services.AddScoped<ISellaCsvImportService, SellaCsvImportService>();
         services.AddScoped<ITransferMatchingService, TransferMatchingService>();
         services.AddScoped<IDemoDataService, DemoDataService>();
+        services.AddScoped<ITestSeedService, TestSeedService>();
 
         return services;
     }

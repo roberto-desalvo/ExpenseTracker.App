@@ -11,23 +11,27 @@ public class TransferRepository : RepositoryBase, ITransferRepository
     {
     }
 
-    public async Task<Transfer?> GetTransfer(int id)
+    // Un trasferimento appartiene all'utente se i suoi movimenti sono registrati su conti di quell'utente.
+    private IQueryable<Transfer> ForUser(int userId)
+        => Context.Transfers.Where(x => x.Transactions.Any(t => t.AccountNavigation.UserId == userId));
+
+    public async Task<Transfer?> GetTransfer(int id, int userId)
     {
-        return await Context.Transfers
+        return await ForUser(userId)
             .Include(x => x.Transactions)
             .FirstOrDefaultAsync(x => x.Id == id);
     }
 
-    public async Task<Transfer?> GetTransferByExternalId(string externalId)
+    public async Task<Transfer?> GetTransferByExternalId(string externalId, int userId)
     {
-        return await Context.Transfers
+        return await ForUser(userId)
             .Include(x => x.Transactions)
             .FirstOrDefaultAsync(x => x.ExternalId == externalId);
     }
 
-    public async Task<IEnumerable<Transfer>> GetTransfers()
+    public async Task<IEnumerable<Transfer>> GetTransfers(int userId)
     {
-        return await Context.Transfers
+        return await ForUser(userId)
             .Include(x => x.Transactions)
             .OrderByDescending(x => x.Id)
             .ToListAsync();

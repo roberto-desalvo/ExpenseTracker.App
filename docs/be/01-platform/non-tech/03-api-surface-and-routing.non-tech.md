@@ -6,9 +6,11 @@
 - Vedere un riepilogo generale (dashboard) con saldi, categorie e andamento nel tempo.
 - Caricare estratti conto bancari per importare automaticamente i movimenti.
 - Per l'account dimostrativo: rigenerare con un solo clic un set completo di dati d'esempio realistici (conti, movimenti, trasferimenti), cancellando quelli precedenti.
+- Per l'utente di test (`test@dev.local`): riportarne i dati a uno stato pulito con una sola richiesta, che cancella tutto e ricrea cinque conti con circa cinque anni di movimenti fittizi ma credibili. È pensata per essere lanciata periodicamente da un servizio automatico.
+- Avviare una demo senza account: si entra come utente di test e si esplora l'app con i suoi dati fittizi.
 
 ## Chi può farlo
-Solo utenti autenticati. L'importazione dei file richiede inoltre un permesso specifico dedicato, non assegnato a tutti gli utenti. La rigenerazione dei dati demo è riservata al solo account contrassegnato come dimostrativo: chiunque altro provi a richiederla riceve un rifiuto.
+L'avvio della demo è l'unica operazione disponibile senza accesso, e si può spegnere dalla configurazione. Per tutto il resto servono utenti autenticati, e ciascuno vede e modifica soltanto i propri conti, movimenti e trasferimenti. L'importazione dei file, così come la rigenerazione dei dati dell'utente di test, richiede inoltre un permesso specifico dedicato, non assegnato a tutti gli utenti. La rigenerazione dei dati demo è riservata al solo account contrassegnato come dimostrativo: chiunque altro provi a richiederla riceve un rifiuto.
 
 ## Dove girano queste funzionalità
 Ogni operazione è una piccola "funzione" ospitata su un servizio cloud serverless: si attiva quando arriva una richiesta e scala automaticamente con il carico, senza un server sempre acceso. Gli indirizzi usati dal frontend e dagli script di importazione sono rimasti gli stessi.

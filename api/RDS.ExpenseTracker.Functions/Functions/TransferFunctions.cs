@@ -9,29 +9,38 @@ namespace RDS.ExpenseTracker.Functions.Functions;
 public class TransferFunctions : FunctionBase
 {
     private readonly ITransferService _service;
+    private readonly ICurrentUserAccessor _currentUserAccessor;
 
-    public TransferFunctions(ITransferService service)
+    public TransferFunctions(ITransferService service, ICurrentUserAccessor currentUserAccessor)
     {
         _service = service ?? throw new ArgumentNullException(nameof(service));
+        _currentUserAccessor = currentUserAccessor ?? throw new ArgumentNullException(nameof(currentUserAccessor));
     }
 
     [Function("Transfer_GetAll")]
-    public Task<IActionResult> GetAll(
+    public async Task<IActionResult> GetAll(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "transfer")] HttpRequest req)
-        => ExecuteAsync(() => _service.GetTransfers());
+    {
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.GetTransfers(userId));
+    }
 
     [Function("Transfer_Get")]
-    public Task<IActionResult> Get(
+    public async Task<IActionResult> Get(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "transfer/{id:int}")] HttpRequest req,
         int id)
-        => ExecuteAsync(() => _service.GetTransfer(id));
+    {
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.GetTransfer(id, userId));
+    }
 
     [Function("Transfer_Post")]
     public async Task<IActionResult> Post(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "transfer")] HttpRequest req)
     {
         var dto = await ReadBodyAsync<TransferDto>(req);
-        return await ExecuteAsync(() => _service.AddTransfer(dto));
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.AddTransfer(dto, userId));
     }
 
     [Function("Transfer_Put")]
@@ -41,12 +50,16 @@ public class TransferFunctions : FunctionBase
     {
         var dto = await ReadBodyAsync<TransferDto>(req);
         dto.Id = id;
-        return await ExecuteAsync(() => _service.UpdateTransfer(dto));
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.UpdateTransfer(dto, userId));
     }
 
     [Function("Transfer_Delete")]
-    public Task<IActionResult> Delete(
+    public async Task<IActionResult> Delete(
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "transfer/{id:int}")] HttpRequest req,
         int id)
-        => ExecuteAsync(() => _service.DeleteTransfer(id));
+    {
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.DeleteTransfer(id, userId));
+    }
 }

@@ -123,7 +123,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
 
                 if (externalIds.Count > 0)
                 {
-                    var existingIds = (await _transactionRepository.GetExistingExternalIds(externalIds))
+                    var existingIds = (await _transactionRepository.GetExistingExternalIds(externalIds, userId))
                         .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
                     var beforeCount = rows.Count;

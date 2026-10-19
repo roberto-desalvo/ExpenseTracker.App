@@ -99,8 +99,8 @@ function SummaryFigure({ label, value, hint, tone }: { label: string; value: str
 
 export default function AnalyticsPage() {
   const a = useTheme().app;
-  const { accounts } = useAccounts();
-  const { allCategories } = useCategories();
+  const { accounts, accountsLoaded } = useAccounts();
+  const { allCategories, categoriesLoaded } = useCategories();
   const { dataVersion } = useTransactions();
 
   const [preset, setPreset] = useState<RangePreset>("12m");
@@ -119,8 +119,13 @@ export default function AnalyticsPage() {
   const [categoryKind, setCategoryKind] = useState<"spent" | "earned">("spent");
 
   const invalidRange = range.start > range.end;
-  const accountIds = useMemo(() => accounts.map((x) => x.id), [accounts]);
-  const categoryIds = useMemo(() => allCategories.map((x) => x.id), [allCategories]);
+  // chiavi stabili: un nuovo array con gli stessi id (es. dopo una rinomina) non deve far ripartire le chiamate
+  const accountIdsKey = accounts.map((x) => x.id).join(",");
+  const categoryIdsKey = allCategories.map((x) => x.id).join(",");
+  const accountIds = useMemo(() => accounts.map((x) => x.id), [accountIdsKey]);
+  const categoryIds = useMemo(() => allCategories.map((x) => x.id), [categoryIdsKey]);
+  // le serie per conto/categoria dipendono dalle anagrafiche: si attende il loro primo caricamento
+  const lookupsReady = accountsLoaded && categoriesLoaded;
 
   const choosePreset = (next: RangePreset) => {
     setPreset(next);
@@ -128,7 +133,7 @@ export default function AnalyticsPage() {
   };
 
   useEffect(() => {
-    if (invalidRange || !range.start || !range.end) return;
+    if (!lookupsReady || invalidRange || !range.start || !range.end) return;
 
     const base = {
       startDate: toIsoDateStart(range.start),
@@ -162,7 +167,7 @@ export default function AnalyticsPage() {
     };
 
     void load();
-  }, [range.start, range.end, granularity, invalidRange, accountIds, categoryIds, dataVersion]);
+  }, [range.start, range.end, granularity, invalidRange, lookupsReady, accountIds, categoryIds, dataVersion]);
 
   const netWorth = useMemo(
     () => (total?.series[0]?.values ?? []).map((v) => ({ period: v.period, amount: v.amount })),
