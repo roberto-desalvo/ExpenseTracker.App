@@ -1,6 +1,7 @@
 import { PublicClientApplication } from "@azure/msal-browser";
 import { msalInstance } from "../auth/msalInstance";
 import { devAuthorizationHeader, getDevUser } from "../auth/devAuth";
+import { getDemoAccessToken, hasDemoSession } from "../auth/demoAuth";
 import { apiTokenRequest } from "../config/authConfig";
 
 export const API_ERROR_EVENT = "expense-tracker:api-error";
@@ -48,6 +49,11 @@ const getAuthorizationHeader = async (): Promise<string | null> => {
     // Bypass di sviluppo: il BE accetta il nome utente con lo schema DevUser
     const devUser = getDevUser();
     return devUser ? devAuthorizationHeader(devUser) : null;
+  }
+
+  if (hasDemoSession()) {
+    const demoToken = await getDemoAccessToken();
+    return demoToken ? `Bearer ${demoToken}` : null;
   }
 
   const token = await getAccessToken(msalInstance);

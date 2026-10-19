@@ -70,6 +70,27 @@
             },
             "description": "Restituisce l'id utente interno (`{ userId }`) risolto dal token."
           }
+        },
+        {
+          "name": "Auth_DemoLogin",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/demo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "demo"
+              ]
+            },
+            "description": "Login demo, anonimo: restituisce `{ accessToken, expiresOn, userName }` per l'utente di test `test@dev.local`. Il token si usa come bearer sulle altre richieste (nessun ruolo applicativo). 404 se `DemoAuth:Enabled=false` o se l'utente di test non esiste."
+          }
         }
       ]
     },

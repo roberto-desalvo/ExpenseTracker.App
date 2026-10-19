@@ -25,8 +25,8 @@ public class CurrentUserAccessor : ICurrentUserAccessor
         var principal = _principalAccessor.Principal
             ?? throw new UnauthorizedDomainException("No authenticated user in current request.");
 
-        if (IsDevPrincipal(principal))
-            return await GetDevUserIdAsync(principal);
+        if (IsEmailResolvedPrincipal(principal))
+            return await GetUserIdByEmailAsync(principal);
 
         var oid = GetObjectId(principal);
         if (string.IsNullOrEmpty(oid))
@@ -55,8 +55,8 @@ public class CurrentUserAccessor : ICurrentUserAccessor
         var principal = _principalAccessor.Principal
             ?? throw new UnauthorizedDomainException("No authenticated user in current request.");
 
-        if (IsDevPrincipal(principal))
-            return await GetDevUserIdAsync(principal);
+        if (IsEmailResolvedPrincipal(principal))
+            return await GetUserIdByEmailAsync(principal);
 
         var oid = GetObjectId(principal);
         if (string.IsNullOrEmpty(oid))
@@ -76,12 +76,13 @@ public class CurrentUserAccessor : ICurrentUserAccessor
         return _cachedUserId.Value;
     }
 
-    // Login di sviluppo (DevAuth, attivabile solo in Development): si recupera l'utente
-    // esistente per email, senza crearne uno nuovo legato all'oid fittizio "dev:<nome>".
-    private async Task<int> GetDevUserIdAsync(ClaimsPrincipal principal)
+    // Login di sviluppo (DevAuth, attivabile solo in Development) e login demo (token firmato dall'API):
+    // si recupera l'utente esistente per email, senza mai crearne uno nuovo.
+    private async Task<int> GetUserIdByEmailAsync(ClaimsPrincipal principal)
     {
         var email = principal.FindFirst(ClaimTypes.Email)?.Value
-            ?? throw new UnauthorizedDomainException("Dev user does not contain an email claim.");
+            ?? principal.FindFirst("email")?.Value
+            ?? throw new UnauthorizedDomainException("Dev/demo user does not contain an email claim.");
 
         var result = await _userService.GetUserByEmailAsync(email);
         if (result.IsFailed)
@@ -91,8 +92,9 @@ public class CurrentUserAccessor : ICurrentUserAccessor
         return _cachedUserId.Value;
     }
 
-    private static bool IsDevPrincipal(ClaimsPrincipal principal)
-        => principal.Identity?.AuthenticationType == AuthenticationMiddleware.DevAuthenticationType;
+    private static bool IsEmailResolvedPrincipal(ClaimsPrincipal principal)
+        => principal.Identity?.AuthenticationType is AuthenticationMiddleware.DevAuthenticationType
+            or DemoTokenService.AuthenticationType;
 
     private static string? GetObjectId(ClaimsPrincipal principal)
         => principal.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value

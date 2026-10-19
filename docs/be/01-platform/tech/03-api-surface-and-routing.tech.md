@@ -11,6 +11,7 @@ Il nome di ogni function segue la convenzione `<Risorsa>_<Azione>` (es. `Account
 
 ## `AuthFunctions` — `api/auth`
 - `GET /` (`Auth_GetProfile`) — id utente interno (`{ userId }`) risolto dal token.
+- `POST /demo` (`Auth_DemoLogin`, `[AllowAnonymousFunction]`) — login demo: emette un bearer token firmato dall'API per l'utente di test `test@dev.local` (`{ accessToken, expiresOn, userName }`). 404 se `DemoAuth:Enabled=false` o se l'utente di test non esiste ancora (lo crea `Import_TestSeed`). Vedi [04-auth-and-request-pipeline](04-auth-and-request-pipeline.tech.md).
 
 ## `AccountFunctions` — `api/account`
 - `POST /query` — ricerca paginata account.

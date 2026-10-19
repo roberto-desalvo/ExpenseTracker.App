@@ -3,6 +3,9 @@
 ## Come si accede
 L'accesso avviene tramite l'account Microsoft/Azure AD dell'utente: nessuna password è gestita direttamente dall'applicazione.
 
+## Accesso demo
+Chi vuole solo provare l'applicazione può avviare una demo senza account Microsoft: il backend lo fa entrare come utente di test (riconosciuto tramite la sua email) e gli consegna un accesso temporaneo, che scade dopo un tempo limitato. L'utente di test non viene mai creato in questo momento: esiste solo se i dati di test sono già stati generati, altrimenti la demo risulta non disponibile. Durante la demo non sono disponibili le operazioni riservate (come il caricamento automatico degli estratti conto), e i dati visibili sono soltanto quelli fittizi dell'utente di test, che vengono ripristinati periodicamente. La demo si può disattivare dalla configurazione del servizio, e l'accesso temporaneo è firmato con una chiave segreta nota solo al backend, quindi non può essere falsificato.
+
 ## Accesso semplificato in sviluppo
 Sul computer dello sviluppatore è possibile attivare una modalità di prova in cui l'identità Microsoft non viene verificata: basta indicare il nome utente o l'email di un utente già registrato, e il backend recupera quel profilo esistente con tutti i suoi dati, senza mai crearne uno nuovo (se l'email non corrisponde a nessun utente, l'accesso viene rifiutato). Online, invece, il profilo continua a essere creato automaticamente al primo accesso. Questa modalità ignora anche i permessi speciali ed è rifiutata in qualunque ambiente diverso dallo sviluppo locale: se fosse attivata per errore online, il servizio non partirebbe.
 
