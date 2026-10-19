@@ -7,6 +7,8 @@
 - `categories`: `base`, `query`, `byId(id)`
 - `transfers`: `base`
 
+`VITE_EXPENSE_TRACKER_API_BASE_URL` deve essere un URL assoluto (`https://...`): senza schema il browser lo risolverebbe come percorso relativo all'origine del frontend. `normalizeBaseUrl` in `env.ts` rimuove gli slash finali e lancia un errore all'avvio se manca `http(s)://`; il workflow `deploy-frontend.yml` blocca il deploy se il secret non inizia con `https://`.
+
 ## Client condiviso
 `src/services/ApiClient.ts` espone:
 - `apiFetchJson<T>(url, init, fallbackMessage)`

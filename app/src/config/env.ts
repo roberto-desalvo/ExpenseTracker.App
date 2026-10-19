@@ -8,7 +8,14 @@ const requireEnv = (key: keyof ImportMetaEnv) => {
   return value;
 };
 
-const normalizeBaseUrl = (value: string) => value.replace(/\/+$/, "");
+// Senza schema il browser tratta l'URL come relativo e lo accoda all'origine del sito.
+const normalizeBaseUrl = (value: string) => {
+  const trimmed = value.trim().replace(/\/+$/, "");
+  if (!/^https?:\/\//i.test(trimmed)) {
+    throw new Error(`VITE_EXPENSE_TRACKER_API_BASE_URL must be an absolute URL (http:// or https://), got "${trimmed}"`);
+  }
+  return trimmed;
+};
 
 /**
  * Bypass dell'autenticazione Entra ID: attivo solo con `npm run dev` (mai nelle build),

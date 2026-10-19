@@ -47,6 +47,7 @@ jobs:
           test -n "$VITE_MSAL_CLIENT_ID" || (echo "Missing required environment variable: VITE_MSAL_CLIENT_ID" && exit 1)
           test -n "$VITE_MSAL_TENANT_ID" || (echo "Missing required environment variable: VITE_MSAL_TENANT_ID" && exit 1)
           test -n "$VITE_MSAL_API_SCOPE" || (echo "Missing required environment variable: VITE_MSAL_API_SCOPE" && exit 1)
+          [[ "$VITE_EXPENSE_TRACKER_API_BASE_URL" =~ ^https:// ]] || (echo "VITE_EXPENSE_TRACKER_API_BASE_URL must start with https://" && exit 1)
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
