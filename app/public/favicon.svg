@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="34" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4f46e5" />
+      <stop offset="0.6" stop-color="#7c3aed" />
+      <stop offset="1" stop-color="#a855f7" />
+    </linearGradient>
+  </defs>
+  <rect width="34" height="34" rx="10" fill="url(#bg)" />
+  <!-- tre barre crescenti: stesso logo di BrandMark -->
+  <g transform="translate(8 8)">
+    <rect x="2" y="9" width="3" height="7" rx="1.2" fill="#ffffff" opacity="0.55" />
+    <rect x="7.5" y="5.5" width="3" height="10.5" rx="1.2" fill="#ffffff" opacity="0.8" />
+    <rect x="13" y="2" width="3" height="14" rx="1.2" fill="#ffffff" />
+  </g>
+</svg>

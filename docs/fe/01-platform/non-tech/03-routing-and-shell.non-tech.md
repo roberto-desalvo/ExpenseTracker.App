@@ -7,7 +7,7 @@ L'app ha quattro aree, sempre raggiungibili dal menu:
 - **Analisi**: grafici di andamento su un periodo a scelta.
 - **Impostazioni**: Categorie, Conti e Aspetto dell'app.
 
-Un indirizzo sconosciuto riporta alla Dashboard.
+Un indirizzo sconosciuto riporta alla Dashboard. Ogni pagina si può aprire direttamente dal suo indirizzo (preferiti, link condivisi) o ricaricare senza errori.
 
 ## Esperienza utente
 - Su computer il menu può stare in una **barra laterale** (comprimibile per guadagnare spazio) oppure in una **barra superiore**: la scelta si fa in Impostazioni → Aspetto e viene ricordata.

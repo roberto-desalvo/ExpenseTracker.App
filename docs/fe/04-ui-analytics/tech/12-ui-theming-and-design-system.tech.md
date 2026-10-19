@@ -10,6 +10,9 @@
 
 `ModeTokens`: `background`, `surface`, `surfaceAlt`, `border`, `borderStrong`, `text`, `textSecondary`, `textMuted`, `primary`/`primaryHover`/`primaryContrast`/`primarySoft`, `income`/`expense` (+ varianti `Soft`), `cardShadow`, `sidebarBackground`, `hero` (`background`, `text`, `subtle`, `spark`, `border`). I font sono caricati da Google Fonts in `index.html`.
 
+## Logo e favicon
+Il logo (tre barre crescenti) è disegnato in `src/components/layout/BrandMark.tsx` con i token `hero` del preset attivo. L'icona della scheda del browser è `public/favicon.svg` (referenziata in `index.html`): stesso disegno con i colori fissi della hero di `aurora` chiaro, perché il favicon è statico e non segue il preset scelto.
+
 ## Tema MUI
 - `src/theme/themes.ts` → `buildAppTheme(presetId, mode)`. Estende il tema MUI con `theme.app: AppTokens` (token del preset + `presetId`, `mode`, raggi, font titoli e `chart`: `series`, `other`, `grid`, `axis`, `net`). I componenti leggono i token con `useTheme().app`.
 - Mantiene per compatibilità `theme.palette.custom` (stesse chiavi di prima, ora mappate sui token).

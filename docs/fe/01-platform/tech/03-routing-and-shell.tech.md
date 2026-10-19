@@ -8,6 +8,9 @@
 - `/impostazioni` → `SettingsPage`
 - `*` → `<Navigate to="/" replace />`
 
+### Deep link in produzione (Azure Static Web Apps)
+Il routing è lato client, quindi l'host deve servire `index.html` per qualsiasi percorso. `app/public/staticwebapp.config.json` (copiato da Vite in `dist/`) definisce `navigationFallback.rewrite = "/index.html"`, escludendo `/assets/*` e i file statici per estensione. Senza questo file, aprire o ricaricare `/movimenti`, `/analisi` o `/impostazioni` restituisce il 404 di SWA.
+
 `DATA_ROUTES` (stesso file) elenca le rotte su cui `AccountsProvider`/`CategoriesProvider` caricano l'anagrafica (oggi tutte).
 
 ### Impostazioni

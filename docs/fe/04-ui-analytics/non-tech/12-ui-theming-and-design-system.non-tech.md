@@ -13,6 +13,9 @@ Garantire un'interfaccia leggibile, coerente e piacevole, lasciando a ciascuno l
 
 Le scelte vengono ricordate dal browser.
 
+## Logo
+Il logo dell'app (un piccolo istogramma a tre barre crescenti) compare accanto al nome nel menu ed è anche l'icona della scheda del browser, così l'app si riconosce subito tra le schede aperte.
+
 ## Principi
 - Colori con un significato fisso: verde per le entrate, rosso per le uscite; ogni conto ha sempre lo stesso colore nei grafici.
 - Colori dei grafici scelti per restare distinguibili anche da chi ha difficoltà a percepire i colori, con legende e viste a tabella.
