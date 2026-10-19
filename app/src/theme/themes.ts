@@ -1,6 +1,30 @@
-import { createTheme } from "@mui/material/styles";
+import { alpha, createTheme, Theme } from "@mui/material/styles";
+import type {} from "@mui/x-date-pickers/themeAugmentation";
+import { getSeriesColors } from "./chartColors";
+import {
+  ModeTokens,
+  ResolvedMode,
+  STYLE_PRESETS,
+  StylePreset,
+  StylePresetId,
+} from "./stylePresets";
 
-// Extend MUI palette with app-specific tokens
+export interface AppTokens extends ModeTokens {
+  presetId: StylePresetId;
+  mode: ResolvedMode;
+  radiusCard: number;
+  radiusControl: number;
+  headingFontFamily: string;
+  chart: {
+    series: readonly string[];
+    other: string;
+    grid: string;
+    axis: string;
+    net: string;
+  };
+}
+
+// Estende il tema MUI con i token dell'app
 declare module "@mui/material/styles" {
   interface Palette {
     custom: {
@@ -29,78 +53,246 @@ declare module "@mui/material/styles" {
   interface PaletteOptions {
     custom?: Partial<Palette["custom"]>;
   }
+  interface Theme {
+    app: AppTokens;
+  }
+  interface ThemeOptions {
+    app?: AppTokens;
+  }
 }
 
-export const lightTheme = createTheme({
-  palette: {
-    mode: "light",
-    background: {
-      default: "#f8fafc",
-      paper: "#ffffff",
-    },
-    text: {
-      primary: "#1e293b",
-      secondary: "#64748b",
-    },
-    divider: "rgba(30, 41, 59, 0.1)",
-    custom: {
-      appBackground: "#f8fafc",
-      drawerBackground: "#ffffff",
-      drawerBorder: "rgba(30, 41, 59, 0.1)",
-      filterBorder: "rgba(30, 41, 59, 0.15)",
-      filterBackground: "rgba(30, 41, 59, 0.04)",
-      filterText: "#374151",
-      accentColor: "#65a30d",
-      accentHover: "rgba(101, 163, 13, 0.08)",
-      amountPositive: "#16a34a",
-      amountNegative: "#dc2626",
-      badgeBackground: "rgba(30, 41, 59, 0.07)",
-      badgeBorder: "rgba(30, 41, 59, 0.12)",
-      badgeText: "#475569",
-      tableHeaderText: "#94a3b8",
-      rowBackground: "rgba(30, 41, 59, 0.02)",
-      rowHover: "rgba(30, 41, 59, 0.05)",
-      actionButtonColor: "#94a3b8",
-      actionButtonBorder: "rgba(30, 41, 59, 0.15)",
-      actionButtonBackground: "rgba(30, 41, 59, 0.03)",
-      actionButtonHover: "rgba(30, 41, 59, 0.08)",
-    },
-  },
-});
+export const buildAppTheme = (presetId: StylePresetId, mode: ResolvedMode): Theme => {
+  const preset: StylePreset = STYLE_PRESETS[presetId];
+  const t: ModeTokens = preset[mode];
+  const isDark = mode === "dark";
 
-export const darkTheme = createTheme({
-  palette: {
-    mode: "dark",
-    background: {
-      default: "#0f172a",
-      paper: "transparent",
+  const app: AppTokens = {
+    ...t,
+    presetId,
+    mode,
+    radiusCard: preset.radiusCard,
+    radiusControl: preset.radiusControl,
+    headingFontFamily: preset.headingFontFamily,
+    chart: {
+      series: getSeriesColors(mode),
+      other: isDark ? "#5f5e5a" : "#b8b6ad",
+      grid: isDark ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.07)",
+      axis: t.textMuted,
+      net: t.text,
     },
-    text: {
-      primary: "#f1f5f9",
-      secondary: "#94a3b8",
+  };
+
+  const hover = isDark ? "rgba(255,255,255,0.04)" : "rgba(15,23,42,0.035)";
+
+  return createTheme({
+    app,
+    shape: { borderRadius: preset.radiusControl },
+    palette: {
+      mode,
+      primary: { main: t.primary, dark: t.primaryHover, contrastText: t.primaryContrast },
+      success: { main: t.income },
+      error: { main: t.expense },
+      background: { default: t.background, paper: t.surface },
+      text: { primary: t.text, secondary: t.textSecondary, disabled: t.textMuted },
+      divider: t.border,
+      action: { hover },
+      custom: {
+        appBackground: t.background,
+        drawerBackground: t.surface,
+        drawerBorder: t.border,
+        filterBorder: t.border,
+        filterBackground: t.surfaceAlt,
+        filterText: t.textSecondary,
+        accentColor: t.primary,
+        accentHover: t.primarySoft,
+        amountPositive: t.income,
+        amountNegative: t.expense,
+        badgeBackground: t.surfaceAlt,
+        badgeBorder: t.border,
+        badgeText: t.textSecondary,
+        tableHeaderText: t.textMuted,
+        rowBackground: "transparent",
+        rowHover: hover,
+        actionButtonColor: t.textMuted,
+        actionButtonBorder: "transparent",
+        actionButtonBackground: "transparent",
+        actionButtonHover: hover,
+      },
     },
-    divider: "rgba(255, 255, 255, 0.08)",
-    custom: {
-      appBackground: "#0f172a",
-      drawerBackground: "#1e293b",
-      drawerBorder: "rgba(255, 255, 255, 0.08)",
-      filterBorder: "rgba(255, 255, 255, 0.12)",
-      filterBackground: "rgba(255, 255, 255, 0.04)",
-      filterText: "#e5e7eb",
-      accentColor: "#a3e635",
-      accentHover: "rgba(163, 230, 53, 0.08)",
-      amountPositive: "#4ade80",
-      amountNegative: "#f87171",
-      badgeBackground: "rgba(255, 255, 255, 0.07)",
-      badgeBorder: "rgba(255, 255, 255, 0.1)",
-      badgeText: "#94a3b8",
-      tableHeaderText: "#475569",
-      rowBackground: "rgba(255, 255, 255, 0.03)",
-      rowHover: "rgba(255, 255, 255, 0.06)",
-      actionButtonColor: "#64748b",
-      actionButtonBorder: "rgba(255, 255, 255, 0.1)",
-      actionButtonBackground: "rgba(255, 255, 255, 0.04)",
-      actionButtonHover: "rgba(255, 255, 255, 0.08)",
+    typography: {
+      fontFamily: preset.fontFamily,
+      h4: { fontFamily: preset.headingFontFamily, fontWeight: 700, letterSpacing: "-0.025em" },
+      h5: { fontFamily: preset.headingFontFamily, fontWeight: 700, letterSpacing: "-0.02em" },
+      h6: { fontFamily: preset.headingFontFamily, fontWeight: 650, letterSpacing: "-0.01em" },
+      subtitle1: { fontWeight: 600 },
+      button: { textTransform: "none", fontWeight: 600, letterSpacing: 0 },
+      overline: { fontWeight: 600, letterSpacing: "0.08em", lineHeight: 1.6 },
     },
-  },
-});
+    components: {
+      MuiCssBaseline: {
+        styleOverrides: {
+          body: { backgroundColor: t.background },
+          "*::-webkit-scrollbar": { width: 10, height: 10 },
+          "*::-webkit-scrollbar-thumb": {
+            backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(15,23,42,0.14)",
+            borderRadius: 10,
+            border: `2px solid ${t.background}`,
+          },
+        },
+      },
+      MuiPaper: {
+        styleOverrides: { root: { backgroundImage: "none" } },
+      },
+      MuiButton: {
+        defaultProps: { disableElevation: true },
+        styleOverrides: {
+          root: { borderRadius: preset.radiusControl, paddingInline: 16, minHeight: 38 },
+          outlined: {
+            borderColor: t.borderStrong,
+            color: t.text,
+            "&:hover": { borderColor: t.borderStrong, backgroundColor: hover },
+          },
+          text: { color: t.textSecondary, "&:hover": { backgroundColor: hover } },
+        },
+      },
+      MuiIconButton: {
+        styleOverrides: { root: { borderRadius: preset.radiusControl } },
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            borderRadius: preset.radiusControl,
+            backgroundColor: t.surface,
+            "& .MuiOutlinedInput-notchedOutline": { borderColor: t.borderStrong },
+            "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: alpha(t.text, 0.3) },
+            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+              borderColor: t.primary,
+              borderWidth: 1.5,
+            },
+          },
+        },
+      },
+      MuiMenu: {
+        defaultProps: { disableScrollLock: true },
+        styleOverrides: {
+          paper: {
+            marginTop: 6,
+            borderRadius: preset.radiusControl + 2,
+            border: `1px solid ${t.border}`,
+            boxShadow: isDark ? "0 16px 40px rgba(0,0,0,0.5)" : "0 12px 32px rgba(15,23,42,0.12)",
+          },
+        },
+      },
+      MuiPopover: {
+        styleOverrides: {
+          paper: { border: `1px solid ${t.border}` },
+        },
+      },
+      MuiMenuItem: {
+        styleOverrides: {
+          root: {
+            fontSize: "0.88rem",
+            minHeight: 38,
+            borderRadius: Math.max(preset.radiusControl - 2, 2),
+            marginInline: 6,
+            "&.Mui-selected": { backgroundColor: t.primarySoft },
+            "&.Mui-selected:hover": { backgroundColor: t.primarySoft },
+          },
+        },
+      },
+      MuiDialog: {
+        styleOverrides: {
+          paper: {
+            borderRadius: preset.radiusCard,
+            border: `1px solid ${t.border}`,
+            boxShadow: isDark ? "0 24px 64px rgba(0,0,0,0.55)" : "0 24px 64px rgba(15,23,42,0.18)",
+          },
+        },
+      },
+      MuiBackdrop: {
+        styleOverrides: {
+          root: {
+            "&:not(.MuiBackdrop-invisible)": {
+              backgroundColor: isDark ? "rgba(0,0,0,0.6)" : "rgba(15,23,42,0.32)",
+              backdropFilter: "blur(3px)",
+            },
+          },
+        },
+      },
+      MuiTooltip: {
+        styleOverrides: {
+          tooltip: {
+            backgroundColor: isDark ? "#f4f4f5" : "#18181b",
+            color: isDark ? "#18181b" : "#fafafa",
+            fontSize: "0.75rem",
+            borderRadius: 6,
+            padding: "6px 10px",
+          },
+        },
+      },
+      MuiChip: {
+        styleOverrides: {
+          root: { borderRadius: Math.max(preset.radiusControl - 2, 4), fontWeight: 500 },
+        },
+      },
+      MuiTableCell: {
+        styleOverrides: {
+          root: { borderColor: t.border },
+          head: {
+            color: t.textMuted,
+            fontSize: "0.7rem",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+          },
+        },
+      },
+      MuiToggleButton: {
+        styleOverrides: {
+          root: {
+            textTransform: "none",
+            fontWeight: 600,
+            fontSize: "0.82rem",
+            border: "none",
+            borderRadius: `${Math.max(preset.radiusControl - 2, 3)}px !important`,
+            color: t.textSecondary,
+            padding: "5px 12px",
+            "&.Mui-selected": {
+              backgroundColor: t.surface,
+              color: t.text,
+              boxShadow: isDark
+                ? "0 0 0 1px rgba(255,255,255,0.08)"
+                : "0 1px 2px rgba(15,23,42,0.08), 0 0 0 1px rgba(15,23,42,0.06)",
+            },
+            "&.Mui-selected:hover": { backgroundColor: t.surface },
+          },
+        },
+      },
+      MuiToggleButtonGroup: {
+        styleOverrides: {
+          root: {
+            backgroundColor: t.surfaceAlt,
+            borderRadius: preset.radiusControl,
+            padding: 3,
+            gap: 2,
+          },
+        },
+      },
+      MuiTab: {
+        styleOverrides: {
+          root: { textTransform: "none", fontWeight: 600, minHeight: 44 },
+        },
+      },
+      MuiSwitch: {
+        styleOverrides: {
+          switchBase: { "&.Mui-checked + .MuiSwitch-track": { opacity: 1 } },
+        },
+      },
+      MuiTablePagination: {
+        styleOverrides: {
+          root: { color: t.textSecondary, borderBottom: "none" },
+        },
+      },
+    },
+  });
+};

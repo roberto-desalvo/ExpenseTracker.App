@@ -1,13 +1,14 @@
 # 08 - Flusso transazioni (Non Tecnico)
 
 ## Dove si trova
-La gestione dei movimenti non è più una pagina separata: si trova direttamente nella home (Dashboard), nella sezione "Questo mese", che può essere espansa o compressa.
+I movimenti hanno una pagina dedicata, **Movimenti**, raggiungibile dal menu. La Dashboard mostra solo gli ultimi movimenti, con un link "Vedi tutti".
 
 ## Cosa può fare l'utente
-- Visualizzare i movimenti del mese selezionato.
-- Filtrare per mese, per uno o più conti, per una o più categorie e per tipo (entrate/uscite).
-- Inserire una nuova transazione o un nuovo trasferimento tra conti dal menu "Aggiungi".
-- Modificare o eliminare una transazione esistente dal menu azioni della riga (richiede conferma per l'eliminazione).
+- Scorrere i mesi con le frecce o sceglierne uno dall'elenco.
+- Filtrare per uno o più conti e per una o più categorie; i filtri attivi compaiono come etichette rimovibili, con "Azzera filtri" per tornare a tutto.
+- Vedere i totali del periodo (entrate, uscite, saldo) e cliccare su Entrate o Uscite per mostrare solo quel tipo di movimento.
+- Inserire una nuova transazione o un trasferimento dal bottone **Nuovo**, presente in ogni pagina. Nel modulo si sceglie se è un'uscita o un'entrata e si inserisce l'importo senza segno.
+- Modificare o eliminare un movimento con le icone che compaiono passando sopra la riga (l'eliminazione chiede conferma).
 
 ## Output principale
-Elenco aggiornato dei movimenti del mese, con possibilità di aggiungere rapidamente nuove operazioni senza lasciare la home.
+Elenco aggiornato dei movimenti del mese, leggibile a colpo d'occhio: le entrate sono in verde, le uscite in nero con il segno meno.

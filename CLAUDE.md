@@ -74,7 +74,7 @@ SQL Server via EF Core Code-First. Core entities:
 
 ### Frontend
 
-React 18 SPA built with Vite. State management uses React Context API (no Redux). UI uses MUI v6 + TailwindCSS. Pages: Landing (dashboard), Transactions, Categories, Accounts. All API calls go through service classes in `src/services/`.
+React 18 SPA built with Vite. State management uses React Context API (no Redux). UI uses MUI v6 + TailwindCSS. Pages: Dashboard (`/`), Movimenti (`/movimenti`), Analisi (`/analisi`), Impostazioni (`/impostazioni`: Categorie, Conti, Aspetto). Visual styles are switchable presets (`src/theme/stylePresets.ts`) built into the MUI theme by `buildAppTheme`; components read tokens via `useTheme().app`. All API calls go through service classes in `src/services/`.
 
 Authentication is MSAL (Azure AD). The singleton `msalInstance` is initialized in `src/auth/msalInstance.ts`; the required scope is `api://[client-id]/access_as_user`.
 

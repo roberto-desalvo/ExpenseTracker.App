@@ -1,32 +1,38 @@
 # 11 - Dashboard and time series (Tecnico)
 
-## Home dashboard
-- Pagina: `src/pages/LandingPage.tsx`
-- Dati: `TransactionService.getLanding({ excludeTransfers: true })` → modello `LandingDashboard` (`src/models/LandingDashboard.ts`): `asOf`, `monthStart`, `accounts: LandingAccountBalance[]`, `categories: LandingCategorySummary[]`, `totals: LandingTotals`, `netWorthSeries: TimeSeriesList`.
-- La pagina è divisa in due sezioni comprimibili (stato persistito in `localStorage`, chiavi `expense-tracker:home-questo-mese-expanded` e `expense-tracker:home-patrimonio-expanded`), oltre allo stato di visibilità del saldo (`expense-tracker:home-balance-visible`).
+## Dashboard (`/`)
+Pagina `src/pages/DashboardPage.tsx`. Tre caricamenti in parallelo, rilanciati quando cambia `TransactionContext.dataVersion`:
+1. `TransactionService.getLanding({ excludeTransfers: true })` → `LandingDashboard` (`asOf`, `accounts`, `categories`, `totals`, `netWorthSeries`).
+2. `TransactionService.getTimeSeries` sugli ultimi 12 mesi, `granularity: 3`, nessun filtro, `excludeTransfers: true` → flusso di cassa. I mesi senza movimenti (omessi dal BE) vengono riempiti a zero con `enumerateMonthKeys`.
+3. `TransactionService.getAll` sugli ultimi 90 giorni, `pageSize: 7` → ultimi movimenti (il BE ordina per data decrescente).
 
-### Sezione "Questo mese"
-- Card riepilogo (`SummaryCard`, componente locale in `LandingPage.tsx`): Saldo totale (con toggle mostra/nascondi tramite icona occhio), Entrate mese, Uscite mese, Bilancio mese; colori presi da `theme.palette.custom.amountPositive` / `amountNegative`.
-- Blocco "Transazioni mese corrente": `TransactionsSummaryBar` (chip entrate/uscite/bilancio, renderizzato con `showChips={false}` in questa pagina quindi non visibile qui), `AccountsBar` (filtri account/categoria/mese + azioni Aggiungi/Aggiorna) ed `ExpenseTable` (tabella transazioni basata su `DataTableBase`).
-- Due riquadri "Account" e "Categorie", ciascuno con due grafici a ciambella `MonthlyDistributionPieChart` (Entrate / Uscite) alimentati da `accountIncomeItems`/`accountOutcomeItems`/`categoryIncomeItems`/`categoryOutcomeItems` (derivati da `earnedMonth`/`spentMonth` di `data.accounts` e `data.categories`).
+Layout a griglia CSS su 12 colonne (`lg`), una colonna sotto:
+- **Riga 1** — `HeroBalanceCard` (5 col): patrimonio attuale (`totals.currentBalanceTotal`), variazione assoluta e percentuale rispetto al primo punto di `netWorthSeries` (12 mesi), sparkline `NetWorthAreaChart variant="spark"`, toggle occhio che nasconde gli importi (persistito in `expense-tracker:home-balance-visible`, maschera anche i saldi della card Conti). Accanto 4 `StatTile` (2×2 anche su mobile): Entrate del mese e Uscite del mese con confronto percentuale verso la media degli ultimi 6 mesi completi (dal flusso di cassa, mese corrente escluso); Risparmio netto con barra di avanzamento del mese (giorno X di N); Tasso di risparmio (`netMonth / earnedMonth`).
+- **Riga 2** — "Flusso di cassa" (`CashFlowChart`, 8 col) con switch grafico/tabella; "Dove vanno i soldi" (`RankedBarList`, 4 col) con toggle Uscite/Entrate sui valori `spentMonth`/`earnedMonth` di `data.categories`.
+- **Riga 3** — "Conti" (`AccountsOverview`, 5 col): barra 100% della ripartizione dei saldi positivi (segmenti con gap di 2px) + elenco con saldo, quota e netto del mese; "Ultimi movimenti" (`RecentTransactions`, 7 col): click su una riga = `openTransactionModal(t)`, link "Vedi tutti" → `/movimenti`.
 
-### Sezione "Patrimonio"
-- Filtri: data inizio, data fine, granularità (`Select` con valori 1=Giornaliero, 2=Settimanale, 3=Mensile, 4=Annuale, passati come `granularity` nella `TimeSeriesRequest`).
-- Grafico "Andamento patrimonio {start} - {end}": `TimeSeriesLineChart` con `tightYAxis` e `stepped` (linea a gradini/staircase, coerente con un saldo che cambia solo ad ogni transazione), singola serie "Patrimonio totale" costruita dal primo elemento di `data.netWorthSeries.series` (nota: questa serie ignora i filtri data/granularità della sezione — è sempre mensile, ultimi 12 mesi, calcolata lato backend in `GetLanding`/`BuildNetWorthSeries`).
-- Grafico "Account": `TimeSeriesLineChart` con `enableLegendToggle` e `stepped`, alimentato da due richieste `TransactionService.getStock(...)`: una senza filtri (`idAccounts: []`, salvata in `patrimonioTotalData`) e una per account (`patrimonioAccountsData`); se ci sono più account viene aggiunta una serie "Totale" che usa **direttamente** la serie combinata restituita da `patrimonioTotalData`, non una somma client-side delle serie per-account — sommare le medie per-account periodo per periodo non è equivalente alla media del patrimonio combinato (ogni account ha le proprie transazioni/istanti di campionamento), quindi il totale deve essere calcolato una sola volta lato backend sull'insieme di tutte le transazioni.
-- Per entrambi i grafici sopra, il valore `amount` di ogni punto restituito da `getStock`/`netWorthSeries` è la **media della giacenza nel periodo** (media dei saldi cumulativi calcolati ad ogni transazione ricaduta in quel periodo), non il saldo di fine periodo; i periodi senza transazioni riportano il saldo dell'ultimo periodo noto invece di essere omessi (vedi backend, [07-application-services-and-mapping](../../../be/02-data-persistence/tech/07-application-services-and-mapping.tech.md)).
-- Le chiamate `getStock` per questi due grafici non passano `excludeTransfers` (il backend lo ignora comunque per `GetStock`: un saldo deve includere sempre i giroconti, altrimenti risulterebbe sistematicamente sbagliato per i conti che li hanno). Il flag resta invece significativo per `getTimeSeries` (usato dal grafico "Categorie"), dove rappresenta correttamente un flusso di entrate/uscite.
-- Grafico "Categorie": `TimeSeriesGroupedBarChart` (istogramma, non più una linea), alimentato da `TransactionService.getTimeSeries(...)` filtrato per `idCategories`. Per ogni periodo e per ciascuna categoria mostra due barre affiancate — entrate (`earned`, verde, `theme.palette.custom.amountPositive`) e uscite (`spent`, rosso, `amountNegative`), entrambe già in valore assoluto lato backend. La legenda è fissa a 2 sole voci ("Entrate"/"Uscite", tramite `payload` esplicito su `<Legend>`), mentre il tooltip riporta il nome della categoria per ciascuna barra (`name` impostato su ogni `<Bar>`), per restare leggibile anche con molte categorie.
-- Il ricaricamento (`handlePatrimonioDashboardLoad`) parte al variare di data inizio/fine/granularità o all'espansione della sezione.
+## Analisi (`/analisi`)
+Pagina `src/pages/AnalyticsPage.tsx`.
+- Filtri in un'unica card sopra i grafici: preset periodo (3, 6, 12, 24 mesi, da inizio anno, personalizzato con due `TextField type="date"`) e granularità (1 Giorno, 2 Settimana, 3 Mese, 4 Anno). Avviso se inizio > fine (nessuna chiamata).
+- Quattro chiamate in parallelo (ricaricate anche su `dataVersion`):
+  - `getStock` senza filtri → patrimonio totale;
+  - `getStock` con `idAccounts` di tutti i conti → saldo per conto;
+  - `getTimeSeries` senza filtri, `excludeTransfers: true` → flusso di cassa (riempito a zero per granularità mensile);
+  - `getTimeSeries` con `idCategories` di tutte le categorie (`allCategories`), `excludeTransfers: true` → composizione per categoria.
+- Card "Patrimonio": 6 cifre di sintesi (inizio, fine, variazione, entrate totali, uscite totali, tasso di risparmio) + `NetWorthAreaChart`.
+- "Flusso di cassa" (`CashFlowChart`) e "Saldo per conto" (`BalanceLinesChart`, legenda cliccabile per nascondere un conto), ciascuno con switch grafico/tabella.
+- "Spese/Entrate per categoria" (`StackedPeriodBars`, toggle Uscite/Entrate, switch tabella) e "Classifica categorie" (`RankedBarList` sui totali del periodo).
+- Semantica dei saldi: il valore di ogni punto `getStock`/`netWorthSeries` è la **media della giacenza nel periodo**; i periodi senza transazioni riportano il saldo dell'ultimo periodo noto (vedi BE, [07-application-services-and-mapping](../../../be/02-data-persistence/tech/07-application-services-and-mapping.tech.md)). `getStock` include sempre i giroconti (il BE ignora `excludeTransfers`), mentre `getTimeSeries` li esclude per rappresentare un vero flusso di entrate/uscite. Il totale non viene mai ricavato sommando le serie per conto lato client: sommare medie indipendenti non equivale alla media del patrimonio combinato.
 
-> Nota: esistono ancora nel codice i componenti `src/components/AccountsPieChart.tsx` e `src/components/CategoriesPieChart.tsx` (torte a saldo/entrate-uscite per account/categoria), ma non sono più importati da `LandingPage.tsx`: sono stati sostituiti da `MonthlyDistributionPieChart`. Sono da considerare codice legacy non attualmente collegato alla UI.
+## Componenti grafici (`src/components/charts/`)
+Tutti su Recharts, un solo asse Y in euro (tick compatti `formatCompact`), griglia orizzontale sottile, nessuna animazione, tooltip personalizzati (`ChartTooltipCard`/`ChartTooltipRow` in `ChartParts.tsx`), stato vuoto `ChartEmpty`.
+- `NetWorthAreaChart` — singola serie ad area (`monotone`, linea 2px, gradiente), varianti `spark` (senza assi, per la hero) e `full`; dominio Y stretto attorno ai valori.
+- `CashFlowChart` — `ComposedChart` con `stackOffset="sign"`: entrate sopra lo zero, uscite (negative) sotto, linea del saldo netto nel colore dell'inchiostro; legenda fissa; vista tabella (periodo, entrate, uscite, saldo).
+- `BalanceLinesChart` — più linee sullo stesso asse; colori per entità; `ChartLegend` con toggle; vista tabella.
+- `StackedPeriodBars` — barre impilate per periodo; serie ordinate per totale, oltre `maxSeries` (6) raggruppate in "Altre (n)" col colore neutro; tooltip con totale; vista tabella.
+- `RankedBarList` — classifica HTML a barre orizzontali, un solo colore, valore + quota %, coda raggruppata in "Altre (n)".
+- `ChartParts.tsx` — anche `ChartLegend`, `ChartViewToggle` (grafico/tabella), `ChartDataTable`.
+- `entityColors.ts` — `buildEntityColorMap(ids, series, other)`: colore per id crescente, così un filtro non ricolora le serie rimaste.
 
-## Serie temporali
-- Component grafico a linee: `src/components/TimeSeriesLineChart.tsx` (basato su Recharts `LineChart`). Props: `series: TimeSeriesLineChartSeries[]` (`{ name, values: { period, amount }[] }`), `height`, `emptyMessage`, `enableLegendToggle` (default `true`, permette di nascondere/mostrare singole serie cliccando sulla legenda), `tightYAxis` (restringe il dominio dell'asse Y intorno ai valori invece di partire da zero), `stepped` (default `false`; se `true` usa `type="stepAfter"` su `<Line>` invece di `"monotone"`, per un andamento a gradini).
-- Component istogramma: `src/components/TimeSeriesGroupedBarChart.tsx` (basato su Recharts `BarChart`). Props: `series: TimeSeriesGroupedBarChartSeries[]` (`{ name, values: { period, earned, spent }[] }`), `height`, `emptyMessage`. Costruisce righe "wide" per periodo con due chiavi per serie (`${name}__entrate`, `${name}__uscite`) e renderizza due `<Bar>` per ciascuna serie/categoria (Recharts le affianca automaticamente sotto lo stesso periodo sull'asse X).
-- API: `getTimeSeries()` e `getStock()` in `TransactionService`, entrambe accettano `TimeSeriesRequest` (`src/models/TimeSeriesRequest.ts`): `{ startDate, endDate, idAccounts, idCategories, granularity, excludeTransfers? }` e restituiscono `TimeSeriesList` (`src/models/TimeSeries.ts`): `{ granularity, series: { dimensions: { key, value }[], values: { period, amount, earned, spent }[] }[] }` — `earned`/`spent` sono popolati da `getTimeSeries` (somma entrate/uscite del periodo, valore assoluto) e restano a 0 nella risposta di `getStock` (non pertinenti per un saldo).
-- Le serie multiple condividono la stessa palette colori: `CHART_SERIES_COLORS` in `src/theme/chartColors.ts`, assegnata ciclicamente per indice (solo per `TimeSeriesLineChart`; l'istogramma usa i colori semantici entrate/uscite del tema).
-
-## Ambiti analitici attuali
-- Landing aggregata (sezioni "Questo mese" e "Patrimonio")
-- Analisi in Accounts/Categories tramite `AccountsPieChart`/`CategoriesPieChart` legacy non più montati in Landing (vedi nota sopra)
+## Modelli e API
+`getTimeSeries()`/`getStock()` accettano `TimeSeriesRequest` (`{ startDate, endDate, idAccounts, idCategories, granularity, excludeTransfers? }`) e restituiscono `TimeSeriesList` (`{ granularity, series: { dimensions: { key, value }[], values: { period, amount, earned, spent }[] }[] }`). Le chiavi di periodo (`yyyy-MM-dd`, `yyyy-Www`, `yyyy-MM`, `yyyy`) sono rese leggibili da `formatPeriodLabel` (`src/utilities/format.utilities.ts`).

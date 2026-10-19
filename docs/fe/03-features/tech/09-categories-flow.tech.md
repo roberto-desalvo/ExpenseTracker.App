@@ -1,23 +1,21 @@
 # 09 - Categories flow (Tecnico)
 
 ## Schermata
-`src/pages/CategoriesPage.tsx` gestisce solo il CRUD delle categorie: non esiste più una vista analitica/tab Gestione-Analisi in questa pagina (il trend storico per categoria è mostrato altrove, nella sezione "Patrimonio" della dashboard — vedi modulo `11-dashboard-and-time-series`).
-
-La pagina accetta una prop `embedded?: boolean` (default `false`). Non è più raggiungibile come route standalone: `src/App.tsx` non definisce più `/categorie`. Viene montata unicamente da `src/pages/SettingsPage.tsx` come tab "Categorie" della route `/impostazioni` (`?tab=categorie`), invocata con `<CategoriesPage embedded />` (vedi modulo `03-routing-and-shell` per il dettaglio del routing/tab). Quando `embedded` è `true`, la pagina sopprime il proprio titolo `Typography` "Categorie" e azzera il padding esterno (`px`/`py` a 0 invece di `{xs:2.5, md:4}`/`{xs:2.5, md:3}`).
+`src/pages/CategoriesPage.tsx` gestisce il CRUD delle categorie. È montata da `SettingsPage` nella sezione `?sezione=categorie` (default di `/impostazioni`, vedi modulo 03). Le analisi per categoria sono nella dashboard e nella pagina Analisi (modulo 11).
 
 ## Dipendenze
-- Stato: `CategoryContext` (`categories`, `page`, `pageSize`, `totalCount`, `isLoading`, `addCategory`, `updateCategory`, `deleteCategory`, `refreshCategories`).
-- API: `CategoryService` (`getAll`, `add`, `update`, `delete`); nessuna dipendenza diretta da `TransactionService` in questa pagina.
-- UI: `DataTableBase`, `RowActionsMenu`, `CategoriesFilterBar`, `AppModal`, `ConfirmDeleteDialog`.
+- Stato: `CategoryContext` (`categories`, `allCategories`, `page`, `pageSize`, `totalCount`, `isLoading`, `addCategory`, `updateCategory`, `deleteCategory`, `refreshCategories`).
+- API: `CategoryService` (`getAll`, `add`, `update`, `delete`).
+- UI: `SearchField`, `DataTableBase`, `EditorDrawer`, `ConfirmDeleteDialog` (`src/components/ui/` e `src/components/`), `useSuccessMessage` per le conferme.
 
-## Colonne tabella
-`Nome` (con badge "Default" se `category.isDefault`), `Descrizione`, `Tag`, `Priorità` (allineata a destra), `Azioni`.
+## Barra superiore
+`SearchField`: ricerca per nome con debounce di 350ms (scatta con campo vuoto o da 3 caratteri, con helper "Digita almeno 3 caratteri"), pulsante di cancellazione; a destra il bottone primario "Nuova categoria".
 
-## Filtro/ricerca
-`CategoriesFilterBar` espone: campo di ricerca per nome con debounce di 350ms (scatta se il termine è vuoto oppure ha almeno 3 caratteri), pulsante "Nuova categoria" (apre `AppModal` in modalità creazione) e pulsante "Aggiorna" (`refreshCategories()`).
+## Tabella
+Colonne: `Categoria` (avatar con iniziali, nome, chip "Predefinita" con lucchetto se `isDefault`, descrizione sotto il nome), `Parole chiave import` (tag come chip, max 5 + contatore), `Priorità` (a destra), azioni. Click sulla riga = modifica; le icone Modifica/Elimina compaiono all'hover. Elimina è disabilitata, con tooltip esplicativo, per la categoria predefinita.
 
-## Form categoria (`AppModal`)
-Campi: Nome (obbligatorio), Descrizione, Tag (stringa separata da virgola/punto e virgola, parsata in array), Priorità (numerico). In creazione `isDefault` è sempre `false`; in modifica viene preservato il valore esistente.
+## Editor (`EditorDrawer`)
+Pannello laterale destro (a schermo intero su mobile) con: Nome (obbligatorio, il salvataggio è disabilitato se vuoto), Descrizione (multilinea), Parole chiave (`Autocomplete` multiplo `freeSolo` con suggerimenti dai tag già usati in `allCategories`; helper che spiega l'uso nell'import), Priorità (numerica, helper: in caso di più corrispondenze vince il numero più basso, coerente con l'ordinamento `OrderBy(Priority)` dei servizi di import BE). In modifica di una categoria non predefinita il footer ha anche "Elimina". `isDefault` è `false` in creazione e preservato in modifica.
 
 ## Eliminazione
-Azione "Elimina" disabilitata per le categorie con `isDefault === true` (sia nel menu azioni sia lato handler `handleDeleteRequest`). Conferma tramite `ConfirmDeleteDialog`, con messaggio che avvisa che le transazioni collegate verranno riassegnate alla categoria di default.
+`ConfirmDeleteDialog` con messaggio che avvisa della riassegnazione dei movimenti alla categoria predefinita.

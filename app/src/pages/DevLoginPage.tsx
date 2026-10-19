@@ -1,6 +1,8 @@
 import { FormEvent, useState } from "react";
-import { Box, Button, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Stack, TextField, Typography } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { DEV_USER_MAX_LENGTH } from "../auth/devAuth";
+import BrandMark from "../components/layout/BrandMark";
 
 interface DevLoginPageProps {
   onLogin: (userName: string) => void;
@@ -8,6 +10,7 @@ interface DevLoginPageProps {
 
 /** Login di sviluppo: chiede solo il nome utente (autenticazione Entra ID bypassata). */
 export default function DevLoginPage({ onLogin }: DevLoginPageProps) {
+  const a = useTheme().app;
   const [userName, setUserName] = useState("");
   const trimmed = userName.trim();
 
@@ -19,44 +22,45 @@ export default function DevLoginPage({ onLogin }: DevLoginPageProps) {
   };
 
   return (
-    <Box
-      component="form"
-      onSubmit={handleSubmit}
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        flexGrow: 1,
-        minHeight: "100vh",
-        gap: 2,
-        px: 3,
-        bgcolor: "background.default",
-      }}
-    >
-      <Typography variant="h6" sx={{ fontWeight: 700, color: "text.primary", textAlign: "center" }}>
-        Expense Tracker
-      </Typography>
-      <Typography variant="body2" sx={{ color: "text.secondary", textAlign: "center", maxWidth: 360 }}>
-        Modalità sviluppo: autenticazione disattivata. Indica con quale utente vuoi accedere.
-      </Typography>
-      <TextField
-        label="Nome utente"
-        value={userName}
-        onChange={(event) => setUserName(event.target.value)}
-        autoFocus
-        size="small"
-        inputProps={{ maxLength: DEV_USER_MAX_LENGTH }}
-        sx={{ width: "100%", maxWidth: 320 }}
-      />
-      <Button
-        type="submit"
-        variant="contained"
-        disabled={!trimmed}
-        sx={{ borderRadius: "10px", textTransform: "none", fontWeight: 600 }}
+    <Box sx={{ minHeight: "100vh", display: "grid", placeItems: "center", px: 2, bgcolor: a.background }}>
+      <Box
+        component="form"
+        onSubmit={handleSubmit}
+        sx={{
+          width: "100%",
+          maxWidth: 400,
+          p: { xs: 3, sm: 4 },
+          backgroundColor: a.surface,
+          border: `1px solid ${a.border}`,
+          borderRadius: `${a.radiusCard}px`,
+          boxShadow: a.cardShadow,
+        }}
       >
-        Accedi
-      </Button>
+        <Stack spacing={2.5}>
+          <BrandMark />
+          <Box>
+            <Typography variant="h6" component="h1">
+              Accedi
+            </Typography>
+            <Typography sx={{ fontSize: "0.86rem", color: a.textSecondary, mt: 0.5 }}>
+              Indica con quale utente vuoi entrare.
+            </Typography>
+          </Box>
+          <Alert severity="info" variant="outlined" sx={{ fontSize: "0.8rem" }}>
+            Modalità sviluppo: autenticazione Entra ID disattivata.
+          </Alert>
+          <TextField
+            label="Nome utente"
+            value={userName}
+            onChange={(event) => setUserName(event.target.value)}
+            autoFocus
+            inputProps={{ maxLength: DEV_USER_MAX_LENGTH }}
+          />
+          <Button type="submit" variant="contained" size="large" disabled={!trimmed}>
+            Accedi
+          </Button>
+        </Stack>
+      </Box>
     </Box>
   );
 }

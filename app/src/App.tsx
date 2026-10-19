@@ -1,8 +1,9 @@
 import "./App.css";
-import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
-import { Box } from "@mui/material";
-import HomeHeader from "./components/HomeHeader";
-import LandingPage from "./pages/LandingPage";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import AppLayout from "./components/layout/AppLayout";
+import DashboardPage from "./pages/DashboardPage";
+import TransactionsPage from "./pages/TransactionsPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
 import SettingsPage from "./pages/SettingsPage";
 import AuthGate from "./auth/AuthGate";
 import { AccountsProvider } from "./stores/AccountContext";
@@ -10,11 +11,10 @@ import { TransactionsProvider } from "./stores/TransactionContext";
 import { CategoriesProvider } from "./stores/CategoryContext";
 import { TableContextProvider } from "./stores/TableContext";
 import { TransactionModalProvider } from "./stores/TransactionModalContext";
+import { QuickActionsProvider } from "./stores/QuickActionsContext";
+import { ROUTES } from "./config/routes";
 
 function AppShell() {
-  const location = useLocation();
-  const isHomeRoute = location.pathname === "/";
-
   return (
     <AuthGate>
       <AccountsProvider>
@@ -22,22 +22,17 @@ function AppShell() {
           <CategoriesProvider>
             <TableContextProvider>
               <TransactionModalProvider>
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    minHeight: "100vh",
-                    width: "100%",
-                    bgcolor: "background.default",
-                    overflowX: "hidden",
-                  }}
-                >
-                  <HomeHeader sticky={isHomeRoute} />
-                  <Routes>
-                    <Route path="/" element={<LandingPage />} />
-                    <Route path="/impostazioni" element={<SettingsPage />} />
-                  </Routes>
-                </Box>
+                <QuickActionsProvider>
+                  <AppLayout>
+                    <Routes>
+                      <Route path={ROUTES.dashboard} element={<DashboardPage />} />
+                      <Route path={ROUTES.transactions} element={<TransactionsPage />} />
+                      <Route path={ROUTES.analytics} element={<AnalyticsPage />} />
+                      <Route path={ROUTES.settings} element={<SettingsPage />} />
+                      <Route path="*" element={<Navigate to={ROUTES.dashboard} replace />} />
+                    </Routes>
+                  </AppLayout>
+                </QuickActionsProvider>
               </TransactionModalProvider>
             </TableContextProvider>
           </CategoriesProvider>

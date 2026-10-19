@@ -56,6 +56,7 @@ export default function TransferModal({ open, onClose }: TransferModalProps) {
       open={open}
       onClose={handleClose}
       title="Nuovo trasferimento"
+      subtitle="Sposta denaro tra due conti: non conta come entrata né come uscita"
       onSubmit={handleSubmit}
       submitLabel="Salva"
     >

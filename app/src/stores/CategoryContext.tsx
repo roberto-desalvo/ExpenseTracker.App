@@ -1,5 +1,6 @@
 import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { DATA_ROUTES } from "../config/routes";
 import Category from "../models/Category";
 import CategoryService from "../services/CategoryService";
 
@@ -27,8 +28,7 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const location = useLocation();
   const shouldLoadCategories =
-    location.pathname === "/impostazioni" ||
-    location.pathname === "/";
+    DATA_ROUTES.includes(location.pathname);
   const [categories, setCategories] = useState<Category[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
