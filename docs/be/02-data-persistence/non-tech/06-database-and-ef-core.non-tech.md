@@ -3,6 +3,9 @@
 ## Dove vivono i dati
 Tutti gli utenti, i conti, le categorie, i movimenti e i trasferimenti sono conservati in un database centrale, sempre aggiornato in modo automatico quando la struttura dei dati evolve.
 
+## Cosa succede se il database è "addormentato"
+Il database usa un piano gratuito che si mette in pausa quando non viene usato per un po'. La prima richiesta dopo una pausa lo risveglia, e questo può richiedere fino a un minuto: invece di fallire subito, l'applicazione riprova automaticamente qualche volta, attendendo brevemente tra un tentativo e l'altro. La prima operazione dopo una pausa può quindi essere più lenta, ma va comunque a buon fine.
+
 ## Come sono nati gli utenti
 La tabella che identifica gli utenti è stata introdotta con un aggiornamento pensato per non perdere nulla dei dati già presenti: i conti creati prima di questa modifica restano intatti e vengono ricollegati al proprietario corretto con un passaggio successivo, senza interruzioni per chi usa già l'applicazione.
 

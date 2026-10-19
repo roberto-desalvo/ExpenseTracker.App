@@ -1,7 +1,7 @@
 # 06 - Database and EF Core (Tecnico)
 
 ## `ExpenseTrackerContext`
-`DbSet<Transaction>`, `DbSet<Account>`, `DbSet<Category>`, `DbSet<Transfer>`, `DbSet<User>`. `OnModelCreating` applica tutte le `IEntityTypeConfiguration<T>` dell'assembly. Provider SQL Server con `EnableRetryOnFailure()` e timeout comandi 60s (`Infrastructure/AddServicesExtensions.cs`).
+`DbSet<Transaction>`, `DbSet<Account>`, `DbSet<Category>`, `DbSet<Transfer>`, `DbSet<User>`. `OnModelCreating` applica tutte le `IEntityTypeConfiguration<T>` dell'assembly. Provider SQL Server con `EnableRetryOnFailure(5, 10s, [-2])` e timeout comandi 60s (`Infrastructure/AddServicesExtensions.cs`). L'errore `-2` (timeout, escluso di default da EF Core) è aggiunto ai transitori per gestire il cold start del database serverless/free, dove la connessione scade in fase di post-login mentre il DB si riattiva; 5 retry con attesa max 10s e `Connection Timeout=30` restano sotto il limite di ~230s delle richieste HTTP su Azure. Effetto collaterale: anche un timeout di comando (60s) viene ritentato.
 
 ## Entity configurations (`Infrastructure/EntityConfigurations/`)
 - **`TransactionConfiguration`** — `Amount` `decimal(18,2)`; **indice univoco filtrato** su `(AccountId, ExternalId)` (`WHERE ExternalId IS NOT NULL`) — backstop DB della dedup import, per conto e quindi per utente (lo stesso movimento può essere importato da utenti diversi). Indice `AccountId` dichiarato esplicitamente per la FK: quello composito è filtrato e non copre i movimenti senza `ExternalId`.
