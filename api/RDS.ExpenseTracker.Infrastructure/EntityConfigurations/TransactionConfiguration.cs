@@ -13,7 +13,10 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
         builder.Property(t => t.Description).IsRequired().HasMaxLength(500);
         builder.Property(t => t.CreatedOn).IsRequired();
         builder.Property(t => t.ExternalId).HasMaxLength(100);
-        builder.HasIndex(t => t.ExternalId).IsUnique().HasFilter("[ExternalId] IS NOT NULL");
+        // indice dedicato alla FK: quello composito sotto è filtrato e non copre i movimenti senza ExternalId
+        builder.HasIndex(t => t.AccountId);
+        // univoco per conto (quindi per utente): lo stesso movimento può essere importato da utenti diversi
+        builder.HasIndex(t => new { t.AccountId, t.ExternalId }).IsUnique().HasFilter("[ExternalId] IS NOT NULL");
 
         builder.HasOne(t => t.AccountNavigation)
                .WithMany(a => a.Transactions)

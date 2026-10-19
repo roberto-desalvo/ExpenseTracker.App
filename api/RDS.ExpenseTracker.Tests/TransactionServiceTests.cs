@@ -13,6 +13,7 @@ namespace RDS.ExpenseTracker.Tests;
 public class TransactionServiceTests
 {
     private const int AccountId = 1;
+    private const int UserId = 1;
 
     private static IMapper CreateMapper()
     {
@@ -43,7 +44,7 @@ public class TransactionServiceTests
             Granularity = (int)TimeGranularityEnum.Monthly,
             IdAccounts = [AccountId],
             IdCategories = [],
-        });
+        }, UserId);
 
         result.IsSuccess.Should().BeTrue();
         var points = result.Value.Series.Single().Values;
@@ -69,7 +70,7 @@ public class TransactionServiceTests
             Granularity = (int)TimeGranularityEnum.Monthly,
             IdAccounts = [AccountId],
             IdCategories = [],
-        });
+        }, UserId);
 
         result.IsSuccess.Should().BeTrue();
         var points = result.Value.Series.Single().Values;
@@ -96,7 +97,7 @@ public class TransactionServiceTests
             Granularity = (int)TimeGranularityEnum.Monthly,
             IdAccounts = [AccountId],
             IdCategories = [],
-        });
+        }, UserId);
 
         result.IsSuccess.Should().BeTrue();
         var points = result.Value.Series.Single().Values;
@@ -117,7 +118,7 @@ public class TransactionServiceTests
             Granularity = (int)TimeGranularityEnum.Monthly,
             IdAccounts = [AccountId],
             IdCategories = [],
-        });
+        }, UserId);
 
         result.IsSuccess.Should().BeTrue();
         var points = result.Value.Series.Single().Values;
@@ -149,7 +150,7 @@ public class TransactionServiceTests
             IdAccounts = [AccountId, OtherAccountId],
             IdCategories = [],
             ExcludeTransfers = true,
-        });
+        }, UserId);
 
         result.IsSuccess.Should().BeTrue();
         var accountSeries = result.Value.Series.Single(s => s.Dimensions.Any(d => d.Value == AccountId.ToString()));
@@ -180,7 +181,7 @@ public class TransactionServiceTests
             Granularity = (int)TimeGranularityEnum.Monthly,
             IdAccounts = [AccountId],
             IdCategories = [],
-        });
+        }, UserId);
 
         result.IsSuccess.Should().BeTrue();
         var point = result.Value.Series.Single().Values.Single(p => p.Period == "2026-01");
@@ -200,7 +201,7 @@ public class TransactionServiceTests
     {
         private readonly List<Transaction> _transactions = [.. seedTransactions ?? []];
 
-        public Task<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>> GetTimeSeriesTransactionsUntilDate(TimeSeriesRequestDto request)
+        public Task<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>> GetTimeSeriesTransactionsUntilDate(TimeSeriesRequestDto request, int userId)
         {
             var query = _transactions.Where(t => t.Date.HasValue && t.Date <= request.EndDate);
 
@@ -221,7 +222,7 @@ public class TransactionServiceTests
             return Task.FromResult<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>>(result);
         }
 
-        public Task<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>> GetTimeSeriesTransactions(TimeSeriesRequestDto request)
+        public Task<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>> GetTimeSeriesTransactions(TimeSeriesRequestDto request, int userId)
         {
             var query = _transactions.Where(t => t.Date.HasValue && t.Date >= request.StartDate && t.Date <= request.EndDate);
 
@@ -244,36 +245,34 @@ public class TransactionServiceTests
 
         public Task AddTransactions(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => throw new NotImplementedException();
-        public Task<Transaction?> GetTransaction(int id) => throw new NotImplementedException();
-        public Task<IEnumerable<Transaction>> GetTransactions() => throw new NotImplementedException();
-        public Task<(IEnumerable<Transaction> Items, int TotalCount, decimal TotalIncomes, decimal TotalOutcomes, decimal TotalNet)> GetPagedTransactions(TransactionQueryRequest request) => throw new NotImplementedException();
-        public Task<IEnumerable<(int AccountId, decimal Balance)>> GetAccountBalances(DateTime asOfDate) => throw new NotImplementedException();
-        public Task<IEnumerable<(int AccountId, decimal Spent, decimal Earned)>> GetAccountMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers) => throw new NotImplementedException();
-        public Task<IEnumerable<(int CategoryId, decimal Spent, decimal Earned)>> GetCategoryMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers) => throw new NotImplementedException();
-        public Task<(decimal Spent, decimal Earned)> GetMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers) => throw new NotImplementedException();
-        public Task<IEnumerable<(DateTime StartDate, DateTime EndDate)>> GetAvailableMonthRanges() => throw new NotImplementedException();
+        public Task<Transaction?> GetTransaction(int id, int userId) => throw new NotImplementedException();
+        public Task<IEnumerable<Transaction>> GetTransactions(int userId) => throw new NotImplementedException();
+        public Task<(IEnumerable<Transaction> Items, int TotalCount, decimal TotalIncomes, decimal TotalOutcomes, decimal TotalNet)> GetPagedTransactions(TransactionQueryRequest request, int userId) => throw new NotImplementedException();
+        public Task<IEnumerable<(int AccountId, decimal Balance)>> GetAccountBalances(DateTime asOfDate, int userId) => throw new NotImplementedException();
+        public Task<IEnumerable<(int AccountId, decimal Spent, decimal Earned)>> GetAccountMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers, int userId) => throw new NotImplementedException();
+        public Task<IEnumerable<(int CategoryId, decimal Spent, decimal Earned)>> GetCategoryMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers, int userId) => throw new NotImplementedException();
+        public Task<(decimal Spent, decimal Earned)> GetMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers, int userId) => throw new NotImplementedException();
+        public Task<IEnumerable<(DateTime StartDate, DateTime EndDate)>> GetAvailableMonthRanges(int userId) => throw new NotImplementedException();
         public Task<IEnumerable<Transaction>> GetTransactionsByTransferId(int transferId) => throw new NotImplementedException();
-        public Task<Transaction> GetLatestTransaction() => throw new NotImplementedException();
-        public Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds) => throw new NotImplementedException();
+        public Task<Transaction> GetLatestTransaction(int userId) => throw new NotImplementedException();
+        public Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds, int userId) => throw new NotImplementedException();
         public Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains) => throw new NotImplementedException();
         public Task UpdateTransaction(Transaction transaction) => throw new NotImplementedException();
         public Task DeleteTransaction(int id) => throw new NotImplementedException();
-        public Task DeleteAllTransactions() => throw new NotImplementedException();
+        public Task DeleteAllTransactions(int userId) => throw new NotImplementedException();
         public Task<IEnumerable<int>> DeleteTransactionsByAccountIds(IEnumerable<int> accountIds) => throw new NotImplementedException();
         public Task<int> AddTransaction(Transaction transaction) => throw new NotImplementedException();
         public Task<int> AddTransaction(Transaction transaction, bool saveChanges) => throw new NotImplementedException();
-        public Task ResetTransactions(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
+        public Task ResetTransactions(IEnumerable<Transaction> transactions, int userId) => throw new NotImplementedException();
     }
 
     private sealed class FakeAccountRepository : IAccountRepository
     {
-        public Task<IEnumerable<Account>> GetAccounts() => Task.FromResult<IEnumerable<Account>>([]);
         public Task<IEnumerable<Account>> GetAccounts(int userId) => Task.FromResult<IEnumerable<Account>>([]);
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => throw new NotImplementedException();
         public Task AddAccounts(IEnumerable<Account> accounts) => throw new NotImplementedException();
         public Task UpdateAccount(Account account) => throw new NotImplementedException();
         public Task DeleteAccounts(IEnumerable<int> accountIds) => throw new NotImplementedException();
-        public Task<Account?> GetAccount(int id) => throw new NotImplementedException();
         public Task<Account?> GetAccount(int id, int userId) => throw new NotImplementedException();
         public Task<(IEnumerable<Account> Items, int TotalCount)> GetPagedAccounts(AccountQueryRequest request, int userId) => throw new NotImplementedException();
         public Task<bool> UpdateAvailability(int accountId, decimal amount, bool saveChanges) => throw new NotImplementedException();

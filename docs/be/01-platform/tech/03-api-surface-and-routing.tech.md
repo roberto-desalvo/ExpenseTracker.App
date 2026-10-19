@@ -28,6 +28,7 @@ Il nome di ogni function segue la convenzione `<Risorsa>_<Azione>` (es. `Account
 - `DELETE /{id}` — elimina (riassegna prima le transazioni alla categoria di default).
 
 ## `TransactionFunctions` — `api/transaction`
+Tutte le route risolvono l'utente con `ICurrentUserAccessor.GetUserIdAsync()` e operano solo sui movimenti dei conti di quell'utente; un id altrui risponde 404.
 - `POST /query` — ricerca paginata con totali income/outcome/net.
 - `GET /month-options` — mesi disponibili per i filtri UI.
 - `GET /landing?excludeTransfers=true` — aggregazione dashboard (saldi, riepilogo categorie, serie net-worth).
@@ -40,6 +41,7 @@ Il nome di ogni function segue la convenzione `<Risorsa>_<Azione>` (es. `Account
 - `POST /stock` — time-series cumulativa.
 
 ## `TransferFunctions` — `api/transfer`
+Come per le transazioni: user-scoped tramite `GetUserIdAsync()`, entrambi i conti devono appartenere all'utente.
 - `GET /` — elenco trasferimenti.
 - `GET /{id}` — trasferimento singolo.
 - `POST /` — crea (due leg collegate).

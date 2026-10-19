@@ -4,7 +4,7 @@
 Caricare l'estratto conto scaricato dalla propria banca (CSV o Excel) e vedere i movimenti aggiunti automaticamente all'applicazione, senza inserimento manuale.
 
 ## Come evita i duplicati
-Ogni movimento importato viene "marcato" in modo univoco. Se lo stesso file (o parte di esso) viene caricato più volte, i movimenti già presenti non vengono duplicati.
+Ogni movimento importato viene "marcato" in modo univoco. Se lo stesso file (o parte di esso) viene caricato più volte, i movimenti già presenti non vengono duplicati. Il controllo riguarda solo i movimenti di chi sta importando: se un'altra persona ha già importato lo stesso movimento (es. da un conto cointestato), viene comunque aggiunto anche per te.
 
 ## Cosa succede dopo il caricamento
 Il sistema assegna automaticamente una categoria a ogni movimento quando possibile, e riconosce se un movimento fa parte di un trasferimento tra conti.

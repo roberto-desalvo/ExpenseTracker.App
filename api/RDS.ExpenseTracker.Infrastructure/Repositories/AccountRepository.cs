@@ -37,18 +37,6 @@ public class AccountRepository : RepositoryBase, IAccountRepository
         }
     }
 
-    public async Task<Account?> GetAccount(int id)
-    {
-        return await Context.Accounts.FirstOrDefaultAsync(x => x.Id == id);
-    }
-
-    public async Task<IEnumerable<Account>> GetAccounts()
-    {
-        return await Context.Accounts
-            .OrderBy(a => a.Name)
-            .ToListAsync();
-    }
-
     public async Task<decimal> GetAvailability(int accountId, int userId)
     {
         var exists = await Context.Accounts.AnyAsync(x => x.Id == accountId && x.UserId == userId);

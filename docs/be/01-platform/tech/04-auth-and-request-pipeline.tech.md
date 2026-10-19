@@ -11,7 +11,7 @@ Azure AD (Entra ID) JWT bearer, validato dal worker stesso (le function HTTP son
 ## Utente corrente & JIT provisioning (`Functions/Auth/CurrentUserAccessor.cs`)
 `ICurrentUserAccessor` (`Domain/Services/`) risolve l'utente interno (`User.Id`) a partire dal `ClaimsPrincipal` dell'invocazione corrente (letto da `RequestPrincipalAccessor`), con due metodi per due scenari diversi:
 
-### `GetUserIdAsync()` — utenti umani (`AuthFunctions`, `AccountFunctions`, `DemoFunctions`)
+### `GetUserIdAsync()` — utenti umani (`AuthFunctions`, `AccountFunctions`, `TransactionFunctions`, `TransferFunctions`, `DemoFunctions`)
 1. Estrae l'oid Azure AD dal claim `http://schemas.microsoft.com/identity/claims/objectidentifier` (fallback `oid`) — **non** `ClaimTypes.NameIdentifier`.
 2. Estrae l'email da `ClaimTypes.Email`, con fallback ai claim `email` e `preferred_username`; se assente, **solleva subito** `UnauthorizedDomainException`.
 3. Chiama `IUserService.GetOrCreateUserAsync(oid, email, name)`, che fa da layer applicativo (validazione + mapping a `UserDto`) sopra `IUserRepository.GetOrCreateUserAsync(azureOid, email)`: cerca l'utente per `AzureOid`, lo crea al volo se non esiste (**JIT — Just-In-Time provisioning**), e gestisce le race condition concorrenti ritentando la lettura in caso di violazione dell'indice univoco filtrato su `AzureOid` (`SqlException` 2601/2627).

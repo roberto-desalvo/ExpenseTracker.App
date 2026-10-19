@@ -54,7 +54,7 @@ public class ExcelImportService : IExcelImportService
 
             if (!importAll)
             {
-                transactionsBySheet = await FilterSheetsByLatestTransactionAsync(transactionsBySheet);
+                transactionsBySheet = await FilterSheetsByLatestTransactionAsync(transactionsBySheet, userId);
             }
 
             var importTransactions = await EnrichTransactionsAsync(transactionsBySheet, userId);
@@ -194,9 +194,9 @@ public class ExcelImportService : IExcelImportService
         return result;
     }
 
-    private async Task<List<TransactionsBySheetModel>> FilterSheetsByLatestTransactionAsync(List<TransactionsBySheetModel> transactionsBySheet)
+    private async Task<List<TransactionsBySheetModel>> FilterSheetsByLatestTransactionAsync(List<TransactionsBySheetModel> transactionsBySheet, int userId)
     {
-        var latestTransaction = await _transactionRepository.GetLatestTransaction();
+        var latestTransaction = await _transactionRepository.GetLatestTransaction(userId);
 
         if (latestTransaction.Date == null)
             return transactionsBySheet;
@@ -205,7 +205,7 @@ public class ExcelImportService : IExcelImportService
         var fromDate = latestTransactionDate.AddDays(-1);
         var toDate = latestTransactionDate.AddDays(1);
 
-        var existingTransactions = (await _transactionRepository.GetTransactions())
+        var existingTransactions = (await _transactionRepository.GetTransactions(userId))
             .Where(transaction => transaction.Date.HasValue
                 && transaction.Date.Value >= fromDate
                 && transaction.Date.Value <= toDate)

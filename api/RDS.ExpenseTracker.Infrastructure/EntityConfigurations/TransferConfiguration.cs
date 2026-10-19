@@ -11,7 +11,8 @@ public class TransferConfiguration : IEntityTypeConfiguration<Transfer>
         builder.HasKey(t => t.Id);
         builder.Property(t => t.CreatedOn).IsRequired();
         builder.Property(t => t.ExternalId).HasMaxLength(100);
-        builder.HasIndex(t => t.ExternalId).IsUnique().HasFilter("[ExternalId] IS NOT NULL");
+        // non univoco: un trasferimento non ha conto né utente propri, la deduplica per utente è applicativa
+        builder.HasIndex(t => t.ExternalId).HasFilter("[ExternalId] IS NOT NULL");
 
         builder.HasMany(t => t.Transactions)
                .WithOne(tr => tr.TransferNavigation)

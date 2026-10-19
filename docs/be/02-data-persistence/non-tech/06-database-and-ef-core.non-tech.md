@@ -8,8 +8,11 @@ La tabella che identifica gli utenti è stata introdotta con un aggiornamento pe
 
 Un utente può essere ritrovato anche tramite la sua email: è il modo in cui l'accesso di sviluppo si aggancia a un profilo già esistente. Se più profili condividono la stessa email, viene scelto quello collegato all'app di import automatico, altrimenti il più vecchio.
 
+## Come restano separati i dati degli utenti
+Ogni movimento appartiene al proprietario del conto su cui è registrato: quando il sistema legge movimenti, riepiloghi o trasferimenti, considera solo quelli dei conti dell'utente collegato.
+
 ## Come si evita di perdere o duplicare informazioni
-Ogni movimento importato porta con sé un'impronta univoca: se lo stesso movimento viene importato due volte, il sistema lo riconosce e lo scarta automaticamente.
+Ogni movimento importato porta con sé un'impronta univoca: se lo stesso utente importa due volte lo stesso movimento, il sistema lo riconosce e lo scarta automaticamente. Il controllo vale per singolo utente: due persone diverse possono importare lo stesso movimento (es. un conto cointestato) senza che il secondo venga scartato.
 
 ## Valore
 I dati restano affidabili nel tempo, anche importando più volte lo stesso estratto conto o aggiornando la struttura dell'applicazione.

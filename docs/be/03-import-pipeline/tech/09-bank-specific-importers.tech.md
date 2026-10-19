@@ -20,7 +20,7 @@ Tutti implementano `I*CsvImportService` (`Domain/Services/`) e sono configurati 
 - Rimuove la sezione "Legenda" finale prima del parsing.
 - Scarta le righe con `Stato` = "Annullato".
 - Estrae l'IBAN dal testo tra parentesi nella descrizione (es. `(IT21W...)`).
-- `ExternalId` = `ID`. Dedup applicata anche con `importAll=true` (l'indice univoco non è comunque bypassabile).
+- `ExternalId` = `ID`. Dedup (per utente) applicata anche con `importAll=true` (l'indice univoco su `(AccountId, ExternalId)` non è comunque bypassabile).
 
 ## Trade Republic (`TradeRepublicCsvImportService`)
 - `CsvHelper`, colonne inglesi: `datetime`, `account_type`, `type`, `name`, `amount`, `fee`, `tax`, `description`, `transaction_id`, `counterparty_iban`.

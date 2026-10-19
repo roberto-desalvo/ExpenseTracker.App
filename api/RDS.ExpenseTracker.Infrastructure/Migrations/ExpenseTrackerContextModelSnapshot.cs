@@ -191,11 +191,11 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.HasIndex("ExternalId")
+                    b.HasIndex("TransferId");
+
+                    b.HasIndex("AccountId", "ExternalId")
                         .IsUnique()
                         .HasFilter("[ExternalId] IS NOT NULL");
-
-                    b.HasIndex("TransferId");
 
                     b.ToTable("Transactions");
                 });
@@ -218,7 +218,6 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ExternalId")
-                        .IsUnique()
                         .HasFilter("[ExternalId] IS NOT NULL");
 
                     b.ToTable("Transfers");

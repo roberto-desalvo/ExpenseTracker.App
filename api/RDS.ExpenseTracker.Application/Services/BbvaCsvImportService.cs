@@ -71,7 +71,7 @@ public class BbvaCsvImportService : IBbvaCsvImportService
             if (!importAll)
             {
                 var fingerprints = rows.Select(BuildExternalId).ToList();
-                var existingIds = (await _transactionRepository.GetExistingExternalIds(fingerprints))
+                var existingIds = (await _transactionRepository.GetExistingExternalIds(fingerprints, userId))
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
                 var beforeCount = rows.Count;

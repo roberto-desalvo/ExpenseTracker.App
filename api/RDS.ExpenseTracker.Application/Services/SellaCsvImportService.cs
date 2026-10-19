@@ -73,7 +73,7 @@ public class SellaCsvImportService : ISellaCsvImportService
             if (!importAll)
             {
                 var externalIds = rows.Select(r => r.Identifier).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-                var existingIds = (await _transactionRepository.GetExistingExternalIds(externalIds))
+                var existingIds = (await _transactionRepository.GetExistingExternalIds(externalIds, userId))
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
                 rows = rows
@@ -124,7 +124,7 @@ public class SellaCsvImportService : ISellaCsvImportService
             {
                 if (TryResolveCounterpartyAccount(row, accounts, out var counterpartyAccount) && counterpartyAccount != null)
                 {
-                    var existingByExternalId = await _transferRepository.GetTransferByExternalId(row.Identifier);
+                    var existingByExternalId = await _transferRepository.GetTransferByExternalId(row.Identifier, userId);
                     if (existingByExternalId != null)
                         continue;
 

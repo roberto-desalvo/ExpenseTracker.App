@@ -28,27 +28,27 @@ public class TransferService : ITransferService
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
     }
 
-    public async Task<Result<IEnumerable<TransferDto>>> GetTransfers()
+    public async Task<Result<IEnumerable<TransferDto>>> GetTransfers(int userId)
     {
-        var transfers = await _repository.GetTransfers();
+        var transfers = await _repository.GetTransfers(userId);
         return Result.Ok(_mapper.Map<IEnumerable<TransferDto>>(transfers));
     }
 
-    public async Task<Result<TransferDto?>> GetTransfer(int id)
+    public async Task<Result<TransferDto?>> GetTransfer(int id, int userId)
     {
         if (id <= 0)
             return Result.Fail(DomainErrors.InvalidId("transfer", id));
 
-        var transfer = await _repository.GetTransfer(id);
+        var transfer = await _repository.GetTransfer(id, userId);
         if (transfer is null)
             return Result.Fail(DomainErrors.NotFound("Transfer", id));
 
         return Result.Ok<TransferDto?>(_mapper.Map<TransferDto>(transfer));
     }
 
-    public async Task<Result<int>> AddTransfer(TransferDto dto)
+    public async Task<Result<int>> AddTransfer(TransferDto dto, int userId)
     {
-        var validation = await ValidateTransferRequest(dto);
+        var validation = await ValidateTransferRequest(dto, userId);
         if (validation.IsFailed)
             return Result.Fail(validation.Errors);
 
@@ -88,16 +88,16 @@ public class TransferService : ITransferService
         return Result.Ok(transfer.Id);
     }
 
-    public async Task<Result> UpdateTransfer(TransferDto dto)
+    public async Task<Result> UpdateTransfer(TransferDto dto, int userId)
     {
         if (dto.Id <= 0)
             return Result.Fail(DomainErrors.InvalidId("transfer", dto.Id));
 
-        var transfer = await _repository.GetTransfer(dto.Id);
+        var transfer = await _repository.GetTransfer(dto.Id, userId);
         if (transfer is null)
             return Result.Fail(DomainErrors.NotFound("Transfer", dto.Id));
 
-        var validation = await ValidateTransferRequest(dto);
+        var validation = await ValidateTransferRequest(dto, userId);
         if (validation.IsFailed)
             return Result.Fail(validation.Errors);
 
@@ -136,12 +136,12 @@ public class TransferService : ITransferService
         return Result.Ok();
     }
 
-    public async Task<Result> DeleteTransfer(int id)
+    public async Task<Result> DeleteTransfer(int id, int userId)
     {
         if (id <= 0)
             return Result.Fail(DomainErrors.InvalidId("transfer", id));
 
-        var transfer = await _repository.GetTransfer(id);
+        var transfer = await _repository.GetTransfer(id, userId);
         if (transfer is null)
             return Result.Fail(DomainErrors.NotFound("Transfer", id));
 
@@ -156,7 +156,7 @@ public class TransferService : ITransferService
         return Result.Ok();
     }
 
-    private async Task<Result> ValidateTransferRequest(TransferDto dto)
+    private async Task<Result> ValidateTransferRequest(TransferDto dto, int userId)
     {
         if (dto.FromAccountId <= 0)
             return Result.Fail(DomainErrors.InvalidId("from account", dto.FromAccountId));
@@ -170,11 +170,11 @@ public class TransferService : ITransferService
         if (dto.Amount <= 0)
             return Result.Fail(DomainErrors.BadRequest("Amount must be greater than zero."));
 
-        var fromAccount = await _accountRepository.GetAccount(dto.FromAccountId);
+        var fromAccount = await _accountRepository.GetAccount(dto.FromAccountId, userId);
         if (fromAccount is null)
             return Result.Fail(DomainErrors.NotFound("Account", dto.FromAccountId));
 
-        var toAccount = await _accountRepository.GetAccount(dto.ToAccountId);
+        var toAccount = await _accountRepository.GetAccount(dto.ToAccountId, userId);
         if (toAccount is null)
             return Result.Fail(DomainErrors.NotFound("Account", dto.ToAccountId));
 

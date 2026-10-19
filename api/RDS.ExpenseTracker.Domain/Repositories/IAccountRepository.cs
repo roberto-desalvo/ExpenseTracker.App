@@ -9,12 +9,7 @@ public interface IAccountRepository : IRepositoryBase
     Task UpdateAccount(Account account);
     Task DeleteAccounts(IEnumerable<int> accountIds);
 
-    // Non filtrati per utente: usati da TransactionService/TransferService, fuori
-    // scope per lo scoping esplicito per utente in questa iterazione.
-    Task<Account?> GetAccount(int id);
-    Task<IEnumerable<Account>> GetAccounts();
-
-    // Filtrati per utente: usati da AccountService/AccountController e dalla pipeline di import.
+    // Filtrati per utente: usati da AccountService, TransactionService, TransferService e dalla pipeline di import.
     Task<Account?> GetAccount(int id, int userId);
     Task<IEnumerable<Account>> GetAccounts(int userId);
     Task<(IEnumerable<Account> Items, int TotalCount)> GetPagedAccounts(AccountQueryRequest request, int userId);
