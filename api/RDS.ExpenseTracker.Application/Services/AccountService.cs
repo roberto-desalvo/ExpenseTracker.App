@@ -1,5 +1,6 @@
 using AutoMapper;
 using FluentResults;
+using RDS.ExpenseTracker.Application.Utilities;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Dtos;
 using RDS.ExpenseTracker.Domain.Dtos.Requests;
@@ -62,11 +63,15 @@ public class AccountService : IAccountService
         if (dtos is null || !dtos.Any())
             return Result.Fail(DomainErrors.Required("accounts"));
 
-        var entities = _mapper.Map<IEnumerable<Account>>(dtos);
+        var entities = _mapper.Map<IEnumerable<Account>>(dtos).ToList();
         foreach (var entity in entities)
         {
             entity.UserId = userId;
         }
+
+        var ibanCheck = await NormalizeAndValidateIbans(entities, userId);
+        if (ibanCheck.IsFailed)
+            return ibanCheck;
 
         await _repository.AddAccounts(entities);
         await _repository.SaveChangesAsync();
@@ -84,9 +89,42 @@ public class AccountService : IAccountService
 
         var entity = _mapper.Map<Account>(dto);
         entity.UserId = userId;
+
+        var ibanCheck = await NormalizeAndValidateIbans([entity], userId);
+        if (ibanCheck.IsFailed)
+            return ibanCheck;
+
         await _repository.UpdateAccount(entity);
         await _repository.SaveChangesAsync();
         return Result.Ok();
     }
 
+    // L'IBAN è opzionale; se presente viene normalizzato e deve essere unico tra i conti dell'utente,
+    // perché gli import lo usano per riconoscere il conto controparte di un trasferimento.
+    private async Task<Result> NormalizeAndValidateIbans(IReadOnlyCollection<Account> accounts, int userId)
+    {
+        foreach (var account in accounts)
+        {
+            account.Iban = IbanUtilities.Normalize(account.Iban);
+            if (account.Iban is not null && !IbanUtilities.IsValid(account.Iban))
+                return Result.Fail(DomainErrors.BadRequest($"IBAN '{account.Iban}' is not valid."));
+        }
+
+        var duplicateInRequest = accounts
+            .Where(a => a.Iban is not null)
+            .GroupBy(a => a.Iban)
+            .FirstOrDefault(g => g.Count() > 1);
+        if (duplicateInRequest is not null)
+            return Result.Fail(DomainErrors.Conflict($"IBAN '{duplicateInRequest.Key}' is assigned to more than one account."));
+
+        var existing = (await _repository.GetAccounts(userId)).ToList();
+        foreach (var account in accounts.Where(a => a.Iban is not null))
+        {
+            var owner = existing.FirstOrDefault(e => e.Iban == account.Iban && e.Id != account.Id);
+            if (owner is not null)
+                return Result.Fail(DomainErrors.Conflict($"IBAN '{account.Iban}' is already assigned to account '{owner.Name}'."));
+        }
+
+        return Result.Ok();
+    }
 }

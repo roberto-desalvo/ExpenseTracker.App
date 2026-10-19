@@ -9,6 +9,4 @@ public class SellaCsvOptions : IAppOptions, ISellaCsvOptions
     string IAppOptions.SectionName => SectionName;
 
     public string DefaultAccountName { get; set; } = "Sella";
-
-    public Dictionary<string, string> IbanToAccountMap { get; set; } = [];
 }

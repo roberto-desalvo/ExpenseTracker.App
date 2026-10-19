@@ -3,10 +3,10 @@
 ## Servizio
 `TransferMatchingService` (`Application/Services/`), implementa `ITransferMatchingService`. Usato da Sella, Satispay e Trade Republic (non BBVA).
 
-## Due meccanismi
+## Due meccanismi in fase di import
 
 ### IBAN-based
-Se l'IBAN controparte di una riga risolve, via `IbanToAccountMap` (config per-importer), a un account interno noto, la riga diventa direttamente una `Transfer` con due `Transaction` leg (es. "Ricarica Satispay" da bonifico bancario).
+Se l'IBAN controparte di una riga corrisponde all'`Account.Iban` di un altro conto **dell'utente** (`IbanUtilities.FindAccount`, confronto su IBAN normalizzato: maiuscolo, senza spazi), la riga diventa direttamente una `Transfer` con due `Transaction` leg (es. "Ricarica Satispay" da bonifico bancario). Un IBAN che punta al conto stesso dell'importer viene ignorato. Gli IBAN si impostano sui conti (colonna nullable `Accounts.Iban`, vedi [06-database-and-ef-core](../../02-data-persistence/tech/06-database-and-ef-core.tech.md)); la vecchia mappa `IbanToAccountMap` nelle opzioni degli importer è stata rimossa, perché i valori vivevano solo nelle app settings dell'App Service e sono andati persi con la migrazione a Functions.
 
 ### Rule-based cross-source (`ITransferMatchingOptions.Rules` / `TransferMatchRule`)
 Configurato in `TransferMatching:Rules` (`appsettings.json`), es. "Trade Republic Sepa Direct Debit → Satispay Ricarica" e "Sella Satispay Europe → Satispay Ricarica".
@@ -16,6 +16,18 @@ Configurato in `TransferMatching:Rules` (`appsettings.json`), es. "Trade Republi
   - **Fix di isolamento dati**: in precedenza la ricerca dell'account controparte non era filtrata per utente e scorreva tutti gli account di tutti gli utenti, con rischio di far matchare (e quindi collegare come `Transfer`) transazioni appartenenti a persone diverse. Ora `GetAccounts(userId)` limita la ricerca ai soli conti dell'utente che ha effettuato l'import.
 - Le righe candidate vengono processate in ordine cronologico crescente all'interno di una singola chiamata di import; gli id consumati sono tracciati in un `HashSet<int>` per evitare che più righe dello stesso importo reclamino la stessa controparte.
 - Se trovato un match, viene creata una `Transfer` che collega retroattivamente la nuova transazione a quella candidata già esistente (ora linkata). Se non trovato, la riga resta una `Transaction` semplice con categoria `MoneyTransfers` (non collegata), disponibile per essere abbinata da un futuro import della sorgente controparte.
+
+## Riconciliazione a posteriori (`TransferReconciliationService`)
+`Application/Services/TransferReconciliationService.cs`, implementa `ITransferReconciliationService`; esposto da `POST /api/import/transfers/reconcile` (vedi [03-api-surface-and-routing](../../01-platform/tech/03-api-surface-and-routing.tech.md)). Serve a sistemare i movimenti già importati le cui due metà non sono state collegate (es. import fatti senza IBAN sui conti, o con la controparte importata con date sfasate).
+
+- Input: `userId`, `fromDate`/`toDate` opzionali (un `toDate` senza orario include tutto il giorno), `dryRun`.
+- Carica i movimenti dell'utente non collegati (`ITransactionRepository.GetUnlinkedTransactions`: `TransferId == null`, data valorizzata, importo ≠ 0, tracciati) e li scorre in ordine `Date`, `Id`, applicando tre passate; ogni movimento può essere usato in una sola coppia (`HashSet` dei consumati):
+  1. **Rule** — le regole di `TransferMatching` tramite `ITransferMatchingService.IsTransferCandidate`/`TryMatchAsync`, con lo stesso offset di 1 giorno dell'import.
+  2. **Iban** — la descrizione contiene (`IbanUtilities.ExtractAll`) l'IBAN di un altro conto dell'utente; la controparte è su quel conto.
+  3. **Category** — il movimento è in categoria `MoneyTransfers` (tipicamente una metà rimasta senza controparte all'import); la controparte può stare su qualsiasi altro conto, preferendo quelle già in `MoneyTransfers`. Se due candidati hanno lo stesso punteggio (categoria e distanza in giorni) il movimento resta scollegato e viene contato in `AmbiguousSkipped`.
+  - Per Iban e Category la controparte deve avere importo esattamente opposto, conto diverso e data entro **3 giorni** (`DateToleranceDays`); vince la data più vicina, poi l'`Id` più basso.
+- Per ogni coppia crea una `Transfer`, collega i due movimenti, li porta in categoria `MoneyTransfers` e aggiorna `UpdatedOn`. Con `dryRun=true` non modifica né salva nulla.
+- Output `TransferReconciliationResultDto`: `DryRun`, `ExaminedTransactions`, `LinkedTransfers`, `MatchedByRule`/`MatchedByIban`/`MatchedByCategory`, `AmbiguousSkipped`, `Pairs` (id dei due movimenti, conti, importo, date, `Method`).
 
 ## Config di esempio (`appsettings.json`, sezione `TransferMatching`)
 ```json

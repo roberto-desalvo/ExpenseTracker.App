@@ -14,6 +14,7 @@ Indipendentemente dalla banca, il conto a cui vengono agganciati i movimenti è 
 ## Comportamenti particolari
 - Satispay: le operazioni annullate vengono ignorate.
 - Trade Republic: gli investimenti (acquisti, vendite, dividendi) vengono categorizzati automaticamente come risparmio/investimento.
+- Sella, Satispay e Trade Republic: se un movimento riporta l'IBAN di un altro conto della persona (impostato nella pagina dei conti), viene registrato come trasferimento tra i due conti invece che come spesa o entrata.
 
 ## Valore
 Indipendentemente dalla banca di origine, l'utente ottiene sempre movimenti coerenti e confrontabili tra loro.

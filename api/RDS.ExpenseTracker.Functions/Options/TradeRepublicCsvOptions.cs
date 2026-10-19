@@ -11,11 +11,4 @@ public class TradeRepublicCsvOptions : IAppOptions, ITradeRepublicCsvOptions
 
     /// <inheritdoc/>
     public string? TradingAccountName { get; set; } = "Trade Republic Trading";
-
-    /// <inheritdoc/>
-    /// <example>
-    /// appsettings.json:
-    /// "IbanToAccountMap": { "IT23C0326822300052732779060": "Sella" }
-    /// </example>
-    public Dictionary<string, string> IbanToAccountMap { get; set; } = [];
 }

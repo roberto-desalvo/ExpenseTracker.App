@@ -30,6 +30,10 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Iban")
+                        .HasMaxLength(34)
+                        .HasColumnType("nvarchar(34)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -40,7 +44,9 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId", "Iban")
+                        .IsUnique()
+                        .HasFilter("[Iban] IS NOT NULL");
 
                     b.ToTable("Accounts");
                 });

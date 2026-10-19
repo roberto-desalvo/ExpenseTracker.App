@@ -4,6 +4,7 @@ using CsvHelper.Configuration.Attributes;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 using RDS.ExpenseTracker.Application.Extensions;
+using RDS.ExpenseTracker.Application.Utilities;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
@@ -115,7 +116,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
                 return Result.Ok(0);
 
             // 3. Ensure all referenced accounts exist (auto-create if needed) -
-            var accounts = await EnsureAccountsExistAsync(GetRequiredAccountNames(rows), userId);
+            var accounts = await EnsureAccountsExistAsync(GetRequiredAccountNames(), userId);
 
             // 4. Load categories ---------------------------------------------
             var categories = (await _categoryRepository.GetCategories())
@@ -158,20 +159,18 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
 
             foreach (var row in remainingRows)
             {
-                var isTransferType        = TransferTypes.Contains(row.Type ?? string.Empty);
-                string? counterpartyName  = null;
+                var isTransferType      = TransferTypes.Contains(row.Type ?? string.Empty);
+                var counterpartyAccount = isTransferType
+                    ? IbanUtilities.FindAccount(accounts, row.CounterpartyIban)
+                    : null;
 
-                if (isTransferType && !string.IsNullOrEmpty(row.CounterpartyIban))
-                {
-                    counterpartyName = _csvOptions.IbanToAccountMap
-                        .FirstOrDefault(kvp =>
-                            kvp.Key.Equals(row.CounterpartyIban.Trim(), StringComparison.OrdinalIgnoreCase))
-                        .Value;
-                }
+                // un IBAN che punta a un conto Trade Republic non è un trasferimento verso un altro conto
+                if (counterpartyAccount != null && IsTradeRepublicAccount(counterpartyAccount))
+                    counterpartyAccount = null;
 
-                if (isTransferType && counterpartyName != null)
+                if (counterpartyAccount != null)
                 {
-                    BuildTransferEntities(row, counterpartyName, accounts, transferEntities, transferTransactions);
+                    BuildTransferEntities(row, counterpartyAccount.Name, accounts, transferEntities, transferTransactions);
                 }
                 else
                 {
@@ -230,7 +229,8 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         return [.. csv.GetRecords<TradeRepublicRow>()];
     }
 
-    private IEnumerable<string> GetRequiredAccountNames(List<TradeRepublicRow> rows)
+    // I conti controparte dei trasferimenti non vengono creati qui: sono i conti dell'utente con l'IBAN valorizzato.
+    private IEnumerable<string> GetRequiredAccountNames()
     {
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -240,20 +240,13 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         if (!string.IsNullOrEmpty(_csvOptions.TradingAccountName))
             names.Add(_csvOptions.TradingAccountName);
 
-        foreach (var row in rows)
-        {
-            if (string.IsNullOrEmpty(row.CounterpartyIban)) continue;
-
-            var mapped = _csvOptions.IbanToAccountMap
-                .FirstOrDefault(kvp =>
-                    kvp.Key.Equals(row.CounterpartyIban.Trim(), StringComparison.OrdinalIgnoreCase))
-                .Value;
-
-            if (mapped != null) names.Add(mapped);
-        }
-
         return names;
     }
+
+    private bool IsTradeRepublicAccount(Account account)
+        => account.Name.Equals(_csvOptions.DefaultAccountName, StringComparison.OrdinalIgnoreCase)
+            || (!string.IsNullOrEmpty(_csvOptions.TradingAccountName)
+                && account.Name.Equals(_csvOptions.TradingAccountName, StringComparison.OrdinalIgnoreCase));
 
     private async Task<List<Account>> EnsureAccountsExistAsync(IEnumerable<string> requiredAccountNames, int userId)
     {

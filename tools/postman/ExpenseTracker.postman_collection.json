@@ -189,7 +189,7 @@
             "description": "Creazione bulk di account (body = array).",
             "body": {
               "mode": "raw",
-              "raw": "[\n  {\n    \"name\": \"Conto corrente\"\n  }\n]",
+              "raw": "[\n  {\n    \"name\": \"Conto corrente\",\n    \"iban\": \"IT60X0542811101000000123456\"\n  }\n]",
               "options": {
                 "raw": {
                   "language": "json"
@@ -220,7 +220,7 @@
             "description": "Aggiorna un account.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": {{accountId}},\n  \"name\": \"Conto corrente (rinominato)\"\n}",
+              "raw": "{\n  \"id\": {{accountId}},\n  \"name\": \"Conto corrente (rinominato)\",\n  \"iban\": \"IT60X0542811101000000123456\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1399,6 +1399,50 @@
                   ]
                 },
                 "description": "Elimina conti, movimenti e trasferimenti dell'utente `test@dev.local` (creandolo se non esiste) e ne genera di nuovi: 5 conti e circa 5 anni di movimenti verosimili. Ignora `importAll`. Risposta: `200 { userId, email, userCreated, accountCount, transactionCount, transferCount, fromDate, toDate }`."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Transfer reconciliation",
+          "description": "Collegamento a posteriori dei trasferimenti tra movimenti già importati (nessun file in input).",
+          "item": [
+            {
+              "name": "Import_ReconcileTransfers",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/import/transfers/reconcile?dryRun=true&fromDate=&toDate=",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "import",
+                    "transfers",
+                    "reconcile"
+                  ],
+                  "query": [
+                    {
+                      "key": "dryRun",
+                      "value": "true",
+                      "description": "true = mostra i match senza salvarli (default false)"
+                    },
+                    {
+                      "key": "fromDate",
+                      "value": "",
+                      "description": "Data ISO opzionale, es. 2026-10-01",
+                      "disabled": true
+                    },
+                    {
+                      "key": "toDate",
+                      "value": "",
+                      "description": "Data ISO opzionale; senza orario include tutto il giorno",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Cerca tra i movimenti non collegati dell'utente chiamante le coppie che formano un trasferimento (regole `TransferMatching`, IBAN dei conti nella descrizione, movimenti in categoria Money transfers; tolleranza 3 giorni) e le collega con un `Transfer`. Risposta: `200 { dryRun, examinedTransactions, linkedTransfers, matchedByRule, matchedByIban, matchedByCategory, ambiguousSkipped, pairs: [...] }`."
               }
             }
           ]

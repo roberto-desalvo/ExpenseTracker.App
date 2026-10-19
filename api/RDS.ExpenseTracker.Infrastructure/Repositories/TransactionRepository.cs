@@ -97,6 +97,23 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .ToListAsync();
     }
 
+    // Movimenti datati e non ancora collegati a un trasferimento, tracciati: la riconciliazione li aggiorna.
+    public async Task<List<Transaction>> GetUnlinkedTransactions(int userId, DateTime? fromDate, DateTime? toDate)
+    {
+        var query = ForUser(userId)
+            .Where(t => t.TransferId == null && t.Date != null && t.Amount != 0m);
+
+        if (fromDate.HasValue)
+            query = query.Where(t => t.Date >= fromDate);
+        if (toDate.HasValue)
+            query = query.Where(t => t.Date <= toDate);
+
+        return await query
+            .OrderBy(t => t.Date)
+            .ThenBy(t => t.Id)
+            .ToListAsync();
+    }
+
     public async Task UpdateTransaction(Transaction modified)
     {
         var current = await Context.Transactions.FirstOrDefaultAsync(x => x.Id == modified.Id);

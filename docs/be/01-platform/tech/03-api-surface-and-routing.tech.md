@@ -3,7 +3,7 @@
 ## Base
 Il backend è un'app **Azure Functions (isolated worker, .NET 10)** con integrazione ASP.NET Core (`ConfigureFunctionsWebApplication`). Ogni endpoint è una function con `HttpTrigger(AuthorizationLevel.Anonymous, ...)` dentro una classe `*Functions` in `Functions/Functions/`. Il prefisso di route `api` è impostato in `host.json` (`extensions.http.routePrefix`), quindi i path pubblici sono invariati rispetto alla precedente Web API (`/api/account/...`, `/api/transaction/...`, ecc.; il routing è case-insensitive).
 
-Tutte le classi (tranne `ImportFunctions` e `AuthFunctions`) ereditano da `FunctionBase`, che scompone `FluentResults.Result` in `IActionResult` (vedi [05-error-handling](05-error-handling.tech.md)) e offre gli helper `ReadBodyAsync<T>` (body JSON con le web defaults di ASP.NET Core: camelCase, case-insensitive; body nullo/malformato → 400), `GetQueryBool` e `GetQueryString`.
+Tutte le classi (tranne `ImportFunctions` e `AuthFunctions`) ereditano da `FunctionBase`, che scompone `FluentResults.Result` in `IActionResult` (vedi [05-error-handling](05-error-handling.tech.md)) e offre gli helper `ReadBodyAsync<T>` (body JSON con le web defaults di ASP.NET Core: camelCase, case-insensitive; body nullo/malformato → 400), `GetQueryBool`, `GetQueryDate` e `GetQueryString`.
 
 `AuthorizationLevel.Anonymous` significa solo che non serve una function key: l'autenticazione JWT è applicata a **tutte** le function da `AuthenticationMiddleware` (vedi [04-auth-and-request-pipeline](04-auth-and-request-pipeline.tech.md)).
 
@@ -19,6 +19,8 @@ Il nome di ogni function segue la convenzione `<Risorsa>_<Azione>` (es. `Account
 - `GET /{id}/availability` — saldo calcolato.
 - `POST /` — creazione bulk.
 - `PUT /` — update.
+
+`AccountDto` include `iban` (opzionale): normalizzato server-side (maiuscolo, senza spazi), formato non valido → 400, IBAN già usato da un altro conto dello stesso utente → 409.
 
 ## `CategoryFunctions` — `api/category`
 - `POST /query` — ricerca paginata categorie.
@@ -59,6 +61,8 @@ Vedi [08-import-overview-and-dedup](../../03-import-pipeline/tech/08-import-over
 - `POST /{bank}-csv/stream` — variante raw octet-stream (`?fileName=` opzionale).
 - `POST /{bank}-xlsx` — variante `.xlsx` raw, convertita in CSV in-memory prima dell'import. Un `Content-Type` diverso da XLSX restituisce 415.
 - `POST /test-seed` (`Import_TestSeed`) — nessun body: elimina e rigenera conti/movimenti/trasferimenti fittizi dell'utente `test@dev.local`, creandolo se non esiste (`ITestSeedService.ResetTestUserDataAsync`). Non usa l'identità del chiamante (nessun `GetUserIdForImportAsync`), ma resta soggetto a `[RequireRole("Files.Sender")]` come gli altri import. Passa da `FunctionBase.ExecuteAsync`: `200` con `TestSeedResultDto` (`userId`, `email`, `userCreated`, `accountCount`, `transactionCount`, `transferCount`, `fromDate`, `toDate`), errori come problem details. Pensato per un job schedulato che riporta i dati di test a uno stato pulito; logica in [07-application-services-and-mapping](../../02-data-persistence/tech/07-application-services-and-mapping.tech.md).
+
+- `POST /transfers/reconcile` (`Import_ReconcileTransfers`) — nessun body: cerca tra i movimenti già importati dell'utente chiamante (`GetUserIdForImportAsync`) le coppie che rappresentano un trasferimento e le collega (`ITransferReconciliationService.ReconcileAsync`). Query opzionali `fromDate`, `toDate` (date ISO; `FunctionBase.GetQueryDate`, formato non valido → 400) e `dryRun` (default `false`: con `true` restituisce i match senza salvarli). `200` con `TransferReconciliationResultDto`. Logica in [10-transfer-matching](../../03-import-pipeline/tech/10-transfer-matching.tech.md).
 
 Tutti gli endpoint di import di file accettano il flag opzionale `?importAll`. Le tre varianti (multipart, stream, xlsx) condividono la pipeline privata `ImportFormFileAsync` / `ImportRawBodyAsync` / `ImportXlsxAsCsvAsync` → `ToImportResult` (`200 { importedCount }` oppure `400 { errors: [...] }`).
 

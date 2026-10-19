@@ -14,6 +14,9 @@ Un utente può essere ritrovato anche tramite la sua email: è il modo in cui l'
 ## Come restano separati i dati degli utenti
 Ogni movimento appartiene al proprietario del conto su cui è registrato: quando il sistema legge movimenti, riepiloghi o trasferimenti, considera solo quelli dei conti dell'utente collegato.
 
+## L'IBAN dei conti
+Ogni conto può avere un IBAN, facoltativo. Lo stesso IBAN non può essere assegnato a due conti della stessa persona, perché altrimenti non si saprebbe a quale conto attribuire un bonifico; persone diverse possono invece indicare lo stesso IBAN (es. un conto cointestato). I conti già esistenti restano senza IBAN finché non viene inserito.
+
 ## Come vengono trattati i giroconti nei riepiloghi
 Nei conteggi di entrate e uscite (dashboard, analisi, totali dell'elenco movimenti) i trasferimenti tra i propri conti non vengono mai contati: spostare denaro da un conto all'altro non è né un guadagno né una spesa. Sono considerati giroconti sia le coppie di movimenti già collegate tra loro, sia i movimenti classificati nella categoria dei trasferimenti per cui non è (ancora) stata trovata la controparte sull'altro conto. I saldi dei conti, invece, li includono sempre.
 

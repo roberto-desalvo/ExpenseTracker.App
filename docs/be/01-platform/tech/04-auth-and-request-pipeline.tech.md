@@ -60,6 +60,6 @@ Ogni classe implementa `IAppOptions` e si lega a una sezione di config; `Options
 | `DemoAuthOptions` | `DemoAuth` | `Enabled`, `SigningKey` (≥ 32 byte, segreta), `TokenLifetimeMinutes` (default 60): login demo con l'utente di test, ammesso in ogni ambiente |
 | `AppOptions` | `App` | `FEUrl`, `AllowedLocalOrigins` (legacy, non usata) |
 | `ExpenseExcelFileOptions` | `ExpenseTrackerExcel` | Indici colonna importer Excel legacy |
-| `BbvaCsvOptions` / `SellaCsvOptions` / `SatisPayCsvOptions` / `TradeRepublicCsvOptions` | `BbvaCsv` / `SellaCsv` / `SatisPayCsv` / `TradeRepublicCsv` | Default e IBAN-to-account map per importer |
+| `BbvaCsvOptions` / `SellaCsvOptions` / `SatisPayCsvOptions` / `TradeRepublicCsvOptions` | `BbvaCsv` / `SellaCsv` / `SatisPayCsv` / `TradeRepublicCsv` | Nomi dei conti di default per importer (le controparti dei trasferimenti si risolvono da `Account.Iban`) |
 | `TransferMatchingOptions` | `TransferMatching` | `Rules[]` per il transfer matching |
 | `KeyVaultOptions` | `KeyVault` | Non usata a runtime (wiring commentato in `Program.cs`) |

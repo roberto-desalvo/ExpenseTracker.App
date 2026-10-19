@@ -3,6 +3,7 @@ using CsvHelper.Configuration;
 using CsvHelper.Configuration.Attributes;
 using FluentResults;
 using Microsoft.Extensions.Logging;
+using RDS.ExpenseTracker.Application.Utilities;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
@@ -84,7 +85,7 @@ public class SellaCsvImportService : ISellaCsvImportService
             if (rows.Count == 0)
                 return Result.Ok(0);
 
-            var accounts = await EnsureAccountsExistAsync(GetRequiredAccountNames(rows), userId);
+            var accounts = await EnsureAccountsExistAsync([_options.DefaultAccountName], userId);
             var defaultCategory = await _categoryRepository.GetDefaultCategory();
             var defaultCategoryId = defaultCategory?.Id ?? (int)CategoryEnum.Default;
 
@@ -122,7 +123,7 @@ public class SellaCsvImportService : ISellaCsvImportService
 
             foreach (var row in remainingRows)
             {
-                if (TryResolveCounterpartyAccount(row, accounts, out var counterpartyAccount) && counterpartyAccount != null)
+                if (TryResolveCounterpartyAccount(row, accounts, sellaAccount, out var counterpartyAccount) && counterpartyAccount != null)
                 {
                     var existingByExternalId = await _transferRepository.GetTransferByExternalId(row.Identifier, userId);
                     if (existingByExternalId != null)
@@ -276,29 +277,6 @@ public class SellaCsvImportService : ISellaCsvImportService
             && string.IsNullOrWhiteSpace(row.AmountRaw);
     }
 
-    private IEnumerable<string> GetRequiredAccountNames(IEnumerable<SellaCsvRow> rows)
-    {
-        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            _options.DefaultAccountName,
-        };
-
-        foreach (var row in rows)
-        {
-            if (string.IsNullOrWhiteSpace(row.CounterpartyIban))
-                continue;
-
-            var mapped = _options.IbanToAccountMap
-                .FirstOrDefault(kvp => kvp.Key.Equals(row.CounterpartyIban, StringComparison.OrdinalIgnoreCase))
-                .Value;
-
-            if (!string.IsNullOrWhiteSpace(mapped))
-                names.Add(mapped);
-        }
-
-        return names;
-    }
-
     private async Task<List<Account>> EnsureAccountsExistAsync(IEnumerable<string> requiredAccountNames, int userId)
     {
         var accounts = (await _accountRepository.GetAccounts(userId)).ToList();
@@ -367,24 +345,14 @@ public class SellaCsvImportService : ISellaCsvImportService
         }
     }
 
-    private bool TryResolveCounterpartyAccount(SellaCsvRow row, List<Account> accounts, out Account? account)
+    // La controparte è il conto dell'utente il cui IBAN compare nella descrizione del movimento.
+    private static bool TryResolveCounterpartyAccount(SellaCsvRow row, List<Account> accounts, Account sellaAccount, out Account? account)
     {
-        account = null;
+        account = IbanUtilities.FindAccount(accounts, row.CounterpartyIban);
 
-        if (string.IsNullOrWhiteSpace(row.CounterpartyIban))
-            return false;
+        if (account != null && account.Id == sellaAccount.Id)
+            account = null;
 
-        var mappedName = _options.IbanToAccountMap
-            .FirstOrDefault(kvp => kvp.Key.Equals(row.CounterpartyIban, StringComparison.OrdinalIgnoreCase))
-            .Value;
-
-        if (string.IsNullOrWhiteSpace(mappedName))
-            return false;
-
-        if (mappedName.Equals(_options.DefaultAccountName, StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        account = accounts.FirstOrDefault(a => a.Name.Equals(mappedName, StringComparison.OrdinalIgnoreCase));
         return account != null;
     }
 

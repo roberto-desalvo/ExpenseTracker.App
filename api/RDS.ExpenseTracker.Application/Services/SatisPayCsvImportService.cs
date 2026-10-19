@@ -4,6 +4,7 @@ using CsvHelper.Configuration.Attributes;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 using RDS.ExpenseTracker.Application.Extensions;
+using RDS.ExpenseTracker.Application.Utilities;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
@@ -144,7 +145,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             }
 
             // 3. Ensure accounts ──────────────────────────────────────────────
-            var requiredAccountNames = GetRequiredAccountNames(rows);
+            var requiredAccountNames = GetRequiredAccountNames();
             var accounts = await EnsureAccountsExistAsync(requiredAccountNames, userId);
 
             // 4. Get categories ───────────────────────────────────────────────
@@ -287,7 +288,8 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
         return string.Join("\n", dataLines);
     }
 
-    private IEnumerable<string> GetRequiredAccountNames(List<SatisPayRow> rows)
+    // I conti bancari di provenienza delle ricariche non vengono creati qui: sono i conti dell'utente con l'IBAN valorizzato.
+    private IEnumerable<string> GetRequiredAccountNames()
     {
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -296,22 +298,6 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
 
         if (!string.IsNullOrEmpty(_csvOptions.BankAccountName))
             names.Add(_csvOptions.BankAccountName);
-
-        foreach (var row in rows)
-        {
-            if (string.IsNullOrEmpty(row.Description)) continue;
-
-            var ibanMatch = IbanExtractor.Match(row.Description);
-            if (!ibanMatch.Success) continue;
-
-            var iban = ibanMatch.Groups[1].Value;
-            var mapped = _csvOptions.IbanToAccountMap
-                .FirstOrDefault(kvp =>
-                    kvp.Key.Equals(iban.Trim(), StringComparison.OrdinalIgnoreCase))
-                .Value;
-
-            if (mapped != null) names.Add(mapped);
-        }
 
         return names;
     }
@@ -360,25 +346,15 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
         }
 
         var iban = ibanMatch.Groups[1].Value;
-        var bankAccountName = _csvOptions.IbanToAccountMap
-            .FirstOrDefault(kvp =>
-                kvp.Key.Equals(iban.Trim(), StringComparison.OrdinalIgnoreCase))
-            .Value;
+        var bankAccount = IbanUtilities.FindAccount(accounts, iban);
 
-        if (string.IsNullOrEmpty(bankAccountName))
+        if (bankAccount == null || bankAccount.Id == satispayAccount.Id)
         {
-            _logger.LogWarning("IBAN {IBAN} from row {ID} not found in IbanToAccountMap", iban, row.TransactionId);
-            return Result.Fail($"IBAN {iban} not mapped to any account");
+            _logger.LogWarning("IBAN {IBAN} from row {ID} is not assigned to any account", iban, row.TransactionId);
+            return Result.Fail($"IBAN {iban} not assigned to any account");
         }
 
-        var bankAccount = accounts.FirstOrDefault(a =>
-            a.Name.Equals(bankAccountName, StringComparison.OrdinalIgnoreCase));
-
-        if (bankAccount == null)
-        {
-            _logger.LogWarning("Bank account '{BankAccount}' not found", bankAccountName);
-            return Result.Fail($"Bank account '{bankAccountName}' not found");
-        }
+        var bankAccountName = bankAccount.Name;
 
         // Check if transfer already exists (cross-source dedup)
         // Satispay Ricarica: bank → satispay, amount is positive in Satispay CSV

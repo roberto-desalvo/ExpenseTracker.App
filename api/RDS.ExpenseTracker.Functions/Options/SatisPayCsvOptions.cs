@@ -20,7 +20,4 @@ public class SatisPayCsvOptions : IAppOptions, ISatisPayCsvOptions
 
     /// <inheritdoc />
     public string? BankAccountName { get; set; }
-
-    /// <inheritdoc />
-    public Dictionary<string, string> IbanToAccountMap { get; set; } = new();
 }

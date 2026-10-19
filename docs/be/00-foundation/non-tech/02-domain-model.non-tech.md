@@ -2,7 +2,7 @@
 
 ## I concetti principali
 - **Utente**: la persona che usa l'applicazione, identificata tramite il proprio accesso Microsoft/Azure AD.
-- **Conto**: dove si trovano i soldi (es. contanti, carta, banca), sempre di proprietà di un utente.
+- **Conto**: dove si trovano i soldi (es. contanti, carta, banca), sempre di proprietà di un utente. Può avere un IBAN, che serve a riconoscere i bonifici verso e da quel conto.
 - **Categoria**: il tipo di spesa o entrata (es. spesa alimentare, stipendio).
 - **Movimento**: un singolo ingresso o uscita di denaro.
 - **Trasferimento**: uno spostamento di denaro tra due conti dell'utente, non un guadagno né una spesa reale.

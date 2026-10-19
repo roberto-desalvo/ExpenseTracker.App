@@ -31,7 +31,7 @@ Function App Linux o Windows, runtime `dotnet-isolated`, Functions v4, .NET 10. 
 ## Configurazione
 Ordine di caricamento nel worker (`Program.cs`): `appsettings.json` → `appsettings.{AZURE_FUNCTIONS_ENVIRONMENT}.json` → variabili d'ambiente (incluse le app settings della Function App e i `Values` di `local.settings.json`).
 
-- **`appsettings.json`** (copiato in output e pubblicato) — sezioni strutturate: `Logging`, `AzureAd` (vuota), `TradeRepublicCsv`, `BbvaCsv`, `SatisPayCsv`, `SellaCsv` (default account + IBAN map), `TransferMatching:Rules[]`, `App`.
+- **`appsettings.json`** (copiato in output e pubblicato) — sezioni strutturate: `Logging`, `AzureAd` (vuota), `TradeRepublicCsv`, `BbvaCsv`, `SatisPayCsv`, `SellaCsv` (nomi dei conti di default; gli IBAN per riconoscere i trasferimenti non sono configurazione ma dati, su `Accounts.Iban`), `TransferMatching:Rules[]`, `App`.
 - **`appsettings.Development.json`** — override locali (es. `ConnectionStrings:DefaultConnection`); gitignored e mai pubblicato.
 - **`host.json`** — configurazione dell'host Functions: `routePrefix: "api"` e sampling Application Insights.
 - **`local.settings.json`** — solo locale, gitignored. Template committato: `local.settings.example.json` (`FUNCTIONS_WORKER_RUNTIME=dotnet-isolated`, `AZURE_FUNCTIONS_ENVIRONMENT=Development`, `AzureAd__*`, `DevAuth__Enabled=true` (bypass di autenticazione per il FE locale, vedi [04-auth-and-request-pipeline](../../01-platform/tech/04-auth-and-request-pipeline.tech.md)), `DemoAuth__Enabled=false` / `DemoAuth__SigningKey` / `DemoAuth__TokenLifetimeMinutes` (login demo, spento di default), `ConnectionStrings:DefaultConnection`, `Host.LocalHttpPort=7120`, `Host.CORS`).

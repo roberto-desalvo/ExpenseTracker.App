@@ -26,6 +26,7 @@ public class ImportFunctions : FunctionBase
     private readonly ISatisPayCsvImportService _satisPayCsvImportService;
     private readonly ISellaCsvImportService _sellaCsvImportService;
     private readonly ITestSeedService _testSeedService;
+    private readonly ITransferReconciliationService _transferReconciliationService;
     private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly ILogger<ImportFunctions> _logger;
 
@@ -36,6 +37,7 @@ public class ImportFunctions : FunctionBase
         ISatisPayCsvImportService satisPayCsvImportService,
         ISellaCsvImportService sellaCsvImportService,
         ITestSeedService testSeedService,
+        ITransferReconciliationService transferReconciliationService,
         ICurrentUserAccessor currentUserAccessor,
         ILogger<ImportFunctions> logger)
     {
@@ -45,6 +47,7 @@ public class ImportFunctions : FunctionBase
         _satisPayCsvImportService        = satisPayCsvImportService        ?? throw new ArgumentNullException(nameof(satisPayCsvImportService));
         _sellaCsvImportService           = sellaCsvImportService           ?? throw new ArgumentNullException(nameof(sellaCsvImportService));
         _testSeedService                 = testSeedService                 ?? throw new ArgumentNullException(nameof(testSeedService));
+        _transferReconciliationService   = transferReconciliationService   ?? throw new ArgumentNullException(nameof(transferReconciliationService));
         _currentUserAccessor             = currentUserAccessor             ?? throw new ArgumentNullException(nameof(currentUserAccessor));
         _logger                          = logger                          ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -156,6 +159,29 @@ public class ImportFunctions : FunctionBase
     public Task<IActionResult> ImportSellaCsvFromXlsx(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/sella-xlsx")] HttpRequest req)
         => ImportXlsxAsCsvAsync(req, "Sella XLSX", "sella.xlsx", ',', _sellaCsvImportService.ImportFromCsvAsync);
+
+    // -------------------------------------------------------------------------
+    // Riconciliazione trasferimenti (nessun file in input)
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Cerca tra i movimenti già importati dell'utente le coppie che rappresentano un trasferimento e le collega.
+    /// Query opzionali: <c>fromDate</c>, <c>toDate</c> (date ISO) e <c>dryRun=true</c> per vedere i match senza salvarli.
+    /// </summary>
+    [Function("Import_ReconcileTransfers")]
+    public async Task<IActionResult> ReconcileTransfers(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/transfers/reconcile")] HttpRequest req)
+    {
+        var dryRun = GetQueryBool(req, "dryRun", false);
+        var fromDate = GetQueryDate(req, "fromDate");
+        var toDate = GetQueryDate(req, "toDate");
+
+        _logger.LogInformation("Transfer reconciliation requested. FromDate={FromDate}, ToDate={ToDate}, DryRun={DryRun}",
+            fromDate, toDate, dryRun);
+
+        var userId = await _currentUserAccessor.GetUserIdForImportAsync();
+        return await ExecuteAsync(() => _transferReconciliationService.ReconcileAsync(userId, fromDate, toDate, dryRun));
+    }
 
     // -------------------------------------------------------------------------
     // Test seed (dati fittizi per l'utente di test, nessun file in input)

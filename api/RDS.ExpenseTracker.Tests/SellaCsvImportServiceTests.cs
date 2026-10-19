@@ -33,7 +33,7 @@ public class SellaCsvImportServiceTests
             out _,
             new FakeSellaCsvOptions());
 
-        const string csv = "\"Codice identificativo\",\"Data operazione\",\"Data valuta\",\"Descrizione\",\"Divisa\",\"Debito\",\"Credito\",\"Categoria\",\"Sottocategoria\",\"Etichette\",\"Note\",\n"
+        const string csv = "\"Codice identificativo\",\"Data operazione\",\"Data valuta\",\"Descrizione\",\"Divisa\",\"Importo\",\"Credito\",\"Categoria\",\"Sottocategoria\",\"Etichette\",\"Note\",\n"
             + "\"\",\"10/06/2026\",\"10/06/2026\",\"Pagamento prova\",\"EUR\",\"-12,00\",\"\",\"Altre spese\",\"Varie\",\"Bonifico\",\"\",\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
@@ -52,9 +52,9 @@ public class SellaCsvImportServiceTests
             out _,
             new FakeSellaCsvOptions());
 
-        const string csv = "\"Codice identificativo\",\"Data operazione\",\"Data valuta\",\"Descrizione\",\"Divisa\",\"Debito\",\"Credito\",\"Categoria\",\"Sottocategoria\",\"Etichette\",\"Note\",\n"
+        const string csv = "\"Codice identificativo\",\"Data operazione\",\"Data valuta\",\"Descrizione\",\"Divisa\",\"Importo\",\"Credito\",\"Categoria\",\"Sottocategoria\",\"Etichette\",\"Note\",\n"
             + "\"SEL-1001\",\"09/06/2026\",\"09/06/2026\",\"Caffetteria centro\",\"EUR\",\"-4,50\",\"\",\"Bar e ristoranti\",\"Bar\",\"Pagamento POS\",\"\",\n"
-            + "\"SEL-1002\",\"10/06/2026\",\"10/06/2026\",\"Rimborso palestra\",\"EUR\",\"\",\"+25,00\",\"Entrate varie\",\"-\",\"Bonifico\",\"\",\n"
+            + "\"SEL-1002\",\"10/06/2026\",\"10/06/2026\",\"Rimborso palestra\",\"EUR\",\"+25,00\",\"\",\"Entrate varie\",\"-\",\"Bonifico\",\"\",\n"
             + "\"\",\"\",\"\",\"Saldo al 10/06/2026 10:00:00\",\"0,00\",\"\",\"\",\"\",\"\",\"\",\"\",\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
@@ -80,7 +80,7 @@ public class SellaCsvImportServiceTests
             new FakeSellaCsvOptions(),
             existingExternalIds: ["SEL-2001"]);
 
-        const string csv = "\"Codice identificativo\",\"Data operazione\",\"Data valuta\",\"Descrizione\",\"Divisa\",\"Debito\",\"Credito\",\"Categoria\",\"Sottocategoria\",\"Etichette\",\"Note\",\n"
+        const string csv = "\"Codice identificativo\",\"Data operazione\",\"Data valuta\",\"Descrizione\",\"Divisa\",\"Importo\",\"Credito\",\"Categoria\",\"Sottocategoria\",\"Etichette\",\"Note\",\n"
             + "\"SEL-2001\",\"11/06/2026\",\"11/06/2026\",\"Spesa già importata\",\"EUR\",\"-10,00\",\"\",\"Altre spese\",\"Varie\",\"Bonifico\",\"\",\n"
             + "\"SEL-2002\",\"11/06/2026\",\"11/06/2026\",\"Spesa nuova\",\"EUR\",\"-20,00\",\"\",\"Altre spese\",\"Varie\",\"Bonifico\",\"\",\n";
 
@@ -102,7 +102,7 @@ public class SellaCsvImportServiceTests
             out _,
             new FakeSellaCsvOptions());
 
-        const string csv = "\"Codice identificativo\",\"Data operazione\",\"Data valuta\",\"Descrizione\",\"Divisa\",\"Debito\",\"Credito\",\"Categoria\",\"Sottocategoria\",\"Etichette\",\"Note\",\n"
+        const string csv = "\"Codice identificativo\",\"Data operazione\",\"Data valuta\",\"Descrizione\",\"Divisa\",\"Importo\",\"Credito\",\"Categoria\",\"Sottocategoria\",\"Etichette\",\"Note\",\n"
             + "\"SEL-DUP-1\",\"11/06/2026\",\"11/06/2026\",\"Prima riga\",\"EUR\",\"-10,00\",\"\",\"Altre spese\",\"Varie\",\"Bonifico\",\"\",\n"
             + "\"SEL-DUP-1\",\"11/06/2026\",\"11/06/2026\",\"Seconda riga duplicata\",\"EUR\",\"-2,00\",\"\",\"Tasse\",\"Commissioni\",\"Commissioni\",\"\",\n"
             + "\"SEL-DUP-2\",\"11/06/2026\",\"11/06/2026\",\"Riga diversa\",\"EUR\",\"-5,00\",\"\",\"Altre spese\",\"Varie\",\"Bonifico\",\"\",\n";
@@ -119,23 +119,15 @@ public class SellaCsvImportServiceTests
     }
 
     [Fact]
-    public async Task ImportFromCsvAsync_CreatesTransfer_WhenMappedIbanFoundInDescription()
+    public async Task ImportFromCsvAsync_CreatesTransfer_WhenAccountIbanFoundInDescription()
     {
-        var options = new FakeSellaCsvOptions
-        {
-            IbanToAccountMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["IT21W0367401600000921182111"] = "Satispay",
-            },
-        };
-
         var service = BuildService(
             out var transactionRepository,
             out var transferRepository,
-            options,
-            accounts: [new Account(1, "Sella", TestUserId), new Account(2, "Satispay", TestUserId)]);
+            new FakeSellaCsvOptions(),
+            accounts: [new Account(1, "Sella", TestUserId), new Account(2, "Satispay", TestUserId) { Iban = "IT21W0367401600000921182111" }]);
 
-        const string csv = "\"Codice identificativo\",\"Data operazione\",\"Data valuta\",\"Descrizione\",\"Divisa\",\"Debito\",\"Credito\",\"Categoria\",\"Sottocategoria\",\"Etichette\",\"Note\",\n"
+        const string csv = "\"Codice identificativo\",\"Data operazione\",\"Data valuta\",\"Descrizione\",\"Divisa\",\"Importo\",\"Credito\",\"Categoria\",\"Sottocategoria\",\"Etichette\",\"Note\",\n"
             + "\"SEL-TR-1\",\"12/06/2026\",\"12/06/2026\",\"Ricarica verso wallet (IT21W0367401600000921182111)\",\"EUR\",\"-50,00\",\"\",\"Trasferimenti\",\"Varie\",\"Bonifico\",\"\",\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
@@ -162,7 +154,7 @@ public class SellaCsvImportServiceTests
             new FakeSellaCsvOptions(),
             rules: [SellaSatispayRule]);
 
-        const string csv = "\"Codice identificativo\",\"Data operazione\",\"Data valuta\",\"Descrizione\",\"Divisa\",\"Debito\",\"Credito\",\"Categoria\",\"Sottocategoria\",\"Etichette\",\"Note\",\n"
+        const string csv = "\"Codice identificativo\",\"Data operazione\",\"Data valuta\",\"Descrizione\",\"Divisa\",\"Importo\",\"Credito\",\"Categoria\",\"Sottocategoria\",\"Etichette\",\"Note\",\n"
             + "\"SEL-SAT-1\",\"17/06/2026\",\"17/06/2026\",\"Satispay Europe S.A. - Ricarica wallet\",\"EUR\",\"-50,00\",\"\",\"Trasferimenti\",\"Varie\",\"Bonifico\",\"\",\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
@@ -201,7 +193,7 @@ public class SellaCsvImportServiceTests
             },
         ]);
 
-        const string csv = "\"Codice identificativo\",\"Data operazione\",\"Data valuta\",\"Descrizione\",\"Divisa\",\"Debito\",\"Credito\",\"Categoria\",\"Sottocategoria\",\"Etichette\",\"Note\",\n"
+        const string csv = "\"Codice identificativo\",\"Data operazione\",\"Data valuta\",\"Descrizione\",\"Divisa\",\"Importo\",\"Credito\",\"Categoria\",\"Sottocategoria\",\"Etichette\",\"Note\",\n"
             + "\"SEL-SAT-2\",\"17/06/2026\",\"17/06/2026\",\"Satispay Europe S.A. - Ricarica wallet\",\"EUR\",\"-50,00\",\"\",\"Trasferimenti\",\"Varie\",\"Bonifico\",\"\",\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
@@ -247,7 +239,6 @@ public class SellaCsvImportServiceTests
     private sealed class FakeSellaCsvOptions : ISellaCsvOptions
     {
         public string DefaultAccountName { get; set; } = "Sella";
-        public Dictionary<string, string> IbanToAccountMap { get; set; } = [];
     }
 
     private sealed class FakeTransferMatchingOptions : ITransferMatchingOptions
@@ -281,6 +272,7 @@ public class SellaCsvImportServiceTests
         public Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds, int userId)
             => Task.FromResult(externalIds.Where(id => _existingExternalIds.Contains(id)));
 
+        public Task<List<Transaction>> GetUnlinkedTransactions(int userId, DateTime? fromDate, DateTime? toDate) => throw new NotImplementedException();
         public Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains)
         {
             var targetDate = date.Date;

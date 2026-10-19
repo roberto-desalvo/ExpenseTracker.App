@@ -193,6 +193,7 @@ Data valuta;Data;Parola chiave;Movimento;Importo;Valuta;Disponibile;Valuta;Osser
         public Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds, int userId)
             => Task.FromResult(Enumerable.Empty<string>());
 
+        public Task<List<Transaction>> GetUnlinkedTransactions(int userId, DateTime? fromDate, DateTime? toDate) => throw new NotImplementedException();
         public Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains) => throw new NotImplementedException();
 
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

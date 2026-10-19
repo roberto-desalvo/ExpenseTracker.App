@@ -10,6 +10,12 @@ public class AccountConfiguration : IEntityTypeConfiguration<Account>
     {
         builder.HasKey(a => a.Id);
         builder.Property(a => a.Name).IsRequired().HasMaxLength(100);
+        builder.Property(a => a.Iban).HasMaxLength(34);
+
+        // Un IBAN identifica un solo conto per utente, altrimenti il match dei trasferimenti sarebbe ambiguo.
+        builder.HasIndex(a => new { a.UserId, a.Iban })
+               .IsUnique()
+               .HasFilter("[Iban] IS NOT NULL");
 
         builder.HasMany(a => a.Transactions)
                .WithOne(t => t.AccountNavigation)

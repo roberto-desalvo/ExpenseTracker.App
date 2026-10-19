@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using FluentResults;
 using Microsoft.AspNetCore.Http;
@@ -60,6 +61,17 @@ public abstract class FunctionBase
         return bool.TryParse(raw, out var value)
             ? value
             : throw new BadRequestDomainException($"Query parameter '{name}' must be a boolean.");
+    }
+
+    protected static DateTime? GetQueryDate(HttpRequest request, string name)
+    {
+        var raw = request.Query[name].ToString();
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+
+        return DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var value)
+            ? value
+            : throw new BadRequestDomainException($"Query parameter '{name}' must be a date (e.g. 2026-10-01).");
     }
 
     protected static string GetQueryString(HttpRequest request, string name, string defaultValue)

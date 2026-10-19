@@ -15,10 +15,4 @@ public interface ISatisPayCsvOptions
     /// Maps IBAN from "Ricarica Satispay" entries to this account
     /// </summary>
     string? BankAccountName { get; }
-
-    /// <summary>
-    /// Mapping of IBAN to Account name
-    /// Used to identify counterparty accounts for bank transfers
-    /// </summary>
-    Dictionary<string, string> IbanToAccountMap { get; }
 }

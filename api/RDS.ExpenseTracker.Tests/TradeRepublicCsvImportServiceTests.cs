@@ -23,7 +23,7 @@ public class TradeRepublicCsvImportServiceTests
         DescriptionPattern2 = "Ricarica Satispay",
     };
 
-    private const string Header = "datetime,account_type,type,name,amount,description,transaction_id,counterparty_iban\n";
+    private const string Header = "datetime,account_type,type,name,amount,description,transaction_id,counterparty_iban,fee,tax\n";
 
     [Fact]
     public async Task ImportFromCsvAsync_ImportsPlainTransaction_WhenNotATransferType()
@@ -114,22 +114,13 @@ public class TradeRepublicCsvImportServiceTests
     }
 
     [Fact]
-    public async Task ImportFromCsvAsync_CreatesTransferViaIban_WhenCounterpartyIbanMapped()
+    public async Task ImportFromCsvAsync_CreatesTransferViaIban_WhenCounterpartyIbanBelongsToAccount()
     {
-        var options = new FakeTradeRepublicCsvOptions
-        {
-            IbanToAccountMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["IT60X0542811101000000123456"] = "Sella",
-            },
-        };
-
         var service = BuildService(
             out var transactionRepository,
             out var transferRepository,
             out _,
-            options: options,
-            accounts: [new Account(1, "Trade Republic", TestUserId), new Account(2, "Sella", TestUserId)]);
+            accounts: [new Account(1, "Trade Republic", TestUserId), new Account(2, "Sella", TestUserId) { Iban = "IT60X0542811101000000123456" }]);
 
         const string csv = Header
             + "2026-06-10T08:00:00Z,CURRENT,TRANSFER_INSTANT_OUTBOUND,Sella,-100.00,Transfer to Sella,tr-iban-1,IT60X0542811101000000123456\n";
@@ -175,7 +166,6 @@ public class TradeRepublicCsvImportServiceTests
     {
         public string DefaultAccountName => "Trade Republic";
         public string? TradingAccountName => "Trade Republic Trading";
-        public Dictionary<string, string> IbanToAccountMap { get; set; } = [];
     }
 
     private sealed class FakeTransferMatchingOptions : ITransferMatchingOptions
@@ -205,6 +195,7 @@ public class TradeRepublicCsvImportServiceTests
         public Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds, int userId)
             => Task.FromResult(Enumerable.Empty<string>());
 
+        public Task<List<Transaction>> GetUnlinkedTransactions(int userId, DateTime? fromDate, DateTime? toDate) => throw new NotImplementedException();
         public Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains)
         {
             var targetDate = date.Date;

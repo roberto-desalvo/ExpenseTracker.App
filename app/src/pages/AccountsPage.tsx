@@ -49,6 +49,7 @@ export default function AccountsPage() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
   const [name, setName] = useState("");
+  const [iban, setIban] = useState("");
   const [busy, setBusy] = useState(false);
 
   // la lista paginata si carica solo mentre questa sezione è visibile
@@ -83,25 +84,29 @@ export default function AccountsPage() {
   const openCreate = () => {
     setEditing(null);
     setName("");
+    setIban("");
     setEditorOpen(true);
   };
 
   const openEdit = (account: Account) => {
     setEditing(account);
     setName(account.name);
+    setIban(account.iban ?? "");
     setEditorOpen(true);
   };
 
   const handleSubmit = async () => {
     const trimmed = name.trim();
     if (!trimmed) return;
+    // il BE normalizza (maiuscolo, senza spazi) e valida l'IBAN
+    const normalizedIban = iban.replace(/\s+/g, "").toUpperCase() || null;
     setBusy(true);
     try {
       if (editing) {
-        await updateAccount({ id: editing.id, name: trimmed });
-        showSuccess(`Conto "${trimmed}" rinominato`);
+        await updateAccount({ id: editing.id, name: trimmed, iban: normalizedIban });
+        showSuccess(`Conto "${trimmed}" aggiornato`);
       } else {
-        await addAccount({ id: 0, name: trimmed });
+        await addAccount({ id: 0, name: trimmed, iban: normalizedIban });
         showSuccess(`Conto "${trimmed}" creato`);
       }
       setEditorOpen(false);
@@ -192,11 +197,18 @@ export default function AccountsPage() {
                   >
                     {initialsOf(account.name)}
                   </Box>
-                  <Typography sx={{ flex: 1, minWidth: 0, fontWeight: 650, fontSize: "0.95rem" }} noWrap>
-                    {account.name}
-                  </Typography>
-                  <Tooltip title="Rinomina">
-                    <IconButton size="small" onClick={() => openEdit(account)} aria-label={`Rinomina ${account.name}`} sx={{ color: a.textSecondary }}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={{ fontWeight: 650, fontSize: "0.95rem" }} noWrap>
+                      {account.name}
+                    </Typography>
+                    {account.iban && (
+                      <Typography sx={{ fontSize: "0.72rem", color: a.textMuted, letterSpacing: "0.02em" }} noWrap>
+                        {account.iban}
+                      </Typography>
+                    )}
+                  </Box>
+                  <Tooltip title="Modifica">
+                    <IconButton size="small" onClick={() => openEdit(account)} aria-label={`Modifica ${account.name}`} sx={{ color: a.textSecondary }}>
                       <EditOutlined fontSize="small" />
                     </IconButton>
                   </Tooltip>
@@ -253,7 +265,7 @@ export default function AccountsPage() {
       <EditorDrawer
         open={editorOpen}
         onClose={() => setEditorOpen(false)}
-        title={editing ? "Rinomina conto" : "Nuovo conto"}
+        title={editing ? "Modifica conto" : "Nuovo conto"}
         subtitle={editing ? undefined : "Conto corrente, carta, wallet o investimenti"}
         onSubmit={() => void handleSubmit()}
         isBusy={busy}
@@ -269,6 +281,15 @@ export default function AccountsPage() {
           disabled={busy}
           placeholder="Es. Conto corrente BBVA"
           helperText="Usa lo stesso nome configurato per l'import, se il conto riceve movimenti da file."
+        />
+        <TextField
+          label="IBAN"
+          value={iban}
+          onChange={(e) => setIban(e.target.value)}
+          disabled={busy}
+          placeholder="Es. IT60X0542811101000000123456"
+          helperText="Facoltativo. Serve agli import per riconoscere i trasferimenti verso e da questo conto."
+          slotProps={{ htmlInput: { autoCapitalize: "characters", spellCheck: false } }}
         />
       </EditorDrawer>
     </Stack>
