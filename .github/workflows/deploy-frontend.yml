@@ -16,8 +16,11 @@ on:
       - '.github/workflows/deploy-frontend.yml'
 
 concurrency:
-  group: deploy-frontend-${{ github.ref }}
-  cancel-in-progress: true
+  # On a merged PR's "closed" event github.ref is the base branch (refs/heads/main), so keying
+  # only on github.ref made that run cancel the push-to-main deploy. Key PRs by number instead,
+  # and never cancel an in-progress production deploy.
+  group: deploy-frontend-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build_and_deploy_job:

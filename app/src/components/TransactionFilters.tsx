@@ -65,15 +65,14 @@ function MultiSelectFilter({ icon, allLabel, options, selected, onChange }: Mult
           return names.length <= 2 ? names.join(", ") : `${names.length} selezionati`;
         }}
         sx={{ fontSize: "0.88rem" }}
-        MenuProps={{ PaperProps: { sx: { maxHeight: 360 } } }}
       >
         <MenuItem value={ALL}>
-          <Checkbox size="small" checked={isAll} />
+          <Checkbox checked={isAll} />
           <ListItemText primary={allLabel} />
         </MenuItem>
         {options.map((option) => (
           <MenuItem key={option.id} value={String(option.id)}>
-            <Checkbox size="small" checked={!isAll && selected.includes(option.id)} />
+            <Checkbox checked={!isAll && selected.includes(option.id)} />
             <ListItemText primary={option.name} />
           </MenuItem>
         ))}
@@ -153,7 +152,6 @@ export default function TransactionFilters() {
                 textTransform: "capitalize",
                 "& .MuiSelect-select": { py: 0.5, textAlign: "center", backgroundColor: "transparent !important" },
               }}
-              MenuProps={{ PaperProps: { sx: { maxHeight: 360 } } }}
             >
               {months.map((m) => (
                 <MenuItem key={m.startDate} value={m.startDate} sx={{ textTransform: "capitalize" }}>

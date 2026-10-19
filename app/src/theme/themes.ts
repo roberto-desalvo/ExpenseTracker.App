@@ -84,6 +84,41 @@ export const buildAppTheme = (presetId: StylePresetId, mode: ResolvedMode): Them
 
   const hover = isDark ? "rgba(255,255,255,0.04)" : "rgba(15,23,42,0.035)";
 
+  // Stile unico per tutti i pannelli a discesa (Menu, Select, Autocomplete, calendario)
+  const popupPaper = {
+    marginTop: 6,
+    backgroundColor: t.surface,
+    backgroundImage: "none",
+    borderRadius: preset.radiusControl + 2,
+    border: `1px solid ${t.border}`,
+    boxShadow: isDark
+      ? "0 16px 40px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.3)"
+      : "0 12px 32px rgba(15,23,42,0.12), 0 2px 6px rgba(15,23,42,0.06)",
+  };
+  const optionRadius = Math.max(preset.radiusControl - 2, 3);
+  const optionBase = {
+    fontSize: "0.875rem",
+    minHeight: 36,
+    borderRadius: optionRadius,
+    marginInline: 4,
+    paddingInline: 10,
+    gap: 4,
+    color: t.text,
+  };
+  // spunta a destra della voce selezionata (solo liste senza checkbox)
+  const selectedCheck = {
+    content: "\"\"",
+    marginLeft: "auto",
+    paddingLeft: 12,
+    width: 16,
+    height: 16,
+    flexShrink: 0,
+    backgroundColor: t.primary,
+    WebkitMask: "url(\"data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Cpath d=%27M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z%27/%3E%3C/svg%3E\") no-repeat right center / 16px",
+    mask: "url(\"data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Cpath d=%27M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z%27/%3E%3C/svg%3E\") no-repeat right center / 16px",
+  };
+  const optionHover = isDark ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.05)";
+
   return createTheme({
     app,
     shape: { borderRadius: preset.radiusControl },
@@ -175,29 +210,87 @@ export const buildAppTheme = (presetId: StylePresetId, mode: ResolvedMode): Them
       MuiMenu: {
         defaultProps: { disableScrollLock: true },
         styleOverrides: {
-          paper: {
-            marginTop: 6,
-            borderRadius: preset.radiusControl + 2,
-            border: `1px solid ${t.border}`,
-            boxShadow: isDark ? "0 16px 40px rgba(0,0,0,0.5)" : "0 12px 32px rgba(15,23,42,0.12)",
-          },
+          paper: popupPaper,
+          list: { padding: 4, display: "flex", flexDirection: "column", gap: 1 },
         },
       },
       MuiPopover: {
         styleOverrides: {
-          paper: { border: `1px solid ${t.border}` },
+          paper: { border: `1px solid ${t.border}`, backgroundImage: "none" },
+        },
+      },
+      MuiSelect: {
+        defaultProps: {
+          // il menu si apre sotto il campo invece di coprirlo
+          MenuProps: {
+            anchorOrigin: { vertical: "bottom", horizontal: "left" },
+            transformOrigin: { vertical: "top", horizontal: "left" },
+            slotProps: { paper: { sx: { maxHeight: 360 } } },
+          },
+        },
+        styleOverrides: {
+          icon: { color: t.textMuted },
         },
       },
       MuiMenuItem: {
         styleOverrides: {
           root: {
-            fontSize: "0.88rem",
-            minHeight: 38,
-            borderRadius: Math.max(preset.radiusControl - 2, 2),
-            marginInline: 6,
-            "&.Mui-selected": { backgroundColor: t.primarySoft },
-            "&.Mui-selected:hover": { backgroundColor: t.primarySoft },
+            ...optionBase,
+            "&:hover": { backgroundColor: optionHover },
+            "&.Mui-focusVisible": { backgroundColor: optionHover },
+            "&.Mui-selected": { backgroundColor: t.primarySoft, fontWeight: 600 },
+            "&.Mui-selected:hover, &.Mui-selected.Mui-focusVisible": { backgroundColor: t.primarySoft },
+            "& .MuiListItemIcon-root": { minWidth: 30, color: t.textSecondary },
+            "& .MuiListItemText-root": { margin: 0 },
+            "& .MuiListItemText-primary": { fontSize: "0.875rem", fontWeight: "inherit" },
+            "& .MuiListItemText-secondary": { fontSize: "0.75rem", color: t.textMuted },
+            "& .MuiCheckbox-root": { padding: 4, marginLeft: -4, marginRight: 4 },
           },
+        },
+      },
+      MuiCheckbox: {
+        defaultProps: { size: "small", disableRipple: true },
+        styleOverrides: {
+          root: {
+            color: t.borderStrong,
+            "&.Mui-checked, &.MuiCheckbox-indeterminate": { color: t.primary },
+          },
+        },
+      },
+      MuiAutocomplete: {
+        styleOverrides: {
+          paper: { ...popupPaper, overflow: "hidden" },
+          listbox: {
+            padding: 4,
+            maxHeight: 320,
+            "& .MuiAutocomplete-option": {
+              ...optionBase,
+              display: "flex",
+              alignItems: "center",
+              '&[aria-selected="true"]': { backgroundColor: t.primarySoft, fontWeight: 600 },
+              '&[aria-selected="true"]::after': selectedCheck,
+              "&.Mui-focused": { backgroundColor: optionHover },
+              '&[aria-selected="true"].Mui-focused': { backgroundColor: t.primarySoft },
+            },
+          },
+          noOptions: { fontSize: "0.85rem", color: t.textMuted },
+          loading: { fontSize: "0.85rem", color: t.textMuted },
+          groupLabel: {
+            fontSize: "0.7rem",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            color: t.textMuted,
+            backgroundColor: t.surface,
+          },
+          tag: { height: 26, fontSize: "0.78rem" },
+          popupIndicator: { color: t.textMuted },
+          clearIndicator: { color: t.textMuted },
+        },
+      },
+      MuiPickersPopper: {
+        styleOverrides: {
+          paper: popupPaper,
         },
       },
       MuiDialog: {

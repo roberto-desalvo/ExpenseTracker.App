@@ -97,7 +97,6 @@ export default function TransferModal({ open, onClose }: TransferModalProps) {
       />
 
       <Autocomplete
-        disablePortal
         options={accountsContext.accounts}
         getOptionLabel={(account) => account.name || ""}
         isOptionEqualToValue={(option, value) => option.id === value.id}
@@ -113,7 +112,6 @@ export default function TransferModal({ open, onClose }: TransferModalProps) {
       />
 
       <Autocomplete
-        disablePortal
         options={accountsContext.accounts}
         getOptionLabel={(account) => account.name || ""}
         isOptionEqualToValue={(option, value) => option.id === value.id}

@@ -105,7 +105,6 @@ export default function TransactionModal() {
       </LocalizationProvider>
 
       <Autocomplete
-        disablePortal
         options={allCategories}
         getOptionLabel={(category) => category.name || category.description || ""}
         isOptionEqualToValue={(option, value) => option.id === value.id}
@@ -114,7 +113,6 @@ export default function TransactionModal() {
         renderInput={(params) => <TextField {...params} label="Categoria" />}
       />
       <Autocomplete
-        disablePortal
         options={accountContext.accounts}
         getOptionLabel={(account) => account.name || ""}
         isOptionEqualToValue={(option, value) => option.id === value.id}
