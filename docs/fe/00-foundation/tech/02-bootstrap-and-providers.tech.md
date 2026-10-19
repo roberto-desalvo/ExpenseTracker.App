@@ -23,7 +23,8 @@ In `src/App.tsx`, dentro `AppShell`:
 - `CategoriesProvider`
 - `TableContextProvider`
 - `TransactionModalProvider`
-- contenuto: `HomeHeader` + `Routes` (routing dettagliato nel modulo 03)
+- `QuickActionsProvider` (monta una sola volta `TransactionModal` e `TransferModal`, apribili da ogni pagina)
+- contenuto: `AppLayout` (shell con barra laterale o superiore) + `Routes` (dettaglio nel modulo 03)
 
 ## Motivazione
 Centralizza autenticazione, tema e notifiche in alto nell'albero React, prima ancora del routing. I provider di dominio (account, transazioni, categorie, tabella, modale transazione) vengono inizializzati subito dopo l'autenticazione, dentro l'area protetta, così sono disponibili a tutte le pagine.
@@ -35,4 +36,4 @@ Centralizza autenticazione, tema e notifiche in alto nell'albero React, prima an
 - `src/stores/ThemeContext.tsx`
 - `src/stores/ApiErrorContext.tsx`
 - `src/stores/SuccessMessageContext.tsx`
-- `src/stores/AccountContext.tsx`, `TransactionContext.tsx`, `CategoryContext.tsx`, `TableContext.tsx`, `TransactionModalContext.tsx`
+- `src/stores/AccountContext.tsx`, `TransactionContext.tsx`, `CategoryContext.tsx`, `TableContext.tsx`, `TransactionModalContext.tsx`, `QuickActionsContext.tsx`

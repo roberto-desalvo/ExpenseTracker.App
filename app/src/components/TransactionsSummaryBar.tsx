@@ -1,126 +1,88 @@
-import { Box, ButtonBase, Stack, Typography } from "@mui/material";
+import { ReactNode } from "react";
+import { Box, ButtonBase, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { useTableContext } from "../stores/TableContext";
+import { CheckCircleRounded, NorthEastRounded, SouthWestRounded, SwapVertRounded } from "@mui/icons-material";
+import { MovementType, useTableContext } from "../stores/TableContext";
 import { useTransactions } from "../stores/TransactionContext";
+import { formatCurrency, formatSignedCurrency } from "../utilities/format.utilities";
 
-interface TransactionsSummaryBarProps {
-  showChips?: boolean;
-}
-
-export default function TransactionsSummaryBar({ showChips = true }: TransactionsSummaryBarProps) {
-  const theme = useTheme();
-  const c = theme.palette.custom;
+/**
+ * Totali del periodo filtrato. Entrate e Uscite sono anche filtri: un click mostra
+ * solo quel tipo di movimento, un secondo click torna a tutti.
+ */
+export default function TransactionsSummaryBar() {
+  const a = useTheme().app;
   const tableContext = useTableContext();
-  const transactionContext = useTransactions();
+  const transactions = useTransactions();
 
-  const formatAmount = (value: number) =>
-    value.toLocaleString("it-IT", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+  const tile = (
+    key: MovementType,
+    label: string,
+    value: string,
+    icon: ReactNode,
+    color: string,
+    soft: string,
+    clickable: boolean,
+  ) => {
+    const active = clickable && tableContext.movementType === key;
 
-  const isMovementActive = (movementType: "incomes" | "outcomes") =>
-    tableContext.movementType === movementType;
-
-  if (!showChips) {
-    return null;
-  }
+    return (
+      <ButtonBase
+        key={key}
+        disabled={!clickable}
+        onClick={clickable ? () => tableContext.modifyMovementType(key) : undefined}
+        aria-pressed={clickable ? active : undefined}
+        sx={{
+          justifyContent: "flex-start",
+          textAlign: "left",
+          gap: 1.5,
+          p: 2,
+          borderRadius: `${a.radiusCard}px`,
+          border: `1px solid ${active ? color : a.border}`,
+          boxShadow: active ? `0 0 0 1px ${color}` : a.cardShadow,
+          backgroundColor: a.surface,
+          transition: "border-color .15s ease, box-shadow .15s ease",
+          "&:hover": clickable ? { borderColor: color } : undefined,
+          "&.Mui-disabled": { opacity: 1 },
+        }}
+      >
+        <Box
+          sx={{
+            width: 38,
+            height: 38,
+            flexShrink: 0,
+            borderRadius: `${Math.max(a.radiusControl, 6)}px`,
+            display: "grid",
+            placeItems: "center",
+            backgroundColor: soft,
+            color,
+          }}
+        >
+          {icon}
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography sx={{ fontSize: "0.78rem", fontWeight: 600, color: a.textSecondary }}>
+            {label}
+            {clickable && (
+              <Box component="span" sx={{ color: a.textMuted, fontWeight: 500 }}>
+                {active ? " · filtro attivo" : " · clicca per filtrare"}
+              </Box>
+            )}
+          </Typography>
+          <Typography sx={{ fontSize: "1.2rem", fontWeight: 750, color: a.text, letterSpacing: "-0.02em" }}>
+            {value}
+          </Typography>
+        </Box>
+        {active && <CheckCircleRounded sx={{ color, fontSize: 20 }} />}
+      </ButtonBase>
+    );
+  };
 
   return (
-    <Stack
-      direction="row"
-      spacing={1.25}
-      flexWrap="wrap"
-      useFlexGap
-      alignItems="stretch"
-      justifyContent={{ xs: "flex-start", md: "flex-end" }}
-      sx={{ px: 1 }}
-    >
-      <ButtonBase
-        onClick={() => tableContext.modifyMovementType("incomes")}
-        sx={{
-          borderRadius: 1.5,
-          border: `1px solid ${isMovementActive("incomes") ? c.amountPositive : c.badgeBorder}`,
-          backgroundColor: isMovementActive("incomes")
-            ? (theme.palette.mode === "light" ? "rgba(22,163,74,0.09)" : "rgba(74,222,128,0.12)")
-            : c.badgeBackground,
-          px: 1.25,
-          py: 0.8,
-          minWidth: 128,
-          textAlign: "left",
-          justifyContent: "flex-start",
-          boxShadow: isMovementActive("incomes") ? `0 0 0 1px ${c.amountPositive}` : "none",
-          "&:hover": {
-            backgroundColor:
-              theme.palette.mode === "light" ? "rgba(22,163,74,0.12)" : "rgba(74,222,128,0.16)",
-          },
-        }}
-      >
-        <Stack spacing={0.1}>
-          <Typography sx={{ fontSize: "0.68rem", color: c.badgeText, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-            Entrate
-          </Typography>
-          <Typography sx={{ fontSize: "0.85rem", fontWeight: 700, color: c.amountPositive }}>
-            + {formatAmount(transactionContext.totalIncomes)} EUR
-          </Typography>
-        </Stack>
-      </ButtonBase>
-
-      <ButtonBase
-        onClick={() => tableContext.modifyMovementType("outcomes")}
-        sx={{
-          borderRadius: 1.5,
-          border: `1px solid ${isMovementActive("outcomes") ? c.amountNegative : c.badgeBorder}`,
-          backgroundColor: isMovementActive("outcomes")
-            ? (theme.palette.mode === "light" ? "rgba(220,38,38,0.08)" : "rgba(248,113,113,0.11)")
-            : c.badgeBackground,
-          px: 1.25,
-          py: 0.8,
-          minWidth: 128,
-          textAlign: "left",
-          justifyContent: "flex-start",
-          boxShadow: isMovementActive("outcomes") ? `0 0 0 1px ${c.amountNegative}` : "none",
-          "&:hover": {
-            backgroundColor:
-              theme.palette.mode === "light" ? "rgba(220,38,38,0.12)" : "rgba(248,113,113,0.15)",
-          },
-        }}
-      >
-        <Stack spacing={0.1}>
-          <Typography sx={{ fontSize: "0.68rem", color: c.badgeText, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-            Uscite
-          </Typography>
-          <Typography sx={{ fontSize: "0.85rem", fontWeight: 700, color: c.amountNegative }}>
-            - {formatAmount(transactionContext.totalOutcomes)} EUR
-          </Typography>
-        </Stack>
-      </ButtonBase>
-
-      <Box
-        sx={{
-          borderRadius: 1.5,
-          backgroundColor: theme.palette.mode === "light" ? "rgba(59,130,246,0.10)" : "rgba(59,130,246,0.18)",
-          px: 1.25,
-          py: 0.8,
-          minWidth: 132,
-          border: `1px solid ${theme.palette.mode === "light" ? "rgba(59,130,246,0.35)" : "rgba(147,197,253,0.45)"}`,
-        }}
-      >
-        <Stack spacing={0.1}>
-          <Typography sx={{ fontSize: "0.68rem", color: c.badgeText, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-            Bilancio
-          </Typography>
-          <Typography
-            sx={{
-              fontSize: "0.85rem",
-              fontWeight: 700,
-              color: transactionContext.totalNet >= 0 ? c.amountPositive : c.amountNegative,
-            }}
-          >
-            {transactionContext.totalNet >= 0 ? "+" : "-"} {formatAmount(Math.abs(transactionContext.totalNet))} EUR
-          </Typography>
-        </Stack>
-      </Box>
-    </Stack>
+    <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" } }}>
+      {tile("incomes", "Entrate", formatCurrency(transactions.totalIncomes), <SouthWestRounded fontSize="small" />, a.income, a.incomeSoft, true)}
+      {tile("outcomes", "Uscite", formatCurrency(transactions.totalOutcomes), <NorthEastRounded fontSize="small" />, a.expense, a.expenseSoft, true)}
+      {tile("all", "Saldo del periodo", formatSignedCurrency(transactions.totalNet), <SwapVertRounded fontSize="small" />, a.primary, a.primarySoft, false)}
+    </Box>
   );
 }

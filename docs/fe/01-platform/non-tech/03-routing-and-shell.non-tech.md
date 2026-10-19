@@ -1,13 +1,20 @@
 # 03 - Navigazione e pagine (Non Tecnico)
 
 ## Struttura navigazione
-L'app ha due aree principali: Home (dashboard) e Impostazioni. Le Impostazioni raggruppano, tramite schede (Categorie e Account), quella che prima erano pagine separate: non si naviga più verso pagine distinte, ma si cambia scheda restando nella stessa area.
+L'app ha quattro aree, sempre raggiungibili dal menu:
+- **Dashboard**: la panoramica del mese e del patrimonio.
+- **Movimenti**: l'elenco completo delle transazioni, con filtri.
+- **Analisi**: grafici di andamento su un periodo a scelta.
+- **Impostazioni**: Categorie, Conti e Aspetto dell'app.
+
+Un indirizzo sconosciuto riporta alla Dashboard.
 
 ## Esperienza utente
-- Il menu si apre da un'icona a scorrimento laterale e mostra Dashboard e Impostazioni (con Categorie e Account come sotto-voci).
-- L'header resta visibile durante lo scorrimento solo nella Home.
-- Cambiare scheda in Impostazioni è immediato e aggiorna l'indirizzo web, così da poter salvare o condividere il link diretto a una scheda specifica.
-- Dal menu l'utente vede il proprio nome account e può disconnettersi.
+- Su computer il menu può stare in una **barra laterale** (comprimibile per guadagnare spazio) oppure in una **barra superiore**: la scelta si fa in Impostazioni → Aspetto e viene ricordata.
+- Su smartphone il menu si apre da un'icona in alto a sinistra.
+- Il bottone **Nuovo** è sempre visibile: permette di registrare una transazione o un trasferimento da qualsiasi pagina.
+- Dal menu si passa al tema chiaro/scuro con un click, si vede il proprio nome e ci si disconnette.
+- Le sezioni delle Impostazioni aggiornano l'indirizzo web, così si può salvare il link diretto a una sezione.
 
 ## Obiettivo
-Ridurre il numero di click per arrivare alle operazioni quotidiane e tenere le impostazioni (categorie, account) in un unico posto organizzato a schede.
+Separare la consultazione rapida (Dashboard), il lavoro quotidiano sui movimenti e l'analisi storica, con le operazioni più frequenti a un solo click.

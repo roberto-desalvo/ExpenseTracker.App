@@ -47,41 +47,18 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const location = useLocation();
-  const shouldLoadTableData = location.pathname === "/";
+  const shouldLoadTableData = location.pathname === "/movimenti";
   const [columns] = useState<TableColumn[]>([
-    {
-      id: "date",
-      label: "Data",
-      minWidth: "15%",
-    },
-    { id: "description", label: "Descrizione", minWidth: "35%" },
-    {
-      id: "amount",
-      label: "Importo",
-      minWidth: "10%",
-      format: (value: number) => value.toLocaleString("it-IT"),
-    },
-    {
-      id: "category",
-      label: "Categoria",
-      minWidth: "20%",
-      format: (value: number) => value.toLocaleString("it-IT"),
-    },
-    {
-      id: "account",
-      label: "Account",
-      minWidth: "10%",
-      format: (value: number) => value.toFixed(2),
-    },
-    {
-      id: "actions",
-      label: "Azioni",
-      minWidth: "10%",
-    },
+    { id: "date", label: "Data", minWidth: "12%" },
+    { id: "description", label: "Descrizione", minWidth: "34%" },
+    { id: "category", label: "Categoria", minWidth: "18%" },
+    { id: "account", label: "Conto", minWidth: "14%" },
+    { id: "amount", label: "Importo", minWidth: "14%", align: "right" },
+    { id: "actions", label: "", minWidth: "8%", align: "right" },
   ]);
 
   const { accounts } = useAccounts();
-  const { categories } = useCategories();
+  const { allCategories: categories } = useCategories();
   const [selectedAccountIds, setSelectedAccountIds] = useState<number[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<TransactionMonthOption | null>(null);

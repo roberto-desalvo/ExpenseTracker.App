@@ -19,8 +19,12 @@ Descrivere stack, responsabilità e confini del FE.
 
 ## Route di primo livello
 Definite in `AppShell` (`src/App.tsx`), dettagli di routing/shell nel modulo 03:
-- `/` → `LandingPage` (dashboard)
-- `/impostazioni` → `SettingsPage` (contenitore a tab che incorpora Categorie e Account)
+Le costanti dei percorsi sono in `src/config/routes.ts` (`ROUTES`):
+- `/` → `DashboardPage` (panoramica)
+- `/movimenti` → `TransactionsPage` (elenco transazioni con filtri)
+- `/analisi` → `AnalyticsPage` (andamenti nel tempo)
+- `/impostazioni` → `SettingsPage` (sezioni Categorie, Conti, Aspetto)
+- qualunque altro percorso → redirect a `/`
 
 ## Dipendenze esterne
 - Variabili d'ambiente richieste (validate in `src/config/env.ts`, tipizzate in `src/vite-env.d.ts`):

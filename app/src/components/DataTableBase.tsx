@@ -1,8 +1,7 @@
 import React from "react";
 import {
   Box,
-  CircularProgress,
-  Paper,
+  Skeleton,
   Table,
   TableBody,
   TableCell,
@@ -10,14 +9,15 @@ import {
   TableHead,
   TablePagination,
   TableRow,
-  Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import { InboxOutlined } from "@mui/icons-material";
+import EmptyState from "./ui/EmptyState";
 
 export interface DataTableColumn {
   id: string;
   label: string;
-  minWidth?: number;
+  minWidth?: number | string;
   align?: "left" | "right" | "center" | "inherit" | "justify";
 }
 
@@ -30,133 +30,58 @@ export interface DataTableBaseProps<T> {
   isEmpty?: boolean;
   emptyMessage?: string;
   emptySubtext?: string;
+  emptyAction?: React.ReactNode;
   page: number;
   pageSize: number;
   totalCount: number;
   onPageChange: (event: unknown, newPage: number) => void;
   onPageSizeChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   renderRow: (row: T, index: number) => React.ReactNode;
-  headerLeftContent?: React.ReactNode;
-  headerRightContent?: React.ReactNode;
-  showHeader?: boolean;
   rowsPerPageOptions?: number[];
   minTableWidth?: number;
+  /** altezza massima dell'area scrollabile; l'intestazione resta fissa */
   tableViewportHeight?: number;
 }
 
+/** Tabella paginata condivisa (movimenti, categorie): righe a filo con separatori sottili. */
 export default function DataTableBase<T>({
-  title,
-  subtitle,
   columns,
   rows,
   isLoading = false,
   isEmpty = false,
   emptyMessage = "Nessun dato trovato",
   emptySubtext = "",
+  emptyAction,
   page,
   pageSize,
   totalCount,
   onPageChange,
   onPageSizeChange,
   renderRow,
-  headerLeftContent,
-  headerRightContent,
-  showHeader = false,
   rowsPerPageOptions = [10, 25, 100],
   minTableWidth = 700,
-  tableViewportHeight = 576,
+  tableViewportHeight,
 }: DataTableBaseProps<T>) {
-  void title;
-  void subtitle;
-  void headerLeftContent;
-  void headerRightContent;
-  void showHeader;
-  const theme = useTheme();
-  const c = theme.palette.custom;
+  const a = useTheme().app;
 
   return (
-    <Paper
+    <Box
       sx={{
-        height: "auto",
         width: "100%",
-        overflow: "visible",
-        background: "transparent",
+        backgroundColor: a.surface,
+        border: `1px solid ${a.border}`,
+        borderRadius: `${a.radiusCard}px`,
+        boxShadow: a.cardShadow,
+        overflow: "hidden",
         display: "flex",
         flexDirection: "column",
-        borderRadius: 4,
-        border: `1px solid ${theme.palette.divider}`,
-        position: "relative",
       }}
     >
-      {/* Loading overlay — keeps table layout stable */}
-      {isLoading && (
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            zIndex: 2,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            borderRadius: 4,
-            backgroundColor:
-              theme.palette.mode === "dark"
-                ? "rgba(15,23,42,0.55)"
-                : "rgba(255,255,255,0.65)",
-            backdropFilter: "blur(2px)",
-          }}
-        >
-          <CircularProgress size={32} thickness={3.5} />
-        </Box>
-      )}
-
-      {/* Content Area */}
-      <TableContainer
-        sx={{
-          overflowX: "auto",
-          overflowY: tableViewportHeight ? "auto" : "visible",
-          scrollbarGutter: "stable",
-          height: tableViewportHeight,
-          px: { xs: 1.25, md: 1.75 },
-          py: { xs: 1.25, md: 1.5 },
-          "& .MuiTableCell-head": tableViewportHeight
-            ? {
-                position: "sticky",
-                top: 0,
-                zIndex: 3,
-              }
-            : undefined,
-        }}
-      >
-        {isEmpty && !isLoading ? (
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              height: "100%",
-              minHeight: 300,
-              flexDirection: "column",
-              gap: 2,
-            }}
-          >
-            <Typography variant="h6" sx={{ color: "text.secondary" }}>
-              {emptyMessage}
-            </Typography>
-            {emptySubtext && (
-              <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                {emptySubtext}
-              </Typography>
-            )}
-          </Box>
-        ) : (
-          <Table
-            sx={{
-              borderCollapse: "separate",
-              borderSpacing: "0 6px",
-              minWidth: minTableWidth,
-            }}
-          >
+      {isEmpty && !isLoading ? (
+        <EmptyState icon={<InboxOutlined />} title={emptyMessage} text={emptySubtext} action={emptyAction} minHeight={320} />
+      ) : (
+        <TableContainer sx={{ overflowX: "auto", maxHeight: tableViewportHeight }}>
+          <Table stickyHeader sx={{ minWidth: minTableWidth }}>
             <TableHead>
               <TableRow>
                 {columns.map((column) => (
@@ -165,15 +90,11 @@ export default function DataTableBase<T>({
                     align={column.align}
                     sx={{
                       width: column.minWidth,
-                      backgroundColor: theme.palette.background.paper,
-                      color: c.tableHeaderText,
-                      textTransform: "uppercase",
-                      fontSize: "0.66rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.1em",
-                      borderBottom: "none",
-                      px: 1.5,
-                      py: 0.5,
+                      backgroundColor: a.surfaceAlt,
+                      borderBottom: `1px solid ${a.border}`,
+                      py: 1.25,
+                      px: 2,
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {column.label}
@@ -181,76 +102,42 @@ export default function DataTableBase<T>({
                 ))}
               </TableRow>
             </TableHead>
-            <TableBody>
+            <TableBody
+              sx={{
+                "& .MuiTableRow-root:last-of-type .MuiTableCell-root": { borderBottom: "none" },
+                "& .MuiTableCell-body": { px: 2, py: 1.25, borderBottom: `1px solid ${a.border}` },
+              }}
+            >
               {isLoading
-                ? [...Array(pageSize)].map((_, i) => (
-                    <TableRow
-                      key={i}
-                      sx={{
-                        "& td:first-of-type": {
-                          borderTopLeftRadius: 8,
-                          borderBottomLeftRadius: 8,
-                        },
-                        "& td:last-of-type": {
-                          borderTopRightRadius: 8,
-                          borderBottomRightRadius: 8,
-                        },
-                      }}
-                    >
+                ? Array.from({ length: Math.min(pageSize, 10) }).map((_, i) => (
+                    <TableRow key={i}>
                       {columns.map((column) => (
-                        <TableCell
-                          key={column.id}
-                          sx={{
-                            borderBottom: "none",
-                            backgroundColor: c.rowBackground,
-                            py: 1,
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              height: 14,
-                              width: "60%",
-                              borderRadius: 1,
-                              backgroundColor: theme.palette.action.hover,
-                            }}
-                          />
+                        <TableCell key={column.id} align={column.align}>
+                          <Skeleton width={column.id === "description" ? "70%" : "55%"} />
                         </TableCell>
                       ))}
                     </TableRow>
                   ))
-                : rows.map((row, index) => (
-                    <React.Fragment key={index}>{renderRow(row, index)}</React.Fragment>
-                  ))}
+                : rows.map((row, index) => <React.Fragment key={index}>{renderRow(row, index)}</React.Fragment>)}
             </TableBody>
           </Table>
-        )}
-      </TableContainer>
+        </TableContainer>
+      )}
 
-      {/* Pagination */}
       {!isEmpty && (
         <TablePagination
           rowsPerPageOptions={rowsPerPageOptions}
           component="div"
-          labelRowsPerPage="Elementi per pagina"
-          labelDisplayedRows={({ from, to, count }) =>
-            `${from}-${to} di ${count !== -1 ? count : `più di ${to}`}`
-          }
+          labelRowsPerPage="Per pagina"
+          labelDisplayedRows={({ from, to, count }) => `${from}–${to} di ${count !== -1 ? count : `più di ${to}`}`}
           count={totalCount}
           rowsPerPage={pageSize}
           page={page}
           onPageChange={onPageChange}
           onRowsPerPageChange={onPageSizeChange}
-          sx={{
-            position: "relative",
-            zIndex: 3,
-            backgroundColor: theme.palette.background.paper,
-            borderTop: `1px solid ${theme.palette.divider}`,
-            ".MuiTablePagination-toolbar": {
-              px: { xs: 1.25, md: 1.75 },
-            },
-          }}
+          sx={{ borderTop: `1px solid ${a.border}`, ".MuiTablePagination-toolbar": { px: 2 } }}
         />
       )}
-    </Paper>
+    </Box>
   );
 }

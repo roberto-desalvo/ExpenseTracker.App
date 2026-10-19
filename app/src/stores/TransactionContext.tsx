@@ -22,6 +22,8 @@ interface TransactionsContextType {
   totalNet: number;
   availableMonths: TransactionMonthOption[];
   availableMonthsLoading: boolean;
+  /** incrementato a ogni modifica (crea/modifica/elimina/trasferimento): le viste aggregate lo osservano per ricaricarsi */
+  dataVersion: number;
   addTransaction: (transaction: Transaction) => Promise<void>;
   addTransfer: (transfer: TransferPayload) => Promise<void>;
   updateTransaction: (transaction: Transaction) => Promise<void>;
@@ -37,7 +39,7 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const location = useLocation();
-  const shouldLoadTransactionsData = location.pathname === "/";
+  const shouldLoadTransactionsData = location.pathname === "/movimenti";
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [totalCount, setTotalCount] = useState<number>(0);
@@ -47,6 +49,8 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
   const [availableMonths, setAvailableMonths] = useState<TransactionMonthOption[]>([]);
   const [availableMonthsLoading, setAvailableMonthsLoading] = useState<boolean>(true);
   const [lastRequest, setLastRequest] = useState<TransactionQueryRequest | null>(null);
+  const [dataVersion, setDataVersion] = useState<number>(0);
+  const bumpDataVersion = () => setDataVersion((v) => v + 1);
 
   const loadAvailableMonths = async () => {
     setAvailableMonthsLoading(true);
@@ -106,6 +110,7 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
     try {
       await TransactionService.add(transaction);
       await loadAvailableMonths();
+      bumpDataVersion();
       refreshTransactions();
     } catch (error) {
       console.error("Errore nell'aggiunta della transaction:", error);
@@ -117,6 +122,7 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
     try {
       await TransactionService.update(transaction);
       await loadAvailableMonths();
+      bumpDataVersion();
       refreshTransactions();
     } catch (error) {
       console.error("Errore nella modifica della transaction:", error);
@@ -128,6 +134,7 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
     try {
       await TransferService.add(transfer);
       await loadAvailableMonths();
+      bumpDataVersion();
       refreshTransactions();
     } catch (error) {
       console.error("Errore nell'aggiunta del trasferimento:", error);
@@ -140,6 +147,7 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
       try {
         await TransactionService.delete(transaction.id);
         await loadAvailableMonths();
+        bumpDataVersion();
         refreshTransactions();
       } catch (error) {
         console.error("Errore nell'eliminazione della transaction:", error);
@@ -160,6 +168,7 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
         totalNet,
         availableMonths,
         availableMonthsLoading,
+        dataVersion,
         addTransaction,
         addTransfer,
         updateTransaction,

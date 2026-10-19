@@ -4,7 +4,7 @@
 - `src/auth/msalInstance.ts` crea l'istanza singleton `PublicClientApplication` (`msalInstance`, `null` con il bypass di sviluppo), condivisa tra `MsalProvider` (bootstrap, modulo 02) e `src/services/ApiClient.ts`.
 - `src/config/authConfig.ts` costruisce `msalConfig` (authority `https://login.microsoftonline.com/{tenantId}`, `redirectUri`/`postLogoutRedirectUri` = origin, cache in `sessionStorage`), `loginRequest` (scope singolo `appEnv.msalApiScope`) e la factory `apiTokenRequest(account)` per il token silenzioso (stesso scope).
 - Variabili richieste in `src/config/env.ts`: `VITE_MSAL_CLIENT_ID`, `VITE_MSAL_TENANT_ID`, `VITE_MSAL_API_SCOPE` (oltre a `VITE_EXPENSE_TRACKER_API_BASE_URL`); non richieste quando `appEnv.devAuthBypass` è attivo.
-- `src/auth/AuthContext.ts` espone `useAuth()` (`isAuthenticated`, `userName`, `logout`), indipendente dal provider: `HomeHeader` lo usa per nome utente e logout.
+- `src/auth/AuthContext.ts` espone `useAuth()` (`isAuthenticated`, `userName`, `logout`), indipendente dal provider: la shell (`src/components/layout/AppLayout.tsx` e `UserMenuButton` in `HeaderActions.tsx`) lo usa per nome utente e logout, la dashboard per il saluto.
 
 ## Flusso
 1. `src/App.tsx` avvolge l'intera `AppShell` in `AuthGate` (`src/auth/AuthGate.tsx`), che in modalità MSAL usa `MsalAuthenticationTemplate` (`interactionType={InteractionType.Redirect}`, `authenticationRequest={loginRequest}`) → login redirect con lo scope API.
