@@ -11,6 +11,9 @@ Un utente può essere ritrovato anche tramite la sua email: è il modo in cui l'
 ## Come restano separati i dati degli utenti
 Ogni movimento appartiene al proprietario del conto su cui è registrato: quando il sistema legge movimenti, riepiloghi o trasferimenti, considera solo quelli dei conti dell'utente collegato.
 
+## Come vengono trattati i giroconti nei riepiloghi
+Nei conteggi di entrate e uscite (dashboard, analisi, totali dell'elenco movimenti) i trasferimenti tra i propri conti non vengono mai contati: spostare denaro da un conto all'altro non è né un guadagno né una spesa. Sono considerati giroconti sia le coppie di movimenti già collegate tra loro, sia i movimenti classificati nella categoria dei trasferimenti per cui non è (ancora) stata trovata la controparte sull'altro conto. I saldi dei conti, invece, li includono sempre.
+
 ## Come si evita di perdere o duplicare informazioni
 Ogni movimento importato porta con sé un'impronta univoca: se lo stesso utente importa due volte lo stesso movimento, il sistema lo riconosce e lo scarta automaticamente. Il controllo vale per singolo utente: due persone diverse possono importare lo stesso movimento (es. un conto cointestato) senza che il secondo venga scartato.
 

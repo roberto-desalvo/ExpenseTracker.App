@@ -145,6 +145,7 @@ public class DemoDataServiceTests
         public Task<User?> GetByAppOid(string appOid) => throw new NotImplementedException();
         public Task<User?> GetByEmail(string email) => throw new NotImplementedException();
         public Task<User> GetOrCreateUserAsync(string azureOid, string email) => throw new NotImplementedException();
+        public Task AddUser(User user) => throw new NotImplementedException();
     }
 
     private sealed class FakeAccountRepository(IEnumerable<Account> seedAccounts) : IAccountRepository

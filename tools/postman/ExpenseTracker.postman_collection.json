@@ -1357,6 +1357,30 @@
               }
             }
           ]
+        },
+        {
+          "name": "Test seed",
+          "description": "Rigenerazione dei dati fittizi dell'utente di test (nessun file in input).",
+          "item": [
+            {
+              "name": "Import_TestSeed",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/import/test-seed",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "import",
+                    "test-seed"
+                  ]
+                },
+                "description": "Elimina conti, movimenti e trasferimenti dell'utente `test@dev.local` (creandolo se non esiste) e ne genera di nuovi: 5 conti e circa 5 anni di movimenti verosimili. Ignora `importAll`. Risposta: `200 { userId, email, userCreated, accountCount, transactionCount, transferCount, fromDate, toDate }`."
+              }
+            }
+          ]
         }
       ]
     }

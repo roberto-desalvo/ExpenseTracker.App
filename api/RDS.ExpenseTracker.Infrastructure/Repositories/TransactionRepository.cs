@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RDS.ExpenseTracker.Domain.Dtos.Requests;
 using RDS.ExpenseTracker.Domain.Entities;
+using RDS.ExpenseTracker.Domain.Enums;
 using RDS.ExpenseTracker.Domain.Repositories;
 
 namespace RDS.ExpenseTracker.Infrastructure.Repositories;
@@ -15,6 +16,14 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
     // Un movimento appartiene all'utente proprietario del conto su cui è registrato.
     private IQueryable<Transaction> ForUser(int userId)
         => Context.Transactions.Where(t => t.AccountNavigation.UserId == userId);
+
+    private const int MoneyTransfersCategoryId = (int)CategoryEnum.MoneyTransfers;
+
+    // Un trasferimento sposta denaro tra conti dell'utente: non è né entrata né uscita.
+    // Oltre ai movimenti collegati a un Transfer, si considerano tali anche quelli in categoria
+    // "Money transfers" rimasti senza controparte (es. import senza match del conto opposto).
+    private static IQueryable<Transaction> ExcludingTransfers(IQueryable<Transaction> query)
+        => query.Where(t => t.TransferId == null && t.CategoryId != MoneyTransfersCategoryId);
 
     public async Task AddTransactions(IEnumerable<Transaction> transactions)
     {
@@ -126,13 +135,14 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
                 : query.Where(t => t.Amount < 0m);
 
         var totalCount = await query.CountAsync();
-        var totalIncomes = await query
-            .Where(t => t.Amount > 0m && t.TransferId == null)
+        var flows = ExcludingTransfers(query);
+        var totalIncomes = await flows
+            .Where(t => t.Amount > 0m)
             .Select(t => (decimal?)t.Amount)
             .SumAsync() ?? 0m;
         var totalOutcomes = Math.Abs(
-            await query
-                .Where(t => t.Amount < 0m && t.TransferId == null)
+            await flows
+                .Where(t => t.Amount < 0m)
                 .Select(t => (decimal?)t.Amount)
                 .SumAsync() ?? 0m);
         var totalNet = totalIncomes - totalOutcomes;
@@ -154,7 +164,7 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .Where(t => t.Date >= request.StartDate && t.Date <= request.EndDate);
 
         if (request.ExcludeTransfers)
-            query = query.Where(t => t.TransferId == null);
+            query = ExcludingTransfers(query);
 
         if (request.IdAccounts.Any())
             query = query.Where(t => request.IdAccounts.Contains(t.AccountId));
@@ -183,7 +193,7 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .Where(t => t.Date <= request.EndDate);
 
         if (request.ExcludeTransfers)
-            query = query.Where(t => t.TransferId == null);
+            query = ExcludingTransfers(query);
 
         if (request.IdAccounts.Any())
             query = query.Where(t => request.IdAccounts.Contains(t.AccountId));
@@ -224,7 +234,7 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .Where(t => t.Date >= monthStart && t.Date <= asOfDate);
 
         if (excludeTransfers)
-            query = query.Where(t => t.TransferId == null);
+            query = ExcludingTransfers(query);
 
         return await query
             .GroupBy(t => t.AccountId)
@@ -250,7 +260,7 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .Where(t => t.CategoryId.HasValue);
 
         if (excludeTransfers)
-            query = query.Where(t => t.TransferId == null);
+            query = ExcludingTransfers(query);
 
         return await query
             .GroupBy(t => t.CategoryId!.Value)
@@ -275,7 +285,7 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .Where(t => t.Date >= monthStart && t.Date <= asOfDate);
 
         if (excludeTransfers)
-            query = query.Where(t => t.TransferId == null);
+            query = ExcludingTransfers(query);
 
         var spent = Math.Abs(await query
             .Where(t => t.Amount < 0m)

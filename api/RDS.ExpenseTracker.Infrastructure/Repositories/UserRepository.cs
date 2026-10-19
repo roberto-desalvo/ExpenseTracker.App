@@ -63,6 +63,11 @@ public class UserRepository : RepositoryBase, IUserRepository
         }
     }
 
+    public async Task AddUser(User user)
+    {
+        await Context.Users.AddAsync(user);
+    }
+
     private static bool IsUniqueConstraintViolation(DbUpdateException ex)
         => ex.InnerException is SqlException sqlEx && (sqlEx.Number == 2601 || sqlEx.Number == 2627);
 }

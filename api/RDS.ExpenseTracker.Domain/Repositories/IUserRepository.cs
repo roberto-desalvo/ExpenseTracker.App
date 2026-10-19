@@ -9,4 +9,7 @@ public interface IUserRepository : IRepositoryBase
     Task<User?> GetById(int id);
     Task<User?> GetByEmail(string email);
     Task<User> GetOrCreateUserAsync(string azureOid, string email);
+
+    // Aggiunge l'utente al contesto senza salvare (usato dal seed dell'utente di test, privo di oid).
+    Task AddUser(User user);
 }

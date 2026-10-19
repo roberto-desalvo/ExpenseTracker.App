@@ -11,6 +11,9 @@
 5. **Transfer matching** (Sella, Satispay, Trade Republic — non BBVA), anch'esso scoped per `userId` — vedi [10-transfer-matching](10-transfer-matching.tech.md).
 6. **Persist** — insert bulk di transazioni e trasferimenti in un'unica `SaveChangesAsync`; ritorna il conteggio righe importate.
 
+## Seed dei dati di test
+`ImportFunctions` espone anche `Import_TestSeed` (`POST api/import/test-seed`), che non ha file in input e non segue il flusso sopra: delega a `ITestSeedService.ResetTestUserDataAsync()`, che cancella e rigenera i dati fittizi dell'utente `test@dev.local` (creato se assente) indipendentemente dall'identità del chiamante. Condivide con gli altri import solo il requisito del ruolo `Files.Sender`. Nessuna dedup o transfer matching: i giroconti sono generati già collegati. Dettagli in [07-application-services-and-mapping](../../02-data-persistence/tech/07-application-services-and-mapping.tech.md).
+
 ## Legacy Excel importer
 `ExcelImportService` parsa un workbook multi-sheet (un foglio per mese) con indici colonna configurabili (`ExpenseTrackerExcel` options), auto-crea account per l'utente corrente, tag-matcha categorie, filtro opzionale sulle sole righe più recenti dell'ultima transazione esistente.
 

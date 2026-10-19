@@ -57,8 +57,9 @@ Vedi [08-import-overview-and-dedup](../../03-import-pipeline/tech/08-import-over
 - `POST /bbva-csv`, `/sella-csv`, `/satispay-csv`, `/traderepublic-csv` — import CSV bancario (multipart, campo `file`, estensione `.csv`).
 - `POST /{bank}-csv/stream` — variante raw octet-stream (`?fileName=` opzionale).
 - `POST /{bank}-xlsx` — variante `.xlsx` raw, convertita in CSV in-memory prima dell'import. Un `Content-Type` diverso da XLSX restituisce 415.
+- `POST /test-seed` (`Import_TestSeed`) — nessun body: elimina e rigenera conti/movimenti/trasferimenti fittizi dell'utente `test@dev.local`, creandolo se non esiste (`ITestSeedService.ResetTestUserDataAsync`). Non usa l'identità del chiamante (nessun `GetUserIdForImportAsync`), ma resta soggetto a `[RequireRole("Files.Sender")]` come gli altri import. Passa da `FunctionBase.ExecuteAsync`: `200` con `TestSeedResultDto` (`userId`, `email`, `userCreated`, `accountCount`, `transactionCount`, `transferCount`, `fromDate`, `toDate`), errori come problem details. Pensato per un job schedulato che riporta i dati di test a uno stato pulito; logica in [07-application-services-and-mapping](../../02-data-persistence/tech/07-application-services-and-mapping.tech.md).
 
-Tutti gli endpoint di import accettano il flag opzionale `?importAll`. Le tre varianti (multipart, stream, xlsx) condividono la pipeline privata `ImportFormFileAsync` / `ImportRawBodyAsync` / `ImportXlsxAsCsvAsync` → `ToImportResult` (`200 { importedCount }` oppure `400 { errors: [...] }`).
+Tutti gli endpoint di import di file accettano il flag opzionale `?importAll`. Le tre varianti (multipart, stream, xlsx) condividono la pipeline privata `ImportFormFileAsync` / `ImportRawBodyAsync` / `ImportXlsxAsCsvAsync` → `ToImportResult` (`200 { importedCount }` oppure `400 { errors: [...] }`).
 
 ## OpenAPI
 Con la migrazione ad Azure Functions la UI Scalar (`/scalar`) e il documento OpenAPI built-in non sono più esposti.

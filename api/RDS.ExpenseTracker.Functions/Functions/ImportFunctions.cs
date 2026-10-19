@@ -25,6 +25,7 @@ public class ImportFunctions : FunctionBase
     private readonly ITradeRepublicCsvImportService _tradeRepublicCsvImportService;
     private readonly ISatisPayCsvImportService _satisPayCsvImportService;
     private readonly ISellaCsvImportService _sellaCsvImportService;
+    private readonly ITestSeedService _testSeedService;
     private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly ILogger<ImportFunctions> _logger;
 
@@ -34,6 +35,7 @@ public class ImportFunctions : FunctionBase
         ITradeRepublicCsvImportService tradeRepublicCsvImportService,
         ISatisPayCsvImportService satisPayCsvImportService,
         ISellaCsvImportService sellaCsvImportService,
+        ITestSeedService testSeedService,
         ICurrentUserAccessor currentUserAccessor,
         ILogger<ImportFunctions> logger)
     {
@@ -42,6 +44,7 @@ public class ImportFunctions : FunctionBase
         _tradeRepublicCsvImportService   = tradeRepublicCsvImportService   ?? throw new ArgumentNullException(nameof(tradeRepublicCsvImportService));
         _satisPayCsvImportService        = satisPayCsvImportService        ?? throw new ArgumentNullException(nameof(satisPayCsvImportService));
         _sellaCsvImportService           = sellaCsvImportService           ?? throw new ArgumentNullException(nameof(sellaCsvImportService));
+        _testSeedService                 = testSeedService                 ?? throw new ArgumentNullException(nameof(testSeedService));
         _currentUserAccessor             = currentUserAccessor             ?? throw new ArgumentNullException(nameof(currentUserAccessor));
         _logger                          = logger                          ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -153,6 +156,22 @@ public class ImportFunctions : FunctionBase
     public Task<IActionResult> ImportSellaCsvFromXlsx(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/sella-xlsx")] HttpRequest req)
         => ImportXlsxAsCsvAsync(req, "Sella XLSX", "sella.xlsx", ',', _sellaCsvImportService.ImportFromCsvAsync);
+
+    // -------------------------------------------------------------------------
+    // Test seed (dati fittizi per l'utente di test, nessun file in input)
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Elimina e rigenera conti e movimenti fittizi dell'utente <c>test@dev.local</c> (creandolo se assente).
+    /// Non dipende dall'identità del chiamante: pensato per un job schedulato che ripristina i dati di test.
+    /// </summary>
+    [Function("Import_TestSeed")]
+    public Task<IActionResult> ImportTestSeed(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/test-seed")] HttpRequest req)
+    {
+        _logger.LogInformation("Test seed import requested");
+        return ExecuteAsync(_testSeedService.ResetTestUserDataAsync);
+    }
 
     // -------------------------------------------------------------------------
     // Shared pipeline
