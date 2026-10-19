@@ -14,7 +14,7 @@ Descrivere stack, responsabilità e confini del FE.
 - Non include regole di dominio persistenti (delegate al backend).
 
 ## Entry points
-- `src/main.tsx` — inizializza MSAL e monta l'app dentro i provider globali.
+- `src/main.tsx` — inizializza MSAL (salvo bypass di sviluppo) e monta l'app dentro i provider globali.
 - `src/App.tsx` — definisce `BrowserRouter` e l'`AppShell` (autenticazione, provider di dominio, routing).
 
 ## Route di primo livello
@@ -28,5 +28,6 @@ Definite in `AppShell` (`src/App.tsx`), dettagli di routing/shell nel modulo 03:
   - `VITE_MSAL_CLIENT_ID`
   - `VITE_MSAL_TENANT_ID`
   - `VITE_MSAL_API_SCOPE`
-- Valori locali in `.env.development`, template in `.env.example`
+  - (le tre MSAL non servono con il bypass di sviluppo; `VITE_DEV_AUTH_BYPASS=false` opzionale per disattivarlo, vedi modulo 04)
+- Valori locali in `.env.local` (gitignored), template in `.env.example`
 - API backend via `VITE_EXPENSE_TRACKER_API_BASE_URL`

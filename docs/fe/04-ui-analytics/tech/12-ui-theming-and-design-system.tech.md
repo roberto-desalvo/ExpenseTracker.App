@@ -11,7 +11,7 @@
 
 ## Stile
 - Base globale: `src/index.css` (direttive Tailwind, font `Inter` di default, keyframe `slideDown` usato per l'animazione di espansione delle sezioni della dashboard), `src/App.css` (residuo del template Vite, in gran parte non utilizzato: stile `.logo`/`.card`/`.read-the-docs`).
-- Utility: Tailwind (`tailwind.config.js`)
+- Utility: Tailwind v3 (`tailwind.config.cjs`, wrapped by `withMT` from Material Tailwind; v4 is not supported by `@material-tailwind/react` v2)
 - Componenti: MUI + componenti FE custom in `src/components/*`
 
 ## Tabelle

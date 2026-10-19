@@ -5,6 +5,7 @@ interface ImportMetaEnv {
 	readonly VITE_MSAL_CLIENT_ID: string;
 	readonly VITE_MSAL_TENANT_ID: string;
 	readonly VITE_MSAL_API_SCOPE: string;
+	readonly VITE_DEV_AUTH_BYPASS?: string;
 }
 
 interface ImportMeta {

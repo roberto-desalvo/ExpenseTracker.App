@@ -20,7 +20,7 @@ import {
   SettingsOutlined,
 } from "@mui/icons-material";
 import LogoutIcon from "@mui/icons-material/Logout";
-import { useIsAuthenticated, useMsal } from "@azure/msal-react";
+import { useAuth } from "../auth/AuthContext";
 
 const navItems = [
   { label: "Dashboard", path: "/" },
@@ -46,8 +46,7 @@ export default function HomeHeader({ sticky = false }: HomeHeaderProps) {
   const [searchParams] = useSearchParams();
   const theme = useTheme();
   const c = theme.palette.custom;
-  const { instance, accounts } = useMsal();
-  const isAuthenticated = useIsAuthenticated();
+  const { isAuthenticated, userName, logout } = useAuth();
 
   const activeSettingsTab = useMemo(() => {
     const tab = searchParams.get("tab");
@@ -59,8 +58,6 @@ export default function HomeHeader({ sticky = false }: HomeHeaderProps) {
       setSettingsExpanded(true);
     }
   }, [location.pathname]);
-
-  const userName = accounts[0]?.name ?? accounts[0]?.username ?? "";
 
   const handleNavigate = (path: string) => {
     navigate(path);
@@ -89,7 +86,7 @@ export default function HomeHeader({ sticky = false }: HomeHeaderProps) {
 
   const handleLogout = () => {
     setOpen(false);
-    instance.logoutRedirect();
+    logout();
   };
 
   return (

@@ -1,7 +1,7 @@
 # 08 - Import overview and dedup (Tecnico)
 
 ## Entry point
-`ImportController` è un thin adapter su quattro importer CSV per banca più l'importer Excel legacy. Ogni servizio CSV implementa `ImportFromCsvAsync(Stream, fileName, int userId, importAll = false) : Task<Result<int>>` (`IExcelImportService` analogamente su `ImportFromExcelAsync`/`ImportFromExcelBase64Async`). `userId` è risolto da `ICurrentUserAccessor.GetUserIdAsync()` all'inizio di ciascuna delle 16 action del controller (uno per banca × multipart/octet-stream/xlsx, più i due varianti Excel) e passato a valle — nessuna modifica richiesta agli script PowerShell in `scripts/`, dato che l'identità arriva comunque dal bearer token Azure AD, risolta interamente server-side.
+`ImportFunctions` (Azure Functions HTTP-triggered, `Functions/Functions/ImportFunctions.cs`) è un thin adapter su quattro importer CSV per banca più l'importer Excel legacy. Ogni servizio CSV implementa `ImportFromCsvAsync(Stream, fileName, int userId, importAll = false) : Task<Result<int>>` (`IExcelImportService` analogamente su `ImportFromExcelAsync`/`ImportFromExcelBase64Async`). `userId` è risolto da `ICurrentUserAccessor.GetUserIdForImportAsync()` in ciascuna delle 15 function di import (quattro banche × multipart/octet-stream/xlsx, più le tre varianti Excel multipart/base64/stream), tramite le pipeline condivise `ImportFormFileAsync`/`ImportRawBodyAsync`/`ImportXlsxAsCsvAsync`, e passato a valle. Gli script PowerShell in `scripts/` cambiano solo nell'URL base (in locale `http://localhost:7120`): l'identità arriva comunque dal bearer token Azure AD, risolta interamente server-side.
 
 ## Flusso comune
 1. **Upload** — multipart upload, body raw octet-stream, oppure (endpoint `*-xlsx`) body `.xlsx` raw trascodificato in CSV in-memory via `ExcelDataReader`.
@@ -15,4 +15,4 @@
 `ExcelImportService` parsa un workbook multi-sheet (un foglio per mese) con indici colonna configurabili (`ExpenseTrackerExcel` options), auto-crea account per l'utente corrente, tag-matcha categorie, filtro opzionale sulle sole righe più recenti dell'ultima transazione esistente.
 
 ## Endpoint
-Vedi [03-api-surface-and-routing](../../01-platform/tech/03-api-surface-and-routing.tech.md#importcontroller-authorizeroles--filessender--apiimport).
+Vedi [03-api-surface-and-routing](../../01-platform/tech/03-api-surface-and-routing.tech.md#importfunctions-requirerolefilessender--apiimport).

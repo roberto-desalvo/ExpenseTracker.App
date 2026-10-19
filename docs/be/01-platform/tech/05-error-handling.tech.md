@@ -1,7 +1,9 @@
 # 05 - Error handling (Tecnico)
 
 ## Pattern
-I servizi ritornano `FluentResults.Result`/`Result<T>` invece di lanciare eccezioni per errori di business. `ApiControllerBase.ExecuteAsync` scompone il risultato: successo → `200 OK`; fallimento → mappa `DomainResultError.Kind` (da `Domain/Common/DomainResultErrors.cs`) su una `DomainException`, catturata da `ExceptionHandlingMiddleware` e tradotta in `ProblemDetails`.
+I servizi ritornano `FluentResults.Result`/`Result<T>` invece di lanciare eccezioni per errori di business. `FunctionBase.ExecuteAsync` (`Functions/Functions/FunctionBase.cs`) scompone il risultato: successo → `200 OK` (`OkObjectResult`/`OkResult`); fallimento → mappa `DomainResultError.Kind` (da `Domain/Common/DomainResultErrors.cs`) su una `DomainException`, catturata da `ExceptionHandlingMiddleware` (middleware del worker Functions, gestisce anche eccezioni wrappate come `InnerException`) e tradotta in `ProblemDetails` (`application/problem+json`).
+
+Lo stesso middleware avvolge `AuthenticationMiddleware`, quindi anche i 401/403 dell'autenticazione hanno formato `ProblemDetails`. Un body JSON mancante o malformato (`FunctionBase.ReadBodyAsync`) o un parametro query non valido (`GetQueryBool`) produce `BadRequestDomainException` → 400.
 
 ## Mappatura eccezione → status HTTP (`Domain/Exceptions/DomainExceptions.cs`)
 | Eccezione | Status |

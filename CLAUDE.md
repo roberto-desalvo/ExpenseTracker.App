@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ExpenseTracker is a personal financial management web application for tracking incomes, expenses, and bank transfers. The backend is ASP.NET Core 10 and the frontend is React/TypeScript. Authentication uses Azure AD (Entra ID) via MSAL.
+ExpenseTracker is a personal financial management web application for tracking incomes, expenses, and bank transfers. The backend is an Azure Functions app (isolated worker, .NET 10) and the frontend is React/TypeScript. Authentication uses Azure AD (Entra ID) via MSAL.
 
 ## Commands
 
@@ -14,8 +14,8 @@ ExpenseTracker is a personal financial management web application for tracking i
 # Build solution
 dotnet build ./api/RDS.ExpenseTracker.sln
 
-# Run API (dev server at https://localhost:7120)
-dotnet run --project ./api/RDS.ExpenseTracker.Api
+# Run API locally (Azure Functions Core Tools v4, http://localhost:7120/api); first copy local.settings.example.json to local.settings.json
+cd ./api/RDS.ExpenseTracker.Functions; func start
 
 # Run all tests
 dotnet test ./api/RDS.ExpenseTracker.Tests/RDS.ExpenseTracker.Tests.csproj
@@ -24,13 +24,13 @@ dotnet test ./api/RDS.ExpenseTracker.Tests/RDS.ExpenseTracker.Tests.csproj
 dotnet test ./api/RDS.ExpenseTracker.Tests/RDS.ExpenseTracker.Tests.csproj --filter "FullyQualifiedName~TestName"
 
 # Add EF migration
-dotnet ef migrations add <MigrationName> -p api/RDS.ExpenseTracker.Infrastructure -s api/RDS.ExpenseTracker.Api -o Migrations
+dotnet ef migrations add <MigrationName> -p api/RDS.ExpenseTracker.Infrastructure -s api/RDS.ExpenseTracker.Functions -o Migrations
 
 # Apply migrations
-dotnet ef database update -p api/RDS.ExpenseTracker.Infrastructure -s api/RDS.ExpenseTracker.Api
+dotnet ef database update -p api/RDS.ExpenseTracker.Infrastructure -s api/RDS.ExpenseTracker.Functions
 ```
 
-API docs available at `https://localhost:7120/scalar` (Scalar UI).
+There is no OpenAPI/Scalar UI; the endpoint list is in `docs/be/01-platform/tech/03-api-surface-and-routing.tech.md`.
 
 ### Frontend (from `app/`)
 
@@ -51,12 +51,12 @@ This project follows **Clean Architecture** with four layers:
 | Domain | `RDS.ExpenseTracker.Domain` | Entities, interfaces, DTOs, custom exceptions |
 | Application | `RDS.ExpenseTracker.Application` | Business logic, services, AutoMapper profiles |
 | Infrastructure | `RDS.ExpenseTracker.Infrastructure` | EF Core DbContext, repositories, migrations |
-| API | `RDS.ExpenseTracker.Api` | Controllers, middleware, DI wiring, configuration |
+| API | `RDS.ExpenseTracker.Functions` | HTTP-triggered functions, worker middleware (logging, exceptions, JWT auth), DI wiring, configuration |
 
 ### Key Patterns
 
 - **Repository Pattern**: Data access abstracted through interfaces defined in Domain, implemented in Infrastructure.
-- **FluentResults**: Services return `Result<T>` rather than throwing exceptions for business logic errors. Controllers map failures to HTTP problem details via middleware.
+- **FluentResults**: Services return `Result<T>` rather than throwing exceptions for business logic errors. Functions (via `FunctionBase.ExecuteAsync`) map failures to domain exceptions, which the worker `ExceptionHandlingMiddleware` turns into HTTP problem details.
 - **AutoMapper**: DTO↔Entity mapping is in Application's `MappingProfile`.
 - **Domain Exceptions**: Custom exception types (`BadRequestDomainException`, `NotFoundDomainException`, etc.) map 1:1 to HTTP status codes; the exception middleware handles the translation.
 
@@ -70,7 +70,7 @@ SQL Server via EF Core Code-First. Core entities:
 
 ### Import Pipeline
 
-`ImportController` accepts CSV or Excel uploads. Each bank has a dedicated import service (`BbvaCsvImportService`, `SellaCsvImportService`, `SatisPayCsvImportService`, `TradeRepublicCsvImportService`). After parsing, `TransferMatchingService` auto-links transfer pairs using configurable matching rules. PowerShell helper scripts in `scripts/` call these endpoints.
+`ImportFunctions` accepts CSV or Excel uploads. Each bank has a dedicated import service (`BbvaCsvImportService`, `SellaCsvImportService`, `SatisPayCsvImportService`, `TradeRepublicCsvImportService`). After parsing, `TransferMatchingService` auto-links transfer pairs using configurable matching rules. PowerShell helper scripts in `scripts/` call these endpoints.
 
 ### Frontend
 

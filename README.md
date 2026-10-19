@@ -4,7 +4,7 @@
 Si tratta di un progetto personale di gestione finanziaria. 
 
 ## Come è fatta
-E' una web app con backend ASP.NET e frontend React Typescript. La base dati è relazionale, gestita con EF Core con approccio code first.
+E' una web app con backend Azure Functions (.NET 10, isolated worker) e frontend React Typescript. La base dati è relazionale, gestita con EF Core con approccio code first.
 
 ## Funzionalità supportate
 Espone una dashboard per la visualizzazione dell'andamento delle spese nel tempo divise per fondo e categoria.

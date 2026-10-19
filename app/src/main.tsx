@@ -1,4 +1,4 @@
-import { StrictMode } from "react";
+import { StrictMode, ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
@@ -12,11 +12,10 @@ import { SuccessMessageProvider } from "./stores/SuccessMessageContext.tsx";
 import { MsalProvider } from "@azure/msal-react";
 import { msalInstance } from "./auth/msalInstance.ts";
 
-// Inizializza MSAL prima del render per gestire il redirect
-msalInstance.initialize().then(() => {
+const render = (withAuthProvider: (app: ReactNode) => ReactNode) => {
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
-      <MsalProvider instance={msalInstance}>
+      {withAuthProvider(
         <AppThemeProvider>
           <ApiErrorProvider>
             <SuccessMessageProvider>
@@ -24,8 +23,18 @@ msalInstance.initialize().then(() => {
             </SuccessMessageProvider>
           </ApiErrorProvider>
         </AppThemeProvider>
-      </MsalProvider>
+      )}
     </StrictMode>
   );
-});
+};
 
+if (msalInstance) {
+  const instance = msalInstance;
+  // Inizializza MSAL prima del render per gestire il redirect
+  instance.initialize().then(() => {
+    render((app) => <MsalProvider instance={instance}>{app}</MsalProvider>);
+  });
+} else {
+  // Bypass di autenticazione per lo sviluppo locale: nessun MsalProvider
+  render((app) => app);
+}

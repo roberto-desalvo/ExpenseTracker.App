@@ -3,6 +3,9 @@
 ## Come si accede
 L'accesso avviene tramite l'account Microsoft/Azure AD dell'utente: nessuna password è gestita direttamente dall'applicazione.
 
+## Accesso semplificato in sviluppo
+Sul computer dello sviluppatore è possibile attivare una modalità di prova in cui l'identità Microsoft non viene verificata: basta indicare un nome utente, e il backend lo tratta come un utente reale (creando il profilo al primo utilizzo). Questa modalità ignora anche i permessi speciali ed è rifiutata in qualunque ambiente diverso dallo sviluppo locale: se fosse attivata per errore online, il servizio non partirebbe.
+
 ## Cosa succede al primo accesso
 La prima volta che una persona accede, l'applicazione la riconosce tramite l'identità Microsoft/Azure AD e crea automaticamente il suo profilo interno, senza bisogno di una registrazione separata. Agli accessi successivi il profilo esistente viene semplicemente riconosciuto e riutilizzato.
 
@@ -13,7 +16,10 @@ Tutte le funzionalità richiedono che l'utente sia autenticato. Il caricamento d
 Il caricamento degli estratti conto può avvenire anche in automatico, tramite un'app che opera per conto di un utente specifico invece che tramite una persona che carica manualmente un file dal browser. In questo caso l'app deve essere collegata in anticipo, una sola volta, all'utente per cui importa i dati; se non è ancora stata collegata, il caricamento automatico viene rifiutato.
 
 ## Cosa succede a ogni richiesta
-Ogni richiesta viene verificata, tracciata e, in caso di problema, trasformata in un messaggio d'errore comprensibile invece di un blocco improvviso dell'applicazione.
+Ogni richiesta viene verificata, tracciata e, in caso di problema, trasformata in un messaggio d'errore comprensibile invece di un blocco improvviso dell'applicazione. La verifica dell'identità avviene direttamente nel backend a ogni chiamata: anche un accesso negato (identità mancante, scaduta o senza il permesso richiesto) produce un messaggio chiaro.
+
+## Da quali siti si può usare
+Solo il sito ufficiale del frontend (e, durante lo sviluppo, quello locale) è autorizzato a dialogare con il backend dal browser; l'elenco dei siti ammessi è gestito nella configurazione del servizio cloud.
 
 ## Valore
 L'utente ha la garanzia che solo lui (o chi autorizzato) possa vedere e modificare i propri dati economici.

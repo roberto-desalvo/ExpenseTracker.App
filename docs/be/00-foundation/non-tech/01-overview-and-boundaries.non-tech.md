@@ -6,7 +6,7 @@ Il backend è il motore che custodisce e gestisce tutti i dati economici dell'ut
 ## Cosa fa
 - Salva in modo sicuro e coerente ogni movimento economico.
 - Applica le regole di dominio: evita duplicati, assegna categorie, riconosce i trasferimenti tra conti.
-- Espone queste informazioni al frontend tramite un canale protetto.
+- Espone queste informazioni al frontend tramite un canale protetto, eseguito su un servizio cloud "serverless" che si attiva solo quando arrivano richieste.
 
 ## Cosa non fa
 - Non gestisce l'interfaccia grafica.

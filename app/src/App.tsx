@@ -4,10 +4,7 @@ import { Box } from "@mui/material";
 import HomeHeader from "./components/HomeHeader";
 import LandingPage from "./pages/LandingPage";
 import SettingsPage from "./pages/SettingsPage";
-import { MsalAuthenticationTemplate } from "@azure/msal-react";
-import { InteractionType } from "@azure/msal-browser";
-import { loginRequest } from "./config/authConfig";
-import AuthErrorPage from "./pages/AuthErrorPage";
+import AuthGate from "./auth/AuthGate";
 import { AccountsProvider } from "./stores/AccountContext";
 import { TransactionsProvider } from "./stores/TransactionContext";
 import { CategoriesProvider } from "./stores/CategoryContext";
@@ -19,11 +16,7 @@ function AppShell() {
   const isHomeRoute = location.pathname === "/";
 
   return (
-    <MsalAuthenticationTemplate
-      interactionType={InteractionType.Redirect}
-      authenticationRequest={loginRequest}
-      errorComponent={AuthErrorPage}
-    >
+    <AuthGate>
       <AccountsProvider>
         <TransactionsProvider>
           <CategoriesProvider>
@@ -50,7 +43,7 @@ function AppShell() {
           </CategoriesProvider>
         </TransactionsProvider>
       </AccountsProvider>
-    </MsalAuthenticationTemplate>
+    </AuthGate>
   );
 }
 

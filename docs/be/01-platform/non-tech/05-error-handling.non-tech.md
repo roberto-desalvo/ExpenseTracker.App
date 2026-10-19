@@ -6,7 +6,7 @@ Il backend non si blocca mai in modo silenzioso: ogni errore (dato mancante, ric
 ## Tipi di errore riconosciuti
 - Richiesta non corretta o incompleta.
 - Dati non validi.
-- Utente non autorizzato.
+- Utente non autenticato o senza il permesso necessario (segnalati con lo stesso formato di messaggio degli altri errori).
 - Elemento non trovato.
 - Conflitto (es. tentativo di eliminare qualcosa ancora in uso).
 

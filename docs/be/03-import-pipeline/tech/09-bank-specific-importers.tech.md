@@ -1,6 +1,6 @@
 # 09 - Bank-specific importers (Tecnico)
 
-Tutti implementano `I*CsvImportService` (`Domain/Services/`) e sono configurati via `I*CsvOptions` (`Domain/Common/`, bind in `Api/Options/`). Ciascuno riceve `int userId` come parametro di `ImportFromCsvAsync` e lo usa nel proprio metodo privato `EnsureAccountsExistAsync(names, userId)`, che cerca/crea gli `Account` richiesti filtrati per quello specifico utente (`IAccountRepository.GetAccounts(userId)` / `AddAccounts` con `new Account(0, name, userId)`) — vedi [08-import-overview-and-dedup](08-import-overview-and-dedup.tech.md).
+Tutti implementano `I*CsvImportService` (`Domain/Services/`) e sono configurati via `I*CsvOptions` (`Domain/Common/`, bind in `Functions/Options/`). Ciascuno riceve `int userId` come parametro di `ImportFromCsvAsync` e lo usa nel proprio metodo privato `EnsureAccountsExistAsync(names, userId)`, che cerca/crea gli `Account` richiesti filtrati per quello specifico utente (`IAccountRepository.GetAccounts(userId)` / `AddAccounts` con `new Account(0, name, userId)`) — vedi [08-import-overview-and-dedup](08-import-overview-and-dedup.tech.md).
 
 ## BBVA (`BbvaCsvImportService`)
 - Parser custom, delimitatore `;` (gestisce campi quotati).
@@ -30,4 +30,4 @@ Tutti implementano `I*CsvImportService` (`Domain/Services/`) e sono configurati 
 - `ExternalId` = `transaction_id`.
 
 ## Endpoint `*-xlsx`
-`ImportController` converte il body `.xlsx` in CSV in-memory (`ConvertExcelToCsv` via `ExcelDataReader`) e lo instrada allo stesso importer CSV — permette di riusare parsing/dedup/matching quando la banca esporta solo in Excel nativo.
+`ImportFunctions` converte il body `.xlsx` in CSV in-memory (`ConvertExcelToCsv` via `ExcelDataReader`) e lo instrada allo stesso importer CSV — permette di riusare parsing/dedup/matching quando la banca esporta solo in Excel nativo.
