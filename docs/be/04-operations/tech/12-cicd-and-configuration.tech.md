@@ -3,18 +3,25 @@
 ## Workflow (`.github/workflows/deploy-backend.yml`)
 `on: push` su `main` (path `api/**` o il workflow stesso) + `workflow_dispatch`, runner `ubuntu-latest`:
 
-1. **build** — `actions/setup-dotnet@v4` (.NET 10.x) → `dotnet build` della solution in Release → `dotnet publish` di `RDS.ExpenseTracker.Functions` → upload artifact `functions-app` (con `include-hidden-files: true`, necessario per la cartella `.azurefunctions` generata dal worker SDK).
-2. **deploy** — download artifact → `azure/login@v2` (OIDC, secret `AZUREAPPSERVICE_CLIENTID_*`/`TENANTID_*`/`SUBSCRIPTIONID_*`) → sync CORS opzionale → `Azure/functions-action@v1` sulla Function App.
+1. **build** — `actions/setup-dotnet@v4` (.NET 10.0.x) → `dotnet build` della solution in Release → `dotnet publish` di `RDS.ExpenseTracker.Functions` → upload artifact `functions-app` (con `include-hidden-files: true`, necessario per la cartella `.azurefunctions` generata dal worker SDK).
+2. **deploy** — download artifact → (solo se configurata la sync CORS) `azure/login@v2` OIDC + sync CORS → `Azure/functions-action@v1` sulla Function App, slot `Production`, autenticato con **publish profile** (secret `AZUREAPPSERVICE_PUBLISHPROFILE_*`, creato dal Deployment Center di Azure).
+
+Secret di repository (GitHub → Settings → Secrets):
+
+| Secret | Obbligatorio | Uso |
+|---|---|---|
+| `AZUREAPPSERVICE_PUBLISHPROFILE_*` | Sì | Publish profile della Function App, usato dal deploy |
+| `AZUREAPPSERVICE_CLIENTID_*` / `TENANTID_*` / `SUBSCRIPTIONID_*` | Solo per sync CORS | Login OIDC per `az functionapp cors` |
 
 Variabili di repository (GitHub → Settings → Variables):
 
 | Variabile | Obbligatoria | Uso |
 |---|---|---|
-| `AZURE_FUNCTIONAPP_NAME` | Sì | Nome della Function App di destinazione |
+| `AZURE_FUNCTIONAPP_NAME` | No | Nome della Function App di destinazione (default `ExpenseTracker-Functions`) |
 | `AZURE_RESOURCE_GROUP` | No | Resource group, usato solo dallo step CORS |
 | `FE_URL` | No | Origine del frontend aggiunta alla CORS della Function App (idempotente) |
 
-L'identità federata usata da `azure/login` deve avere un ruolo (es. *Website Contributor*) sulla Function App.
+Il deploy con publish profile richiede che sulla Function App siano abilitate le *SCM Basic Auth Publishing Credentials*. Per la sync CORS, l'identità federata usata da `azure/login` deve avere un ruolo (es. *Website Contributor*) sulla Function App.
 
 **Nota**: il workflow non esegue `dotnet test` — il deploy avviene senza gate di test automatico.
 

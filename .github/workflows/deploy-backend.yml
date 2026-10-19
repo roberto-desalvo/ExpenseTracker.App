@@ -2,9 +2,10 @@
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 #
 # Required repository configuration:
-#   secrets: AZUREAPPSERVICE_CLIENTID_*, AZUREAPPSERVICE_TENANTID_*, AZUREAPPSERVICE_SUBSCRIPTIONID_* (OIDC federated login)
-#   vars:    AZURE_FUNCTIONAPP_NAME (Function App name)
+#   secrets: AZUREAPPSERVICE_PUBLISHPROFILE_* (publish profile of the Function App, created by Azure Deployment Center)
+#   vars (optional): AZURE_FUNCTIONAPP_NAME (Function App name, defaults to ExpenseTracker-Functions)
 #   vars (optional, to sync platform CORS on deploy): AZURE_RESOURCE_GROUP, FE_URL
+#     + secrets AZUREAPPSERVICE_CLIENTID_*, AZUREAPPSERVICE_TENANTID_*, AZUREAPPSERVICE_SUBSCRIPTIONID_* (OIDC login for az CLI)
 
 name: Deploy Backend (Azure Functions)
 
@@ -18,9 +19,10 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_FUNCTIONAPP_NAME: ${{ vars.AZURE_FUNCTIONAPP_NAME }}
+  AZURE_FUNCTIONAPP_NAME: ${{ vars.AZURE_FUNCTIONAPP_NAME || 'ExpenseTracker-Functions' }}
+  AZURE_FUNCTIONAPP_SLOT: 'Production'
   FUNCTIONS_PROJECT_PATH: ./api/RDS.ExpenseTracker.Functions/RDS.ExpenseTracker.Functions.csproj
-  DOTNET_VERSION: '10.x'
+  DOTNET_VERSION: '10.0.x'
 
 jobs:
   build:
@@ -53,14 +55,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     permissions:
-      id-token: write #This is required for requesting the JWT
+      id-token: write #This is required for requesting the JWT (OIDC login, CORS sync only)
       contents: read #This is required for actions/checkout
 
     steps:
-      - name: Validate configuration
-        shell: bash
-        run: test -n "$AZURE_FUNCTIONAPP_NAME" || (echo "Missing repository variable: AZURE_FUNCTIONAPP_NAME" && exit 1)
-
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
@@ -68,6 +66,7 @@ jobs:
           path: ${{ github.workspace }}/publish
 
       - name: Login to Azure
+        if: ${{ vars.AZURE_RESOURCE_GROUP != '' && vars.FE_URL != '' }}
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_342688A107224B0E99571B02D9FA91AF }}
@@ -88,4 +87,6 @@ jobs:
         uses: Azure/functions-action@v1
         with:
           app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+          slot-name: ${{ env.AZURE_FUNCTIONAPP_SLOT }}
           package: ${{ github.workspace }}/publish
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_329BA85C08F947248EE90BF122772B77 }}

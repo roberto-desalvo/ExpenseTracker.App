@@ -4,7 +4,7 @@
 Ogni modifica confermata sul ramo principale viene automaticamente compilata e pubblicata online, senza intervento manuale. Il backend viene pubblicato su un servizio cloud serverless (Azure Functions), che si accende solo quando riceve richieste.
 
 ## Cosa serve configurare una volta
-Il nome del servizio cloud di destinazione e, facoltativamente, l'indirizzo del frontend autorizzato a dialogare con il backend sono impostati nelle impostazioni del repository: la pubblicazione li legge automaticamente.
+La pubblicazione usa una "chiave di pubblicazione" fornita da Azure al momento della creazione del servizio cloud, salvata in modo protetto nelle impostazioni del repository. Il nome del servizio di destinazione ha già un valore predefinito ma può essere cambiato; facoltativamente si può indicare anche l'indirizzo del frontend autorizzato a dialogare con il backend: la pubblicazione legge automaticamente queste impostazioni.
 
 ## Cosa manca ancora
 Il rilascio automatico non include, al momento, un controllo automatico che i test passino prima della pubblicazione: è un miglioramento di processo da valutare.
