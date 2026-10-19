@@ -4,7 +4,7 @@
 L'accesso avviene tramite l'account Microsoft/Azure AD dell'utente: nessuna password è gestita direttamente dall'applicazione.
 
 ## Accesso semplificato in sviluppo
-Sul computer dello sviluppatore è possibile attivare una modalità di prova in cui l'identità Microsoft non viene verificata: basta indicare un nome utente, e il backend lo tratta come un utente reale (creando il profilo al primo utilizzo). Questa modalità ignora anche i permessi speciali ed è rifiutata in qualunque ambiente diverso dallo sviluppo locale: se fosse attivata per errore online, il servizio non partirebbe.
+Sul computer dello sviluppatore è possibile attivare una modalità di prova in cui l'identità Microsoft non viene verificata: basta indicare il nome utente o l'email di un utente già registrato, e il backend recupera quel profilo esistente con tutti i suoi dati, senza mai crearne uno nuovo (se l'email non corrisponde a nessun utente, l'accesso viene rifiutato). Online, invece, il profilo continua a essere creato automaticamente al primo accesso. Questa modalità ignora anche i permessi speciali ed è rifiutata in qualunque ambiente diverso dallo sviluppo locale: se fosse attivata per errore online, il servizio non partirebbe.
 
 ## Cosa succede al primo accesso
 La prima volta che una persona accede, l'applicazione la riconosce tramite l'identità Microsoft/Azure AD e crea automaticamente il suo profilo interno, senza bisogno di una registrazione separata. Agli accessi successivi il profilo esistente viene semplicemente riconosciuto e riutilizzato.

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using RDS.ExpenseTracker.Domain.Exceptions;
 using RDS.ExpenseTracker.Domain.Services;
+using RDS.ExpenseTracker.Functions.Middlewares;
 
 namespace RDS.ExpenseTracker.Functions.Auth;
 
@@ -23,6 +24,9 @@ public class CurrentUserAccessor : ICurrentUserAccessor
 
         var principal = _principalAccessor.Principal
             ?? throw new UnauthorizedDomainException("No authenticated user in current request.");
+
+        if (IsDevPrincipal(principal))
+            return await GetDevUserIdAsync(principal);
 
         var oid = GetObjectId(principal);
         if (string.IsNullOrEmpty(oid))
@@ -51,6 +55,9 @@ public class CurrentUserAccessor : ICurrentUserAccessor
         var principal = _principalAccessor.Principal
             ?? throw new UnauthorizedDomainException("No authenticated user in current request.");
 
+        if (IsDevPrincipal(principal))
+            return await GetDevUserIdAsync(principal);
+
         var oid = GetObjectId(principal);
         if (string.IsNullOrEmpty(oid))
             throw new UnauthorizedDomainException("Token does not contain an oid claim.");
@@ -68,6 +75,24 @@ public class CurrentUserAccessor : ICurrentUserAccessor
         _cachedUserId = result.Value.Id;
         return _cachedUserId.Value;
     }
+
+    // Login di sviluppo (DevAuth, attivabile solo in Development): si recupera l'utente
+    // esistente per email, senza crearne uno nuovo legato all'oid fittizio "dev:<nome>".
+    private async Task<int> GetDevUserIdAsync(ClaimsPrincipal principal)
+    {
+        var email = principal.FindFirst(ClaimTypes.Email)?.Value
+            ?? throw new UnauthorizedDomainException("Dev user does not contain an email claim.");
+
+        var result = await _userService.GetUserByEmailAsync(email);
+        if (result.IsFailed)
+            throw new UnauthorizedDomainException(string.Join("; ", result.Errors.Select(e => e.Message)));
+
+        _cachedUserId = result.Value.Id;
+        return _cachedUserId.Value;
+    }
+
+    private static bool IsDevPrincipal(ClaimsPrincipal principal)
+        => principal.Identity?.AuthenticationType == AuthenticationMiddleware.DevAuthenticationType;
 
     private static string? GetObjectId(ClaimsPrincipal principal)
         => principal.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value

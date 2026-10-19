@@ -43,6 +43,18 @@ public class UserService : IUserService
         return Result.Ok(_mapper.Map<UserDto>(user));
     }
 
+    public async Task<Result<UserDto>> GetUserByEmailAsync(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+            return Result.Fail(DomainErrors.Required("email"));
+
+        var user = await _repository.GetByEmail(email.Trim());
+        if (user is null)
+            return Result.Fail(DomainErrors.Unauthorized($"No user found with email '{email}'."));
+
+        return Result.Ok(_mapper.Map<UserDto>(user));
+    }
+
     public async Task<Result<UserDto>> GetOrCreateUserForImportAsync(string oid, string? email, string? name)
     {
         if (string.IsNullOrWhiteSpace(oid))

@@ -20,6 +20,9 @@ public class AuthenticationMiddleware : IFunctionsWorkerMiddleware
 {
     private static readonly ConcurrentDictionary<string, FunctionAuthMetadata> MetadataCache = new();
 
+    /// <summary>Authentication type of the principals created by the local dev bypass.</summary>
+    public const string DevAuthenticationType = "DevUser";
+
     private const string DevUserScheme = "DevUser ";
     private const int DevUserMaxLength = 60;
 
@@ -114,7 +117,7 @@ public class AuthenticationMiddleware : IFunctionsWorkerMiddleware
                 new Claim(ClaimTypes.Email, email),
                 new Claim(ClaimTypes.Name, userName)
             ],
-            authenticationType: "DevUser",
+            authenticationType: DevAuthenticationType,
             nameType: ClaimTypes.Name,
             roleType: ClaimTypes.Role);
 

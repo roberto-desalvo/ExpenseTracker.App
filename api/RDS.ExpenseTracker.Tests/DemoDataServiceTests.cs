@@ -143,6 +143,7 @@ public class DemoDataServiceTests
 
         public Task<User?> GetByAzureOid(string azureOid) => throw new NotImplementedException();
         public Task<User?> GetByAppOid(string appOid) => throw new NotImplementedException();
+        public Task<User?> GetByEmail(string email) => throw new NotImplementedException();
         public Task<User> GetOrCreateUserAsync(string azureOid, string email) => throw new NotImplementedException();
     }
 
