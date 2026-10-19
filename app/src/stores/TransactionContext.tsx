@@ -106,12 +106,25 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
     void loadAvailableMonths();
   }, [shouldLoadTransactionsData]);
 
+  /**
+   * Dopo una modifica: le viste aggregate si ricaricano tramite `dataVersion`;
+   * mesi e lista dei movimenti solo se si è su /movimenti (altrimenti li ricarica l'atterraggio sulla pagina).
+   */
+  const reloadAfterMutation = async () => {
+    bumpDataVersion();
+
+    if (!shouldLoadTransactionsData) {
+      return;
+    }
+
+    await loadAvailableMonths();
+    refreshTransactions();
+  };
+
   const addTransaction = async (transaction: Transaction) => {
     try {
       await TransactionService.add(transaction);
-      await loadAvailableMonths();
-      bumpDataVersion();
-      refreshTransactions();
+      await reloadAfterMutation();
     } catch (error) {
       console.error("Errore nell'aggiunta della transaction:", error);
       throw error;
@@ -121,9 +134,7 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
   const updateTransaction = async (transaction: Transaction) => {
     try {
       await TransactionService.update(transaction);
-      await loadAvailableMonths();
-      bumpDataVersion();
-      refreshTransactions();
+      await reloadAfterMutation();
     } catch (error) {
       console.error("Errore nella modifica della transaction:", error);
       throw error;
@@ -133,9 +144,7 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
   const addTransfer = async (transfer: TransferPayload) => {
     try {
       await TransferService.add(transfer);
-      await loadAvailableMonths();
-      bumpDataVersion();
-      refreshTransactions();
+      await reloadAfterMutation();
     } catch (error) {
       console.error("Errore nell'aggiunta del trasferimento:", error);
       throw error;
@@ -146,9 +155,7 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
     const removeTransaction = async () => {
       try {
         await TransactionService.delete(transaction.id);
-        await loadAvailableMonths();
-        bumpDataVersion();
-        refreshTransactions();
+        await reloadAfterMutation();
       } catch (error) {
         console.error("Errore nell'eliminazione della transaction:", error);
       }

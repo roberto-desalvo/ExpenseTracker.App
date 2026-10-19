@@ -98,19 +98,21 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
     };
   };
 
+  // rimuove dalla selezione gli id non più esistenti; se non cambia nulla mantiene lo stesso array
+  const keepExisting = (prev: number[], existingIds: number[]) => {
+    const next = prev.filter((selectedId) => existingIds.includes(selectedId));
+    return next.length === prev.length ? prev : next;
+  };
+
   useEffect(() => {
     setSelectedAccountIds((prev) =>
-      prev.filter((selectedId) =>
-        accounts.some((account) => account.id === selectedId),
-      ),
+      keepExisting(prev, accounts.map((account) => account.id)),
     );
   }, [accounts]);
 
   useEffect(() => {
     setSelectedCategoryIds((prev) =>
-      prev.filter((selectedId) =>
-        categories.some((category) => category.id === selectedId),
-      ),
+      keepExisting(prev, categories.map((category) => category.id)),
     );
   }, [categories]);
 
@@ -134,32 +136,26 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
     });
   }, [transactionContext.availableMonths]);
 
-  useEffect(() => {
-    if (!shouldLoadTableData || !selectedMonth) {
-      return;
-    }
-
-    transactionContext.refreshTransactions(
-      buildRequest(
+  const request = selectedMonth
+    ? buildRequest(
         selectedMonth,
         page,
         pageSize,
         selectedAccountIds,
         selectedCategoryIds,
         movementType,
-      ),
-    );
-  }, [
-    shouldLoadTableData,
-    selectedMonth,
-    page,
-    pageSize,
-    selectedAccountIds,
-    selectedCategoryIds,
-    movementType,
-    accounts,
-    categories,
-  ]);
+      )
+    : null;
+  // la richiesta parte solo quando cambia davvero (filtri, pagina, mese), non a ogni nuovo riferimento di conti/categorie
+  const requestKey = request ? JSON.stringify(request) : null;
+
+  useEffect(() => {
+    if (!shouldLoadTableData || !request) {
+      return;
+    }
+
+    transactionContext.refreshTransactions(request);
+  }, [shouldLoadTableData, requestKey]);
 
   const modifySelectedMonth = (month: TransactionMonthOption) => {
     setSelectedMonth(month);

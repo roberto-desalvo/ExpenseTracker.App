@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Autocomplete,
   Box,
@@ -60,7 +60,11 @@ export default function CategoriesPage() {
     updateCategory,
     deleteCategory,
     refreshCategories,
+    activatePagedList,
   } = useCategories();
+
+  // la lista paginata si carica solo mentre questa sezione è visibile
+  useEffect(() => activatePagedList(), [activatePagedList]);
 
   const [form, setForm] = useState<CategoryFormState>(createInitialForm());
   const [editorOpen, setEditorOpen] = useState(false);
@@ -224,10 +228,7 @@ export default function CategoriesPage() {
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "flex-start" }}>
         <SearchField
           placeholder="Cerca categoria per nome"
-          onSearch={(name) => {
-            modifyPage(0);
-            void refreshCategories(name);
-          }}
+          onSearch={(name) => refreshCategories(name)}
         />
         <Box sx={{ flex: 1 }} />
         <Button variant="contained" startIcon={<AddRounded />} onClick={openCreate}>

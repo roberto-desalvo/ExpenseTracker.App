@@ -115,7 +115,44 @@ const buildErrorMessage = async (response: Response, fallbackMessage: string) =>
   return `${fallbackMessage} (HTTP ${response.status})`;
 };
 
-export const apiFetchJson = async <T>(
+/** Letture in corso, indicizzate per metodo + url + body: richieste identiche e concorrenti condividono la stessa promise. */
+const inFlightRequests = new Map<string, Promise<unknown>>();
+
+const buildRequestKey = (url: string, init: RequestInit): string | null => {
+  if (init.body != null && typeof init.body !== "string") {
+    return null;
+  }
+  return `${init.method ?? "GET"} ${url} ${init.body ?? ""}`;
+};
+
+/**
+ * Tutte le chiamate che passano di qui sono letture (le scritture usano `apiFetchVoid`):
+ * le richieste identiche ancora in volo vengono deduplicate, così il doppio effect di
+ * StrictMode o più consumer che atterrano insieme generano una sola chiamata HTTP.
+ */
+export const apiFetchJson = <T>(
+  url: string,
+  init: RequestInit,
+  fallbackMessage: string
+): Promise<T> => {
+  const key = buildRequestKey(url, init);
+  if (!key) {
+    return executeFetchJson<T>(url, init, fallbackMessage);
+  }
+
+  const pending = inFlightRequests.get(key);
+  if (pending) {
+    return pending as Promise<T>;
+  }
+
+  const request = executeFetchJson<T>(url, init, fallbackMessage).finally(() => {
+    inFlightRequests.delete(key);
+  });
+  inFlightRequests.set(key, request);
+  return request;
+};
+
+const executeFetchJson = async <T>(
   url: string,
   init: RequestInit,
   fallbackMessage: string

@@ -1,4 +1,4 @@
-import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { DATA_ROUTES } from "../config/routes";
 import Category from "../models/Category";
@@ -7,6 +7,8 @@ import CategoryService from "../services/CategoryService";
 interface CategoriesContextType {
   categories: Category[];
   allCategories: Category[];
+  /** true dopo il primo caricamento (anche fallito) dell'elenco completo */
+  categoriesLoaded: boolean;
   isLoading: boolean;
   page: number;
   pageSize: number;
@@ -16,7 +18,10 @@ interface CategoriesContextType {
   addCategory: (category: Category) => Promise<void>;
   updateCategory: (category: Category) => Promise<void>;
   deleteCategory: (id: number) => Promise<void>;
-  refreshCategories: (name?: string) => Promise<void>;
+  /** applica il filtro per nome alla lista paginata, ripartendo dalla prima pagina */
+  refreshCategories: (name?: string) => void;
+  /** attiva la lista paginata finché la vista che la mostra è montata; restituisce la funzione di disattivazione */
+  activatePagedList: () => () => void;
 }
 
 const CategoriesContext = createContext<CategoriesContextType | undefined>(
@@ -31,17 +36,22 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
     DATA_ROUTES.includes(location.pathname);
   const [categories, setCategories] = useState<Category[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
+  const [categoriesLoaded, setCategoriesLoaded] = useState<boolean>(false);
+  const [pagedListActive, setPagedListActive] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [page, setPage] = useState<number>(0);
   const [pageSize, setPageSize] = useState<number>(10);
   const [totalCount, setTotalCount] = useState<number>(0);
   const currentNameRef = useRef<string | undefined>(undefined);
 
-  const refreshCategories = async (name?: string) => {
-    currentNameRef.current = name;
+  const loadPagedCategories = async () => {
     setIsLoading(true);
     try {
-      const result = await CategoryService.getAll({ name, page, pageSize });
+      const result = await CategoryService.getAll({
+        name: currentNameRef.current,
+        page,
+        pageSize,
+      });
       setCategories(result.items);
       setTotalCount(result.totalCount);
     } catch (error) {
@@ -53,8 +63,21 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const refreshAllCategories = async () => {
-    const result = await CategoryService.getAll({ page: 0, pageSize: 10000 });
-    setAllCategories(result.items);
+    try {
+      const result = await CategoryService.getAll({ page: 0, pageSize: 10000 });
+      setAllCategories(result.items);
+    } finally {
+      setCategoriesLoaded(true);
+    }
+  };
+
+  /** torna alla prima pagina (l'effect ricarica) oppure, se già lì, ricarica direttamente */
+  const reloadFromFirstPage = async () => {
+    if (page !== 0) {
+      setPage(0);
+      return;
+    }
+    await loadPagedCategories();
   };
 
   const modifyPage = (newPage: number) => {
@@ -66,34 +89,48 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
     setPage(0);
   };
 
-  const isMountedRef = useRef(false);
-
+  // elenco completo: una sola volta, condiviso da tutte le pagine
   useEffect(() => {
-    if (!shouldLoadCategories) {
+    if (!shouldLoadCategories || categoriesLoaded) {
       return;
     }
 
-    if (!isMountedRef.current) {
-      // Primo mount: carica tutto in parallelo
-      isMountedRef.current = true;
-      const load = async () => {
-        await Promise.all([refreshCategories(), refreshAllCategories()]);
-      };
-      void load();
-    } else {
-      // page o pageSize cambiati dopo il mount
-      void refreshCategories(currentNameRef.current);
+    refreshAllCategories().catch(() => {
+      // gestito dall'error layer
+    });
+  }, [shouldLoadCategories]);
+
+  // lista paginata: solo mentre la vista Categorie è montata, e a ogni cambio pagina
+  useEffect(() => {
+    if (!pagedListActive) {
+      return;
     }
-  }, [page, pageSize, shouldLoadCategories]);
+
+    loadPagedCategories().catch(() => {
+      // gestito dall'error layer
+    });
+  }, [pagedListActive, page, pageSize]);
+
+  const activatePagedList = useCallback(() => {
+    setPagedListActive(true);
+    return () => {
+      setPagedListActive(false);
+      currentNameRef.current = undefined;
+      setPage(0);
+    };
+  }, []);
+
+  const refreshCategories = (name?: string) => {
+    currentNameRef.current = name;
+    reloadFromFirstPage().catch(() => {
+      // gestito dall'error layer
+    });
+  };
 
   const addCategory = async (category: Category) => {
     try {
       await CategoryService.add(category);
-      setPage(0);
-      await Promise.all([
-        refreshCategories(currentNameRef.current),
-        refreshAllCategories(),
-      ]);
+      await Promise.all([reloadFromFirstPage(), refreshAllCategories()]);
     } catch (error) {
       console.error("Errore nell'aggiunta della categoria:", error);
       throw error;
@@ -103,10 +140,7 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
   const updateCategory = async (category: Category) => {
     try {
       await CategoryService.update(category);
-      await Promise.all([
-        refreshCategories(currentNameRef.current),
-        refreshAllCategories(),
-      ]);
+      await Promise.all([loadPagedCategories(), refreshAllCategories()]);
     } catch (error) {
       console.error("Errore nella modifica della categoria:", error);
       throw error;
@@ -116,10 +150,7 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
   const deleteCategory = async (id: number) => {
     try {
       await CategoryService.delete(id);
-      await Promise.all([
-        refreshCategories(currentNameRef.current),
-        refreshAllCategories(),
-      ]);
+      await Promise.all([loadPagedCategories(), refreshAllCategories()]);
     } catch (error) {
       console.error("Errore nell'eliminazione della categoria:", error);
       throw error;
@@ -131,6 +162,7 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
       value={{
         categories,
         allCategories,
+        categoriesLoaded,
         isLoading,
         page,
         pageSize,
@@ -141,6 +173,7 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({
         updateCategory,
         deleteCategory,
         refreshCategories,
+        activatePagedList,
       }}
     >
       {children}
