@@ -1,6 +1,7 @@
 # Expense Tracker
 
 Web app personale per la gestione di entrate, uscite e trasferimenti tra conti.
+Demo disponibile https://thankful-island-04ae49a03.7.azurestaticapps.net/
 
 ## Stack
 - **Backend**: Azure Functions (.NET 10, isolated worker), Clean Architecture, EF Core code-first su SQL Server.
@@ -14,7 +15,10 @@ Web app personale per la gestione di entrate, uscite e trasferimenti tra conti.
 - Riconoscimento automatico dei trasferimenti tra conti (anche tramite IBAN).
 - Flusso di import parzialmente automatizzato tramite Logic App integrata con OneDrive.
 - Modalità demo: accesso senza account Microsoft come utente di test, con dati fittizi.
-- Seeding dei dati di test (`import/test-seed`), richiamato una volta al giorno da Logic App per ripristinare i dati demo.
+- Seeding dei dati di test, richiamato una volta al giorno da Logic App per ripristinare i dati demo.
+
+## Demo 
+- https://thankful-island-04ae49a03.7.azurestaticapps.net/
 
 ## Avvio rapido
 ```powershell
