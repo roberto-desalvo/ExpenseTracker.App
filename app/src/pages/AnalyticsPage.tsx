@@ -316,8 +316,12 @@ export default function AnalyticsPage() {
 
       {invalidRange && <Alert severity="warning">La data di inizio deve precedere la data di fine.</Alert>}
 
-      {/* Patrimonio + sintesi del periodo */}
-      <SurfaceCard title="Patrimonio" subtitle={`Saldo medio di tutti i conti per periodo · ${periodLabel}`}>
+      {/* Flusso di cassa + sintesi del periodo */}
+      <SurfaceCard
+        title="Flusso di cassa"
+        subtitle={`Entrate sopra lo zero, uscite sotto, saldo netto come linea · ${periodLabel}`}
+        action={<ChartViewToggle value={flowView} onChange={setFlowView} />}
+      >
         <Box
           sx={{
             display: "grid",
@@ -343,16 +347,12 @@ export default function AnalyticsPage() {
             hint={`risparmio netto ${formatSignedCurrency(summary.net)}`}
           />
         </Box>
-        {loading ? chartSkeleton : <NetWorthAreaChart points={netWorth} height={300} />}
+        {loading ? chartSkeleton : <CashFlowChart points={cashFlow} height={300} view={flowView} />}
       </SurfaceCard>
 
       <Box sx={{ display: "grid", gap: { xs: 2, md: 2.5 }, gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" } }}>
-        <SurfaceCard
-          title="Flusso di cassa"
-          subtitle="Entrate sopra lo zero, uscite sotto, saldo netto come linea"
-          action={<ChartViewToggle value={flowView} onChange={setFlowView} />}
-        >
-          {loading ? chartSkeleton : <CashFlowChart points={cashFlow} height={300} view={flowView} />}
+        <SurfaceCard title="Patrimonio" subtitle="Saldo medio di tutti i conti per periodo">
+          {loading ? chartSkeleton : <NetWorthAreaChart points={netWorth} height={300} />}
         </SurfaceCard>
 
         <SurfaceCard

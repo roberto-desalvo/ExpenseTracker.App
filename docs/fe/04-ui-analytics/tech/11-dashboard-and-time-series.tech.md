@@ -19,15 +19,15 @@ Pagina `src/pages/AnalyticsPage.tsx`.
   - `getStock` con `idAccounts` di tutti i conti → saldo per conto;
   - `getTimeSeries` senza filtri, `excludeTransfers: true` → flusso di cassa (riempito a zero per granularità mensile);
   - `getTimeSeries` con `idCategories` di tutte le categorie (`allCategories`), `excludeTransfers: true` → composizione per categoria.
-- Card "Patrimonio": 6 cifre di sintesi (inizio, fine, variazione, entrate totali, uscite totali, tasso di risparmio) + `NetWorthAreaChart`.
-- "Flusso di cassa" (`CashFlowChart`) e "Saldo per conto" (`BalanceLinesChart`, legenda cliccabile per nascondere un conto), ciascuno con switch grafico/tabella.
+- Card "Flusso di cassa" a tutta larghezza: 6 cifre di sintesi del periodo (patrimonio a inizio e fine, variazione, entrate totali, uscite totali, tasso di risparmio) + `CashFlowChart` con switch grafico/tabella.
+- "Patrimonio" (`NetWorthAreaChart`) e "Saldo per conto" (`BalanceLinesChart`, legenda cliccabile per nascondere un conto, switch grafico/tabella) affiancati.
 - "Spese/Entrate per categoria" (`StackedPeriodBars`, toggle Uscite/Entrate, switch tabella) e "Classifica categorie" (`RankedBarList` sui totali del periodo).
 - Semantica dei saldi: il valore di ogni punto `getStock`/`netWorthSeries` è la **media della giacenza nel periodo**; i periodi senza transazioni riportano il saldo dell'ultimo periodo noto (vedi BE, [07-application-services-and-mapping](../../../be/02-data-persistence/tech/07-application-services-and-mapping.tech.md)). `getStock` include sempre i giroconti (il BE ignora `excludeTransfers`), mentre `getTimeSeries` li esclude per rappresentare un vero flusso di entrate/uscite. Il totale non viene mai ricavato sommando le serie per conto lato client: sommare medie indipendenti non equivale alla media del patrimonio combinato.
 
 ## Componenti grafici (`src/components/charts/`)
 Tutti su Recharts, un solo asse Y in euro (tick compatti `formatCompact`), griglia orizzontale sottile, nessuna animazione, tooltip personalizzati (`ChartTooltipCard`/`ChartTooltipRow` in `ChartParts.tsx`), stato vuoto `ChartEmpty`.
 - `NetWorthAreaChart` — singola serie ad area (`monotone`, linea 2px, gradiente), varianti `spark` (senza assi, per la hero) e `full`; dominio Y stretto attorno ai valori.
-- `CashFlowChart` — `ComposedChart` con `stackOffset="sign"`: entrate sopra lo zero, uscite (negative) sotto, linea del saldo netto nel colore dell'inchiostro; legenda fissa; vista tabella (periodo, entrate, uscite, saldo).
+- `CashFlowChart` — `ComposedChart` con `stackOffset="sign"`: entrate sopra lo zero, uscite (negative) sotto, linea del saldo netto nel colore dell'inchiostro; legenda fissa; tooltip con entrate, uscite, saldo e tasso di risparmio del periodo (`(entrate − uscite) / entrate`, "—" senza entrate); vista tabella (periodo, entrate, uscite, saldo).
 - `BalanceLinesChart` — più linee sullo stesso asse; colori per entità; `ChartLegend` con toggle; vista tabella.
 - `StackedPeriodBars` — barre impilate per periodo; serie ordinate per totale, oltre `maxSeries` (6) raggruppate in "Altre (n)" col colore neutro; tooltip con totale; vista tabella.
 - `RankedBarList` — classifica HTML a barre orizzontali, un solo colore, valore + quota %, coda raggruppata in "Altre (n)".
