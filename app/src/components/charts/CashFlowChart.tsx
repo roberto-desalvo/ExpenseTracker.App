@@ -16,6 +16,7 @@ import {
 import {
   formatCompact,
   formatCurrency,
+  formatPercent,
   formatPeriodLabel,
   formatSignedCurrency,
 } from "../../utilities/format.utilities";
@@ -36,6 +37,8 @@ interface CashFlowChartProps {
 interface Row extends CashFlowPoint {
   spentNeg: number;
   net: number;
+  /** Tasso di risparmio (% delle entrate); null se nel periodo non ci sono entrate. */
+  rate: number | null;
 }
 
 /**
@@ -46,7 +49,13 @@ export default function CashFlowChart({ points, height = 300, view = "chart" }: 
   const a = useTheme().app;
 
   const rows = useMemo<Row[]>(
-    () => points.map((p) => ({ ...p, spentNeg: -p.spent, net: p.earned - p.spent })),
+    () =>
+      points.map((p) => ({
+        ...p,
+        spentNeg: -p.spent,
+        net: p.earned - p.spent,
+        rate: p.earned > 0 ? ((p.earned - p.spent) / p.earned) * 100 : null,
+      })),
     [points],
   );
 
@@ -82,6 +91,7 @@ export default function CashFlowChart({ points, height = 300, view = "chart" }: 
         <ChartTooltipRow color={a.income} label="Entrate" value={formatCurrency(row.earned)} />
         <ChartTooltipRow color={a.expense} label="Uscite" value={formatCurrency(row.spent)} />
         <ChartTooltipRow color={a.chart.net} label="Saldo" value={formatSignedCurrency(row.net)} emphasis />
+        <ChartTooltipRow label="Tasso di risparmio" value={row.rate === null ? "—" : formatPercent(row.rate)} />
       </ChartTooltipCard>
     );
   };

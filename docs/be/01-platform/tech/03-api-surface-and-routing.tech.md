@@ -32,7 +32,7 @@ Il nome di ogni function segue la convenzione `<Risorsa>_<Azione>` (es. `Account
 
 ## `TransactionFunctions` — `api/transaction`
 Tutte le route risolvono l'utente con `ICurrentUserAccessor.GetUserIdAsync()` e operano solo sui movimenti dei conti di quell'utente; un id altrui risponde 404.
-- `POST /query` — ricerca paginata con totali income/outcome/net.
+- `POST /query` — ricerca paginata con totali income/outcome/net. Ordinamento opzionale con `sortBy` (`date` default, `description`, `category`, `account`, `amount`) e `sortDirection` (`asc`/`desc`, default `desc`); valori sconosciuti ricadono su data decrescente.
 - `GET /month-options` — mesi disponibili per i filtri UI.
 - `GET /landing?excludeTransfers=true` — aggregazione dashboard (saldi, riepilogo categorie, serie net-worth).
 - `GET /{id}` — transazione singola.

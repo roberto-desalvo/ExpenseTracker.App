@@ -34,7 +34,7 @@ Il logo (tre barre crescenti) è disegnato in `src/components/layout/BrandMark.t
 `PageContainer`, `PageHeader`, `SurfaceCard` (superficie con titolo/sottotitolo/azione), `EmptyState`, `SearchField` (debounce), `EditorDrawer` (pannello laterale di modifica). `AppModal` e `ConfirmDeleteDialog` (`src/components/`) sono `Dialog` MUI con intestazione, azioni nel footer e schermo intero su mobile (`AppModal`).
 
 ## Tabelle
-`src/components/DataTableBase.tsx`: card con bordo e raggio del preset, intestazione sticky su sfondo `surfaceAlt`, righe a filo con separatori sottili, skeleton durante il caricamento, `EmptyState` con azione opzionale (`emptyAction`), `TablePagination` in italiano. Le azioni di riga sono icone inline visibili all'hover/focus (sempre visibili su mobile).
+`src/components/DataTableBase.tsx`: card con bordo e raggio del preset, intestazione sticky su sfondo `surfaceAlt`, righe a filo con separatori sottili, skeleton durante il caricamento, `EmptyState` con azione opzionale (`emptyAction`), `TablePagination` in italiano. Ordinamento opzionale: le colonne con `sortable: true` mostrano un `TableSortLabel` quando sono passati `sortBy`/`sortDirection`/`onSortChange` (lo stato resta al chiamante). Le azioni di riga sono icone inline visibili all'hover/focus (sempre visibili su mobile).
 
 ## Stile globale
 `src/index.css`: direttive Tailwind, keyframe `fadeUp` (ingresso card) e `slideDown`, riduzione animazioni con `prefers-reduced-motion`. Formattazione numeri e date in `src/utilities/format.utilities.ts` (`formatCurrency` con separatore delle migliaia sempre attivo, `formatSignedCurrency`, `formatCompact`, `formatPercent`, `formatPeriodLabel`).

@@ -5,7 +5,7 @@ L'app mantiene informazioni comuni (filtri, liste, selezioni, preferenze) in un 
 
 ## Cosa viene condiviso
 - Elenchi di conti, categorie e movimenti, con paginazione e ricarica automatica dopo ogni modifica.
-- I filtri della pagina Movimenti: mese selezionato, tipo di movimento (tutti/entrate/uscite), conti e categorie selezionati.
+- I filtri della pagina Movimenti: mese selezionato, tipo di movimento (tutti/entrate/uscite), conti e categorie selezionati, e la colonna per cui è ordinato l'elenco.
 - Le finestre per creare o modificare un movimento e per registrare un trasferimento, apribili da qualsiasi pagina.
 - I messaggi di conferma ("operazione riuscita") e di errore, mostrati come notifiche in basso a destra.
 - Le preferenze di aspetto: stile, tema chiaro/scuro/automatico, posizione del menu.

@@ -1,7 +1,7 @@
 # 03 - Le funzionalità esposte (Non Tecnico)
 
 ## Cosa può fare chi usa l'app
-- Consultare e cercare conti, categorie, movimenti e trasferimenti.
+- Consultare e cercare conti, categorie, movimenti e trasferimenti. L'elenco dei movimenti può essere ordinato per data, descrizione, categoria, conto o importo, in ordine crescente o decrescente.
 - Creare, modificare ed eliminare ciascuno di questi elementi.
 - Vedere un riepilogo generale (dashboard) con saldi, categorie e andamento nel tempo.
 - Caricare estratti conto bancari per importare automaticamente i movimenti.

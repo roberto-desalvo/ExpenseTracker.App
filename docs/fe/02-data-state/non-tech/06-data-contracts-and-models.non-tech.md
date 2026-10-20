@@ -8,6 +8,7 @@
 - Indicatori e riepiloghi della dashboard (saldi, totali entrate/uscite/netto)
 - Andamento nel tempo (serie storiche, es. andamento del patrimonio netto)
 - Elenchi con paginazione (numero pagina, dimensione pagina, totale elementi)
+- Criterio di ordinamento dell'elenco movimenti (campo e direzione crescente/decrescente)
 
 ## Perché è utile
 Un lessico dati condiviso evita ambiguità tra funzionalità e report.

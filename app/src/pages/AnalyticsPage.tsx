@@ -21,7 +21,7 @@ import PageHeader from "../components/ui/PageHeader";
 import SurfaceCard from "../components/ui/SurfaceCard";
 import NetWorthAreaChart from "../components/charts/NetWorthAreaChart";
 import CashFlowChart, { CashFlowPoint } from "../components/charts/CashFlowChart";
-import BalanceLinesChart, { LineSeries } from "../components/charts/BalanceLinesChart";
+import type { LineSeries } from "../components/charts/BalanceLinesChart";
 import StackedPeriodBars, { StackSeries } from "../components/charts/StackedPeriodBars";
 import RankedBarList from "../components/charts/RankedBarList";
 import { ChartView, ChartViewToggle } from "../components/charts/ChartParts";
@@ -31,6 +31,7 @@ import {
   enumerateMonthKeys,
   formatCurrency,
   formatPercent,
+  formatPeriodLabel,
   formatSignedCurrency,
 } from "../utilities/format.utilities";
 
@@ -53,7 +54,26 @@ const GRANULARITIES: { value: Granularity; label: string }[] = [
   { value: 4, label: "Anno" },
 ];
 
-const rangeFor = (preset: RangePreset): { start: string; end: string } => {
+type RankMetric = "earned" | "spent" | "saved" | "lost";
+type RankGranularity = 3 | 4;
+
+const RANK_METRICS: { value: RankMetric; label: string }[] = [
+  { value: "earned", label: "Entrate" },
+  { value: "spent", label: "Uscite" },
+  { value: "saved", label: "Risparmio" },
+  { value: "lost", label: "Perdite" },
+];
+
+const RANK_SIZE = 8;
+
+const RANK_EMPTY:Record<RankMetric, string> = {
+  earned: "Nessuna entrata nel periodo",
+  spent: "Nessuna uscita nel periodo",
+  saved: "Nessun periodo in risparmio",
+  lost: "Nessun periodo in perdita",
+};
+
+const rangeFor =(preset: RangePreset): { start: string; end: string } => {
   const today = new Date();
   const end = toDateInputValue(today);
   switch (preset) {
@@ -114,7 +134,11 @@ export default function AnalyticsPage() {
   const [byCategory, setByCategory] = useState<TimeSeriesList | null>(null);
 
   const [flowView, setFlowView] = useState<ChartView>("chart");
-  const [accountsView, setAccountsView] = useState<ChartView>("chart");
+  const [netWorthView, setNetWorthView] = useState<ChartView>("chart");
+  const [rankMetric, setRankMetric] = useState<RankMetric>("earned");
+  const [rankGranularity, setRankGranularity] = useState<RankGranularity>(3);
+  const [rankFlow, setRankFlow] = useState<TimeSeriesList | null>(null);
+  const [rankLoading, setRankLoading] = useState(false);
   const [categoryView, setCategoryView] = useState<ChartView>("chart");
   const [categoryKind, setCategoryKind] = useState<"spent" | "earned">("spent");
 
@@ -168,6 +192,49 @@ export default function AnalyticsPage() {
 
     void load();
   }, [range.start, range.end, granularity, invalidRange, lookupsReady, accountIds, categoryIds, dataVersion]);
+
+  // la classifica ha un raggruppamento proprio (mese/anno), indipendente da quello della pagina
+  useEffect(() => {
+    if (invalidRange || !range.start || !range.end) return;
+
+    const load = async () => {
+      setRankLoading(true);
+      try {
+        setRankFlow(
+          await TransactionService.getTimeSeries({
+            startDate: toIsoDateStart(range.start),
+            endDate: toIsoDateEnd(range.end),
+            granularity: rankGranularity,
+            idAccounts: [],
+            idCategories: [],
+            excludeTransfers: true,
+          }),
+        );
+      } catch {
+        // errore già mostrato dal layer API
+      } finally {
+        setRankLoading(false);
+      }
+    };
+
+    void load();
+  }, [range.start, range.end, rankGranularity, invalidRange, dataVersion]);
+
+  const rankItems = useMemo(
+    () =>
+      (rankFlow?.series[0]?.values ?? [])
+        .map((v) => {
+          const net = v.earned - v.spent;
+          const value =
+            rankMetric === "earned" ? v.earned : rankMetric === "spent" ? v.spent : rankMetric === "saved" ? net : -net;
+          return { id: v.period, name: formatPeriodLabel(v.period, true), value };
+        })
+        // risparmio e perdite considerano solo i periodi con saldo netto del segno giusto
+        .filter((item) => item.value > 0)
+        .sort((x, y) => y.value - x.value)
+        .slice(0, RANK_SIZE),
+    [rankFlow, rankMetric],
+  );
 
   const netWorth = useMemo(
     () => (total?.series[0]?.values ?? []).map((v) => ({ period: v.period, amount: v.amount })),
@@ -316,8 +383,12 @@ export default function AnalyticsPage() {
 
       {invalidRange && <Alert severity="warning">La data di inizio deve precedere la data di fine.</Alert>}
 
-      {/* Patrimonio + sintesi del periodo */}
-      <SurfaceCard title="Patrimonio" subtitle={`Saldo medio di tutti i conti per periodo · ${periodLabel}`}>
+      {/* Flusso di cassa + sintesi del periodo */}
+      <SurfaceCard
+        title="Flusso di cassa"
+        subtitle={`Entrate sopra lo zero, uscite sotto, saldo netto come linea · ${periodLabel}`}
+        action={<ChartViewToggle value={flowView} onChange={setFlowView} />}
+      >
         <Box
           sx={{
             display: "grid",
@@ -343,24 +414,66 @@ export default function AnalyticsPage() {
             hint={`risparmio netto ${formatSignedCurrency(summary.net)}`}
           />
         </Box>
-        {loading ? chartSkeleton : <NetWorthAreaChart points={netWorth} height={300} />}
+        {loading ? chartSkeleton : <CashFlowChart points={cashFlow} height={300} view={flowView} />}
       </SurfaceCard>
 
       <Box sx={{ display: "grid", gap: { xs: 2, md: 2.5 }, gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" } }}>
         <SurfaceCard
-          title="Flusso di cassa"
-          subtitle="Entrate sopra lo zero, uscite sotto, saldo netto come linea"
-          action={<ChartViewToggle value={flowView} onChange={setFlowView} />}
+          title="Patrimonio"
+          subtitle="Saldo medio di tutti i conti per periodo · clicca un conto nella legenda per mostrarlo"
+          action={<ChartViewToggle value={netWorthView} onChange={setNetWorthView} />}
         >
-          {loading ? chartSkeleton : <CashFlowChart points={cashFlow} height={300} view={flowView} />}
+          {loading ? (
+            chartSkeleton
+          ) : (
+            <NetWorthAreaChart points={netWorth} accountSeries={accountSeries} height={300} view={netWorthView} />
+          )}
         </SurfaceCard>
 
         <SurfaceCard
-          title="Saldo per conto"
-          subtitle="Clicca sulla legenda per nascondere un conto"
-          action={<ChartViewToggle value={accountsView} onChange={setAccountsView} />}
+          title="Classifica periodi"
+          subtitle={`I ${rankGranularity === 3 ? "mesi" : "anni"} migliori e peggiori nel periodo selezionato · trasferimenti esclusi`}
+          action={
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={rankGranularity}
+              onChange={(_e, value: RankGranularity | null) => value && setRankGranularity(value)}
+              aria-label="Raggruppamento classifica"
+            >
+              <ToggleButton value={3}>Mese</ToggleButton>
+              <ToggleButton value={4}>Anno</ToggleButton>
+            </ToggleButtonGroup>
+          }
         >
-          {loading ? chartSkeleton : <BalanceLinesChart series={accountSeries} height={300} view={accountsView} />}
+          <Box sx={{ overflowX: "auto", mb: 2 }}>
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={rankMetric}
+              onChange={(_e, value: RankMetric | null) => value && setRankMetric(value)}
+              aria-label="Metrica classifica"
+              sx={{ flexWrap: "nowrap" }}
+            >
+              {RANK_METRICS.map((m) => (
+                <ToggleButton key={m.value} value={m.value} sx={{ whiteSpace: "nowrap" }}>
+                  {m.label}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+          </Box>
+          {rankLoading ? (
+            <Skeleton variant="rounded" height={280} />
+          ) : (
+            <RankedBarList
+              items={rankItems}
+              maxItems={RANK_SIZE}
+              showShare={false}
+              color={rankMetric === "earned" || rankMetric === "saved" ? a.income : a.expense}
+              emptyMessage={RANK_EMPTY[rankMetric]}
+              minHeight={280}
+            />
+          )}
         </SurfaceCard>
       </Box>
 

@@ -14,6 +14,8 @@ Un utente può essere ritrovato anche tramite la sua email: è il modo in cui l'
 ## Come restano separati i dati degli utenti
 Ogni movimento appartiene al proprietario del conto su cui è registrato: quando il sistema legge movimenti, riepiloghi o trasferimenti, considera solo quelli dei conti dell'utente collegato.
 
+L'elenco dei movimenti viene ordinato direttamente dal database secondo il criterio scelto (data, descrizione, categoria, conto o importo), così l'ordine resta coerente su tutte le pagine e non solo su quella visualizzata.
+
 ## L'IBAN dei conti
 Ogni conto può avere un IBAN, facoltativo. Lo stesso IBAN non può essere assegnato a due conti della stessa persona, perché altrimenti non si saprebbe a quale conto attribuire un bonifico; persone diverse possono invece indicare lo stesso IBAN (es. un conto cointestato). I conti già esistenti restano senza IBAN finché non viene inserito.
 

@@ -19,6 +19,6 @@ Il logo dell'app (un piccolo istogramma a tre barre crescenti) compare accanto a
 ## Principi
 - Colori con un significato fisso: verde per le entrate, rosso per le uscite; ogni conto ha sempre lo stesso colore nei grafici.
 - Colori dei grafici scelti per restare distinguibili anche da chi ha difficoltà a percepire i colori, con legende e viste a tabella.
-- Elementi ricorrenti uguali in tutte le pagine: schede, tabelle con intestazione sempre visibile, stati di caricamento e messaggi "nessun dato" uniformi.
+- Elementi ricorrenti uguali in tutte le pagine: schede, tabelle con intestazione sempre visibile (e, dove previsto, cliccabile per ordinare), stati di caricamento e messaggi "nessun dato" uniformi.
 - Modifiche in pannelli laterali o finestre che non fanno perdere il contesto.
 - Pensata anche per smartphone: menu a scomparsa, finestre a schermo intero.

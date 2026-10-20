@@ -18,6 +18,8 @@ interface RankedBarListProps {
   otherLabel?: string;
   emptyMessage?: string;
   minHeight?: number;
+  /** mostra la quota di ogni voce sul totale (non ha senso per le classifiche di periodi) */
+  showShare?: boolean;
 }
 
 /**
@@ -31,6 +33,7 @@ export default function RankedBarList({
   otherLabel = "Altre",
   emptyMessage = "Nessun movimento nel periodo",
   minHeight = 260,
+  showShare = true,
 }: RankedBarListProps) {
   const a = useTheme().app;
 
@@ -75,7 +78,7 @@ export default function RankedBarList({
           <Tooltip
             key={row.id}
             placement="top-start"
-            title={`${row.name}: ${formatCurrency(row.value)} · ${formatPercent(share)} del totale`}
+            title={`${row.name}: ${formatCurrency(row.value)}${showShare ? ` · ${formatPercent(share)} del totale` : ""}`}
           >
             <Box sx={{ cursor: "default" }}>
               <Stack direction="row" alignItems="baseline" spacing={1} sx={{ mb: 0.6 }}>
@@ -88,11 +91,13 @@ export default function RankedBarList({
                 <Typography sx={{ fontSize: "0.85rem", fontWeight: 650, color: a.text }}>
                   {formatCurrency(row.value)}
                 </Typography>
-                <Typography
-                  sx={{ fontSize: "0.75rem", color: a.textMuted, width: 44, textAlign: "right", fontVariantNumeric: "tabular-nums" }}
-                >
-                  {formatPercent(share, 0)}
-                </Typography>
+                {showShare && (
+                  <Typography
+                    sx={{ fontSize: "0.75rem", color: a.textMuted, width: 44, textAlign: "right", fontVariantNumeric: "tabular-nums" }}
+                  >
+                    {formatPercent(share, 0)}
+                  </Typography>
+                )}
               </Stack>
               <Box sx={{ height: 8, borderRadius: 4, backgroundColor: a.surfaceAlt, overflow: "hidden" }}>
                 <Box
