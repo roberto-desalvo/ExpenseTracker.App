@@ -6,7 +6,7 @@
 - Vedere un riepilogo generale (dashboard) con saldi, categorie e andamento nel tempo.
 - Caricare estratti conto bancari per importare automaticamente i movimenti.
 - Indicare l'IBAN di ciascun conto, così che i bonifici tra i propri conti vengano riconosciuti come trasferimenti.
-- Ricollegare i trasferimenti tra i propri conti nei movimenti già importati, con la possibilità di vedere prima cosa verrebbe collegato.
+- Ricollegare i trasferimenti tra conti nei movimenti già importati, per tutti gli utenti in una sola richiesta (ognuno sempre e solo tra i propri conti), con la possibilità di vedere prima cosa verrebbe collegato. Come il caricamento degli estratti conto richiede il permesso dedicato all'import.
 - Per l'account dimostrativo: rigenerare con un solo clic un set completo di dati d'esempio realistici (conti, movimenti, trasferimenti), cancellando quelli precedenti.
 - Per l'utente di test (`test@dev.local`): riportarne i dati a uno stato pulito con una sola richiesta, che cancella tutto e ricrea cinque conti con circa cinque anni di movimenti fittizi ma credibili. È pensata per essere lanciata periodicamente da un servizio automatico.
 - Avviare una demo senza account: si entra come utente di test e si esplora l'app con i suoi dati fittizi.

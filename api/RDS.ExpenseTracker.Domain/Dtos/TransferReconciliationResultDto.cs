@@ -3,6 +3,7 @@ namespace RDS.ExpenseTracker.Domain.Dtos;
 public class TransferReconciliationResultDto
 {
     public bool DryRun { get; set; }
+    public int UsersProcessed { get; set; }
     public int ExaminedTransactions { get; set; }
     public int LinkedTransfers { get; set; }
     public int MatchedByRule { get; set; }
@@ -17,6 +18,7 @@ public class TransferReconciliationResultDto
 
 public class TransferReconciliationPairDto
 {
+    public int UserId { get; set; }
     public int OutboundTransactionId { get; set; }
     public int InboundTransactionId { get; set; }
     public string FromAccount { get; set; } = string.Empty;

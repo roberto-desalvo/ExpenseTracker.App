@@ -20,6 +20,12 @@ public interface ITransferMatchingService : IService
     bool IsTransferCandidate(string accountName, string description);
 
     /// <summary>
+    /// The opposite side of every configured rule matched by the given account name + description,
+    /// evaluated in memory without touching the database (used by the bulk reconciliation).
+    /// </summary>
+    IReadOnlyList<TransferRuleCounterpart> GetCounterpartRules(string accountName, string description);
+
+    /// <summary>
     /// Attempts to find an already-imported, unlinked transaction on the other side of a
     /// matching rule. <paramref name="consumedCandidateIds"/> is shared across a single
     /// import call so that multiple rows being matched in the same batch don't claim the

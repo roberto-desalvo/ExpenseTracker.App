@@ -20,7 +20,6 @@ public interface ITransactionRepository : IRepositoryBase
     Task<Transaction> GetLatestTransaction(int userId);
     Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds, int userId);
     Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains);
-    Task<List<Transaction>> GetUnlinkedTransactions(int userId, DateTime? fromDate, DateTime? toDate);
     Task AddTransactions(IEnumerable<Transaction> transactions);
     Task UpdateTransaction(Transaction transaction);
     Task DeleteTransaction(int id);

@@ -13,4 +13,21 @@ public class TransferMatchRule
     public string AccountName2 { get; set; } = string.Empty;
     public string DescriptionPattern2 { get; set; } = string.Empty;
     public DescriptionMatchMode DescriptionMatchMode2 { get; set; } = DescriptionMatchMode.Contains;
+
+    public static bool MatchesDescription(string? description, string pattern, DescriptionMatchMode mode)
+    {
+        if (string.IsNullOrEmpty(description) || string.IsNullOrEmpty(pattern))
+            return false;
+
+        return mode == DescriptionMatchMode.StartsWith
+            ? description.StartsWith(pattern, StringComparison.OrdinalIgnoreCase)
+            : description.Contains(pattern, StringComparison.OrdinalIgnoreCase);
+    }
+}
+
+/// <summary>Il lato opposto di una regola che ha riconosciuto un movimento: conto e descrizione attesi sulla controparte.</summary>
+public sealed record TransferRuleCounterpart(string AccountName, string DescriptionPattern, DescriptionMatchMode MatchMode)
+{
+    public bool Matches(string? description)
+        => TransferMatchRule.MatchesDescription(description, DescriptionPattern, MatchMode);
 }

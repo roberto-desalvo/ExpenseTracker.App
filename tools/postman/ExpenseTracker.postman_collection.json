@@ -1442,7 +1442,7 @@
                     }
                   ]
                 },
-                "description": "Cerca tra i movimenti non collegati dell'utente chiamante le coppie che formano un trasferimento (regole `TransferMatching`, IBAN dei conti nella descrizione, movimenti in categoria Money transfers; tolleranza 3 giorni) e le collega con un `Transfer`. Risposta: `200 { dryRun, examinedTransactions, linkedTransfers, matchedByRule, matchedByIban, matchedByCategory, ambiguousSkipped, pairs: [...] }`."
+                "description": "Non usa l'identità del chiamante: cerca tra i movimenti non collegati di tutti gli utenti (ognuno solo tra i propri conti) le coppie che formano un trasferimento (regole `TransferMatching`, IBAN dei conti nella descrizione, movimenti in categoria Money transfers; tolleranza 3 giorni) e le collega con un `Transfer`. Risposta: `200 { dryRun, usersProcessed, examinedTransactions, linkedTransfers, matchedByRule, matchedByIban, matchedByCategory, ambiguousSkipped, pairs: [...] }`."
               }
             }
           ]

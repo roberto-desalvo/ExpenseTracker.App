@@ -6,7 +6,7 @@
 - `SellaCsvImportServiceTests.cs`
 - `SatisPayCsvImportServiceTests.cs`
 - `TradeRepublicCsvImportServiceTests.cs`
-- `TransferReconciliationServiceTests.cs` — riconciliazione trasferimenti: match per regola, per IBAN del conto e per categoria `MoneyTransfers`, salto dei casi ambigui, tolleranza di 3 giorni, `dryRun` senza modifiche, validazione dell'intervallo date.
+- `TransferReconciliationServiceTests.cs` — riconciliazione trasferimenti: match per regola, per IBAN del conto e per categoria `MoneyTransfers`, salto dei casi ambigui, tolleranza di 3 giorni, nessun match tra utenti diversi, `dryRun` senza modifiche, validazione dell'intervallo date, e un test di volume (80.000 movimenti, 20.000 coppie) con tetto di 10 secondi per intercettare regressioni quadratiche. Usa un `FakeReconciliationRepository` che registra le coppie passate a `LinkTransfers`.
 
 ## Approccio
 Nessun mocking framework: ogni file di test definisce le proprie fake in-file (`FakeTransactionRepository`, `FakeAccountRepository`, `FakeCategoryRepository`, `FakeTransferRepository`) che implementano direttamente le interfacce repository del Domain, più fake options (`FakeBbvaCsvOptions`, ecc.) per le interfacce `I*CsvOptions`. Nessuna infrastruttura di test condivisa: ogni classe è autosufficiente.

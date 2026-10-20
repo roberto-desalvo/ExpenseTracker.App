@@ -13,7 +13,7 @@
 | `ExcelImportService` | Importer Excel legacy multi-sheet (vedi [08-import-overview-and-dedup](../../03-import-pipeline/tech/08-import-overview-and-dedup.tech.md)). |
 | `BbvaCsvImportService`, `SellaCsvImportService`, `SatisPayCsvImportService`, `TradeRepublicCsvImportService` | Importer CSV per banca (vedi [09-bank-specific-importers](../../03-import-pipeline/tech/09-bank-specific-importers.tech.md)). |
 | `TransferMatchingService` | Motore di matching trasferimenti cross-source (vedi [10-transfer-matching](../../03-import-pipeline/tech/10-transfer-matching.tech.md)). |
-| `TransferReconciliationService` | Collega a posteriori i movimenti già importati che formano un trasferimento (regole, IBAN dei conti, categoria `MoneyTransfers`), con `dryRun` (vedi [10-transfer-matching](../../03-import-pipeline/tech/10-transfer-matching.tech.md)). |
+| `TransferReconciliationService` | Collega a posteriori, per tutti gli utenti (uno alla volta, matching in memoria), i movimenti già importati che formano un trasferimento (regole, IBAN dei conti, categoria `MoneyTransfers`), con `dryRun` (vedi [10-transfer-matching](../../03-import-pipeline/tech/10-transfer-matching.tech.md)). |
 
 ## Supporto
 - **`Builders/CategorySeedBuilder.cs`** — costruisce le 11 categorie seed, usate sia da `Category.CreateSeedCategories()` (Domain) sia da `CategoryConfiguration.HasData(...)` (Infrastructure).

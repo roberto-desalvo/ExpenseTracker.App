@@ -12,7 +12,7 @@ Per riconoscere i bonifici tra conti propri usa l'IBAN: ogni conto può avere il
 Il movimento viene comunque salvato normalmente; verrà collegato automaticamente non appena verrà importato anche il movimento della banca controparte.
 
 ## Sistemare i trasferimenti già importati
-Se in passato degli import sono avvenuti senza riconoscere i trasferimenti (per esempio prima di aver inserito gli IBAN dei conti), è possibile avviare una "riconciliazione": l'applicazione rilegge i movimenti già presenti, cerca le coppie entrata/uscita tra conti diversi con lo stesso importo e date vicine (al massimo tre giorni di differenza) e le collega come trasferimenti.
+Se in passato degli import sono avvenuti senza riconoscere i trasferimenti (per esempio prima di aver inserito gli IBAN dei conti), è possibile avviare una "riconciliazione": l'applicazione rilegge i movimenti già presenti di tutti gli utenti, cerca le coppie entrata/uscita tra conti diversi della stessa persona con lo stesso importo e date vicine (al massimo tre giorni di differenza) e le collega come trasferimenti. Non serve indicare per chi farlo: ogni persona viene analizzata separatamente e un movimento non viene mai abbinato a quello di un altro utente. L'operazione è pensata per grandi volumi: anche decine di migliaia di movimenti vengono analizzati in pochi secondi.
 
 - Si può prima fare una prova, che mostra le coppie trovate senza modificare nulla.
 - Si può limitare la ricerca a un periodo.

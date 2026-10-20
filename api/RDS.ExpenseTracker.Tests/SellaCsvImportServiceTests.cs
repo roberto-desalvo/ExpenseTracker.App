@@ -272,7 +272,6 @@ public class SellaCsvImportServiceTests
         public Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds, int userId)
             => Task.FromResult(externalIds.Where(id => _existingExternalIds.Contains(id)));
 
-        public Task<List<Transaction>> GetUnlinkedTransactions(int userId, DateTime? fromDate, DateTime? toDate) => throw new NotImplementedException();
         public Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains)
         {
             var targetDate = date.Date;

@@ -195,7 +195,6 @@ public class TradeRepublicCsvImportServiceTests
         public Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds, int userId)
             => Task.FromResult(Enumerable.Empty<string>());
 
-        public Task<List<Transaction>> GetUnlinkedTransactions(int userId, DateTime? fromDate, DateTime? toDate) => throw new NotImplementedException();
         public Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains)
         {
             var targetDate = date.Date;

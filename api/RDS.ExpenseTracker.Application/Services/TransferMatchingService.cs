@@ -12,7 +12,7 @@ public class TransferMatchingService : ITransferMatchingService
     /// one calendar day before the outbound (negative-amount) leg. Fixed by design, not
     /// configurable.
     /// </summary>
-    private const int InboundOffsetDays = 1;
+    public const int InboundOffsetDays = 1;
 
     private readonly ITransactionRepository _transactionRepository;
     private readonly IAccountRepository _accountRepository;
@@ -30,6 +30,11 @@ public class TransferMatchingService : ITransferMatchingService
 
     public bool IsTransferCandidate(string accountName, string description)
         => FindMatchingRules(accountName, description).Any();
+
+    public IReadOnlyList<TransferRuleCounterpart> GetCounterpartRules(string accountName, string description)
+        => FindMatchingRules(accountName, description)
+            .Select(m => new TransferRuleCounterpart(m.OtherAccountName, m.OtherDescriptionPattern, m.OtherMatchMode))
+            .ToList();
 
     public async Task<TransferMatchResult> TryMatchAsync(
         string accountName,
@@ -114,12 +119,5 @@ public class TransferMatchingService : ITransferMatchingService
     }
 
     private static bool MatchesDescription(string? description, string pattern, DescriptionMatchMode mode)
-    {
-        if (string.IsNullOrEmpty(description) || string.IsNullOrEmpty(pattern))
-            return false;
-
-        return mode == DescriptionMatchMode.StartsWith
-            ? description.StartsWith(pattern, StringComparison.OrdinalIgnoreCase)
-            : description.Contains(pattern, StringComparison.OrdinalIgnoreCase);
-    }
+        => TransferMatchRule.MatchesDescription(description, pattern, mode);
 }

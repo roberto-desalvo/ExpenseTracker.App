@@ -33,6 +33,7 @@ public static class AddServicesExtensions
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<ITransferRepository, TransferRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<ITransferReconciliationRepository, TransferReconciliationRepository>();
 
         return services;
     }

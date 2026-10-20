@@ -165,8 +165,9 @@ public class ImportFunctions : FunctionBase
     // -------------------------------------------------------------------------
 
     /// <summary>
-    /// Cerca tra i movimenti già importati dell'utente le coppie che rappresentano un trasferimento e le collega.
+    /// Cerca tra i movimenti già importati di tutti gli utenti le coppie che rappresentano un trasferimento e le collega.
     /// Query opzionali: <c>fromDate</c>, <c>toDate</c> (date ISO) e <c>dryRun=true</c> per vedere i match senza salvarli.
+    /// Non dipende dall'identità del chiamante (come <c>Import_TestSeed</c>), ma richiede comunque il ruolo <c>Files.Sender</c>.
     /// </summary>
     [Function("Import_ReconcileTransfers")]
     public async Task<IActionResult> ReconcileTransfers(
@@ -179,8 +180,7 @@ public class ImportFunctions : FunctionBase
         _logger.LogInformation("Transfer reconciliation requested. FromDate={FromDate}, ToDate={ToDate}, DryRun={DryRun}",
             fromDate, toDate, dryRun);
 
-        var userId = await _currentUserAccessor.GetUserIdForImportAsync();
-        return await ExecuteAsync(() => _transferReconciliationService.ReconcileAsync(userId, fromDate, toDate, dryRun));
+        return await ExecuteAsync(() => _transferReconciliationService.ReconcileAsync(fromDate, toDate, dryRun));
     }
 
     // -------------------------------------------------------------------------
