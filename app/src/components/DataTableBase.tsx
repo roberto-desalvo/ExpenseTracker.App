@@ -9,6 +9,7 @@ import {
   TableHead,
   TablePagination,
   TableRow,
+  TableSortLabel,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { InboxOutlined } from "@mui/icons-material";
@@ -19,6 +20,8 @@ export interface DataTableColumn {
   label: string;
   minWidth?: number | string;
   align?: "left" | "right" | "center" | "inherit" | "justify";
+  /** se true l'intestazione è cliccabile e invoca onSortChange */
+  sortable?: boolean;
 }
 
 export interface DataTableBaseProps<T> {
@@ -41,6 +44,10 @@ export interface DataTableBaseProps<T> {
   minTableWidth?: number;
   /** altezza massima dell'area scrollabile; l'intestazione resta fissa */
   tableViewportHeight?: number;
+  /** id della colonna attualmente ordinata */
+  sortBy?: string;
+  sortDirection?: "asc" | "desc";
+  onSortChange?: (columnId: string) => void;
 }
 
 /** Tabella paginata condivisa (movimenti, categorie): righe a filo con separatori sottili. */
@@ -61,6 +68,9 @@ export default function DataTableBase<T>({
   rowsPerPageOptions = [10, 25, 100],
   minTableWidth = 700,
   tableViewportHeight,
+  sortBy,
+  sortDirection = "asc",
+  onSortChange,
 }: DataTableBaseProps<T>) {
   const a = useTheme().app;
 
@@ -88,6 +98,7 @@ export default function DataTableBase<T>({
                   <TableCell
                     key={column.id}
                     align={column.align}
+                    sortDirection={sortBy === column.id ? sortDirection : false}
                     sx={{
                       width: column.minWidth,
                       backgroundColor: a.surfaceAlt,
@@ -97,7 +108,17 @@ export default function DataTableBase<T>({
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {column.label}
+                    {column.sortable && onSortChange ? (
+                      <TableSortLabel
+                        active={sortBy === column.id}
+                        direction={sortBy === column.id ? sortDirection : "asc"}
+                        onClick={() => onSortChange(column.id)}
+                      >
+                        {column.label}
+                      </TableSortLabel>
+                    ) : (
+                      column.label
+                    )}
                   </TableCell>
                 ))}
               </TableRow>

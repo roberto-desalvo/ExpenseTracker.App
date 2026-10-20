@@ -11,14 +11,20 @@ import { useCategories } from "./CategoryContext";
 import { useTransactions } from "./TransactionContext";
 import Transaction from "../models/Transaction";
 import { TransactionMonthOption } from "../models/TransactionMonthOption";
+import { SortDirection, TransactionSortField } from "../models/TransactionQueryRequest";
 
 export default interface TableColumn {
-  id: "date" | "description" | "amount" | "category" | "account" | "actions";
+  id: TransactionSortField | "actions";
   label: string;
   minWidth?: string;
   align?: "right";
+  sortable?: boolean;
   format?: (value: number) => string;
 }
+
+// date e importo partono dal più recente/più alto, i campi testuali in ordine alfabetico
+const defaultSortDirection = (field: TransactionSortField): SortDirection =>
+  field === "date" || field === "amount" ? "desc" : "asc";
 
 export type MovementType = "all" | "incomes" | "outcomes";
 
@@ -32,6 +38,9 @@ interface TableContextType {
   availableMonthsLoading: boolean;
   page: number;
   pageSize: number;
+  sortBy: TransactionSortField;
+  sortDirection: SortDirection;
+  modifySort: (field: TransactionSortField) => void;
   modifySelectedMonth: (month: TransactionMonthOption) => void;
   modifyMovementType: (movementType: MovementType) => void;
   modifyPage: (page: number) => void;
@@ -49,11 +58,11 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
   const location = useLocation();
   const shouldLoadTableData = location.pathname === "/movimenti";
   const [columns] = useState<TableColumn[]>([
-    { id: "date", label: "Data", minWidth: "12%" },
-    { id: "description", label: "Descrizione", minWidth: "34%" },
-    { id: "category", label: "Categoria", minWidth: "18%" },
-    { id: "account", label: "Conto", minWidth: "14%" },
-    { id: "amount", label: "Importo", minWidth: "14%", align: "right" },
+    { id: "date", label: "Data", minWidth: "12%", sortable: true },
+    { id: "description", label: "Descrizione", minWidth: "34%", sortable: true },
+    { id: "category", label: "Categoria", minWidth: "18%", sortable: true },
+    { id: "account", label: "Conto", minWidth: "14%", sortable: true },
+    { id: "amount", label: "Importo", minWidth: "14%", align: "right", sortable: true },
     { id: "actions", label: "", minWidth: "8%", align: "right" },
   ]);
 
@@ -65,6 +74,8 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
   const [movementType, setMovementType] = useState<MovementType>("all");
   const [page, setPage] = useState<number>(0);
   const [pageSize, setPageSize] = useState<number>(10);
+  const [sortBy, setSortBy] = useState<TransactionSortField>("date");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const transactionContext = useTransactions();
 
   const buildRequest = (
@@ -74,6 +85,8 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
     accountIds: number[],
     categoryIds: number[],
     selectedMovementType: MovementType,
+    field: TransactionSortField,
+    direction: SortDirection,
   ) => {
     const normalizedAccountIds =
       accountIds.length === 0 || accountIds.length === accounts.length
@@ -93,6 +106,8 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
         selectedMovementType === "all"
           ? null
           : selectedMovementType === "incomes",
+      sortBy: field,
+      sortDirection: direction,
       page: p,
       pageSize: ps,
     };
@@ -144,9 +159,11 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
         selectedAccountIds,
         selectedCategoryIds,
         movementType,
+        sortBy,
+        sortDirection,
       )
     : null;
-  // la richiesta parte solo quando cambia davvero (filtri, pagina, mese), non a ogni nuovo riferimento di conti/categorie
+  // la richiesta parte solo quando cambia davvero (filtri, ordinamento, pagina, mese), non a ogni nuovo riferimento di conti/categorie
   const requestKey = request ? JSON.stringify(request) : null;
 
   useEffect(() => {
@@ -171,6 +188,17 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
     setPageSize(newPageSize);
   };
 
+  // stessa colonna: inverte la direzione; nuova colonna: parte dalla sua direzione naturale
+  const modifySort = (field: TransactionSortField) => {
+    if (field === sortBy) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(field);
+      setSortDirection(defaultSortDirection(field));
+    }
+    setPage(0);
+  };
+
   const modifyMovementType = (newMovementType: MovementType) => {
     setMovementType((currentMovementType) =>
       currentMovementType === newMovementType ? "all" : newMovementType,
@@ -188,12 +216,8 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
     setPage(0);
   };
 
-  const getFilteredTransactions = () => {
-    const transactions = transactionContext.transactions;
-    return transactions.sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-    );
-  };
+  // l'ordinamento è applicato lato server (insieme alla paginazione)
+  const getFilteredTransactions = () => transactionContext.transactions;
 
   return (
     <TableContext.Provider
@@ -207,6 +231,9 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
         availableMonthsLoading: transactionContext.availableMonthsLoading,
         page,
         pageSize,
+        sortBy,
+        sortDirection,
+        modifySort,
         modifySelectedMonth,
         modifyMovementType,
         modifyPage,

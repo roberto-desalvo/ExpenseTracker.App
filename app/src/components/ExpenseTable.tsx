@@ -5,6 +5,7 @@ import DataTableBase, { DataTableColumn } from "./DataTableBase";
 import { useTableContext } from "../stores/TableContext";
 import { useTransactions } from "../stores/TransactionContext";
 import { useQuickActions } from "../stores/QuickActionsContext";
+import { TransactionSortField } from "../models/TransactionQueryRequest";
 
 export default function ExpenseTable() {
   const tableContext = useTableContext();
@@ -30,6 +31,9 @@ export default function ExpenseTable() {
       totalCount={transactionContext.totalCount}
       onPageChange={(_event, newPage) => tableContext.modifyPage(newPage)}
       onPageSizeChange={(event) => tableContext.modifyPageSize(+event.target.value)}
+      sortBy={tableContext.sortBy}
+      sortDirection={tableContext.sortDirection}
+      onSortChange={(columnId) => tableContext.modifySort(columnId as TransactionSortField)}
       rowsPerPageOptions={[10, 20, 50]}
       minTableWidth={760}
       renderRow={(t) => <ExpenseTableRow transaction={t} key={t.id} />}

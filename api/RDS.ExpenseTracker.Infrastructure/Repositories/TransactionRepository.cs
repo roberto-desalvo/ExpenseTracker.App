@@ -25,6 +25,24 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
     private static IQueryable<Transaction> ExcludingTransfers(IQueryable<Transaction> query)
         => query.Where(t => t.TransferId == null && t.CategoryId != MoneyTransfersCategoryId);
 
+    // Ordinamento della lista paginata; campo sconosciuto o assente => data. L'Id come
+    // chiave secondaria rende stabile la paginazione a parità di valore.
+    private static IQueryable<Transaction> ApplySorting(IQueryable<Transaction> query, string? sortBy, string? sortDirection)
+    {
+        var descending = !string.Equals(sortDirection, "asc", StringComparison.OrdinalIgnoreCase);
+
+        IOrderedQueryable<Transaction> ordered = sortBy?.ToLowerInvariant() switch
+        {
+            "description" => descending ? query.OrderByDescending(t => t.Description) : query.OrderBy(t => t.Description),
+            "category" => descending ? query.OrderByDescending(t => t.CategoryNavigation!.Name) : query.OrderBy(t => t.CategoryNavigation!.Name),
+            "account" => descending ? query.OrderByDescending(t => t.AccountNavigation.Name) : query.OrderBy(t => t.AccountNavigation.Name),
+            "amount" => descending ? query.OrderByDescending(t => t.Amount) : query.OrderBy(t => t.Amount),
+            _ => descending ? query.OrderByDescending(t => t.Date) : query.OrderBy(t => t.Date),
+        };
+
+        return descending ? ordered.ThenByDescending(t => t.Id) : ordered.ThenBy(t => t.Id);
+    }
+
     public async Task AddTransactions(IEnumerable<Transaction> transactions)
     {
         await Context.Transactions.AddRangeAsync(transactions);
@@ -147,8 +165,7 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
                 .SumAsync() ?? 0m);
         var totalNet = totalIncomes - totalOutcomes;
 
-        var items = await query
-            .OrderByDescending(t => t.Date)
+        var items = await ApplySorting(query, request.SortBy, request.SortDirection)
             .Skip(request.Page * request.PageSize)
             .Take(request.PageSize)
             .ToListAsync();
