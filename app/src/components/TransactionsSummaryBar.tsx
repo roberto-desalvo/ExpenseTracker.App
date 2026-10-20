@@ -4,7 +4,7 @@ import { useTheme } from "@mui/material/styles";
 import { CheckCircleRounded, NorthEastRounded, SouthWestRounded, SwapVertRounded } from "@mui/icons-material";
 import { MovementType, useTableContext } from "../stores/TableContext";
 import { useTransactions } from "../stores/TransactionContext";
-import { formatCurrency, formatSignedCurrency } from "../utilities/format.utilities";
+import { formatCurrency, formatPercent, formatSignedCurrency } from "../utilities/format.utilities";
 
 /**
  * Totali del periodo filtrato. Entrate e Uscite sono anche filtri: un click mostra
@@ -23,6 +23,7 @@ export default function TransactionsSummaryBar() {
     color: string,
     soft: string,
     clickable: boolean,
+    extra?: ReactNode,
   ) => {
     const active = clickable && tableContext.movementType === key;
 
@@ -72,17 +73,36 @@ export default function TransactionsSummaryBar() {
           <Typography sx={{ fontSize: "1.2rem", fontWeight: 750, color: a.text, letterSpacing: "-0.02em" }}>
             {value}
           </Typography>
+          {extra}
         </Box>
         {active && <CheckCircleRounded sx={{ color, fontSize: 20 }} />}
       </ButtonBase>
     );
   };
 
+  // con il filtro Entrate/Uscite uno dei due totali è azzerato: il tasso non avrebbe senso
+  const savingsRate =
+    tableContext.movementType === "all" && transactions.totalIncomes > 0
+      ? (transactions.totalNet / transactions.totalIncomes) * 100
+      : null;
+
+  const savingsRateLine = (
+    <Typography sx={{ fontSize: "0.74rem", color: a.textMuted, mt: 0.25 }}>
+      Tasso di risparmio{" "}
+      <Box
+        component="span"
+        sx={{ fontWeight: 700, color: savingsRate === null ? a.textMuted : savingsRate < 0 ? a.expense : a.income }}
+      >
+        {savingsRate === null ? "—" : formatPercent(savingsRate)}
+      </Box>
+    </Typography>
+  );
+
   return (
     <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" } }}>
       {tile("incomes", "Entrate", formatCurrency(transactions.totalIncomes), <SouthWestRounded fontSize="small" />, a.income, a.incomeSoft, true)}
       {tile("outcomes", "Uscite", formatCurrency(transactions.totalOutcomes), <NorthEastRounded fontSize="small" />, a.expense, a.expenseSoft, true)}
-      {tile("all", "Saldo del periodo", formatSignedCurrency(transactions.totalNet), <SwapVertRounded fontSize="small" />, a.primary, a.primarySoft, false)}
+      {tile("all", "Saldo del periodo", formatSignedCurrency(transactions.totalNet), <SwapVertRounded fontSize="small" />, a.primary, a.primarySoft, false, savingsRateLine)}
     </Box>
   );
 }
