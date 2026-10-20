@@ -7,10 +7,11 @@ Offrire una sintesi immediata dell'andamento economico e, quando serve, un'anali
 La pagina iniziale risponde in pochi secondi a "come sto andando questo mese?":
 - **Patrimonio netto**: il totale di tutti i conti, quanto è cambiato negli ultimi 12 mesi e una piccola linea di andamento. Con l'icona a forma di occhio si nascondono gli importi (utile in pubblico); la scelta viene ricordata.
 - **Quattro indicatori del mese**: entrate, uscite (entrambe confrontate con la media degli ultimi 6 mesi, in verde se il confronto è favorevole, in rosso se no), risparmio netto con l'avanzamento del mese e tasso di risparmio (quanta parte delle entrate resta dopo le spese).
-- **Flusso di cassa**: per ciascuno degli ultimi 12 mesi, le entrate come barra verso l'alto, le uscite verso il basso e il saldo come linea; passandoci sopra si vede anche il tasso di risparmio del mese. I trasferimenti tra i propri conti non sono contati.
-- **Dove vanno i soldi**: le categorie con più spese (o entrate) del mese, ordinate dalla più grande, con importo e percentuale.
 - **Conti**: come il patrimonio è ripartito tra i conti e quanto si è mosso ciascun conto nel mese.
+- **Dove vanno i soldi**: le categorie con più spese (o entrate) del mese, ordinate dalla più grande, con importo e percentuale. Si può scegliere se vederle come barre o come grafico a torta, con il totale del mese al centro e le categorie minori raggruppate in "Altre".
 - **Ultimi movimenti**: gli ultimi sette movimenti; cliccando su uno lo si modifica.
+
+Il grafico del flusso di cassa (entrate e uscite mese per mese) non è in dashboard: si trova nella pagina Analisi, dove si possono scegliere periodo e raggruppamento.
 
 ## Analisi
 La pagina Analisi permette di scegliere un periodo (3, 6, 12, 24 mesi, da inizio anno o date a piacere) e come raggruppare i dati (giorno, settimana, mese, anno). Mostra:

@@ -3,13 +3,12 @@
 ## Dashboard (`/`)
 Pagina `src/pages/DashboardPage.tsx`. Tre caricamenti in parallelo, rilanciati quando cambia `TransactionContext.dataVersion`:
 1. `TransactionService.getLanding({ excludeTransfers: true })` → `LandingDashboard` (`asOf`, `accounts`, `categories`, `totals`, `netWorthSeries`).
-2. `TransactionService.getTimeSeries` sugli ultimi 12 mesi, `granularity: 3`, nessun filtro, `excludeTransfers: true` → flusso di cassa. I mesi senza movimenti (omessi dal BE) vengono riempiti a zero con `enumerateMonthKeys`.
+2. `TransactionService.getTimeSeries` sugli ultimi 12 mesi, `granularity: 3`, nessun filtro, `excludeTransfers: true` → flusso mensile usato solo per le medie di confronto dei KPI (il grafico del flusso di cassa non è in dashboard: è solo in Analisi). I mesi senza movimenti (omessi dal BE) vengono riempiti a zero con `enumerateMonthKeys`.
 3. `TransactionService.getAll` sugli ultimi 90 giorni, `pageSize: 7` → ultimi movimenti (il BE ordina per data decrescente).
 
 Layout a griglia CSS su 12 colonne (`lg`), una colonna sotto:
 - **Riga 1** — `HeroBalanceCard` (5 col): patrimonio attuale (`totals.currentBalanceTotal`), variazione assoluta e percentuale rispetto al primo punto di `netWorthSeries` (12 mesi), sparkline `NetWorthAreaChart variant="spark"`, toggle occhio che nasconde gli importi (persistito in `expense-tracker:home-balance-visible`, maschera anche i saldi della card Conti). Accanto 4 `StatTile` (2×2 anche su mobile): Entrate del mese e Uscite del mese con confronto percentuale verso la media degli ultimi 6 mesi completi (dal flusso di cassa, mese corrente escluso); Risparmio netto con barra di avanzamento del mese (giorno X di N); Tasso di risparmio (`netMonth / earnedMonth`).
-- **Riga 2** — "Flusso di cassa" (`CashFlowChart`, 8 col) con switch grafico/tabella; "Dove vanno i soldi" (`RankedBarList`, 4 col) con toggle Uscite/Entrate sui valori `spentMonth`/`earnedMonth` di `data.categories`.
-- **Riga 3** — "Conti" (`AccountsOverview`, 5 col): barra 100% della ripartizione dei saldi positivi (segmenti con gap di 2px) + elenco con saldo, quota e netto del mese; "Ultimi movimenti" (`RecentTransactions`, 7 col): click su una riga = `openTransactionModal(t)`, link "Vedi tutti" → `/movimenti`.
+- **Riga 2** — tre card da 4 col: "Conti" (`AccountsOverview`): barra 100% della ripartizione dei saldi positivi (segmenti con gap di 2px) + elenco con saldo, quota e netto del mese; "Dove vanno i soldi" con toggle Uscite/Entrate (nel corpo della card) sui valori `spentMonth`/`earnedMonth` di `data.categories` e switch a icone nell'intestazione tra barre (`RankedBarList`, default) e torta (`CategoryDonutChart`), non persistito; "Ultimi movimenti" (`RecentTransactions`): click su una riga = `openTransactionModal(t)`, link "Vedi tutti" → `/movimenti`.
 
 ## Analisi (`/analisi`)
 Pagina `src/pages/AnalyticsPage.tsx`.
@@ -31,6 +30,7 @@ Tutti su Recharts, un solo asse Y in euro (tick compatti `formatCompact`), grigl
 - `CashFlowChart` — `ComposedChart` con `stackOffset="sign"`: entrate sopra lo zero, uscite (negative) sotto, linea del saldo netto nel colore dell'inchiostro; legenda fissa; tooltip con entrate, uscite, saldo e tasso di risparmio del periodo (`(entrate − uscite) / entrate`, "—" senza entrate); vista tabella (periodo, entrate, uscite, saldo).
 - `BalanceLinesChart` — più linee sullo stesso asse; colori per entità; `ChartLegend` con toggle; vista tabella. Attualmente non montato in nessuna pagina: se ne usa solo il tipo `LineSeries`.
 - `StackedPeriodBars` — barre impilate per periodo; serie ordinate per totale, oltre `maxSeries` (6) raggruppate in "Altre (n)" col colore neutro; tooltip con totale; vista tabella.
+- `CategoryDonutChart` — ciambella recharts (`PieChart`, raggio interno 62%) per parti di un intero: valori in assoluto, ordinati, massimo 6 fette con coda in "Altre (n)" (`chart.other`); colori assegnati nell'ordine categoriale fisso `chart.series` dalla fetta più grande (le categorie sono troppe per un colore stabile per entità); bordo `surface` di 2px tra le fette; totale al centro; legenda sotto con importo e quota %; tooltip con importo e quota.
 - `RankedBarList` — classifica HTML a barre orizzontali, un solo colore, valore + quota % (disattivabile con `showShare={false}`), coda raggruppata in "Altre (n)".
 - `ChartParts.tsx` — anche `ChartLegend`, `ChartViewToggle` (grafico/tabella), `ChartDataTable`.
 - `entityColors.ts` — `buildEntityColorMap(ids, series, other)`: colore per id crescente, così un filtro non ricolora le serie rimaste.

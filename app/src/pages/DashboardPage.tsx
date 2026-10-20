@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Box, Button, Skeleton, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { Alert, Box, Button, Skeleton, ToggleButton, ToggleButtonGroup, Tooltip } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import {
   ArrowForwardRounded,
+  BarChartRounded,
+  DonutLargeRounded,
   InsightsRounded,
   SavingsOutlined,
   SouthWestRounded,
@@ -23,9 +25,9 @@ import HeroBalanceCard from "../components/dashboard/HeroBalanceCard";
 import StatTile from "../components/dashboard/StatTile";
 import AccountsOverview from "../components/dashboard/AccountsOverview";
 import RecentTransactions from "../components/dashboard/RecentTransactions";
-import CashFlowChart, { CashFlowPoint } from "../components/charts/CashFlowChart";
+import type { CashFlowPoint } from "../components/charts/CashFlowChart";
 import RankedBarList from "../components/charts/RankedBarList";
-import { ChartView, ChartViewToggle } from "../components/charts/ChartParts";
+import CategoryDonutChart from "../components/charts/CategoryDonutChart";
 import {
   enumerateMonthKeys,
   formatCurrency,
@@ -38,6 +40,8 @@ import { startOfMonth } from "../utilities/date.utilities";
 import { ROUTES } from "../config/routes";
 
 const BALANCE_VISIBILITY_STORAGE_KEY = "expense-tracker:home-balance-visible";
+
+type BreakdownView = "bars" | "pie";
 
 const readBalanceVisible = () => {
   try {
@@ -84,13 +88,13 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<LandingDashboard | null>(null);
+  // flusso mensile degli ultimi 12 mesi: serve solo per le medie di confronto dei KPI
   const [cashFlow, setCashFlow] = useState<CashFlowPoint[]>([]);
-  const [cashFlowLoading, setCashFlowLoading] = useState(true);
   const [recent, setRecent] = useState<Transaction[]>([]);
   const [recentLoading, setRecentLoading] = useState(true);
   const [balanceVisible, setBalanceVisible] = useState<boolean>(readBalanceVisible);
   const [breakdownKind, setBreakdownKind] = useState<"spent" | "earned">("spent");
-  const [cashFlowView, setCashFlowView] = useState<ChartView>("chart");
+  const [breakdownView, setBreakdownView] = useState<BreakdownView>("bars");
 
   const now = useMemo(() => new Date(), []);
 
@@ -110,7 +114,6 @@ export default function DashboardPage() {
     };
 
     const loadCashFlow = async () => {
-      setCashFlowLoading(true);
       try {
         const result = await TransactionService.getTimeSeries({
           startDate: firstMonth.toISOString(),
@@ -131,8 +134,6 @@ export default function DashboardPage() {
         );
       } catch {
         setCashFlow([]);
-      } finally {
-        setCashFlowLoading(false);
       }
     };
 
@@ -190,7 +191,9 @@ export default function DashboardPage() {
     [data, breakdownKind],
   );
 
-  const asOfText = data?.asOf
+  const breakdownEmpty = breakdownKind === "spent" ? "Nessuna uscita questo mese" : "Nessuna entrata questo mese";
+
+  const asOfText =data?.asOf
     ? new Date(data.asOf).toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" })
     : "";
 
@@ -289,18 +292,13 @@ export default function DashboardPage() {
         </Box>
       </Box>
 
-      {/* Riga 2: flusso di cassa + dove vanno i soldi */}
+      {/* Riga 2: conti + dove vanno i soldi + ultimi movimenti (il flusso di cassa è solo in Analisi) */}
       <Box sx={gridSx}>
-        <SurfaceCard
-          sx={{ gridColumn: { lg: "span 8" } }}
-          title="Flusso di cassa"
-          subtitle="Entrate e uscite degli ultimi 12 mesi, trasferimenti esclusi"
-          action={<ChartViewToggle value={cashFlowView} onChange={setCashFlowView} />}
-        >
-          {cashFlowLoading ? (
-            <Skeleton variant="rounded" height={310} />
+        <SurfaceCard sx={{ gridColumn: { lg: "span 4" } }} title="Conti" subtitle="Saldo attuale e movimento del mese">
+          {loading || !data ? (
+            <Skeleton variant="rounded" height={240} />
           ) : (
-            <CashFlowChart points={cashFlow} height={280} view={cashFlowView} />
+            <AccountsOverview accounts={data.accounts} hidden={!balanceVisible} />
           )}
         </SurfaceCard>
 
@@ -312,38 +310,48 @@ export default function DashboardPage() {
             <ToggleButtonGroup
               size="small"
               exclusive
-              value={breakdownKind}
-              onChange={(_e, value: "spent" | "earned" | null) => value && setBreakdownKind(value)}
+              value={breakdownView}
+              onChange={(_e, value: BreakdownView | null) => value && setBreakdownView(value)}
+              aria-label="Vista"
             >
-              <ToggleButton value="spent">Uscite</ToggleButton>
-              <ToggleButton value="earned">Entrate</ToggleButton>
+              <ToggleButton value="bars" aria-label="Barre">
+                <Tooltip title="Barre">
+                  <BarChartRounded sx={{ fontSize: 18, transform: "rotate(90deg)" }} />
+                </Tooltip>
+              </ToggleButton>
+              <ToggleButton value="pie" aria-label="Torta">
+                <Tooltip title="Torta">
+                  <DonutLargeRounded sx={{ fontSize: 18 }} />
+                </Tooltip>
+              </ToggleButton>
             </ToggleButtonGroup>
           }
         >
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={breakdownKind}
+            onChange={(_e, value: "spent" | "earned" | null) => value && setBreakdownKind(value)}
+            sx={{ mb: 2 }}
+          >
+            <ToggleButton value="spent">Uscite</ToggleButton>
+            <ToggleButton value="earned">Entrate</ToggleButton>
+          </ToggleButtonGroup>
           {loading ? (
             <Skeleton variant="rounded" height={280} />
+          ) : breakdownView === "pie" ? (
+            <CategoryDonutChart items={breakdownItems} emptyMessage={breakdownEmpty} />
           ) : (
             <RankedBarList
               items={breakdownItems}
               color={breakdownKind === "spent" ? a.expense : a.income}
-              emptyMessage={breakdownKind === "spent" ? "Nessuna uscita questo mese" : "Nessuna entrata questo mese"}
+              emptyMessage={breakdownEmpty}
             />
-          )}
-        </SurfaceCard>
-      </Box>
-
-      {/* Riga 3: conti + ultimi movimenti */}
-      <Box sx={gridSx}>
-        <SurfaceCard sx={{ gridColumn: { lg: "span 5" } }} title="Conti" subtitle="Saldo attuale e movimento del mese">
-          {loading || !data ? (
-            <Skeleton variant="rounded" height={240} />
-          ) : (
-            <AccountsOverview accounts={data.accounts} hidden={!balanceVisible} />
           )}
         </SurfaceCard>
 
         <SurfaceCard
-          sx={{ gridColumn: { lg: "span 7" } }}
+          sx={{ gridColumn: { lg: "span 4" } }}
           title="Ultimi movimenti"
           subtitle="Clicca su un movimento per modificarlo"
           action={
