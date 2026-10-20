@@ -14,23 +14,24 @@ Layout a griglia CSS su 12 colonne (`lg`), una colonna sotto:
 ## Analisi (`/analisi`)
 Pagina `src/pages/AnalyticsPage.tsx`.
 - Filtri in un'unica card sopra i grafici: preset periodo (3, 6, 12, 24 mesi, da inizio anno, personalizzato con due `TextField type="date"`) e granularità (1 Giorno, 2 Settimana, 3 Mese, 4 Anno). Avviso se inizio > fine (nessuna chiamata).
-- Quattro chiamate in parallelo (ricaricate anche su `dataVersion`):
+- Quattro chiamate in parallelo (ricaricate anche su `dataVersion`), più una separata per la classifica dei periodi:
   - `getStock` senza filtri → patrimonio totale;
-  - `getStock` con `idAccounts` di tutti i conti → saldo per conto;
+  - `getStock` con `idAccounts` di tutti i conti → linee per conto del grafico Patrimonio;
   - `getTimeSeries` senza filtri, `excludeTransfers: true` → flusso di cassa (riempito a zero per granularità mensile);
-  - `getTimeSeries` con `idCategories` di tutte le categorie (`allCategories`), `excludeTransfers: true` → composizione per categoria.
+  - `getTimeSeries` con `idCategories` di tutte le categorie (`allCategories`), `excludeTransfers: true` → composizione per categoria;
+  - classifica periodi: `getTimeSeries` senza filtri, `excludeTransfers: true`, sullo stesso intervallo ma con granularità propria (3 Mese / 4 Anno, toggle nella card), ricaricata solo al cambio di intervallo, raggruppamento classifica o `dataVersion`.
 - Card "Flusso di cassa" a tutta larghezza: 6 cifre di sintesi del periodo (patrimonio a inizio e fine, variazione, entrate totali, uscite totali, tasso di risparmio) + `CashFlowChart` con switch grafico/tabella.
-- "Patrimonio" (`NetWorthAreaChart`) e "Saldo per conto" (`BalanceLinesChart`, legenda cliccabile per nascondere un conto, switch grafico/tabella) affiancati.
+- "Patrimonio" (`NetWorthAreaChart` con `accountSeries`: area del totale più una linea per conto, conti nascosti di default e attivabili dalla legenda; il dominio Y si adatta alle serie visibili; switch grafico/tabella, in tabella le colonne sono il totale e i conti attivati) e "Classifica periodi" affiancati. La classifica (`RankedBarList` con `showShare={false}`, primi 8) ordina i mesi o gli anni per Entrate (`earned`), Uscite (`spent`), Risparmio (`earned - spent`, solo periodi positivi) o Perdite (`spent - earned`, solo periodi con saldo netto negativo); colore `income` per entrate/risparmio, `expense` per uscite/perdite. Gli anni ai bordi dell'intervallo sono parziali.
 - "Spese/Entrate per categoria" (`StackedPeriodBars`, toggle Uscite/Entrate, switch tabella) e "Classifica categorie" (`RankedBarList` sui totali del periodo).
 - Semantica dei saldi: il valore di ogni punto `getStock`/`netWorthSeries` è la **media della giacenza nel periodo**; i periodi senza transazioni riportano il saldo dell'ultimo periodo noto (vedi BE, [07-application-services-and-mapping](../../../be/02-data-persistence/tech/07-application-services-and-mapping.tech.md)). `getStock` include sempre i giroconti (il BE ignora `excludeTransfers`), mentre `getTimeSeries` li esclude per rappresentare un vero flusso di entrate/uscite. Il totale non viene mai ricavato sommando le serie per conto lato client: sommare medie indipendenti non equivale alla media del patrimonio combinato.
 
 ## Componenti grafici (`src/components/charts/`)
 Tutti su Recharts, un solo asse Y in euro (tick compatti `formatCompact`), griglia orizzontale sottile, nessuna animazione, tooltip personalizzati (`ChartTooltipCard`/`ChartTooltipRow` in `ChartParts.tsx`), stato vuoto `ChartEmpty`.
-- `NetWorthAreaChart` — singola serie ad area (`monotone`, linea 2px, gradiente), varianti `spark` (senza assi, per la hero) e `full`; dominio Y stretto attorno ai valori.
+- `NetWorthAreaChart` — serie ad area (`monotone`, linea 2px, gradiente), varianti `spark` (senza assi, per la hero) e `full`; dominio Y stretto attorno ai valori. In `full` accetta `accountSeries` opzionali (`LineSeries[]`): linee sovrapposte nascoste di default, mostrate/nascoste dalla `ChartLegend` (la voce del totale non è disattivabile); il tooltip riporta il totale in evidenza e i conti visibili. Prop `view` (`ChartView`): in `table` mantiene la legenda e mostra una `ChartDataTable` (periodi dal più recente) con la colonna del totale più una colonna per ogni conto attivo.
 - `CashFlowChart` — `ComposedChart` con `stackOffset="sign"`: entrate sopra lo zero, uscite (negative) sotto, linea del saldo netto nel colore dell'inchiostro; legenda fissa; tooltip con entrate, uscite, saldo e tasso di risparmio del periodo (`(entrate − uscite) / entrate`, "—" senza entrate); vista tabella (periodo, entrate, uscite, saldo).
-- `BalanceLinesChart` — più linee sullo stesso asse; colori per entità; `ChartLegend` con toggle; vista tabella.
+- `BalanceLinesChart` — più linee sullo stesso asse; colori per entità; `ChartLegend` con toggle; vista tabella. Attualmente non montato in nessuna pagina: se ne usa solo il tipo `LineSeries`.
 - `StackedPeriodBars` — barre impilate per periodo; serie ordinate per totale, oltre `maxSeries` (6) raggruppate in "Altre (n)" col colore neutro; tooltip con totale; vista tabella.
-- `RankedBarList` — classifica HTML a barre orizzontali, un solo colore, valore + quota %, coda raggruppata in "Altre (n)".
+- `RankedBarList` — classifica HTML a barre orizzontali, un solo colore, valore + quota % (disattivabile con `showShare={false}`), coda raggruppata in "Altre (n)".
 - `ChartParts.tsx` — anche `ChartLegend`, `ChartViewToggle` (grafico/tabella), `ChartDataTable`.
 - `entityColors.ts` — `buildEntityColorMap(ids, series, other)`: colore per id crescente, così un filtro non ricolora le serie rimaste.
 

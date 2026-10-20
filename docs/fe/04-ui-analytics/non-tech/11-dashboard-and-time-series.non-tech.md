@@ -15,11 +15,11 @@ La pagina iniziale risponde in pochi secondi a "come sto andando questo mese?":
 ## Analisi
 La pagina Analisi permette di scegliere un periodo (3, 6, 12, 24 mesi, da inizio anno o date a piacere) e come raggruppare i dati (giorno, settimana, mese, anno). Mostra:
 - in evidenza, il flusso di cassa per periodo con le cifre chiave del periodo (patrimonio iniziale e finale, variazione, entrate e uscite totali, tasso di risparmio); passando sopra un periodo si vedono entrate, uscite, saldo e tasso di risparmio di quel periodo;
-- l'andamento del patrimonio;
-- il saldo di ogni conto nel tempo (cliccando sul nome di un conto nella legenda lo si nasconde);
+- l'andamento del patrimonio; di default si vede solo il totale, ma dalla legenda si possono mostrare uno o più conti per confrontarne l'andamento con quello complessivo; come gli altri grafici, si può vedere anche in forma di tabella, con una colonna per il patrimonio e una per ogni conto scelto;
+- la classifica dei periodi migliori e peggiori, per mese o per anno: quelli con più entrate, più uscite, più risparmio o le perdite maggiori (periodi in cui si è speso più di quanto entrato); i giroconti non sono conteggiati;
 - come si compongono spese o entrate per categoria in ogni periodo, e la classifica delle categorie sul periodo intero.
 
-Ogni grafico ha anche una **vista a tabella** con i numeri esatti.
+Ogni grafico (classifiche escluse) ha anche una **vista a tabella** con i numeri esatti.
 
 Per i grafici del patrimonio e dei saldi, il punto di ogni periodo è la giacenza *media* di quel periodo, non il saldo puntuale a fine periodo; nei periodi senza movimenti il saldo resta quello precedente. Questi saldi includono i giroconti (un giroconto sposta davvero denaro dentro o fuori da un conto), mentre i grafici di entrate e uscite li escludono.
 

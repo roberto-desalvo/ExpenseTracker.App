@@ -14,4 +14,4 @@
 - Dopo l'aggiunta il contesto ricarica i mesi disponibili, incrementa `dataVersion` e rilancia il refresh delle transazioni filtrate.
 
 ## Analisi account
-Il saldo nel tempo per conto è nella pagina Analisi ("Saldo per conto", modulo 11); la ripartizione del patrimonio per conto è nella dashboard (card "Conti").
+Il saldo nel tempo per conto è nella pagina Analisi (grafico "Patrimonio", linee per conto attivabili dalla legenda, modulo 11); la ripartizione del patrimonio per conto è nella dashboard (card "Conti").

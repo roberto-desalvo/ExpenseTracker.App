@@ -7,7 +7,7 @@ In **Impostazioni → Conti** ogni conto è una scheda con nome, saldo attuale e
 Consentono di registrare spostamenti di denaro tra conti senza perdere tracciabilità e senza contarli come entrate o uscite. Si creano da qualsiasi pagina con il bottone **Nuovo** → "Trasferimento", indicando conto di partenza, conto di arrivo, importo, data e descrizione.
 
 ## Analisi patrimonio per account
-La Dashboard mostra come il patrimonio è ripartito tra i conti; la pagina Analisi mostra l'andamento del saldo di ciascun conto nel tempo.
+La Dashboard mostra come il patrimonio è ripartito tra i conti; la pagina Analisi mostra l'andamento del saldo di ciascun conto nel tempo, sovrapponibile al patrimonio totale nel grafico del patrimonio.
 
 ## Beneficio
 Visione più accurata del patrimonio distribuito tra conti diversi, con la gestione anagrafica separata dall'analisi storica.
