@@ -1,5 +1,6 @@
 using FluentResults;
 using RDS.ExpenseTracker.Domain.Common;
+using RDS.ExpenseTracker.Domain.Models.DataImport;
 
 namespace RDS.ExpenseTracker.Domain.Services;
 
@@ -12,6 +13,7 @@ public interface ITradeRepublicCsvImportService : IService
     ///   <see cref="Domain.Entities.Transaction.ExternalId"/> are skipped.
     ///   When <c>true</c> all rows are imported regardless.
     /// </param>
+    /// <param name="statistics">Optional collector filled with the import statistics (also on failure).</param>
     /// <returns>Number of <see cref="Domain.Entities.Transaction"/> records inserted.</returns>
-    Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false);
+    Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false, ImportStatistics? statistics = null);
 }

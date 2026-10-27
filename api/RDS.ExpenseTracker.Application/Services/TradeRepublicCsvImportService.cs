@@ -8,6 +8,7 @@ using RDS.ExpenseTracker.Application.Utilities;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
+using RDS.ExpenseTracker.Domain.Models.DataImport;
 using RDS.ExpenseTracker.Domain.Repositories;
 using RDS.ExpenseTracker.Domain.Services;
 using System.Globalization;
@@ -69,8 +70,10 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
 
     // ── Public API ──────────────────────────────────────────────────────────
 
-    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false)
+    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false, ImportStatistics? statistics = null)
     {
+        statistics ??= new ImportStatistics();
+
         try
         {
             if (fileStream == null || !fileStream.CanRead)
@@ -87,6 +90,17 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
                 _logger.LogInformation("CSV file contains no data rows");
                 return Result.Ok(0);
             }
+
+            statistics.TrackDates(rows
+                .Where(r => r.Amount is not null && r.Amount != 0)
+                .Select(r => ParseDate(r.Datetime)));
+
+            // Ensure all referenced accounts exist (auto-create if needed) ---
+            var accounts = await EnsureAccountsExistAsync(GetRequiredAccountNames(), userId);
+
+            // Il file può toccare anche il conto trading: come conto dell'import si registra quello principale.
+            statistics.AccountId = accounts.FirstOrDefault(a =>
+                a.Name.Equals(_csvOptions.DefaultAccountName, StringComparison.OrdinalIgnoreCase))?.Id;
 
             // 2. Deduplicate by ExternalId (transaction_id) ------------------
             if (!importAll)
@@ -106,6 +120,8 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
                         .Where(r => string.IsNullOrEmpty(r.TransactionId) || !existingIds.Contains(r.TransactionId))
                         .ToList();
 
+                    statistics.SkippedDuplicatesCount = beforeCount - rows.Count;
+
                     _logger.LogInformation(
                         "Deduplication: {Skipped} rows skipped (already imported), {Remaining} rows to process",
                         beforeCount - rows.Count, rows.Count);
@@ -114,9 +130,6 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
 
             if (rows.Count == 0)
                 return Result.Ok(0);
-
-            // 3. Ensure all referenced accounts exist (auto-create if needed) -
-            var accounts = await EnsureAccountsExistAsync(GetRequiredAccountNames(), userId);
 
             // 4. Load categories ---------------------------------------------
             var categories = (await _categoryRepository.GetCategories())
@@ -196,6 +209,8 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
             }
 
             var importedCount = transactions.Count + transferTransactions.Count;
+            statistics.NewTransactionsCount = importedCount;
+            statistics.NewTransfersCount = transferEntities.Count;
             _logger.LogInformation(
                 "Trade Republic CSV import completed. {Count} transaction records inserted ({Transfers} transfer legs, {Regular} regular)",
                 importedCount, transferTransactions.Count, transactions.Count);

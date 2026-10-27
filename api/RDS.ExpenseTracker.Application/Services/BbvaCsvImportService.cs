@@ -6,6 +6,7 @@ using RDS.ExpenseTracker.Application.Extensions;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
+using RDS.ExpenseTracker.Domain.Models.DataImport;
 using RDS.ExpenseTracker.Domain.Repositories;
 using RDS.ExpenseTracker.Domain.Services;
 using System.Globalization;
@@ -50,8 +51,10 @@ public class BbvaCsvImportService : IBbvaCsvImportService
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false)
+    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false, ImportStatistics? statistics = null)
     {
+        statistics ??= new ImportStatistics();
+
         try
         {
             if (fileStream == null || !fileStream.CanRead)
@@ -68,6 +71,17 @@ public class BbvaCsvImportService : IBbvaCsvImportService
                 return Result.Ok(0);
             }
 
+            statistics.TrackDates(rows.Select(r => r.Date ?? r.ValueDate));
+
+            var accounts = await EnsureAccountsExistAsync([_csvOptions.DefaultAccountName], userId);
+            var account = accounts.FirstOrDefault(a =>
+                a.Name.Equals(_csvOptions.DefaultAccountName, StringComparison.OrdinalIgnoreCase));
+
+            if (account == null)
+                return Result.Fail($"Account '{_csvOptions.DefaultAccountName}' not found");
+
+            statistics.AccountId = account.Id;
+
             if (!importAll)
             {
                 var fingerprints = rows.Select(BuildExternalId).ToList();
@@ -80,6 +94,7 @@ public class BbvaCsvImportService : IBbvaCsvImportService
                     .ToList();
 
                 var skipped = beforeCount - rows.Count;
+                statistics.SkippedDuplicatesCount = skipped;
                 if (skipped > 0)
                 {
                     _logger.LogInformation("Skipped {Skipped} BBVA rows already imported", skipped);
@@ -92,18 +107,11 @@ public class BbvaCsvImportService : IBbvaCsvImportService
                 return Result.Ok(0);
             }
 
-            var accounts = await EnsureAccountsExistAsync([_csvOptions.DefaultAccountName], userId);
             var categories = (await _categoryRepository.GetCategories())
                 .OrderBy(c => c.Priority ?? int.MaxValue)
                 .ToList();
             var defaultCategory = await _categoryRepository.GetDefaultCategory();
             var defaultCategoryId = defaultCategory?.Id ?? (int)CategoryEnum.Default;
-
-            var account = accounts.FirstOrDefault(a =>
-                a.Name.Equals(_csvOptions.DefaultAccountName, StringComparison.OrdinalIgnoreCase));
-
-            if (account == null)
-                return Result.Fail($"Account '{_csvOptions.DefaultAccountName}' not found");
 
             var transactions = new List<Transaction>(rows.Count);
             foreach (var row in rows)
@@ -143,6 +151,7 @@ public class BbvaCsvImportService : IBbvaCsvImportService
 
             await _transactionRepository.AddTransactions(transactions);
             await _transactionRepository.SaveChangesAsync();
+            statistics.NewTransactionsCount = transactions.Count;
 
             _logger.LogInformation("BBVA CSV import completed. Inserted {Count} transactions", transactions.Count);
             return Result.Ok(transactions.Count);

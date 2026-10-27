@@ -8,6 +8,7 @@ using RDS.ExpenseTracker.Application.Utilities;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
+using RDS.ExpenseTracker.Domain.Models.DataImport;
 using RDS.ExpenseTracker.Domain.Repositories;
 using RDS.ExpenseTracker.Domain.Services;
 using System.Globalization;
@@ -57,8 +58,10 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
 
     // ── Public API ──────────────────────────────────────────────────────────
 
-    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false)
+    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false, ImportStatistics? statistics = null)
     {
+        statistics ??= new ImportStatistics();
+
         try
         {
             if (fileStream == null || !fileStream.CanRead)
@@ -113,6 +116,23 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
                     $"Import failed: {missingIdentifierRows.Count} rows have no codice identificativo (ID). The identifier is mandatory for all rows.");
             }
 
+            statistics.TrackDates(rows.Select(r => ParseDate(r.Date)));
+
+            // Ensure accounts ─────────────────────────────────────────────────
+            var requiredAccountNames = GetRequiredAccountNames();
+            var accounts = await EnsureAccountsExistAsync(requiredAccountNames, userId);
+
+            var satispayAccount = accounts.FirstOrDefault(a =>
+                a.Name.Equals(_csvOptions.DefaultAccountName, StringComparison.OrdinalIgnoreCase));
+
+            if (satispayAccount == null)
+            {
+                _logger.LogError("Could not find Satispay account '{AccountName}'", _csvOptions.DefaultAccountName);
+                return Result.Fail($"Account '{_csvOptions.DefaultAccountName}' not found");
+            }
+
+            statistics.AccountId = satispayAccount.Id;
+
             // 3. Deduplicate by ExternalId (transaction ID) ------------------
             // Always run this check: the unique index on Transactions.ExternalId is unconditional,
             // so importAll=true cannot bypass it without causing a constraint violation.
@@ -133,6 +153,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
                         .ToList();
 
                     var skipped = beforeCount - rows.Count;
+                    statistics.SkippedDuplicatesCount = skipped;
                     if (skipped > 0)
                         _logger.LogInformation("Skipped {Skipped} existing transactions by ExternalId", skipped);
                 }
@@ -144,10 +165,6 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
                 return Result.Ok(0);
             }
 
-            // 3. Ensure accounts ──────────────────────────────────────────────
-            var requiredAccountNames = GetRequiredAccountNames();
-            var accounts = await EnsureAccountsExistAsync(requiredAccountNames, userId);
-
             // 4. Get categories ───────────────────────────────────────────────
             var categories = (await _categoryRepository.GetCategories()).ToList();
 
@@ -155,15 +172,6 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             var transactions = new List<Transaction>();
             var transferEntities = new List<Transfer>();
             var transferTransactions = new List<Transaction>();
-
-            var satispayAccount = accounts.FirstOrDefault(a =>
-                a.Name.Equals(_csvOptions.DefaultAccountName, StringComparison.OrdinalIgnoreCase));
-
-            if (satispayAccount == null)
-            {
-                _logger.LogError("Could not find Satispay account '{AccountName}'", _csvOptions.DefaultAccountName);
-                return Result.Fail($"Account '{_csvOptions.DefaultAccountName}' not found");
-            }
 
             var defaultCategoryId = (int)CategoryEnum.Default;
 
@@ -228,6 +236,8 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
 
             await _transactionRepository.SaveChangesAsync();
             var totalImported = transactions.Count + transferTransactions.Count;
+            statistics.NewTransactionsCount = totalImported;
+            statistics.NewTransfersCount = transferEntities.Count;
 
             _logger.LogInformation("Satispay CSV import completed successfully. Total imported: {Total}",
                 totalImported);

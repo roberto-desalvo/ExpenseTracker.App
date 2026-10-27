@@ -10,6 +10,7 @@ public class ExpenseTrackerContext : DbContext
     public DbSet<Category> Categories { get; set; }
     public DbSet<Transfer> Transfers { get; set; }
     public DbSet<User> Users { get; set; }
+    public DbSet<ImportLog> ImportLogs { get; set; }
 
     public ExpenseTrackerContext(DbContextOptions<ExpenseTrackerContext> opt) : base(opt)
     {

@@ -153,6 +153,60 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.ImportLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AccountId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("FileName")
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
+
+                    b.Property<DateTime>("ImportedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("MaxTransactionDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("MinTransactionDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("NewTransactionsCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("NewTransfersCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SkippedDuplicatesCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId");
+
+                    b.HasIndex("UserId", "ImportedOn");
+
+                    b.ToTable("ImportLogs");
+                });
+
             modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.Transaction", b =>
                 {
                     b.Property<int>("Id")
@@ -275,6 +329,24 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("UserNavigation");
+                });
+
+            modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.ImportLog", b =>
+                {
+                    b.HasOne("RDS.ExpenseTracker.Domain.Entities.Account", "AccountNavigation")
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("RDS.ExpenseTracker.Domain.Entities.User", "UserNavigation")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AccountNavigation");
 
                     b.Navigation("UserNavigation");
                 });
