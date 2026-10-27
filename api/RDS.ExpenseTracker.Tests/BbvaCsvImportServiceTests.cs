@@ -17,7 +17,7 @@ public class BbvaCsvImportServiceTests
     public async Task ImportFromCsvAsync_ImportsRowsFromRepositoryBbvaCsvFile()
     {
         var transactionRepository = new FakeTransactionRepository();
-        var categoryRepository = new FakeCategoryRepository();
+        var categoryRepository = FakeCategoryRepository.WithDefaults(TestUserId);
         var accountRepository = new FakeAccountRepository([
             new Account(1, "BBVA", TestUserId),
         ]);
@@ -45,7 +45,7 @@ public class BbvaCsvImportServiceTests
     public async Task ImportFromCsvAsync_ImportsRowsFromBbvaSampleCsv()
     {
         var transactionRepository = new FakeTransactionRepository();
-        var categoryRepository = new FakeCategoryRepository();
+        var categoryRepository = FakeCategoryRepository.WithDefaults(TestUserId);
         var accountRepository = new FakeAccountRepository([
             new Account(1, "BBVA", TestUserId),
         ]);
@@ -123,7 +123,7 @@ Data valuta;Data;Parola chiave;Movimento;Importo;Valuta;Disponibile;Valuta;Osser
     public async Task ImportFromCsvAsync_GeneratesUniqueExternalIds_WhenRowsHaveSameDateAmountButDifferentAvailable()
     {
         var transactionRepository = new FakeTransactionRepository();
-        var categoryRepository = new FakeCategoryRepository();
+        var categoryRepository = FakeCategoryRepository.WithDefaults(TestUserId);
         var accountRepository = new FakeAccountRepository([
             new Account(1, "BBVA", TestUserId),
         ]);
@@ -193,6 +193,7 @@ Data valuta;Data;Parola chiave;Movimento;Importo;Valuta;Disponibile;Valuta;Osser
         public Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds, int userId)
             => Task.FromResult(Enumerable.Empty<string>());
 
+        public Task<List<Transaction>> GetCategorizableTransactions(int userId, DateTime startDate, DateTime endDate) => throw new NotImplementedException();
         public Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains) => throw new NotImplementedException();
 
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -217,26 +218,6 @@ Data valuta;Data;Parola chiave;Movimento;Importo;Valuta;Disponibile;Valuta;Osser
         public Task<int> AddTransaction(Transaction transaction) => throw new NotImplementedException();
         public Task<int> AddTransaction(Transaction transaction, bool saveChanges) => throw new NotImplementedException();
         public Task ResetTransactions(IEnumerable<Transaction> transactions, int userId) => throw new NotImplementedException();
-    }
-
-    private sealed class FakeCategoryRepository : ICategoryRepository
-    {
-        public Task<IEnumerable<Category>> GetCategories(string? name = null)
-            => Task.FromResult<IEnumerable<Category>>([]);
-
-        public Task<Category?> GetDefaultCategory()
-            => Task.FromResult<Category?>(null);
-
-        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult(1);
-
-        public Task<Category?> GetCategory(int id) => throw new NotImplementedException();
-        public Task<(IEnumerable<Category> Items, int TotalCount)> GetPagedCategories(CategoryQueryRequest request) => throw new NotImplementedException();
-        public Task AddCategories(IEnumerable<Category> categories) => throw new NotImplementedException();
-        public Task UpdateCategory(Category category) => throw new NotImplementedException();
-        public Task RemoveCategory(int id) => throw new NotImplementedException();
-        public Task RemoveCategory(Category category) => throw new NotImplementedException();
-        public Task ReassignTransactionsToCategory(int sourceCategoryId, int targetCategoryId) => throw new NotImplementedException();
     }
 
     private sealed class FakeAccountRepository(IEnumerable<Account> seedAccounts) : IAccountRepository

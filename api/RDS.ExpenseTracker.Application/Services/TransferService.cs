@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using FluentResults;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Dtos;
@@ -14,17 +14,20 @@ public class TransferService : ITransferService
     private readonly ITransferRepository _repository;
     private readonly ITransactionRepository _transactionRepository;
     private readonly IAccountRepository _accountRepository;
+    private readonly ICategoryRepository _categoryRepository;
     private readonly IMapper _mapper;
 
     public TransferService(
         ITransferRepository repository,
         ITransactionRepository transactionRepository,
         IAccountRepository accountRepository,
+        ICategoryRepository categoryRepository,
         IMapper mapper)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _transactionRepository = transactionRepository ?? throw new ArgumentNullException(nameof(transactionRepository));
         _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
+        _categoryRepository = categoryRepository ?? throw new ArgumentNullException(nameof(categoryRepository));
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
     }
 
@@ -58,11 +61,12 @@ public class TransferService : ITransferService
         };
 
         var transferDate = dto.Date ?? DateTime.UtcNow;
+        var moneyTransfersId = await _categoryRepository.GetCategoryIdByKind(userId, CategoryEnum.MoneyTransfers);
 
         var fromTransaction = new Transaction
         {
             AccountId = dto.FromAccountId,
-            CategoryId = (int)CategoryEnum.MoneyTransfers,
+            CategoryId = moneyTransfersId,
             Amount = -Math.Abs(dto.Amount),
             Description = dto.Description,
             Date = transferDate,
@@ -73,7 +77,7 @@ public class TransferService : ITransferService
         var toTransaction = new Transaction
         {
             AccountId = dto.ToAccountId,
-            CategoryId = (int)CategoryEnum.MoneyTransfers,
+            CategoryId = moneyTransfersId,
             Amount = Math.Abs(dto.Amount),
             Description = dto.Description,
             Date = transferDate,
@@ -108,12 +112,13 @@ public class TransferService : ITransferService
         }
 
         var transferDate = dto.Date ?? DateTime.UtcNow;
+        var moneyTransfersId = await _categoryRepository.GetCategoryIdByKind(userId, CategoryEnum.MoneyTransfers);
 
         await _transactionRepository.AddTransactions([
             new Transaction
             {
                 AccountId = dto.FromAccountId,
-                CategoryId = (int)CategoryEnum.MoneyTransfers,
+                CategoryId = moneyTransfersId,
                 Amount = -Math.Abs(dto.Amount),
                 Description = dto.Description,
                 Date = transferDate,
@@ -123,7 +128,7 @@ public class TransferService : ITransferService
             new Transaction
             {
                 AccountId = dto.ToAccountId,
-                CategoryId = (int)CategoryEnum.MoneyTransfers,
+                CategoryId = moneyTransfersId,
                 Amount = Math.Abs(dto.Amount),
                 Description = dto.Description,
                 Date = transferDate,

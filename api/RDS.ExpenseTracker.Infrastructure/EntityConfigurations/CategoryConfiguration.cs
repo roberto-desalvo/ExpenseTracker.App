@@ -13,7 +13,18 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
         builder.Property(c => c.Description).HasMaxLength(500);
         builder.Property(c => c.Tags).HasMaxLength(500);
 
-        builder.HasData(Category.CreateSeedCategories());
+        // Nessun seed globale: le categorie di default vengono create per ogni utente
+        // (alla creazione dell'utente e al reset dei dati demo/test).
+        builder.HasOne(c => c.UserNavigation)
+               .WithMany(u => u.Categories)
+               .HasForeignKey(c => c.UserId)
+               .IsRequired()
+               .OnDelete(DeleteBehavior.Restrict);
+
+        // Al più una categoria per tipo di sistema per utente, così la ricerca per Kind è univoca.
+        builder.HasIndex(c => new { c.UserId, c.Kind })
+               .IsUnique()
+               .HasFilter("[Kind] IS NOT NULL");
 
         builder.HasMany(c => c.Transactions)
                .WithOne(t => t.CategoryNavigation)

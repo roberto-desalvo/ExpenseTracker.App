@@ -23,12 +23,14 @@ Il nome di ogni function segue la convenzione `<Risorsa>_<Azione>` (es. `Account
 `AccountDto` include `iban` (opzionale): normalizzato server-side (maiuscolo, senza spazi), formato non valido → 400, IBAN già usato da un altro conto dello stesso utente → 409.
 
 ## `CategoryFunctions` — `api/category`
+Tutti gli endpoint risolvono l'utente con `ICurrentUserAccessor.GetUserIdAsync()` e operano solo sulle sue categorie (categoria di un altro utente → 404).
 - `POST /query` — ricerca paginata categorie.
 - `GET /{id}` — categoria singola.
 - `GET /default` — categoria di default.
-- `POST /` — creazione bulk.
+- `POST /` — creazione bulk (le nuove categorie appartengono all'utente corrente, mai di sistema: `Kind = null`).
 - `PUT /` — update.
 - `DELETE /{id}` — elimina (riassegna prima le transazioni alla categoria di default).
+- `POST /sync` — body `CategorySyncRequest { startDate, endDate }` (obbligatori, estremi inclusi, conta solo il giorno; `startDate > endDate` → 400). Risolve l'utente con `ICurrentUserAccessor` e riassegna la categoria ai suoi movimenti del periodo tramite i tag delle categorie (stessa regola dell'import, vedi [07-application-services-and-mapping](../../02-data-persistence/tech/07-application-services-and-mapping.tech.md)). Risposta `CategorySyncResultDto { examinedTransactions, updatedTransactions, unmatchedTransactions }`.
 
 ## `TransactionFunctions` — `api/transaction`
 Tutte le route risolvono l'utente con `ICurrentUserAccessor.GetUserIdAsync()` e operano solo sui movimenti dei conti di quell'utente; un id altrui risponde 404.
@@ -52,7 +54,7 @@ Come per le transazioni: user-scoped tramite `GetUserIdAsync()`, entrambi i cont
 - `DELETE /{id}` — elimina trasferimento + leg.
 
 ## `DemoFunctions` — `api/demo`
-- `POST /generate` — rigenera da zero i dati demo (account, transazioni, trasferimenti) per l'utente autenticato. Fallisce con 403 se l'utente corrente non ha `IsDemo = true` sul record `User`. Vedi [07-application-services-and-mapping](../../02-data-persistence/tech/07-application-services-and-mapping.tech.md) per la logica di generazione.
+- `POST /generate` — rigenera da zero i dati demo (account, transazioni, trasferimenti) per l'utente autenticato e ne ripristina le categorie di default (`CategoryEnum`). Fallisce con 403 se l'utente corrente non ha `IsDemo = true` sul record `User`. Vedi [07-application-services-and-mapping](../../02-data-persistence/tech/07-application-services-and-mapping.tech.md) per la logica di generazione.
 
 ## `ImportFunctions` (`[RequireRole("Files.Sender")]`) — `api/import`
 Vedi [08-import-overview-and-dedup](../../03-import-pipeline/tech/08-import-overview-and-dedup.tech.md).
@@ -60,7 +62,7 @@ Vedi [08-import-overview-and-dedup](../../03-import-pipeline/tech/08-import-over
 - `POST /bbva-csv`, `/sella-csv`, `/satispay-csv`, `/traderepublic-csv` — import CSV bancario (multipart, campo `file`, estensione `.csv`).
 - `POST /{bank}-csv/stream` — variante raw octet-stream (`?fileName=` opzionale).
 - `POST /{bank}-xlsx` — variante `.xlsx` raw, convertita in CSV in-memory prima dell'import. Un `Content-Type` diverso da XLSX restituisce 415.
-- `POST /test-seed` (`Import_TestSeed`) — nessun body: elimina e rigenera conti/movimenti/trasferimenti fittizi dell'utente `test@dev.local`, creandolo se non esiste (`ITestSeedService.ResetTestUserDataAsync`). Non usa l'identità del chiamante (nessun `GetUserIdForImportAsync`), ma resta soggetto a `[RequireRole("Files.Sender")]` come gli altri import. Passa da `FunctionBase.ExecuteAsync`: `200` con `TestSeedResultDto` (`userId`, `email`, `userCreated`, `accountCount`, `transactionCount`, `transferCount`, `fromDate`, `toDate`), errori come problem details. Pensato per un job schedulato che riporta i dati di test a uno stato pulito; logica in [07-application-services-and-mapping](../../02-data-persistence/tech/07-application-services-and-mapping.tech.md).
+- `POST /test-seed` (`Import_TestSeed`) — nessun body: elimina e rigenera conti/movimenti/trasferimenti fittizi dell'utente `test@dev.local` (categorie riportate a quelle di default), creandolo se non esiste (`ITestSeedService.ResetTestUserDataAsync`). Non usa l'identità del chiamante (nessun `GetUserIdForImportAsync`), ma resta soggetto a `[RequireRole("Files.Sender")]` come gli altri import. Passa da `FunctionBase.ExecuteAsync`: `200` con `TestSeedResultDto` (`userId`, `email`, `userCreated`, `accountCount`, `transactionCount`, `transferCount`, `fromDate`, `toDate`), errori come problem details. Pensato per un job schedulato che riporta i dati di test a uno stato pulito; logica in [07-application-services-and-mapping](../../02-data-persistence/tech/07-application-services-and-mapping.tech.md).
 
 - `POST /transfers/reconcile` (`Import_ReconcileTransfers`) — nessun body: cerca tra i movimenti già importati di **tutti gli utenti** le coppie che rappresentano un trasferimento (sempre tra conti dello stesso utente) e le collega (`ITransferReconciliationService.ReconcileAsync`). Come `Import_TestSeed` non usa l'identità del chiamante (nessun `GetUserIdForImportAsync`, quindi funziona anche con un token il cui oid non è associato a un utente), ma resta soggetto a `[RequireRole("Files.Sender")]`. Query opzionali `fromDate`, `toDate` (date ISO; `FunctionBase.GetQueryDate`, formato non valido → 400) e `dryRun` (default `false`: con `true` restituisce i match senza salvarli). `200` con `TransferReconciliationResultDto`. Logica in [10-transfer-matching](../../03-import-pipeline/tech/10-transfer-matching.tech.md).
 

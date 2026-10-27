@@ -9,4 +9,5 @@ public class User(int id, string email, bool isDemo = false)
     public bool IsDemo { get; set; } = isDemo;
 
     public ICollection<Account> Accounts { get; set; } = [];
+    public ICollection<Category> Categories { get; set; } = [];
 }

@@ -46,7 +46,8 @@ public class UserRepository : RepositoryBase, IUserRepository
             return existing;
         }
 
-        var user = new User(0, email) { AzureOid = azureOid };
+        // Ogni nuovo utente parte dalle categorie di default, salvate insieme all'utente.
+        var user = new User(0, email) { AzureOid = azureOid, Categories = [.. Category.CreateDefaultCategories(0)] };
         Context.Users.Add(user);
 
         try
@@ -57,6 +58,8 @@ public class UserRepository : RepositoryBase, IUserRepository
         catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
         {
             // Race: un'altra richiesta concorrente ha creato lo stesso utente nel frattempo.
+            foreach (var category in user.Categories)
+                Context.Entry(category).State = EntityState.Detached;
             Context.Entry(user).State = EntityState.Detached;
             return await GetByAzureOid(azureOid)
                 ?? throw new InvalidOperationException("Concurrent user creation failed unexpectedly.", ex);

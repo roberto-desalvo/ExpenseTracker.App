@@ -7,10 +7,11 @@ namespace RDS.ExpenseTracker.Domain.Services;
 
 public interface ICategoryService : IService
 {
-    Task<Result<PagedResult<CategoryDto>>> GetCategories(CategoryQueryRequest request);
-    Task<Result<CategoryDto?>> GetCategory(int id);
-    Task<Result<CategoryDto?>> GetDefaultCategory();
-    Task<Result> AddCategories(IEnumerable<CategoryDto> categories);
-    Task<Result> UpdateCategory(CategoryDto category);
-    Task<Result> DeleteCategory(int id);
+    Task<Result<PagedResult<CategoryDto>>> GetCategories(CategoryQueryRequest request, int userId);
+    Task<Result<CategoryDto?>> GetCategory(int id, int userId);
+    Task<Result<CategoryDto?>> GetDefaultCategory(int userId);
+    Task<Result> AddCategories(IEnumerable<CategoryDto> categories, int userId);
+    Task<Result> UpdateCategory(CategoryDto category, int userId);
+    Task<Result> DeleteCategory(int id, int userId);
+    Task<Result<CategorySyncResultDto>> SyncTransactionCategories(CategorySyncRequest request, int userId);
 }

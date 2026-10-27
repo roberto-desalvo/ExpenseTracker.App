@@ -1,4 +1,4 @@
-using FluentResults;
+﻿using FluentResults;
 using Microsoft.Extensions.Logging;
 using RDS.ExpenseTracker.Application.Utilities;
 using RDS.ExpenseTracker.Domain.Common;
@@ -31,8 +31,6 @@ public class TransferReconciliationService : ITransferReconciliationService
     // Le banche registrano lo stesso bonifico con qualche giorno di scarto (data operazione vs valuta).
     private const int DateToleranceDays = 3;
 
-    private const int MoneyTransfersCategoryId = (int)CategoryEnum.MoneyTransfers;
-
     private readonly ITransferReconciliationRepository _repository;
     private readonly ITransferMatchingService _transferMatchingService;
     private readonly ILogger<TransferReconciliationService> _logger;
@@ -60,6 +58,9 @@ public class TransferReconciliationService : ITransferReconciliationService
             .GroupBy(a => a.UserId)
             .OrderBy(g => g.Key);
 
+        // le categorie sono per utente: id della categoria "Money transfers" di ciascuno
+        var moneyTransfersByUser = await _repository.GetCategoryIdsByKind(CategoryEnum.MoneyTransfers);
+
         var result = new TransferReconciliationResultDto { DryRun = dryRun };
         var pairs = new List<TransferReconciliationPairDto>();
 
@@ -76,7 +77,8 @@ public class TransferReconciliationService : ITransferReconciliationService
             if (unlinked.Count < 2)
                 continue;
 
-            var userMatcher = new UserMatcher(accounts, unlinked, _transferMatchingService);
+            int? moneyTransfersCategoryId = moneyTransfersByUser.TryGetValue(userAccounts.Key, out var categoryId) ? categoryId : null;
+            var userMatcher = new UserMatcher(accounts, unlinked, _transferMatchingService, moneyTransfersCategoryId);
             var userPairs = userMatcher.Match();
             result.AmbiguousSkipped += userMatcher.Ambiguous;
 
@@ -84,7 +86,7 @@ public class TransferReconciliationService : ITransferReconciliationService
                 continue;
 
             if (!dryRun)
-                await _repository.LinkTransfers(userPairs.Select(p => (p.Outbound.Id, p.Inbound.Id)).ToList(), MoneyTransfersCategoryId);
+                await _repository.LinkTransfers(userPairs.Select(p => (p.Outbound.Id, p.Inbound.Id)).ToList(), moneyTransfersCategoryId);
 
             pairs.AddRange(userPairs.Select(p => new TransferReconciliationPairDto
             {
@@ -126,6 +128,7 @@ public class TransferReconciliationService : ITransferReconciliationService
         private readonly Dictionary<string, Account> _accountsByName;
         private readonly List<Transaction> _transactions;
         private readonly ITransferMatchingService _matchingService;
+        private readonly int? _moneyTransfersCategoryId;
 
         // (conto, importo) → movimenti in ordine di data e id: la controparte di x si cerca in (altro conto, -x.Amount)
         private readonly Dictionary<(int AccountId, decimal Amount), List<Transaction>> _index;
@@ -134,11 +137,12 @@ public class TransferReconciliationService : ITransferReconciliationService
 
         public int Ambiguous { get; private set; }
 
-        public UserMatcher(Dictionary<int, Account> accounts, List<Transaction> transactions, ITransferMatchingService matchingService)
+        public UserMatcher(Dictionary<int, Account> accounts, List<Transaction> transactions, ITransferMatchingService matchingService, int? moneyTransfersCategoryId)
         {
             _accounts = accounts;
             _transactions = transactions;
             _matchingService = matchingService;
+            _moneyTransfersCategoryId = moneyTransfersCategoryId;
 
             _accountsByName = new Dictionary<string, Account>(StringComparer.OrdinalIgnoreCase);
             foreach (var account in accounts.Values.OrderBy(a => a.Id))
@@ -227,14 +231,17 @@ public class TransferReconciliationService : ITransferReconciliationService
         // 3. Movimenti "Money transfers" rimasti senza controparte, verso qualsiasi altro conto dell'utente
         private void MatchByCategory()
         {
+            if (_moneyTransfersCategoryId is null)
+                return;
+
             foreach (var tx in _transactions)
             {
-                if (_consumed.Contains(tx.Id) || tx.CategoryId != MoneyTransfersCategoryId)
+                if (_consumed.Contains(tx.Id) || tx.CategoryId != _moneyTransfersCategoryId)
                     continue;
 
                 var otherAccountIds = _accounts.Keys.Where(id => id != tx.AccountId).ToList();
                 var ranked = Counterparts(tx, otherAccountIds)
-                    .Select(c => (Candidate: c, CategoryRank: c.CategoryId == MoneyTransfersCategoryId ? 0 : 1, Days: DaysBetween(tx, c)))
+                    .Select(c => (Candidate: c, CategoryRank: c.CategoryId == _moneyTransfersCategoryId ? 0 : 1, Days: DaysBetween(tx, c)))
                     .OrderBy(x => x.CategoryRank)
                     .ThenBy(x => x.Days)
                     .ThenBy(x => x.Candidate.Id)

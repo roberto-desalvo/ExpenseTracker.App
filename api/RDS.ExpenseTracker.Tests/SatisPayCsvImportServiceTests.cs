@@ -222,7 +222,7 @@ public class SatisPayCsvImportServiceTests
         transferRepository = new FakeTransferRepository();
         accountRepository = new FakeAccountRepository(accounts ?? [new Account(3, "Satispay", TestUserId)]);
 
-        var categoryRepository = new FakeCategoryRepository();
+        var categoryRepository = FakeCategoryRepository.WithDefaults(TestUserId);
         var transferMatchingOptions = new FakeTransferMatchingOptions { Rules = rules?.ToList() ?? [] };
         var transferMatchingService = new TransferMatchingService(transactionRepository, accountRepository, transferMatchingOptions);
 
@@ -269,6 +269,7 @@ public class SatisPayCsvImportServiceTests
         public Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds, int userId)
             => Task.FromResult(Enumerable.Empty<string>());
 
+        public Task<List<Transaction>> GetCategorizableTransactions(int userId, DateTime startDate, DateTime endDate) => throw new NotImplementedException();
         public Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains)
         {
             var targetDate = date.Date;
@@ -330,24 +331,6 @@ public class SatisPayCsvImportServiceTests
         public Task UpdateTransfer(Transfer transfer) => throw new NotImplementedException();
         public Task DeleteTransfer(int id) => throw new NotImplementedException();
         public Task DeleteTransfers(IEnumerable<int> transferIds) => throw new NotImplementedException();
-    }
-
-    private sealed class FakeCategoryRepository : ICategoryRepository
-    {
-        public Task<IEnumerable<Category>> GetCategories(string? name = null)
-            => Task.FromResult<IEnumerable<Category>>([]);
-
-        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult(1);
-
-        public Task<Category?> GetCategory(int id) => throw new NotImplementedException();
-        public Task<Category?> GetDefaultCategory() => throw new NotImplementedException();
-        public Task<(IEnumerable<Category> Items, int TotalCount)> GetPagedCategories(CategoryQueryRequest request) => throw new NotImplementedException();
-        public Task AddCategories(IEnumerable<Category> categories) => throw new NotImplementedException();
-        public Task UpdateCategory(Category category) => throw new NotImplementedException();
-        public Task RemoveCategory(int id) => throw new NotImplementedException();
-        public Task RemoveCategory(Category category) => throw new NotImplementedException();
-        public Task ReassignTransactionsToCategory(int sourceCategoryId, int targetCategoryId) => throw new NotImplementedException();
     }
 
     private sealed class FakeAccountRepository(IEnumerable<Account> seedAccounts) : IAccountRepository

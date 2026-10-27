@@ -366,6 +366,38 @@
           }
         },
         {
+          "name": "Category_SyncTransactions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/category/sync",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "category",
+                "sync"
+              ]
+            },
+            "description": "Riassegna la categoria ai movimenti dell'utente con data nel range (estremi inclusi) cercando i tag delle categorie nella descrizione; se corrispondono più categorie vince la priorità più bassa. Esclude i trasferimenti (`TransferId` valorizzato o categoria Money transfers) e lascia invariati i movimenti senza corrispondenze. Risposta: `200 { examinedTransactions, updatedTransactions, unmatchedTransactions }`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"2026-01-01\",\n  \"endDate\": \"2026-12-31\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "Category_Delete",
           "request": {
             "method": "DELETE",

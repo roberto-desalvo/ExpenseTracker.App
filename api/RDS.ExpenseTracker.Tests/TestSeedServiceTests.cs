@@ -93,24 +93,27 @@ public class TestSeedServiceTests
         var userRepository = new FakeUserRepository([new User(TestUserId, TestSeedService.TestUserEmail)]);
         var accountRepository = new FakeAccountRepository([]);
         var transactionRepository = new FakeTransactionRepository();
-        var service = CreateService(userRepository, accountRepository, transactionRepository, new FakeTransferRepository());
+        var categoryRepository = new FakeCategoryRepository();
+        var service = CreateService(userRepository, accountRepository, transactionRepository, new FakeTransferRepository(), categoryRepository);
 
         var result = await service.ResetTestUserDataAsync();
 
         result.IsSuccess.Should().BeTrue();
         var today = DateTime.UtcNow.Date;
+        var testCategoryIds = categoryRepository.Categories.Where(c => c.UserId == TestUserId).Select(c => c.Id).ToHashSet();
+        testCategoryIds.Should().HaveCount(Enum.GetValues<CategoryEnum>().Length);
         var transactions = transactionRepository.Transactions;
 
         result.Value.TransactionCount.Should().Be(transactions.Count);
         transactions.Should().OnlyContain(t => t.Date.HasValue && t.Date.Value <= today);
         transactions.Min(t => t.Date!.Value).Should().BeOnOrBefore(today.AddYears(-TestSeedService.YearsOfHistory));
-        transactions.Should().OnlyContain(t => t.CategoryId.HasValue && Enum.IsDefined((CategoryEnum)t.CategoryId!.Value));
+        transactions.Should().OnlyContain(t => t.CategoryId.HasValue && testCategoryIds.Contains(t.CategoryId!.Value));
         transactions.Should().OnlyContain(t => t.Amount != 0m && !string.IsNullOrWhiteSpace(t.Description));
 
         // Ogni mese concluso ha almeno uno stipendio accreditato sul conto corrente.
         var checkingId = accountRepository.Accounts.Single(a => a.Name == TestSeedService.CheckingAccountName).Id;
         var salaryMonths = transactions
-            .Where(t => t.AccountId == checkingId && t.CategoryId == (int)CategoryEnum.WorkIncomes)
+            .Where(t => t.AccountId == checkingId && t.CategoryId == CategoryIdOf(categoryRepository, CategoryEnum.WorkIncomes))
             .Select(t => new DateTime(t.Date!.Value.Year, t.Date.Value.Month, 1))
             .ToHashSet();
 
@@ -129,11 +132,13 @@ public class TestSeedServiceTests
         var userRepository = new FakeUserRepository([new User(TestUserId, TestSeedService.TestUserEmail)]);
         var transactionRepository = new FakeTransactionRepository();
         var transferRepository = new FakeTransferRepository();
-        var service = CreateService(userRepository, new FakeAccountRepository([]), transactionRepository, transferRepository);
+        var categoryRepository = new FakeCategoryRepository();
+        var service = CreateService(userRepository, new FakeAccountRepository([]), transactionRepository, transferRepository, categoryRepository);
 
         var result = await service.ResetTestUserDataAsync();
 
         result.IsSuccess.Should().BeTrue();
+        var moneyTransfersId = CategoryIdOf(categoryRepository, CategoryEnum.MoneyTransfers);
         transferRepository.Transfers.Should().NotBeEmpty();
         result.Value.TransferCount.Should().Be(transferRepository.Transfers.Count);
 
@@ -150,11 +155,11 @@ public class TestSeedServiceTests
             legs.Should().Contain(t => t.Amount < 0m);
             legs.Select(t => t.AccountId).Distinct().Should().HaveCount(2);
             legs.Select(t => t.Date).Distinct().Should().HaveCount(1);
-            legs.Should().OnlyContain(t => t.CategoryId == (int)CategoryEnum.MoneyTransfers);
+            legs.Should().OnlyContain(t => t.CategoryId == moneyTransfersId);
         }
 
         transactionRepository.Transactions
-            .Where(t => t.CategoryId == (int)CategoryEnum.MoneyTransfers)
+            .Where(t => t.CategoryId == moneyTransfersId)
             .Should().OnlyContain(t => t.TransferNavigation != null);
     }
 
@@ -187,8 +192,12 @@ public class TestSeedServiceTests
         FakeUserRepository userRepository,
         FakeAccountRepository accountRepository,
         FakeTransactionRepository transactionRepository,
-        FakeTransferRepository transferRepository)
-        => new(userRepository, accountRepository, transactionRepository, transferRepository, NullLogger<TestSeedService>.Instance);
+        FakeTransferRepository transferRepository,
+        FakeCategoryRepository? categoryRepository = null)
+        => new(userRepository, accountRepository, transactionRepository, transferRepository, categoryRepository ?? new FakeCategoryRepository(), NullLogger<TestSeedService>.Instance);
+
+    private static int CategoryIdOf(FakeCategoryRepository categoryRepository, CategoryEnum kind)
+        => categoryRepository.Categories.Single(c => c.UserId == TestUserId && c.Kind == kind).Id;
 
     private sealed class FakeUserRepository(IEnumerable<User> seedUsers) : IUserRepository
     {
@@ -292,6 +301,7 @@ public class TestSeedServiceTests
         public Task<IEnumerable<Transaction>> GetTransactionsByTransferId(int transferId) => throw new NotImplementedException();
         public Task<Transaction> GetLatestTransaction(int userId) => throw new NotImplementedException();
         public Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds, int userId) => throw new NotImplementedException();
+        public Task<List<Transaction>> GetCategorizableTransactions(int userId, DateTime startDate, DateTime endDate) => throw new NotImplementedException();
         public Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains) => throw new NotImplementedException();
         public Task UpdateTransaction(Transaction transaction) => throw new NotImplementedException();
         public Task DeleteTransaction(int id) => throw new NotImplementedException();

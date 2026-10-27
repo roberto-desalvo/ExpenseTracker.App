@@ -22,7 +22,7 @@ public class TransactionServiceTests
     }
 
     private static TransactionService CreateService(FakeTransactionRepository transactionRepository)
-        => new(transactionRepository, new FakeAccountRepository(), new FakeCategoryRepository(), CreateMapper());
+        => new(transactionRepository, new FakeAccountRepository(), FakeCategoryRepository.WithDefaults(UserId), CreateMapper());
 
     [Fact]
     public async Task GetStock_AveragesRunningBalance_AcrossTransactionsInSameBucket()
@@ -256,6 +256,7 @@ public class TransactionServiceTests
         public Task<IEnumerable<Transaction>> GetTransactionsByTransferId(int transferId) => throw new NotImplementedException();
         public Task<Transaction> GetLatestTransaction(int userId) => throw new NotImplementedException();
         public Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds, int userId) => throw new NotImplementedException();
+        public Task<List<Transaction>> GetCategorizableTransactions(int userId, DateTime startDate, DateTime endDate) => throw new NotImplementedException();
         public Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains) => throw new NotImplementedException();
         public Task UpdateTransaction(Transaction transaction) => throw new NotImplementedException();
         public Task DeleteTransaction(int id) => throw new NotImplementedException();
@@ -280,17 +281,4 @@ public class TransactionServiceTests
         public Task CalculateAvailabilities(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
     }
 
-    private sealed class FakeCategoryRepository : ICategoryRepository
-    {
-        public Task<IEnumerable<Category>> GetCategories(string? name = null) => Task.FromResult<IEnumerable<Category>>([]);
-        public Task<Category?> GetDefaultCategory() => Task.FromResult<Category?>(null);
-        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => throw new NotImplementedException();
-        public Task<Category?> GetCategory(int id) => throw new NotImplementedException();
-        public Task<(IEnumerable<Category> Items, int TotalCount)> GetPagedCategories(CategoryQueryRequest request) => throw new NotImplementedException();
-        public Task AddCategories(IEnumerable<Category> categories) => throw new NotImplementedException();
-        public Task UpdateCategory(Category category) => throw new NotImplementedException();
-        public Task RemoveCategory(int id) => throw new NotImplementedException();
-        public Task RemoveCategory(Category category) => throw new NotImplementedException();
-        public Task ReassignTransactionsToCategory(int sourceCategoryId, int targetCategoryId) => throw new NotImplementedException();
-    }
 }

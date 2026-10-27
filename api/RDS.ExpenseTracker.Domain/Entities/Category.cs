@@ -12,10 +12,18 @@ public class Category
     public bool? IsDefault { get; set; }
     public string? Tags { get; set; } = string.Empty;
 
+    // Le categorie appartengono a un utente: ognuno ha il proprio set, creato dalle categorie di default.
+    public int UserId { get; set; }
+
+    // Categoria di sistema da cui deriva (es. MoneyTransfers), usata dal codice per trovare l'id della categoria
+    // dell'utente; null per le categorie create dall'utente.
+    public CategoryEnum? Kind { get; set; }
+
+    public User? UserNavigation { get; set; }
     public ICollection<Transaction> Transactions { get; set; } = [];
 
-    public static IEnumerable<Category> CreateSeedCategories()
+    public static IEnumerable<Category> CreateDefaultCategories(int userId)
         => Enum.GetValues<CategoryEnum>()
-            .Select(CategorySeedBuilder.Build)
+            .Select(kind => CategorySeedBuilder.Build(kind, userId))
             .ToArray();
 }

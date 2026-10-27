@@ -36,7 +36,7 @@ public class DemoDataServiceTests
         var transferRepository = new FakeTransferRepository();
 
         var service = new DemoDataService(
-            userRepository, accountRepository, transactionRepository, transferRepository, NullLogger<DemoDataService>.Instance);
+            userRepository, accountRepository, transactionRepository, transferRepository, new FakeCategoryRepository(), NullLogger<DemoDataService>.Instance);
 
         var result = await service.GenerateDemoDataAsync(DemoUserId);
 
@@ -74,8 +74,12 @@ public class DemoDataServiceTests
         var transferRepository = new FakeTransferRepository();
         transferRepository.Transfers.Add(new Transfer { Id = 50 });
 
+        // categorie personalizzate del demo da azzerare, categorie dell'altro utente da preservare
+        var categoryRepository = FakeCategoryRepository.WithDefaults(OtherUserId);
+        categoryRepository.Categories.Add(new Category { Id = 500, Name = "Categoria personalizzata", UserId = DemoUserId });
+
         var service = new DemoDataService(
-            userRepository, accountRepository, transactionRepository, transferRepository, NullLogger<DemoDataService>.Instance);
+            userRepository, accountRepository, transactionRepository, transferRepository, categoryRepository, NullLogger<DemoDataService>.Instance);
 
         var result = await service.GenerateDemoDataAsync(DemoUserId);
 
@@ -99,9 +103,17 @@ public class DemoDataServiceTests
 
         generatedTransactions.Should().NotBeEmpty();
         generatedTransactions.Should().OnlyContain(t => newDemoAccountIds.Contains(t.AccountId));
-        generatedTransactions.Should().OnlyContain(t => t.CategoryId.HasValue && AllowedCategories.Contains((CategoryEnum)t.CategoryId!.Value));
-        generatedTransactions.Should().Contain(t => t.CategoryId == (int)CategoryEnum.WorkIncomes);
-        generatedTransactions.Should().Contain(t => t.CategoryId == (int)CategoryEnum.Housing);
+        var demoCategories = categoryRepository.Categories.Where(c => c.UserId == DemoUserId).ToList();
+        demoCategories.Should().NotContain(c => c.Id == 500);
+        demoCategories.Select(c => c.Kind).Should().BeEquivalentTo(Enum.GetValues<CategoryEnum>().Select(k => (CategoryEnum?)k));
+        categoryRepository.Categories.Where(c => c.UserId == OtherUserId).Should().HaveCount(Enum.GetValues<CategoryEnum>().Length);
+
+        // i movimenti generati usano le nuove categorie del demo, non gli id dell'enum
+        var kindById = demoCategories.ToDictionary(c => c.Id, c => c.Kind!.Value);
+        generatedTransactions.Should().OnlyContain(t => t.CategoryId.HasValue && kindById.ContainsKey(t.CategoryId.Value));
+        generatedTransactions.Should().OnlyContain(t => AllowedCategories.Contains(kindById[t.CategoryId!.Value]));
+        generatedTransactions.Should().Contain(t => kindById[t.CategoryId!.Value] == CategoryEnum.WorkIncomes);
+        generatedTransactions.Should().Contain(t => kindById[t.CategoryId!.Value] == CategoryEnum.Housing);
     }
 
     [Fact]
@@ -111,14 +123,16 @@ public class DemoDataServiceTests
         var accountRepository = new FakeAccountRepository([]);
         var transactionRepository = new FakeTransactionRepository();
         var transferRepository = new FakeTransferRepository();
+        var categoryRepository = new FakeCategoryRepository();
 
         var service = new DemoDataService(
-            userRepository, accountRepository, transactionRepository, transferRepository, NullLogger<DemoDataService>.Instance);
+            userRepository, accountRepository, transactionRepository, transferRepository, categoryRepository, NullLogger<DemoDataService>.Instance);
 
         var result = await service.GenerateDemoDataAsync(DemoUserId);
 
         result.IsSuccess.Should().BeTrue();
         transferRepository.Transfers.Should().NotBeEmpty();
+        var moneyTransfersId = categoryRepository.Categories.Single(c => c.UserId == DemoUserId && c.Kind == CategoryEnum.MoneyTransfers).Id;
 
         foreach (var transfer in transferRepository.Transfers)
         {
@@ -127,7 +141,7 @@ public class DemoDataServiceTests
             legs.Should().Contain(t => t.Amount < 0m);
             legs.Should().Contain(t => t.Amount > 0m);
             legs.Sum(t => t.Amount).Should().Be(0m);
-            legs.Should().OnlyContain(t => t.CategoryId == (int)CategoryEnum.MoneyTransfers);
+            legs.Should().OnlyContain(t => t.CategoryId == moneyTransfersId);
         }
     }
 
@@ -227,6 +241,7 @@ public class DemoDataServiceTests
         public Task<IEnumerable<Transaction>> GetTransactionsByTransferId(int transferId) => throw new NotImplementedException();
         public Task<Transaction> GetLatestTransaction(int userId) => throw new NotImplementedException();
         public Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds, int userId) => throw new NotImplementedException();
+        public Task<List<Transaction>> GetCategorizableTransactions(int userId, DateTime startDate, DateTime endDate) => throw new NotImplementedException();
         public Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains) => throw new NotImplementedException();
         public Task UpdateTransaction(Transaction transaction) => throw new NotImplementedException();
         public Task DeleteTransaction(int id) => throw new NotImplementedException();

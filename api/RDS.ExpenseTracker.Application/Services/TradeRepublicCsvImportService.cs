@@ -39,7 +39,6 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         "BUY", "SELL", "DIVIDEND", "INTEREST_PAYMENT", "BENEFITS_SAVEBACK",
     };
 
-    private static readonly char[] TagSeparators = [',', ';'];
 
     // ── Dependencies ────────────────────────────────────────────────────────
     private readonly ITransactionRepository _transactionRepository;
@@ -132,12 +131,8 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
                 return Result.Ok(0);
 
             // 4. Load categories ---------------------------------------------
-            var categories = (await _categoryRepository.GetCategories())
-                .OrderBy(c => c.Priority ?? int.MaxValue)
-                .ToList();
-
-            var defaultCategory   = await _categoryRepository.GetDefaultCategory();
-            var defaultCategoryId = defaultCategory?.Id ?? (int)CategoryEnum.Default;
+            var categories               = new UserCategories(await _categoryRepository.GetCategories(userId));
+            var moneyTransfersCategoryId = categories.MoneyTransfersId;
 
             // 5. Build entity lists ------------------------------------------
             var transactions       = new List<Transaction>();
@@ -167,7 +162,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
             foreach (var row in candidateRows.OrderBy(r => ParseDate(r.Datetime) ?? DateTime.UtcNow))
             {
                 await ProcessTransferCandidateRow(
-                    row, accounts, transactions, transferEntities, transferTransactions, userId, consumedCandidateIds);
+                    row, accounts, transactions, transferEntities, transferTransactions, userId, moneyTransfersCategoryId, consumedCandidateIds);
             }
 
             foreach (var row in remainingRows)
@@ -183,11 +178,11 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
 
                 if (counterpartyAccount != null)
                 {
-                    BuildTransferEntities(row, counterpartyAccount.Name, accounts, transferEntities, transferTransactions);
+                    BuildTransferEntities(row, counterpartyAccount.Name, accounts, transferEntities, transferTransactions, moneyTransfersCategoryId);
                 }
                 else
                 {
-                    var tx = BuildTransaction(row, accounts, categories, defaultCategoryId);
+                    var tx = BuildTransaction(row, accounts, categories);
                     if (tx != null) transactions.Add(tx);
                 }
             }
@@ -288,7 +283,8 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         string counterpartyAccountName,
         List<Account> accounts,
         List<Transfer> transferEntities,
-        List<Transaction> transferTransactions)
+        List<Transaction> transferTransactions,
+        int? moneyTransfersCategoryId)
     {
         // TRANSFER_INSTANT_INBOUND  → money flowing IN  to TR  (positive amount in CSV)
         //   FromAccount = counterparty,  ToAccount = Trade Republic
@@ -329,7 +325,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         transferTransactions.Add(new Transaction
         {
             AccountId          = fromAccount.Id,
-            CategoryId         = (int)CategoryEnum.MoneyTransfers,
+            CategoryId         = moneyTransfersCategoryId,
             Amount             = -amount,
             Description        = description,
             Date               = date,
@@ -341,7 +337,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         transferTransactions.Add(new Transaction
         {
             AccountId          = toAccount.Id,
-            CategoryId         = (int)CategoryEnum.MoneyTransfers,
+            CategoryId         = moneyTransfersCategoryId,
             Amount             = amount,
             Description        = description,
             Date               = date,
@@ -358,6 +354,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         List<Transfer> transferEntities,
         List<Transaction> transferTransactions,
         int userId,
+        int? moneyTransfersCategoryId,
         HashSet<int> consumedCandidateIds)
     {
         var accountName = ResolveAccountName(row);
@@ -385,13 +382,13 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
             transferEntities.Add(transfer);
 
             matchResult.Candidate.TransferNavigation = transfer;
-            matchResult.Candidate.CategoryId = (int)CategoryEnum.MoneyTransfers;
+            matchResult.Candidate.CategoryId = moneyTransfersCategoryId;
             consumedCandidateIds.Add(matchResult.Candidate.Id);
 
             transferTransactions.Add(new Transaction
             {
                 AccountId          = account.Id,
-                CategoryId         = (int)CategoryEnum.MoneyTransfers,
+                CategoryId         = moneyTransfersCategoryId,
                 Amount             = amount,
                 Description        = description,
                 Date               = date,
@@ -405,7 +402,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
             transactions.Add(new Transaction
             {
                 AccountId   = account.Id,
-                CategoryId  = (int)CategoryEnum.MoneyTransfers,
+                CategoryId  = moneyTransfersCategoryId,
                 Amount      = amount,
                 Description = description,
                 Date        = date,
@@ -423,8 +420,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
     private Transaction? BuildTransaction(
         TradeRepublicRow row,
         List<Account> accounts,
-        List<Category> categories,
-        int defaultCategoryId)
+        UserCategories categories)
     {
         var accountName = ResolveAccountName(row);
 
@@ -444,7 +440,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         return new Transaction
         {
             AccountId   = account.Id,
-            CategoryId  = DetermineCategory(row, categories, defaultCategoryId),
+            CategoryId  = DetermineCategory(row, categories),
             Amount      = amount,
             Description = BuildDescription(row),
             Date        = ParseDate(row.Datetime) ?? DateTime.UtcNow,
@@ -453,21 +449,12 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         };
     }
 
-    private int DetermineCategory(TradeRepublicRow row, List<Category> categories, int defaultCategoryId)
+    private static int? DetermineCategory(TradeRepublicRow row, UserCategories categories)
     {
         if (InvestmentTypes.Contains(row.Type ?? string.Empty))
-            return (int)CategoryEnum.SavingsAndInvestments;
+            return categories.IdOf(CategoryEnum.SavingsAndInvestments) ?? categories.DefaultId;
 
-        var description = BuildDescription(row);
-
-        foreach (var category in categories)
-        {
-            var tags = SplitTags(category.Tags).ToArray();
-            if (tags.Length > 0 && description.ContainsOne(ignoreCase: true, tags))
-                return category.Id;
-        }
-
-        return defaultCategoryId;
+        return categories.MatchOrDefault(BuildDescription(row));
     }
 
     private static string BuildDescription(TradeRepublicRow row)
@@ -491,11 +478,6 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
             ? dto.UtcDateTime
             : null;
     }
-
-    private static IEnumerable<string> SplitTags(string? tags)
-        => string.IsNullOrWhiteSpace(tags)
-            ? []
-            : tags.Split(TagSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     // ── CSV row model ────────────────────────────────────────────────────────
 

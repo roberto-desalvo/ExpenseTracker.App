@@ -13,7 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { AddRounded, DeleteOutlineRounded, EditOutlined, LockOutlined } from "@mui/icons-material";
+import { AddRounded, DeleteOutlineRounded, EditOutlined, LockOutlined, SyncRounded } from "@mui/icons-material";
 import Category from "../models/Category";
 import { useCategories } from "../stores/CategoryContext";
 import { useSuccessMessage } from "../stores/SuccessMessageContext";
@@ -21,6 +21,7 @@ import DataTableBase, { DataTableColumn } from "../components/DataTableBase";
 import ConfirmDeleteDialog from "../components/ConfirmDeleteDialog";
 import EditorDrawer from "../components/ui/EditorDrawer";
 import SearchField from "../components/ui/SearchField";
+import CategorySyncModal from "../components/settings/CategorySyncModal";
 import { initialsOf } from "../utilities/format.utilities";
 
 type CategoryFormState = {
@@ -39,7 +40,7 @@ const createInitialForm = (): CategoryFormState => ({
 
 const columns: DataTableColumn[] = [
   { id: "name", label: "Categoria", minWidth: "36%" },
-  { id: "tags", label: "Parole chiave import", minWidth: "40%" },
+  { id: "tags", label: "Parole chiave", minWidth: "40%" },
   { id: "priority", label: "Priorità", minWidth: "10%", align: "right" },
   { id: "actions", label: "", minWidth: "14%", align: "right" },
 ];
@@ -71,6 +72,7 @@ export default function CategoriesPage() {
   const [editing, setEditing] = useState<Category | null>(null);
   const [toDelete, setToDelete] = useState<Category | null>(null);
   const [busy, setBusy] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
 
   const knownTags = useMemo(
     () => [...new Set(allCategories.flatMap((c) => c.tags ?? []))].sort((x, y) => x.localeCompare(y)),
@@ -231,6 +233,9 @@ export default function CategoriesPage() {
           onSearch={(name) => refreshCategories(name)}
         />
         <Box sx={{ flex: 1 }} />
+        <Button variant="outlined" startIcon={<SyncRounded />} onClick={() => setSyncOpen(true)}>
+          Sincronizza categorie
+        </Button>
         <Button variant="contained" startIcon={<AddRounded />} onClick={openCreate}>
           Nuova categoria
         </Button>
@@ -242,7 +247,7 @@ export default function CategoriesPage() {
         isLoading={isLoading}
         isEmpty={!isLoading && categories.length === 0}
         emptyMessage="Nessuna categoria trovata"
-        emptySubtext="Crea una categoria per organizzare i movimenti e classificarli in automatico durante l'import."
+        emptySubtext="Crea una categoria per organizzare i movimenti e classificarli in automatico durante l'import o con la sincronizzazione."
         page={page}
         pageSize={pageSize}
         totalCount={totalCount}
@@ -303,7 +308,7 @@ export default function CategoriesPage() {
               {...params}
               label="Parole chiave"
               placeholder={form.tags.length ? "" : "Es. esselunga, conad"}
-              helperText="Premi Invio dopo ogni parola. Durante l'import, un movimento la cui descrizione contiene una di queste parole viene assegnato a questa categoria."
+              helperText="Premi Invio dopo ogni parola. Durante l'import e con “Sincronizza categorie”, un movimento la cui descrizione contiene una di queste parole viene assegnato a questa categoria."
             />
           )}
         />
@@ -317,6 +322,8 @@ export default function CategoriesPage() {
           sx={{ maxWidth: 200 }}
         />
       </EditorDrawer>
+
+      <CategorySyncModal open={syncOpen} onClose={() => setSyncOpen(false)} />
 
       <ConfirmDeleteDialog
         open={toDelete !== null}

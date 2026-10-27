@@ -66,6 +66,9 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                     b.Property<bool?>("IsDefault")
                         .HasColumnType("bit");
 
+                    b.Property<int?>("Kind")
+                        .HasColumnType("int");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -78,79 +81,16 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
-                    b.ToTable("Categories");
+                    b.HasIndex("UserId", "Kind")
+                        .IsUnique()
+                        .HasFilter("[Kind] IS NOT NULL");
 
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Description = "Other",
-                            IsDefault = true,
-                            Name = "Default",
-                            Tags = "default"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Description = "Money transfers",
-                            Name = "Money tranfers"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Description = "Salary or other work incomes",
-                            Name = "Work incomes"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            Description = "Rent, utilities, home maintenance, etc",
-                            Name = "Housing"
-                        },
-                        new
-                        {
-                            Id = 5,
-                            Description = "Health expenses, gym, sports, etc.",
-                            Name = "Health & Fitness"
-                        },
-                        new
-                        {
-                            Id = 6,
-                            Description = "Food and bevarage",
-                            Name = "Food and bevarage"
-                        },
-                        new
-                        {
-                            Id = 7,
-                            Description = "Transportation, car maintenance and insurance, fuel, etc.",
-                            Name = "Transportation"
-                        },
-                        new
-                        {
-                            Id = 8,
-                            Description = "Entertainment",
-                            Name = "Entertainment"
-                        },
-                        new
-                        {
-                            Id = 9,
-                            Description = "Clothes and accessories",
-                            Name = "Clothes"
-                        },
-                        new
-                        {
-                            Id = 10,
-                            Description = "Savings and investments",
-                            Name = "Savings and investments"
-                        },
-                        new
-                        {
-                            Id = 11,
-                            Description = "Gifts",
-                            Name = "Gifts"
-                        });
+                    b.ToTable("Categories");
                 });
 
             modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.ImportLog", b =>
@@ -333,6 +273,17 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                     b.Navigation("UserNavigation");
                 });
 
+            modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.Category", b =>
+                {
+                    b.HasOne("RDS.ExpenseTracker.Domain.Entities.User", "UserNavigation")
+                        .WithMany("Categories")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("UserNavigation");
+                });
+
             modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.ImportLog", b =>
                 {
                     b.HasOne("RDS.ExpenseTracker.Domain.Entities.Account", "AccountNavigation")
@@ -394,6 +345,8 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
             modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.User", b =>
                 {
                     b.Navigation("Accounts");
+
+                    b.Navigation("Categories");
                 });
 #pragma warning restore 612, 618
         }

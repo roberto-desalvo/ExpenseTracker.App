@@ -15,6 +15,7 @@
   - `TransactionQueryRequest` (`src/models/TransactionQueryRequest.ts`): `{ fromDate?; toDate?; idAccounts?: number[] | null; idCategories?: number[] | null; isIncome?: boolean | null; sortBy?: TransactionSortField; sortDirection?: SortDirection; page: number; pageSize: number }`, con `TransactionSortField = "date" | "description" | "category" | "account" | "amount"` e `SortDirection = "asc" | "desc"` esportati dallo stesso file.
   - `TransactionQueryResult` (`src/models/TransactionQueryResult.ts`): estende `PagedResult<Transaction>` aggiungendo `totalIncomes`, `totalOutcomes`, `totalNet`.
 - `PagedResult<T>` (`src/models/PagedResult.ts`): `{ items: T[]; totalCount: number; page: number; pageSize: number }`, generico riusato da tutte le liste paginate (account, categorie, transazioni).
+- `CategorySyncRequest` / `CategorySyncResult` (esportati da `src/services/CategoryService.tsx`): `{ startDate: string; endDate: string }` (date `yyyy-MM-dd`, estremi inclusi) e `{ examinedTransactions; updatedTransactions; unmatchedTransactions }`, payload di `POST api/category/sync`.
 - `TransactionMonthOption` (`src/models/TransactionMonthOption.ts`): `{ startDate: string; endDate: string; description: string }`, usato per popolare il selettore mese della tabella movimenti.
 
 ## Ruolo

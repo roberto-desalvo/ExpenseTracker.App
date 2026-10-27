@@ -29,6 +29,7 @@ export const apiConfig = {
   categories: {
     base: categoryBase,
     query: `${categoryBase}/query`,
+    sync: `${categoryBase}/sync`,
     byId: (id: number) => `${categoryBase}/${id}`,
   },
   transfers: {

@@ -3,6 +3,7 @@ using CsvHelper.Configuration;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 using RDS.ExpenseTracker.Application.Extensions;
+using RDS.ExpenseTracker.Application.Utilities;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
@@ -19,7 +20,6 @@ public class BbvaCsvImportService : IBbvaCsvImportService
 {
     private const int TransactionDescriptionMaxLength = 500;
 
-    private static readonly char[] CategoryTagSeparators = [',', ';'];
     private static readonly string[] RequiredHeaders =
     [
         "Data valuta",
@@ -107,11 +107,7 @@ public class BbvaCsvImportService : IBbvaCsvImportService
                 return Result.Ok(0);
             }
 
-            var categories = (await _categoryRepository.GetCategories())
-                .OrderBy(c => c.Priority ?? int.MaxValue)
-                .ToList();
-            var defaultCategory = await _categoryRepository.GetDefaultCategory();
-            var defaultCategoryId = defaultCategory?.Id ?? (int)CategoryEnum.Default;
+            var categories = new UserCategories(await _categoryRepository.GetCategories(userId));
 
             var transactions = new List<Transaction>(rows.Count);
             foreach (var row in rows)
@@ -137,7 +133,7 @@ public class BbvaCsvImportService : IBbvaCsvImportService
                     Amount = row.Amount.Value,
                     Date = transactionDate.Value,
                     Description = description,
-                    CategoryId = DetermineCategoryId(description, categories, defaultCategoryId),
+                    CategoryId = categories.MatchOrDefault(description),
                     ExternalId = BuildExternalId(row),
                     CreatedOn = DateTime.UtcNow,
                 });
@@ -385,23 +381,6 @@ public class BbvaCsvImportService : IBbvaCsvImportService
             ? parsed
             : null;
     }
-
-    private int DetermineCategoryId(string description, List<Category> categories, int defaultCategoryId)
-    {
-        foreach (var category in categories)
-        {
-            var tags = SplitTags(category.Tags).ToArray();
-            if (tags.Length > 0 && description.ContainsOne(ignoreCase: true, tags))
-                return category.Id;
-        }
-
-        return defaultCategoryId;
-    }
-
-    private static IEnumerable<string> SplitTags(string? tags)
-        => string.IsNullOrWhiteSpace(tags)
-            ? []
-            : tags.Split(CategoryTagSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     private static string BuildDescription(BbvaRow row)
     {

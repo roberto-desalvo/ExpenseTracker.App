@@ -1,5 +1,6 @@
 using FluentResults;
 using Microsoft.Extensions.Logging;
+using RDS.ExpenseTracker.Application.Utilities;
 using RDS.ExpenseTracker.Domain.Dtos;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
@@ -11,7 +12,7 @@ namespace RDS.ExpenseTracker.Application.Services;
 /// <summary>
 /// Genera dati fittizi ma verosimili per l'utente di test: 5 conti e circa 5 anni di movimenti
 /// (stipendio, affitto, bollette, spese con carta, contanti, risparmio, PAC) con trasferimenti collegati.
-/// Ad ogni chiamata i dati esistenti dell'utente vengono eliminati e rigenerati da zero.
+/// Ad ogni chiamata i dati esistenti dell'utente (categorie comprese) vengono eliminati e rigenerati da zero.
 /// </summary>
 public class TestSeedService : ITestSeedService
 {
@@ -28,6 +29,7 @@ public class TestSeedService : ITestSeedService
     private readonly IAccountRepository _accountRepository;
     private readonly ITransactionRepository _transactionRepository;
     private readonly ITransferRepository _transferRepository;
+    private readonly ICategoryRepository _categoryRepository;
     private readonly ILogger<TestSeedService> _logger;
 
     public TestSeedService(
@@ -35,12 +37,14 @@ public class TestSeedService : ITestSeedService
         IAccountRepository accountRepository,
         ITransactionRepository transactionRepository,
         ITransferRepository transferRepository,
+        ICategoryRepository categoryRepository,
         ILogger<TestSeedService> logger)
     {
         _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
         _transactionRepository = transactionRepository ?? throw new ArgumentNullException(nameof(transactionRepository));
         _transferRepository = transferRepository ?? throw new ArgumentNullException(nameof(transferRepository));
+        _categoryRepository = categoryRepository ?? throw new ArgumentNullException(nameof(categoryRepository));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -50,6 +54,7 @@ public class TestSeedService : ITestSeedService
         {
             var (user, userCreated) = await GetOrCreateTestUserAsync();
             await ResetExistingDataAsync(user.Id);
+            var categories = await ResetCategoriesAsync(user.Id);
 
             var accounts = new SeedAccounts(
                 new Account(0, CheckingAccountName, user.Id),
@@ -64,7 +69,7 @@ public class TestSeedService : ITestSeedService
             var toDate = DateTime.UtcNow.Date;
             var fromDate = new DateTime(toDate.Year - YearsOfHistory, toDate.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
-            var generator = new SeedGenerator(accounts, new Random(), fromDate, toDate);
+            var generator = new SeedGenerator(accounts, categories, new Random(), fromDate, toDate);
             generator.Generate();
 
             foreach (var transfer in generator.Transfers)
@@ -124,6 +129,19 @@ public class TestSeedService : ITestSeedService
         await _accountRepository.SaveChangesAsync();
     }
 
+    // Due salvataggi distinti: l'indice univoco (UserId, Kind) non deve vedere vecchie e nuove categorie insieme.
+    private async Task<UserCategories> ResetCategoriesAsync(int userId)
+    {
+        await _categoryRepository.DeleteCategories(userId);
+        await _categoryRepository.SaveChangesAsync();
+
+        var categories = Category.CreateDefaultCategories(userId).ToList();
+        await _categoryRepository.AddCategories(categories);
+        await _categoryRepository.SaveChangesAsync();
+
+        return new UserCategories(categories);
+    }
+
     private sealed record SeedAccounts(Account Checking, Account CreditCard, Account Savings, Account Broker, Account Cash)
     {
         public Account[] All => [Checking, CreditCard, Savings, Broker, Cash];
@@ -133,7 +151,7 @@ public class TestSeedService : ITestSeedService
     /// Costruisce i movimenti mese per mese tenendo traccia dei saldi, così che i flussi
     /// dipendenti (saldo carta, giroconti verso/da risparmio, spese in contanti) restino coerenti.
     /// </summary>
-    private sealed class SeedGenerator(SeedAccounts accounts, Random random, DateTime fromDate, DateTime toDate)
+    private sealed class SeedGenerator(SeedAccounts accounts, UserCategories categories, Random random, DateTime fromDate, DateTime toDate)
     {
         private const decimal BaseNetSalary = 2500m;
         private const decimal BaseRent = 780m;
@@ -467,7 +485,7 @@ public class TestSeedService : ITestSeedService
             Transactions.Add(new Transaction
             {
                 AccountId = account.Id,
-                CategoryId = (int)category,
+                CategoryId = categories.IdOf(category),
                 Amount = Math.Round(amount, 2),
                 Description = description,
                 Date = date,
