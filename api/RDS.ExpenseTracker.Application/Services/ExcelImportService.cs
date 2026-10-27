@@ -40,8 +40,10 @@ public class ExcelImportService : IExcelImportService
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task<Result<int>> ImportFromExcelAsync(Stream fileStream, string fileName, int userId, bool importAll = false)
+    public async Task<Result<int>> ImportFromExcelAsync(Stream fileStream, string fileName, int userId, bool importAll = false, ImportStatistics? statistics = null)
     {
+        statistics ??= new ImportStatistics();
+
         try
         {
             if (fileStream == null || !fileStream.CanRead)
@@ -52,18 +54,44 @@ public class ExcelImportService : IExcelImportService
             var dataTables = ReadExcelFile(fileStream);
             var transactionsBySheet = ExtractTransactionsFromSheets(dataTables);
 
+            statistics.TrackDates(transactionsBySheet.SelectMany(sheet =>
+                sheet.Transactions.Select(t => (DateTime?)NormalizeToSheetYear(t.Date, sheet.SheetDate))
+                    .Concat(sheet.Transfers.Select(t => (DateTime?)NormalizeToSheetYear(t.Date, sheet.SheetDate)))));
+
+            // Il file Excel può coprire più conti: il conto dell'import si registra solo se è uno solo.
+            var fileAccountNames = transactionsBySheet
+                .SelectMany(sheet => sheet.Transactions.Select(t => t.Account)
+                    .Concat(sheet.Transfers.Select(t => t.FromAccount))
+                    .Concat(sheet.Transfers.Select(t => t.ToAccount)))
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
             if (!importAll)
             {
+                var rowsBeforeFilter = CountRows(transactionsBySheet);
                 transactionsBySheet = await FilterSheetsByLatestTransactionAsync(transactionsBySheet, userId);
+                statistics.SkippedDuplicatesCount = rowsBeforeFilter - CountRows(transactionsBySheet);
             }
 
             var importTransactions = await EnrichTransactionsAsync(transactionsBySheet, userId);
+
+            if (fileAccountNames.Count == 1)
+            {
+                statistics.AccountId = (await _accountRepository.GetAccounts(userId))
+                    .FirstOrDefault(a => a.Name != null && a.Name.Equals(fileAccountNames[0], StringComparison.OrdinalIgnoreCase))
+                    ?.Id;
+            }
+
             var saveResult = await SaveTransactionsAsync(importTransactions);
             if (saveResult.IsFailed)
             {
                 var persistedCount = importTransactions.Transactions.Count + (importTransactions.Transfers.Count * 2);
                 return Result.Fail(new Error($"Failed to save {persistedCount} transactions").CausedBy(saveResult.Errors));
             }
+
+            statistics.NewTransactionsCount = importTransactions.Transactions.Count + (importTransactions.Transfers.Count * 2);
+            statistics.NewTransfersCount = importTransactions.Transfers.Count;
 
             return Result.Ok(importTransactions.Transactions.Count + (importTransactions.Transfers.Count * 2));
         }
@@ -74,7 +102,7 @@ public class ExcelImportService : IExcelImportService
         }
     }
 
-    public async Task<Result<int>> ImportFromExcelBase64Async(string base64Content, string fileName, int userId, bool importAll = false)
+    public async Task<Result<int>> ImportFromExcelBase64Async(string base64Content, string fileName, int userId, bool importAll = false, ImportStatistics? statistics = null)
     {
         if (string.IsNullOrWhiteSpace(base64Content))
         {
@@ -87,7 +115,7 @@ public class ExcelImportService : IExcelImportService
             var fileBytes = Convert.FromBase64String(normalizedBase64);
 
             using var stream = new MemoryStream(fileBytes);
-            return await ImportFromExcelAsync(stream, fileName, userId, importAll);
+            return await ImportFromExcelAsync(stream, fileName, userId, importAll, statistics);
         }
         catch (FormatException ex)
         {
@@ -343,17 +371,7 @@ public class ExcelImportService : IExcelImportService
                     }
                 }
 
-                if (transaction.Date == null)
-                {
-                    transaction.Date = sheet.SheetDate;
-                }
-                else
-                {
-                    transaction.Date = new DateTime(
-                        sheet.SheetDate.Year,
-                        transaction.Date.Value.Month,
-                        transaction.Date.Value.Day);
-                }
+                transaction.Date = NormalizeToSheetYear(transaction.Date, sheet.SheetDate);
 
                 transactions.Add(transaction);
             }
@@ -374,17 +392,7 @@ public class ExcelImportService : IExcelImportService
                     transfer.ToAccountId = toAccount.Id;
                 }
 
-                if (transfer.Date == null)
-                {
-                    transfer.Date = sheet.SheetDate;
-                }
-                else
-                {
-                    transfer.Date = new DateTime(
-                        sheet.SheetDate.Year,
-                        transfer.Date.Value.Month,
-                        transfer.Date.Value.Day);
-                }
+                transfer.Date = NormalizeToSheetYear(transfer.Date, sheet.SheetDate);
 
                 transfers.Add(transfer);
             }
@@ -488,6 +496,15 @@ public class ExcelImportService : IExcelImportService
 
         return Result.Ok();
     }
+
+    // Ogni foglio rappresenta un mese: l'anno della riga è quello del foglio, senza data si usa la data del foglio.
+    private static DateTime NormalizeToSheetYear(DateTime? date, DateTime sheetDate)
+        => date == null
+            ? sheetDate
+            : new DateTime(sheetDate.Year, date.Value.Month, date.Value.Day);
+
+    private static int CountRows(IEnumerable<TransactionsBySheetModel> transactionsBySheet)
+        => transactionsBySheet.Sum(sheet => sheet.Transactions.Count() + sheet.Transfers.Count());
 
     private static IEnumerable<string> SplitCategoryTags(string? tags)
         => string.IsNullOrWhiteSpace(tags)

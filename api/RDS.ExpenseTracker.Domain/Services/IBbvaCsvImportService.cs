@@ -1,5 +1,6 @@
 using FluentResults;
 using RDS.ExpenseTracker.Domain.Common;
+using RDS.ExpenseTracker.Domain.Models.DataImport;
 
 namespace RDS.ExpenseTracker.Domain.Services;
 
@@ -18,6 +19,7 @@ public interface IBbvaCsvImportService : IService
     /// When <c>false</c> (default) rows that produce an already-known fingerprint are skipped.
     /// When <c>true</c> all rows are imported regardless.
     /// </param>
+    /// <param name="statistics">Optional collector filled with the import statistics (also on failure).</param>
     /// <returns>Number of inserted transaction records.</returns>
-    Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false);
+    Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false, ImportStatistics? statistics = null);
 }

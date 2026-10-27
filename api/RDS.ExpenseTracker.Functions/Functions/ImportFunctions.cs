@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using RDS.ExpenseTracker.Domain.Dtos.Requests;
+using RDS.ExpenseTracker.Domain.Models.DataImport;
 using RDS.ExpenseTracker.Domain.Services;
 using RDS.ExpenseTracker.Functions.Auth;
 using System.Text;
@@ -14,6 +15,7 @@ namespace RDS.ExpenseTracker.Functions.Functions;
 /// <summary>
 /// File import endpoints. Every function requires the <c>Files.Sender</c> app role.
 /// Rows already known (by fingerprint / external id) are skipped unless <c>importAll=true</c>.
+/// Every file import (successful or not) is recorded in <c>ImportLogs</c> via <see cref="IImportLogService"/>.
 /// </summary>
 [RequireRole("Files.Sender")]
 public class ImportFunctions : FunctionBase
@@ -27,6 +29,7 @@ public class ImportFunctions : FunctionBase
     private readonly ISellaCsvImportService _sellaCsvImportService;
     private readonly ITestSeedService _testSeedService;
     private readonly ITransferReconciliationService _transferReconciliationService;
+    private readonly IImportLogService _importLogService;
     private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly ILogger<ImportFunctions> _logger;
 
@@ -38,6 +41,7 @@ public class ImportFunctions : FunctionBase
         ISellaCsvImportService sellaCsvImportService,
         ITestSeedService testSeedService,
         ITransferReconciliationService transferReconciliationService,
+        IImportLogService importLogService,
         ICurrentUserAccessor currentUserAccessor,
         ILogger<ImportFunctions> logger)
     {
@@ -48,6 +52,7 @@ public class ImportFunctions : FunctionBase
         _sellaCsvImportService           = sellaCsvImportService           ?? throw new ArgumentNullException(nameof(sellaCsvImportService));
         _testSeedService                 = testSeedService                 ?? throw new ArgumentNullException(nameof(testSeedService));
         _transferReconciliationService   = transferReconciliationService   ?? throw new ArgumentNullException(nameof(transferReconciliationService));
+        _importLogService                = importLogService                ?? throw new ArgumentNullException(nameof(importLogService));
         _currentUserAccessor             = currentUserAccessor             ?? throw new ArgumentNullException(nameof(currentUserAccessor));
         _logger                          = logger                          ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -102,9 +107,8 @@ public class ImportFunctions : FunctionBase
             fileName, request.Base64Content.Length, importAll);
 
         var userId = await _currentUserAccessor.GetUserIdForImportAsync();
-        var result = await _excelImportService.ImportFromExcelBase64Async(request.Base64Content, fileName, userId, importAll);
-
-        return ToImportResult("Excel base64", result);
+        return await RunTrackedImportAsync("Excel base64", fileName, userId, statistics =>
+            _excelImportService.ImportFromExcelBase64Async(request.Base64Content, fileName, userId, importAll, statistics));
     }
 
     // -------------------------------------------------------------------------
@@ -203,7 +207,7 @@ public class ImportFunctions : FunctionBase
     // Shared pipeline
     // -------------------------------------------------------------------------
 
-    private delegate Task<Result<int>> ImportDelegate(Stream stream, string fileName, int userId, bool importAll);
+    private delegate Task<Result<int>> ImportDelegate(Stream stream, string fileName, int userId, bool importAll, ImportStatistics? statistics);
 
     private async Task<IActionResult> ImportFormFileAsync(HttpRequest req, string label, bool requireCsv, ImportDelegate import)
     {
@@ -229,9 +233,8 @@ public class ImportFunctions : FunctionBase
 
         var userId = await _currentUserAccessor.GetUserIdForImportAsync();
         using var stream = file.OpenReadStream();
-        var result = await import(stream, file.FileName, userId, importAll);
-
-        return ToImportResult(label, result);
+        return await RunTrackedImportAsync(label, file.FileName, userId, statistics =>
+            import(stream, file.FileName, userId, importAll, statistics));
     }
 
     private async Task<IActionResult> ImportRawBodyAsync(HttpRequest req, string label, string defaultFileName, bool requireCsv, ImportDelegate import)
@@ -253,9 +256,8 @@ public class ImportFunctions : FunctionBase
 
         var userId = await _currentUserAccessor.GetUserIdForImportAsync();
         using var memoryStream = await ReadBodyToMemoryAsync(req);
-        var result = await import(memoryStream, fileName, userId, importAll);
-
-        return ToImportResult(label, result);
+        return await RunTrackedImportAsync(label, fileName, userId, statistics =>
+            import(memoryStream, fileName, userId, importAll, statistics));
     }
 
     private async Task<IActionResult> ImportXlsxAsCsvAsync(HttpRequest req, string label, string fileName, char delimiter, ImportDelegate import)
@@ -279,8 +281,36 @@ public class ImportFunctions : FunctionBase
             label, xlsxStream.Length, importAll);
 
         var userId = await _currentUserAccessor.GetUserIdForImportAsync();
-        using var csvPayload = PrepareCsvPayload(xlsxStream, fileName, delimiter);
-        var result = await import(csvPayload.Stream, csvPayload.FileName, userId, importAll);
+        return await RunTrackedImportAsync(label, fileName, userId, async statistics =>
+        {
+            // conversione dentro il flusso tracciato: un XLSX illeggibile viene registrato come import fallito
+            using var csvPayload = PrepareCsvPayload(xlsxStream, fileName, delimiter);
+            return await import(csvPayload.Stream, csvPayload.FileName, userId, importAll, statistics);
+        });
+    }
+
+    /// <summary>
+    /// Esegue l'import e ne registra l'esito in <c>ImportLogs</c>, anche quando fallisce o solleva un'eccezione
+    /// (che viene poi rilanciata al middleware delle eccezioni).
+    /// </summary>
+    private async Task<IActionResult> RunTrackedImportAsync(
+        string label, string? fileName, int userId, Func<ImportStatistics, Task<Result<int>>> import)
+    {
+        var statistics = new ImportStatistics();
+        Result<int> result;
+
+        try
+        {
+            result = await import(statistics);
+        }
+        catch (Exception ex)
+        {
+            await _importLogService.RecordAsync(label, fileName, userId, statistics, [ex.Message]);
+            throw;
+        }
+
+        await _importLogService.RecordAsync(label, fileName, userId, statistics,
+            result.IsFailed ? result.Errors.Select(e => e.Message) : null);
 
         return ToImportResult(label, result);
     }

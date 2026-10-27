@@ -7,7 +7,9 @@
 - **`Transaction`** — record primario: `Amount`, `Description`, `Date?`, FK richiesta `AccountId`, FK opzionali `CategoryId`/`TransferId`, `ExternalId?` (fingerprint dedup import), `CreatedOn`/`UpdatedOn?`.
 - **`Transfer`** — collega le due `Transaction` (leg) di un trasferimento; espone `TransactionFroms`/`TransactionTos` calcolati dal segno dell'importo.
 
-Relazioni: `User` 1-N `Account` (delete Restrict), `Account` 1-N `Transaction` (delete Restrict), `Category` 1-N `Transaction` (delete SetNull), `Transfer` 1-N `Transaction` (2 leg, delete SetNull).
+- **`ImportLog`** — traccia di un flusso di import di file: `ImportedOn` (UTC), `UserId` (FK required), `Source`, `FileName?`, `AccountId?` (FK opzionale), `MinTransactionDate?`/`MaxTransactionDate?`, `NewTransactionsCount`, `NewTransfersCount`, `SkippedDuplicatesCount`, `ErrorMessage?`. Semantica dei campi in [08-import-overview-and-dedup](../../03-import-pipeline/tech/08-import-overview-and-dedup.tech.md#tracciamento-degli-import-importlogs).
+
+Relazioni: `User` 1-N `ImportLog` (delete Cascade), `Account` 1-N `ImportLog` (delete SetNull), `User` 1-N `Account` (delete Restrict), `Account` 1-N `Transaction` (delete Restrict), `Category` 1-N `Transaction` (delete SetNull), `Transfer` 1-N `Transaction` (2 leg, delete SetNull).
 
 ## Enum (`Domain/Enums/`)
 - `CategoryEnum` — Default, MoneyTransfers, WorkIncomes, Housing, HealthAndFitness, FoodAndBeverage, Transportation, Entertainment, Clothes, SavingsAndInvestments, Gifts.
@@ -25,6 +27,7 @@ Richiesta: `PagedQueryRequest` (base astratta: `Page`, `PageSize`), `AccountQuer
 - `IUserRepository`, `IAccountRepository`, `ICategoryRepository`, `ITransferRepository`, `ITransactionRepository`, `ITransferReconciliationRepository` — implementate in Infrastructure. `ITransferReconciliationRepository` è l'unico accesso non filtrato per utente: serve alla riconciliazione massiva dei trasferimenti (vedi [10-transfer-matching](../../03-import-pipeline/tech/10-transfer-matching.tech.md)). `IAccountRepository` espone solo letture filtrate per utente (`GetAccount(id, userId)`, `GetAccounts(userId)`, `GetPagedAccounts(request, userId)`, usati da `AccountService`, `TransactionService`, `TransferService` e dalla pipeline di import). Le letture di `ITransactionRepository` (inclusa la dedup `GetExistingExternalIds`) e `GetTransfer`/`GetTransfers`/`GetTransferByExternalId` di `ITransferRepository` ricevono `userId` e restituiscono solo dati di conti dell'utente; `ITransactionService`/`ITransferService` ricevono `userId` su ogni metodo.
 - `IUserService`, `IAccountService`, `ICategoryService`, `ITransactionService`, `ITransferService` — implementate in Application, ritornano `FluentResults.Result`/`Result<T>`.
 - `ICurrentUserAccessor` — `GetUserIdAsync()` (usato da `AccountFunctions`/`AuthFunctions`/`TransactionFunctions`/`TransferFunctions`/`DemoFunctions`, richiede sempre email) e `GetUserIdForImportAsync()` (usato solo da `ImportFunctions`, tollera l'assenza di email e fa fallback sull'`AppOid`), vedi [04-auth-and-request-pipeline](../../01-platform/tech/04-auth-and-request-pipeline.tech.md).
+- `IImportLogRepository` (`SaveImportLog`) / `IImportLogService` (`RecordAsync`) — registrazione degli import in `ImportLogs`; il modello `ImportStatistics` (`Domain/Models/DataImport/`) è il collettore compilato dagli importer.
 - `IExcelImportService`, `IBbvaCsvImportService`, `ISellaCsvImportService`, `ISatisPayCsvImportService`, `ITradeRepublicCsvImportService`, `ITransferMatchingService`, `ITransferReconciliationService` — vedi modulo [08-import-overview-and-dedup](../../03-import-pipeline/tech/08-import-overview-and-dedup.tech.md).
 
 ## Contratti cross-cutting (`Domain/Common/`)

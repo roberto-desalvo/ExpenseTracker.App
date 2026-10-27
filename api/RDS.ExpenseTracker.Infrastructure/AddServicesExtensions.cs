@@ -34,6 +34,7 @@ public static class AddServicesExtensions
         services.AddScoped<ITransferRepository, TransferRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ITransferReconciliationRepository, TransferReconciliationRepository>();
+        services.AddScoped<IImportLogRepository, ImportLogRepository>();
 
         return services;
     }

@@ -7,6 +7,7 @@ using RDS.ExpenseTracker.Application.Utilities;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
+using RDS.ExpenseTracker.Domain.Models.DataImport;
 using RDS.ExpenseTracker.Domain.Repositories;
 using RDS.ExpenseTracker.Domain.Services;
 using System.Globalization;
@@ -46,8 +47,10 @@ public class SellaCsvImportService : ISellaCsvImportService
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false)
+    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false, ImportStatistics? statistics = null)
     {
+        statistics ??= new ImportStatistics();
+
         try
         {
             if (fileStream == null || !fileStream.CanRead)
@@ -57,6 +60,17 @@ public class SellaCsvImportService : ISellaCsvImportService
             if (rows.Count == 0)
                 return Result.Ok(0);
 
+            statistics.TrackDates(rows.Select(r => (DateTime?)r.OperationDate));
+
+            var accounts = await EnsureAccountsExistAsync([_options.DefaultAccountName], userId);
+            var sellaAccount = accounts.FirstOrDefault(a =>
+                a.Name.Equals(_options.DefaultAccountName, StringComparison.OrdinalIgnoreCase));
+
+            if (sellaAccount == null)
+                return Result.Fail($"Account '{_options.DefaultAccountName}' not found");
+
+            statistics.AccountId = sellaAccount.Id;
+
             var originalRowsCount = rows.Count;
             rows = rows
                 .GroupBy(r => r.Identifier, StringComparer.OrdinalIgnoreCase)
@@ -64,6 +78,7 @@ public class SellaCsvImportService : ISellaCsvImportService
                 .ToList();
 
             var skippedInFileDuplicates = originalRowsCount - rows.Count;
+            statistics.SkippedDuplicatesCount += skippedInFileDuplicates;
             if (skippedInFileDuplicates > 0)
             {
                 _logger.LogInformation(
@@ -77,23 +92,19 @@ public class SellaCsvImportService : ISellaCsvImportService
                 var existingIds = (await _transactionRepository.GetExistingExternalIds(externalIds, userId))
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+                var beforeCount = rows.Count;
                 rows = rows
                     .Where(r => !existingIds.Contains(r.Identifier))
                     .ToList();
+
+                statistics.SkippedDuplicatesCount += beforeCount - rows.Count;
             }
 
             if (rows.Count == 0)
                 return Result.Ok(0);
 
-            var accounts = await EnsureAccountsExistAsync([_options.DefaultAccountName], userId);
             var defaultCategory = await _categoryRepository.GetDefaultCategory();
             var defaultCategoryId = defaultCategory?.Id ?? (int)CategoryEnum.Default;
-
-            var sellaAccount = accounts.FirstOrDefault(a =>
-                a.Name.Equals(_options.DefaultAccountName, StringComparison.OrdinalIgnoreCase));
-
-            if (sellaAccount == null)
-                return Result.Fail($"Account '{_options.DefaultAccountName}' not found");
 
             var transactions = new List<Transaction>();
             var transferEntities = new List<Transfer>();
@@ -127,7 +138,10 @@ public class SellaCsvImportService : ISellaCsvImportService
                 {
                     var existingByExternalId = await _transferRepository.GetTransferByExternalId(row.Identifier, userId);
                     if (existingByExternalId != null)
+                    {
+                        statistics.SkippedDuplicatesCount++;
                         continue;
+                    }
 
                     var amount = Math.Abs(row.Amount);
                     var isOutbound = row.Amount < 0;
@@ -142,7 +156,10 @@ public class SellaCsvImportService : ISellaCsvImportService
                         row.OperationDate);
 
                     if (existingTransfer != null)
+                    {
+                        statistics.SkippedDuplicatesCount++;
                         continue;
+                    }
 
                     var transfer = new Transfer
                     {
@@ -207,6 +224,9 @@ public class SellaCsvImportService : ISellaCsvImportService
                 await _transactionRepository.AddTransactions(transactions);
                 await _transactionRepository.SaveChangesAsync();
             }
+
+            statistics.NewTransactionsCount = transactions.Count + transferTransactions.Count;
+            statistics.NewTransfersCount = transferEntities.Count;
 
             return Result.Ok(transactions.Count + transferTransactions.Count);
         }

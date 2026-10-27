@@ -5,6 +5,7 @@ using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Dtos.Requests;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
+using RDS.ExpenseTracker.Domain.Models.DataImport;
 using RDS.ExpenseTracker.Domain.Repositories;
 using RDS.ExpenseTracker.Domain.Services;
 using System.Text;
@@ -207,6 +208,60 @@ public class SellaCsvImportServiceTests
 
         satispayCandidate.TransferNavigation.Should().NotBeNull();
         sellaLeg.TransferNavigation.Should().BeSameAs(satispayCandidate.TransferNavigation);
+    }
+
+    [Fact]
+    public async Task ImportFromCsvAsync_FillsStatistics_WithAccountPeriodNewRowsTransfersAndDuplicates()
+    {
+        var service = BuildService(
+            out _,
+            out _,
+            new FakeSellaCsvOptions(),
+            existingExternalIds: ["SEL-ST-1"],
+            accounts: [new Account(1, "Sella", TestUserId), new Account(2, "Satispay", TestUserId) { Iban = "IT21W0367401600000921182111" }]);
+
+        const string csv = "\"Codice identificativo\",\"Data operazione\",\"Data valuta\",\"Descrizione\",\"Divisa\",\"Importo\",\"Credito\",\"Categoria\",\"Sottocategoria\",\"Etichette\",\"Note\",\n"
+            + "\"SEL-ST-1\",\"01/06/2026\",\"01/06/2026\",\"Spesa già importata\",\"EUR\",\"-10,00\",\"\",\"Altre spese\",\"Varie\",\"Bonifico\",\"\",\n"
+            + "\"SEL-ST-2\",\"05/06/2026\",\"05/06/2026\",\"Spesa nuova\",\"EUR\",\"-20,00\",\"\",\"Altre spese\",\"Varie\",\"Bonifico\",\"\",\n"
+            + "\"SEL-ST-2\",\"05/06/2026\",\"05/06/2026\",\"Riga ripetuta nel file\",\"EUR\",\"-20,00\",\"\",\"Altre spese\",\"Varie\",\"Bonifico\",\"\",\n"
+            + "\"SEL-ST-3\",\"20/06/2026\",\"20/06/2026\",\"Ricarica verso wallet (IT21W0367401600000921182111)\",\"EUR\",\"-50,00\",\"\",\"Trasferimenti\",\"Varie\",\"Bonifico\",\"\",\n";
+
+        var statistics = new ImportStatistics();
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+        var result = await service.ImportFromCsvAsync(stream, "sella.csv", TestUserId, statistics: statistics);
+
+        result.IsSuccess.Should().BeTrue(string.Join(",", result.Errors.Select(e => e.Message)));
+        statistics.AccountId.Should().Be(1);
+        statistics.MinTransactionDate.Should().Be(new DateTime(2026, 6, 1));
+        statistics.MaxTransactionDate.Should().Be(new DateTime(2026, 6, 20));
+        statistics.NewTransactionsCount.Should().Be(3); // SEL-ST-2 + le due gambe del trasferimento
+        statistics.NewTransfersCount.Should().Be(1);
+        statistics.SkippedDuplicatesCount.Should().Be(2); // SEL-ST-1 già in DB + SEL-ST-2 ripetuto nel file
+    }
+
+    [Fact]
+    public async Task ImportFromCsvAsync_FillsAccountAndPeriod_WhenAllRowsAreDuplicates()
+    {
+        var service = BuildService(
+            out _,
+            out _,
+            new FakeSellaCsvOptions(),
+            existingExternalIds: ["SEL-OLD-1"]);
+
+        const string csv = "\"Codice identificativo\",\"Data operazione\",\"Data valuta\",\"Descrizione\",\"Divisa\",\"Importo\",\"Credito\",\"Categoria\",\"Sottocategoria\",\"Etichette\",\"Note\",\n"
+            + "\"SEL-OLD-1\",\"03/06/2026\",\"03/06/2026\",\"Spesa già importata\",\"EUR\",\"-10,00\",\"\",\"Altre spese\",\"Varie\",\"Bonifico\",\"\",\n";
+
+        var statistics = new ImportStatistics();
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+        var result = await service.ImportFromCsvAsync(stream, "sella.csv", TestUserId, statistics: statistics);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(0);
+        statistics.AccountId.Should().Be(1);
+        statistics.MinTransactionDate.Should().Be(new DateTime(2026, 6, 3));
+        statistics.MaxTransactionDate.Should().Be(new DateTime(2026, 6, 3));
+        statistics.NewTransactionsCount.Should().Be(0);
+        statistics.SkippedDuplicatesCount.Should().Be(1);
     }
 
     private static SellaCsvImportService BuildService(
