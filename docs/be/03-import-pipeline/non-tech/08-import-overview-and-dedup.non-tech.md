@@ -7,7 +7,7 @@ Caricare l'estratto conto scaricato dalla propria banca (CSV o Excel) e vedere i
 Ogni movimento importato viene "marcato" in modo univoco. Se lo stesso file (o parte di esso) viene caricato più volte, i movimenti già presenti non vengono duplicati. Il controllo riguarda solo i movimenti di chi sta importando: se un'altra persona ha già importato lo stesso movimento (es. da un conto cointestato), viene comunque aggiunto anche per te.
 
 ## Cosa succede dopo il caricamento
-Il sistema assegna automaticamente una categoria a ogni movimento quando possibile, e riconosce se un movimento fa parte di un trasferimento tra conti.
+Il sistema assegna automaticamente una categoria a ogni movimento quando possibile, e riconosce se un movimento fa parte di un trasferimento tra conti. Se in seguito si aggiungono o cambiano le parole chiave di una categoria, la stessa regola si può riapplicare ai movimenti già importati di un periodo, senza doverli ricaricare.
 
 ## Di chi sono i conti importati
 Ogni file caricato viene sempre associato a chi ha effettuato l'accesso: se serve un conto nuovo (es. la prima volta che si importa l'estratto conto di una banca), viene creato automaticamente per quella persona, senza mescolare i dati tra utenti diversi.

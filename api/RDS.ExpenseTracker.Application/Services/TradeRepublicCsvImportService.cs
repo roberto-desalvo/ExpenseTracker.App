@@ -39,7 +39,6 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         "BUY", "SELL", "DIVIDEND", "INTEREST_PAYMENT", "BENEFITS_SAVEBACK",
     };
 
-    private static readonly char[] TagSeparators = [',', ';'];
 
     // ── Dependencies ────────────────────────────────────────────────────────
     private readonly ITransactionRepository _transactionRepository;
@@ -132,9 +131,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
                 return Result.Ok(0);
 
             // 4. Load categories ---------------------------------------------
-            var categories = (await _categoryRepository.GetCategories())
-                .OrderBy(c => c.Priority ?? int.MaxValue)
-                .ToList();
+            var categoryMatcher = new CategoryTagMatcher(await _categoryRepository.GetCategories());
 
             var defaultCategory   = await _categoryRepository.GetDefaultCategory();
             var defaultCategoryId = defaultCategory?.Id ?? (int)CategoryEnum.Default;
@@ -187,7 +184,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
                 }
                 else
                 {
-                    var tx = BuildTransaction(row, accounts, categories, defaultCategoryId);
+                    var tx = BuildTransaction(row, accounts, categoryMatcher, defaultCategoryId);
                     if (tx != null) transactions.Add(tx);
                 }
             }
@@ -423,7 +420,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
     private Transaction? BuildTransaction(
         TradeRepublicRow row,
         List<Account> accounts,
-        List<Category> categories,
+        CategoryTagMatcher categoryMatcher,
         int defaultCategoryId)
     {
         var accountName = ResolveAccountName(row);
@@ -444,7 +441,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         return new Transaction
         {
             AccountId   = account.Id,
-            CategoryId  = DetermineCategory(row, categories, defaultCategoryId),
+            CategoryId  = DetermineCategory(row, categoryMatcher, defaultCategoryId),
             Amount      = amount,
             Description = BuildDescription(row),
             Date        = ParseDate(row.Datetime) ?? DateTime.UtcNow,
@@ -453,21 +450,12 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         };
     }
 
-    private int DetermineCategory(TradeRepublicRow row, List<Category> categories, int defaultCategoryId)
+    private static int DetermineCategory(TradeRepublicRow row, CategoryTagMatcher categoryMatcher, int defaultCategoryId)
     {
         if (InvestmentTypes.Contains(row.Type ?? string.Empty))
             return (int)CategoryEnum.SavingsAndInvestments;
 
-        var description = BuildDescription(row);
-
-        foreach (var category in categories)
-        {
-            var tags = SplitTags(category.Tags).ToArray();
-            if (tags.Length > 0 && description.ContainsOne(ignoreCase: true, tags))
-                return category.Id;
-        }
-
-        return defaultCategoryId;
+        return categoryMatcher.MatchOrDefault(BuildDescription(row), defaultCategoryId);
     }
 
     private static string BuildDescription(TradeRepublicRow row)
@@ -491,11 +479,6 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
             ? dto.UtcDateTime
             : null;
     }
-
-    private static IEnumerable<string> SplitTags(string? tags)
-        => string.IsNullOrWhiteSpace(tags)
-            ? []
-            : tags.Split(TagSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     // ── CSV row model ────────────────────────────────────────────────────────
 

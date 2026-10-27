@@ -5,6 +5,7 @@
 - Creare, modificare ed eliminare ciascuno di questi elementi.
 - Vedere un riepilogo generale (dashboard) con saldi, categorie e andamento nel tempo.
 - Caricare estratti conto bancari per importare automaticamente i movimenti. Ogni caricamento viene annotato nel registro degli import, senza cambiare la risposta ricevuta da chi carica il file.
+- Riclassificare i movimenti di un periodo scelto in base alle parole chiave delle categorie, ad esempio dopo averne aggiunte di nuove. I trasferimenti tra conti non vengono toccati e l'operazione agisce solo sui movimenti di chi la richiede.
 - Indicare l'IBAN di ciascun conto, così che i bonifici tra i propri conti vengano riconosciuti come trasferimenti.
 - Ricollegare i trasferimenti tra conti nei movimenti già importati, per tutti gli utenti in una sola richiesta (ognuno sempre e solo tra i propri conti), con la possibilità di vedere prima cosa verrebbe collegato. Come il caricamento degli estratti conto richiede il permesso dedicato all'import.
 - Per l'account dimostrativo: rigenerare con un solo clic un set completo di dati d'esempio realistici (conti, movimenti, trasferimenti), cancellando quelli precedenti.

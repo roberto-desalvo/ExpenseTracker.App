@@ -15,6 +15,18 @@ export interface CategoryQueryRequest {
   pageSize: number;
 }
 
+/** Date yyyy-MM-dd, estremi inclusi. */
+export interface CategorySyncRequest {
+  startDate: string;
+  endDate: string;
+}
+
+export interface CategorySyncResult {
+  examinedTransactions: number;
+  updatedTransactions: number;
+  unmatchedTransactions: number;
+}
+
 const CategoryService = {
   getAll: async (request: CategoryQueryRequest): Promise<CategoryPagedResult> => {
     return apiFetchJson<CategoryPagedResult>(
@@ -53,6 +65,19 @@ const CategoryService = {
         body: JSON.stringify(category),
       },
       "Errore nella modifica della categoria"
+    );
+  },
+
+  /** Riassegna la categoria ai movimenti del periodo in base alle parole chiave (trasferimenti esclusi). */
+  syncTransactions: async (request: CategorySyncRequest): Promise<CategorySyncResult> => {
+    return apiFetchJson<CategorySyncResult>(
+      apiConfig.categories.sync,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      },
+      "Errore nella sincronizzazione delle categorie"
     );
   },
 

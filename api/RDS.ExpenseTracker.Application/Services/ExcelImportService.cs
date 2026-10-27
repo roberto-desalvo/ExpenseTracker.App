@@ -2,6 +2,7 @@ using ExcelDataReader;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 using RDS.ExpenseTracker.Application.Extensions;
+using RDS.ExpenseTracker.Application.Utilities;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
@@ -15,7 +16,6 @@ namespace RDS.ExpenseTracker.Application.Services;
 
 public class ExcelImportService : IExcelImportService
 {
-    private static readonly char[] CategoryTagSeparators = [',', ';'];
 
     private readonly ITransactionRepository _transactionRepository;
     private readonly ITransferRepository _transferRepository;
@@ -310,7 +310,7 @@ public class ExcelImportService : IExcelImportService
 
     private async Task<EnrichedImportBatch> EnrichTransactionsAsync(List<TransactionsBySheetModel> transactionsBySheet, int userId)
     {
-        var categories = (await _categoryRepository.GetCategories()).ToList();
+        var categoryMatcher = new CategoryTagMatcher(await _categoryRepository.GetCategories());
         var defaultCategory = await _categoryRepository.GetDefaultCategory();
 
         var accountNames = transactionsBySheet
@@ -337,7 +337,6 @@ public class ExcelImportService : IExcelImportService
             accounts = (await _accountRepository.GetAccounts(userId)).ToList();
         }
 
-        categories = categories.OrderBy(c => c.Priority ?? int.MaxValue).ToList();
         var transactions = new List<ImportTransactionModel>();
         var transfers = new List<ImportTransferModel>();
 
@@ -345,15 +344,10 @@ public class ExcelImportService : IExcelImportService
         {
             foreach (var transaction in sheet.Transactions)
             {
-                foreach (var category in categories)
+                var matchedCategoryId = categoryMatcher.Match(transaction.Description);
+                if (matchedCategoryId.HasValue)
                 {
-                    var tags = SplitCategoryTags(category.Tags).ToArray();
-
-                    if (transaction.Description.ContainsOne(ignoreCase: true, tags))
-                    {
-                        transaction.CategoryId = category.Id;
-                        break;
-                    }
+                    transaction.CategoryId = matchedCategoryId.Value;
                 }
 
                 if (transaction.CategoryId == 0 && defaultCategory != null)
@@ -505,11 +499,6 @@ public class ExcelImportService : IExcelImportService
 
     private static int CountRows(IEnumerable<TransactionsBySheetModel> transactionsBySheet)
         => transactionsBySheet.Sum(sheet => sheet.Transactions.Count() + sheet.Transfers.Count());
-
-    private static IEnumerable<string> SplitCategoryTags(string? tags)
-        => string.IsNullOrWhiteSpace(tags)
-            ? Enumerable.Empty<string>()
-            : tags.Split(CategoryTagSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     private sealed record EnrichedImportBatch(
         List<ImportTransactionModel> Transactions,

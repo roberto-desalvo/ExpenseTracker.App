@@ -13,4 +13,5 @@ public interface ICategoryService : IService
     Task<Result> AddCategories(IEnumerable<CategoryDto> categories);
     Task<Result> UpdateCategory(CategoryDto category);
     Task<Result> DeleteCategory(int id);
+    Task<Result<CategorySyncResultDto>> SyncTransactionCategories(CategorySyncRequest request, int userId);
 }

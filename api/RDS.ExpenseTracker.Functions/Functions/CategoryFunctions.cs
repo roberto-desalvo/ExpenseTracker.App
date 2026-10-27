@@ -10,10 +10,12 @@ namespace RDS.ExpenseTracker.Functions.Functions;
 public class CategoryFunctions : FunctionBase
 {
     private readonly ICategoryService _service;
+    private readonly ICurrentUserAccessor _currentUserAccessor;
 
-    public CategoryFunctions(ICategoryService service)
+    public CategoryFunctions(ICategoryService service, ICurrentUserAccessor currentUserAccessor)
     {
         _service = service ?? throw new ArgumentNullException(nameof(service));
+        _currentUserAccessor = currentUserAccessor ?? throw new ArgumentNullException(nameof(currentUserAccessor));
     }
 
     [Function("Category_Query")]
@@ -49,6 +51,15 @@ public class CategoryFunctions : FunctionBase
     {
         var dto = await ReadBodyAsync<CategoryDto>(req);
         return await ExecuteAsync(() => _service.UpdateCategory(dto));
+    }
+
+    [Function("Category_SyncTransactions")]
+    public async Task<IActionResult> SyncTransactions(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "category/sync")] HttpRequest req)
+    {
+        var request = await ReadBodyAsync<CategorySyncRequest>(req);
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.SyncTransactionCategories(request, userId));
     }
 
     [Function("Category_Delete")]

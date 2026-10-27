@@ -98,6 +98,16 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .ToListAsync();
     }
 
+    public async Task<List<Transaction>> GetCategorizableTransactions(int userId, DateTime startDate, DateTime endDate)
+    {
+        var from = startDate.Date;
+        var toExclusive = endDate.Date.AddDays(1);
+
+        return await ExcludingTransfers(ForUser(userId))
+            .Where(t => t.Date != null && t.Date >= from && t.Date < toExclusive)
+            .ToListAsync();
+    }
+
     public async Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains)
     {
         var targetDate = date.Date;

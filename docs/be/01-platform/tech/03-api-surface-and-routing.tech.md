@@ -29,6 +29,7 @@ Il nome di ogni function segue la convenzione `<Risorsa>_<Azione>` (es. `Account
 - `POST /` — creazione bulk.
 - `PUT /` — update.
 - `DELETE /{id}` — elimina (riassegna prima le transazioni alla categoria di default).
+- `POST /sync` — body `CategorySyncRequest { startDate, endDate }` (obbligatori, estremi inclusi, conta solo il giorno; `startDate > endDate` → 400). Risolve l'utente con `ICurrentUserAccessor` e riassegna la categoria ai suoi movimenti del periodo tramite i tag delle categorie (stessa regola dell'import, vedi [07-application-services-and-mapping](../../02-data-persistence/tech/07-application-services-and-mapping.tech.md)). Risposta `CategorySyncResultDto { examinedTransactions, updatedTransactions, unmatchedTransactions }`.
 
 ## `TransactionFunctions` — `api/transaction`
 Tutte le route risolvono l'utente con `ICurrentUserAccessor.GetUserIdAsync()` e operano solo sui movimenti dei conti di quell'utente; un id altrui risponde 404.

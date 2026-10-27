@@ -5,6 +5,7 @@ Al di sopra del semplice salvataggio, il backend applica le regole di business: 
 
 ## Esempi concreti
 - Quando si elimina una categoria, i movimenti collegati non vengono persi ma spostati automaticamente su una categoria "Generico".
+- Le parole chiave delle categorie si possono riapplicare in qualsiasi momento ai movimenti già salvati di un periodo: un movimento la cui descrizione contiene una parola chiave passa alla categoria corrispondente, e se nella stessa descrizione compaiono parole chiave di più categorie vince quella con priorità più alta (il numero più basso). È la stessa regola usata durante l'import, quindi i risultati sono coerenti. I trasferimenti tra conti non vengono mai toccati e i movimenti senza parole chiave riconosciute mantengono la categoria che avevano.
 - Un trasferimento tra due conti viene sempre registrato come coppia coerente di movimenti, mai come un movimento isolato.
 - Ogni conto è sempre associato al proprietario corretto: anche se un dato arrivasse manomesso dal client, il backend impone comunque il proprietario reale, autenticato.
 - L'IBAN di un conto viene ripulito da spazi e scritto in maiuscolo; se non ha un formato valido, o se la stessa persona l'ha già assegnato a un altro conto, il salvataggio viene rifiutato con un messaggio chiaro.

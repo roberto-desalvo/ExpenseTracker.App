@@ -7,6 +7,8 @@
 - `ImportLogServiceTests.cs` — mappatura delle statistiche su `ImportLog`, unione e troncamento degli errori, nessuna eccezione se il repository fallisce.
 - `SatisPayCsvImportServiceTests.cs`
 - `TradeRepublicCsvImportServiceTests.cs`
+- `CategoryTagMatcherTests.cs` — match case-insensitive, vittoria della priorità più bassa, priorità `null` in coda, tag separati da `;`, categorie senza tag ignorate.
+- `CategoryServiceTests.cs` — `SyncTransactionCategories`: assegnazione per tag con priorità, movimenti senza match invariati (nessun salvataggio), esclusione di trasferimenti e movimenti fuori range con giorno finale incluso, validazione del range. Il `FakeTransactionRepository` replica il filtro di `GetCategorizableTransactions`.
 - `TransferReconciliationServiceTests.cs` — riconciliazione trasferimenti: match per regola, per IBAN del conto e per categoria `MoneyTransfers`, salto dei casi ambigui, tolleranza di 3 giorni, nessun match tra utenti diversi, `dryRun` senza modifiche, validazione dell'intervallo date, e un test di volume (80.000 movimenti, 20.000 coppie) con tetto di 10 secondi per intercettare regressioni quadratiche. Usa un `FakeReconciliationRepository` che registra le coppie passate a `LinkTransfers`.
 
 ## Approccio
