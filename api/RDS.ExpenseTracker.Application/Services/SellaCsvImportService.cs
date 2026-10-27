@@ -103,8 +103,9 @@ public class SellaCsvImportService : ISellaCsvImportService
             if (rows.Count == 0)
                 return Result.Ok(0);
 
-            var defaultCategory = await _categoryRepository.GetDefaultCategory();
-            var defaultCategoryId = defaultCategory?.Id ?? (int)CategoryEnum.Default;
+            var categories = new UserCategories(await _categoryRepository.GetCategories(userId));
+            var defaultCategoryId = categories.DefaultId;
+            var moneyTransfersCategoryId = categories.MoneyTransfersId;
 
             var transactions = new List<Transaction>();
             var transferEntities = new List<Transfer>();
@@ -129,7 +130,7 @@ public class SellaCsvImportService : ISellaCsvImportService
             foreach (var row in candidateRows.OrderBy(r => r.OperationDate))
             {
                 await ProcessTransferCandidateRow(
-                    row, sellaAccount, transactions, transferEntities, transferTransactions, userId, consumedCandidateIds);
+                    row, sellaAccount, transactions, transferEntities, transferTransactions, userId, moneyTransfersCategoryId, consumedCandidateIds);
             }
 
             foreach (var row in remainingRows)
@@ -174,7 +175,7 @@ public class SellaCsvImportService : ISellaCsvImportService
                     transferTransactions.Add(new Transaction
                     {
                         AccountId = fromAccount.Id,
-                        CategoryId = (int)CategoryEnum.MoneyTransfers,
+                        CategoryId = moneyTransfersCategoryId,
                         Amount = -amount,
                         Description = description,
                         Date = row.OperationDate,
@@ -186,7 +187,7 @@ public class SellaCsvImportService : ISellaCsvImportService
                     transferTransactions.Add(new Transaction
                     {
                         AccountId = toAccount.Id,
-                        CategoryId = (int)CategoryEnum.MoneyTransfers,
+                        CategoryId = moneyTransfersCategoryId,
                         Amount = amount,
                         Description = description,
                         Date = row.OperationDate,
@@ -322,6 +323,7 @@ public class SellaCsvImportService : ISellaCsvImportService
         List<Transfer> transferEntities,
         List<Transaction> transferTransactions,
         int userId,
+        int? moneyTransfersCategoryId,
         HashSet<int> consumedCandidateIds)
     {
         var description = BuildSafeDescription(row.Description, row.Identifier);
@@ -335,13 +337,13 @@ public class SellaCsvImportService : ISellaCsvImportService
             transferEntities.Add(transfer);
 
             matchResult.Candidate.TransferNavigation = transfer;
-            matchResult.Candidate.CategoryId = (int)CategoryEnum.MoneyTransfers;
+            matchResult.Candidate.CategoryId = moneyTransfersCategoryId;
             consumedCandidateIds.Add(matchResult.Candidate.Id);
 
             transferTransactions.Add(new Transaction
             {
                 AccountId          = sellaAccount.Id,
-                CategoryId         = (int)CategoryEnum.MoneyTransfers,
+                CategoryId         = moneyTransfersCategoryId,
                 Amount             = row.Amount,
                 Description        = description,
                 Date               = row.OperationDate,
@@ -355,7 +357,7 @@ public class SellaCsvImportService : ISellaCsvImportService
             transactions.Add(new Transaction
             {
                 AccountId   = sellaAccount.Id,
-                CategoryId  = (int)CategoryEnum.MoneyTransfers,
+                CategoryId  = moneyTransfersCategoryId,
                 Amount      = row.Amount,
                 Description = description,
                 Date        = row.OperationDate,

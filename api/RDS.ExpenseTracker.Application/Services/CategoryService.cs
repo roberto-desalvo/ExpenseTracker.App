@@ -23,9 +23,9 @@ public class CategoryService : ICategoryService
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
     }
 
-    public async Task<Result<PagedResult<CategoryDto>>> GetCategories(CategoryQueryRequest request)
+    public async Task<Result<PagedResult<CategoryDto>>> GetCategories(CategoryQueryRequest request, int userId)
     {
-        var (items, totalCount) = await _repository.GetPagedCategories(request);
+        var (items, totalCount) = await _repository.GetPagedCategories(request, userId);
         return Result.Ok(new PagedResult<CategoryDto>
         {
             Items = _mapper.Map<IEnumerable<CategoryDto>>(items),
@@ -35,66 +35,77 @@ public class CategoryService : ICategoryService
         });
     }
 
-    public async Task<Result<CategoryDto?>> GetCategory(int id)
+    public async Task<Result<CategoryDto?>> GetCategory(int id, int userId)
     {
         if (id <= 0)
             return Result.Fail(DomainErrors.InvalidId("category", id));
 
-        var category = await _repository.GetCategory(id);
+        var category = await _repository.GetCategory(id, userId);
         if (category is null)
             return Result.Fail(DomainErrors.NotFound("Category", id));
 
         return Result.Ok(_mapper.Map<CategoryDto?>(category));
     }
 
-    public async Task<Result<CategoryDto?>> GetDefaultCategory()
+    public async Task<Result<CategoryDto?>> GetDefaultCategory(int userId)
     {
-        var category = await _repository.GetDefaultCategory();
+        var category = await _repository.GetDefaultCategory(userId);
         if (category is null)
             return Result.Fail(DomainErrors.NotFound("Default category"));
 
         return Result.Ok(_mapper.Map<CategoryDto?>(category));
     }
 
-    public async Task<Result> AddCategories(IEnumerable<CategoryDto> categories)
+    public async Task<Result> AddCategories(IEnumerable<CategoryDto> categories, int userId)
     {
         if (categories is null || !categories.Any())
             return Result.Fail(DomainErrors.Required("categories"));
 
-        var entities = _mapper.Map<IEnumerable<Category>>(categories);
+        // le categorie create dall'utente non sono mai di sistema
+        var entities = _mapper.Map<List<Category>>(categories);
+        foreach (var entity in entities)
+        {
+            entity.Id = 0;
+            entity.UserId = userId;
+            entity.Kind = null;
+        }
+
         await _repository.AddCategories(entities);
         await _repository.SaveChangesAsync();
         return Result.Ok();
     }
 
-    public async Task<Result> UpdateCategory(CategoryDto category)
+    public async Task<Result> UpdateCategory(CategoryDto category, int userId)
     {
         if (category.Id <= 0)
             return Result.Fail(DomainErrors.InvalidId("category", category.Id));
 
-        var current = await _repository.GetCategory(category.Id);
+        var current = await _repository.GetCategory(category.Id, userId);
         if (current is null)
             return Result.Fail(DomainErrors.NotFound("Category", category.Id));
 
+        // proprietario e tipo di sistema non sono modificabili dal client
         var entity = _mapper.Map<Category>(category);
+        entity.UserId = current.UserId;
+        entity.Kind = current.Kind;
         await _repository.UpdateCategory(entity);
         await _repository.SaveChangesAsync();
         return Result.Ok();
     }
 
-    public async Task<Result> DeleteCategory(int id)
+    public async Task<Result> DeleteCategory(int id, int userId)
     {
         if (id <= 0)
             return Result.Fail(DomainErrors.InvalidId("category", id));
 
-        var current = await _repository.GetCategory(id);
+        var current = await _repository.GetCategory(id, userId);
         if (current is null)
             return Result.Fail(DomainErrors.NotFound("Category", id));
 
         if (current.IsDefault == true)
             return Result.Fail(DomainErrors.BadRequest("Cannot delete default category."));
 
-        var defaultCategory = await _repository.GetDefaultCategory();
+        var defaultCategory = await _repository.GetDefaultCategory(userId);
         if (defaultCategory is null)
             return Result.Fail(DomainErrors.NotFound("Default category"));
 
@@ -115,7 +126,7 @@ public class CategoryService : ICategoryService
         if (request.StartDate.Value.Date > request.EndDate.Value.Date)
             return Result.Fail(DomainErrors.BadRequest("startDate must not be after endDate."));
 
-        var matcher = new CategoryTagMatcher(await _repository.GetCategories());
+        var matcher = new CategoryTagMatcher(await _repository.GetCategories(userId));
         var transactions = await _transactionRepository.GetCategorizableTransactions(userId, request.StartDate.Value, request.EndDate.Value);
 
         var result = new CategorySyncResultDto { ExaminedTransactions = transactions.Count };

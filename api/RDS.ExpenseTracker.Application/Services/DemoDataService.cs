@@ -1,5 +1,6 @@
 using FluentResults;
 using Microsoft.Extensions.Logging;
+using RDS.ExpenseTracker.Application.Utilities;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
@@ -54,6 +55,7 @@ public class DemoDataService : IDemoDataService
     private readonly IAccountRepository _accountRepository;
     private readonly ITransactionRepository _transactionRepository;
     private readonly ITransferRepository _transferRepository;
+    private readonly ICategoryRepository _categoryRepository;
     private readonly ILogger<DemoDataService> _logger;
     private readonly Random _random = new();
 
@@ -62,12 +64,14 @@ public class DemoDataService : IDemoDataService
         IAccountRepository accountRepository,
         ITransactionRepository transactionRepository,
         ITransferRepository transferRepository,
+        ICategoryRepository categoryRepository,
         ILogger<DemoDataService> logger)
     {
         _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
         _transactionRepository = transactionRepository ?? throw new ArgumentNullException(nameof(transactionRepository));
         _transferRepository = transferRepository ?? throw new ArgumentNullException(nameof(transferRepository));
+        _categoryRepository = categoryRepository ?? throw new ArgumentNullException(nameof(categoryRepository));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -80,6 +84,7 @@ public class DemoDataService : IDemoDataService
         try
         {
             await ResetExistingDataAsync(userId);
+            var categories = await ResetCategoriesAsync(userId);
 
             var accounts = AccountNames.Select(name => new Account(0, name, userId)).ToList();
             await _accountRepository.AddAccounts(accounts);
@@ -93,7 +98,7 @@ public class DemoDataService : IDemoDataService
             var transfers = new List<Transfer>();
             var transferTransactions = new List<Transaction>();
 
-            GenerateMonthlyData(checkingAccount, creditCardAccount, savingsAccount, transactions, transfers, transferTransactions);
+            GenerateMonthlyData(categories, checkingAccount, creditCardAccount, savingsAccount, transactions, transfers, transferTransactions);
 
             if (transfers.Count > 0)
             {
@@ -137,7 +142,22 @@ public class DemoDataService : IDemoDataService
         await _accountRepository.SaveChangesAsync();
     }
 
+    // Le categorie dell'utente demo tornano a quelle di default (CategoryEnum) insieme ai movimenti.
+    // Due salvataggi distinti: l'indice univoco (UserId, Kind) non deve vedere vecchie e nuove insieme.
+    private async Task<UserCategories> ResetCategoriesAsync(int userId)
+    {
+        await _categoryRepository.DeleteCategories(userId);
+        await _categoryRepository.SaveChangesAsync();
+
+        var categories = Category.CreateDefaultCategories(userId).ToList();
+        await _categoryRepository.AddCategories(categories);
+        await _categoryRepository.SaveChangesAsync();
+
+        return new UserCategories(categories);
+    }
+
     private void GenerateMonthlyData(
+        UserCategories categories,
         Account checkingAccount,
         Account creditCardAccount,
         Account savingsAccount,
@@ -158,7 +178,7 @@ public class DemoDataService : IDemoDataService
             transactions.Add(new Transaction
             {
                 AccountId = checkingAccount.Id,
-                CategoryId = (int)CategoryEnum.WorkIncomes,
+                CategoryId = categories.IdOf(CategoryEnum.WorkIncomes),
                 Amount = RandomAmount(1800m, 3000m),
                 Description = "Stipendio",
                 Date = new DateTime(monthStart.Year, monthStart.Month, Math.Min(27, DateTime.DaysInMonth(monthStart.Year, monthStart.Month)), 0, 0, 0, DateTimeKind.Utc),
@@ -168,7 +188,7 @@ public class DemoDataService : IDemoDataService
             transactions.Add(new Transaction
             {
                 AccountId = checkingAccount.Id,
-                CategoryId = (int)CategoryEnum.Housing,
+                CategoryId = categories.IdOf(CategoryEnum.Housing),
                 Amount = -RandomAmount(700m, 1200m),
                 Description = "Affitto",
                 Date = new DateTime(monthStart.Year, monthStart.Month, 3, 0, 0, 0, DateTimeKind.Utc),
@@ -186,7 +206,7 @@ public class DemoDataService : IDemoDataService
                 transactions.Add(new Transaction
                 {
                     AccountId = account.Id,
-                    CategoryId = (int)category,
+                    CategoryId = categories.IdOf(category),
                     Amount = -RandomAmount(min, max),
                     Description = descriptions[_random.Next(descriptions.Length)],
                     Date = RandomDateInMonth(),
@@ -202,7 +222,7 @@ public class DemoDataService : IDemoDataService
                 transactions.Add(new Transaction
                 {
                     AccountId = checkingAccount.Id,
-                    CategoryId = (int)CategoryEnum.Gifts,
+                    CategoryId = categories.IdOf(CategoryEnum.Gifts),
                     Amount = -RandomAmount(min, max),
                     Description = descriptions[_random.Next(descriptions.Length)],
                     Date = RandomDateInMonth(),
@@ -218,7 +238,7 @@ public class DemoDataService : IDemoDataService
             transferTransactions.Add(new Transaction
             {
                 AccountId = checkingAccount.Id,
-                CategoryId = (int)CategoryEnum.MoneyTransfers,
+                CategoryId = categories.MoneyTransfersId,
                 Amount = -transferAmount,
                 Description = "Trasferimento verso Risparmio",
                 Date = transferDate,
@@ -229,7 +249,7 @@ public class DemoDataService : IDemoDataService
             transferTransactions.Add(new Transaction
             {
                 AccountId = savingsAccount.Id,
-                CategoryId = (int)CategoryEnum.MoneyTransfers,
+                CategoryId = categories.MoneyTransfersId,
                 Amount = transferAmount,
                 Description = "Trasferimento da Conto Corrente",
                 Date = transferDate,

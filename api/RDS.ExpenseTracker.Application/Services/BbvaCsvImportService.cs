@@ -107,9 +107,7 @@ public class BbvaCsvImportService : IBbvaCsvImportService
                 return Result.Ok(0);
             }
 
-            var categoryMatcher = new CategoryTagMatcher(await _categoryRepository.GetCategories());
-            var defaultCategory = await _categoryRepository.GetDefaultCategory();
-            var defaultCategoryId = defaultCategory?.Id ?? (int)CategoryEnum.Default;
+            var categories = new UserCategories(await _categoryRepository.GetCategories(userId));
 
             var transactions = new List<Transaction>(rows.Count);
             foreach (var row in rows)
@@ -135,7 +133,7 @@ public class BbvaCsvImportService : IBbvaCsvImportService
                     Amount = row.Amount.Value,
                     Date = transactionDate.Value,
                     Description = description,
-                    CategoryId = categoryMatcher.MatchOrDefault(description, defaultCategoryId),
+                    CategoryId = categories.MatchOrDefault(description),
                     ExternalId = BuildExternalId(row),
                     CreatedOn = DateTime.UtcNow,
                 });

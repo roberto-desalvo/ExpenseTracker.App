@@ -3,6 +3,8 @@
 ## Schermata
 `src/pages/CategoriesPage.tsx` gestisce il CRUD delle categorie. È montata da `SettingsPage` nella sezione `?sezione=categorie` (default di `/impostazioni`, vedi modulo 03). Le analisi per categoria sono nella dashboard e nella pagina Analisi (modulo 11).
 
+Le categorie sono **per utente** lato backend: gli endpoint `api/category/*` restituiscono e modificano solo quelle dell'utente autenticato, quindi la pagina non filtra nulla in più. Per l'utente demo, `POST api/demo/generate` (non chiamato dal frontend) riporta le categorie a quelle di default.
+
 ## Dipendenze
 - Stato: `CategoryContext` (`categories`, `allCategories`, `page`, `pageSize`, `totalCount`, `isLoading`, `addCategory`, `updateCategory`, `deleteCategory`, `refreshCategories`).
 - API: `CategoryService` (`getAll`, `add`, `update`, `delete`, `syncTransactions`).

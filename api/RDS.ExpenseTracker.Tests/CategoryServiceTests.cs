@@ -19,9 +19,11 @@ public class CategoryServiceTests
 
     private static readonly Category[] Categories =
     [
-        new() { Id = DefaultId, Name = "Default", Priority = 0, IsDefault = true, Tags = "" },
-        new() { Id = GroceriesId, Name = "Food", Priority = 1, Tags = "esselunga,amazon fresh" },
-        new() { Id = EntertainmentId, Name = "Fun", Priority = 2, Tags = "amazon,netflix" },
+        new() { Id = DefaultId, Name = "Default", Priority = 0, IsDefault = true, Tags = "", UserId = UserId },
+        new() { Id = GroceriesId, Name = "Food", Priority = 1, Tags = "esselunga,amazon fresh", UserId = UserId },
+        new() { Id = EntertainmentId, Name = "Fun", Priority = 2, Tags = "amazon,netflix", UserId = UserId },
+        // categoria di un altro utente: i suoi tag non devono essere applicati
+        new() { Id = 99, Name = "Altrui", Priority = -1, Tags = "esselunga", UserId = UserId + 1 },
     ];
 
     private static IMapper CreateMapper()
@@ -143,17 +145,4 @@ public class CategoryServiceTests
         public Task ResetTransactions(IEnumerable<Transaction> transactions, int userId) => throw new NotImplementedException();
     }
 
-    private sealed class FakeCategoryRepository(IEnumerable<Category> categories) : ICategoryRepository
-    {
-        public Task<IEnumerable<Category>> GetCategories(string? name = null) => Task.FromResult(categories);
-        public Task<Category?> GetDefaultCategory() => Task.FromResult(categories.FirstOrDefault(c => c.IsDefault == true));
-        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => throw new NotImplementedException();
-        public Task<Category?> GetCategory(int id) => throw new NotImplementedException();
-        public Task<(IEnumerable<Category> Items, int TotalCount)> GetPagedCategories(CategoryQueryRequest request) => throw new NotImplementedException();
-        public Task AddCategories(IEnumerable<Category> categories) => throw new NotImplementedException();
-        public Task UpdateCategory(Category category) => throw new NotImplementedException();
-        public Task RemoveCategory(int id) => throw new NotImplementedException();
-        public Task RemoveCategory(Category category) => throw new NotImplementedException();
-        public Task ReassignTransactionsToCategory(int sourceCategoryId, int targetCategoryId) => throw new NotImplementedException();
-    }
 }

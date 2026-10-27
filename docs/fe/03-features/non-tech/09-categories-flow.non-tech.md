@@ -6,6 +6,8 @@ Organizzare i movimenti per tipologia, così da migliorare lettura e controllo d
 ## Dove si trova
 In **Impostazioni → Categorie**. L'andamento delle spese per categoria si trova invece nella Dashboard ("Dove vanno i soldi") e nella pagina Analisi.
 
+Ogni utente vede e gestisce solo le proprie categorie, partendo da un elenco predefinito. Nell'account dimostrativo le categorie tornano all'elenco di partenza ogni volta che si rigenerano i dati demo.
+
 ## Azioni utente
 - Cercare una categoria per nome.
 - Creare o modificare una categoria in un pannello laterale, senza perdere di vista l'elenco: nome, descrizione, **parole chiave** e **priorità**.

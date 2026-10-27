@@ -23,26 +23,34 @@ public class CategoryFunctions : FunctionBase
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "category/query")] HttpRequest req)
     {
         var request = await ReadBodyAsync<CategoryQueryRequest>(req);
-        return await ExecuteAsync(() => _service.GetCategories(request));
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.GetCategories(request, userId));
     }
 
     [Function("Category_Get")]
-    public Task<IActionResult> Get(
+    public async Task<IActionResult> Get(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "category/{id:int}")] HttpRequest req,
         int id)
-        => ExecuteAsync(() => _service.GetCategory(id));
+    {
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.GetCategory(id, userId));
+    }
 
     [Function("Category_GetDefault")]
-    public Task<IActionResult> GetDefault(
+    public async Task<IActionResult> GetDefault(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "category/default")] HttpRequest req)
-        => ExecuteAsync(() => _service.GetDefaultCategory());
+    {
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.GetDefaultCategory(userId));
+    }
 
     [Function("Category_Post")]
     public async Task<IActionResult> Post(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "category")] HttpRequest req)
     {
         var dto = await ReadBodyAsync<IEnumerable<CategoryDto>>(req);
-        return await ExecuteAsync(() => _service.AddCategories(dto));
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.AddCategories(dto, userId));
     }
 
     [Function("Category_Put")]
@@ -50,7 +58,8 @@ public class CategoryFunctions : FunctionBase
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "category")] HttpRequest req)
     {
         var dto = await ReadBodyAsync<CategoryDto>(req);
-        return await ExecuteAsync(() => _service.UpdateCategory(dto));
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.UpdateCategory(dto, userId));
     }
 
     [Function("Category_SyncTransactions")]
@@ -63,8 +72,11 @@ public class CategoryFunctions : FunctionBase
     }
 
     [Function("Category_Delete")]
-    public Task<IActionResult> Delete(
+    public async Task<IActionResult> Delete(
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "category/{id:int}")] HttpRequest req,
         int id)
-        => ExecuteAsync(() => _service.DeleteCategory(id));
+    {
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.DeleteCategory(id, userId));
+    }
 }

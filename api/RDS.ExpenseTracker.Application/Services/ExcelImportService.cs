@@ -310,8 +310,7 @@ public class ExcelImportService : IExcelImportService
 
     private async Task<EnrichedImportBatch> EnrichTransactionsAsync(List<TransactionsBySheetModel> transactionsBySheet, int userId)
     {
-        var categoryMatcher = new CategoryTagMatcher(await _categoryRepository.GetCategories());
-        var defaultCategory = await _categoryRepository.GetDefaultCategory();
+        var categories = new UserCategories(await _categoryRepository.GetCategories(userId));
 
         var accountNames = transactionsBySheet
             .SelectMany(x => x.Transactions.Select(transaction => transaction.Account)
@@ -344,15 +343,15 @@ public class ExcelImportService : IExcelImportService
         {
             foreach (var transaction in sheet.Transactions)
             {
-                var matchedCategoryId = categoryMatcher.Match(transaction.Description);
+                var matchedCategoryId = categories.Matcher.Match(transaction.Description);
                 if (matchedCategoryId.HasValue)
                 {
                     transaction.CategoryId = matchedCategoryId.Value;
                 }
 
-                if (transaction.CategoryId == 0 && defaultCategory != null)
+                if (transaction.CategoryId == 0 && categories.DefaultId.HasValue)
                 {
-                    transaction.CategoryId = defaultCategory.Id;
+                    transaction.CategoryId = categories.DefaultId.Value;
                 }
 
                 if (transaction.AccountId <= 0)
@@ -392,7 +391,7 @@ public class ExcelImportService : IExcelImportService
             }
         }
 
-        return new EnrichedImportBatch(transactions, transfers);
+        return new EnrichedImportBatch(transactions, transfers, categories.MoneyTransfersId);
     }
 
     private async Task<Result> SaveTransactionsAsync(EnrichedImportBatch importTransactions)
@@ -435,7 +434,7 @@ public class ExcelImportService : IExcelImportService
                     new Transaction
                     {
                         AccountId = transfer.FromAccountId,
-                        CategoryId = (int)CategoryEnum.MoneyTransfers,
+                        CategoryId = importTransactions.MoneyTransfersCategoryId,
                         Amount = -Math.Abs(transfer.Amount),
                         Description = transfer.Description,
                         Date = transferDate,
@@ -445,7 +444,7 @@ public class ExcelImportService : IExcelImportService
                     new Transaction
                     {
                         AccountId = transfer.ToAccountId,
-                        CategoryId = (int)CategoryEnum.MoneyTransfers,
+                        CategoryId = importTransactions.MoneyTransfersCategoryId,
                         Amount = Math.Abs(transfer.Amount),
                         Description = transfer.Description,
                         Date = transferDate,
@@ -481,7 +480,7 @@ public class ExcelImportService : IExcelImportService
             Date = importTx.Date,
             Description = importTx.Description,
             AccountId = importTx.AccountId,
-            CategoryId = importTx.CategoryId,
+            CategoryId = importTx.CategoryId > 0 ? importTx.CategoryId : null,
             CreatedOn = DateTime.UtcNow
         }).ToList();
 
@@ -502,5 +501,6 @@ public class ExcelImportService : IExcelImportService
 
     private sealed record EnrichedImportBatch(
         List<ImportTransactionModel> Transactions,
-        List<ImportTransferModel> Transfers);
+        List<ImportTransferModel> Transfers,
+        int? MoneyTransfersCategoryId);
 }

@@ -19,7 +19,7 @@ Se in passato degli import sono avvenuti senza riconoscere i trasferimenti (per 
 - Quando un movimento ha più controparti ugualmente plausibili, viene lasciato com'è invece di indovinare.
 
 ## Isolamento tra utenti
-La ricerca della controparte avviene solo tra i conti della stessa persona che ha effettuato l'import: un movimento non può mai essere abbinato per errore a un conto di un altro utente dell'applicazione.
+La ricerca della controparte avviene solo tra i conti della stessa persona che ha effettuato l'import: un movimento non può mai essere abbinato per errore a un conto di un altro utente dell'applicazione. Anche la categoria dei trasferimenti usata per le coppie collegate è quella della persona stessa.
 
 ## Valore
 I trasferimenti tra i propri conti non vengono mai conteggiati per errore come spese o entrate reali, e restano sempre correttamente separati tra le diverse persone che usano l'applicazione. Gli errori di import passati si possono correggere senza rifare l'import.

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using RDS.ExpenseTracker.Domain.Entities;
+using RDS.ExpenseTracker.Domain.Enums;
 using RDS.ExpenseTracker.Domain.Repositories;
 
 namespace RDS.ExpenseTracker.Infrastructure.Repositories;
@@ -19,6 +20,15 @@ public class TransferReconciliationRepository : RepositoryBase, ITransferReconci
         return await Context.Accounts
             .AsNoTracking()
             .ToListAsync();
+    }
+
+    public async Task<Dictionary<int, int>> GetCategoryIdsByKind(CategoryEnum kind)
+    {
+        // (UserId, Kind) è univoco: al più una categoria per utente
+        return await Context.Categories
+            .AsNoTracking()
+            .Where(c => c.Kind == kind)
+            .ToDictionaryAsync(c => c.UserId, c => c.Id);
     }
 
     public async Task<List<Transaction>> GetUnlinkedTransactions(IReadOnlyCollection<int> accountIds, DateTime? fromDate, DateTime? toDate)
@@ -50,7 +60,7 @@ public class TransferReconciliationRepository : RepositoryBase, ITransferReconci
             .ToListAsync();
     }
 
-    public async Task LinkTransfers(IReadOnlyCollection<(int OutboundTransactionId, int InboundTransactionId)> pairs, int categoryId)
+    public async Task LinkTransfers(IReadOnlyCollection<(int OutboundTransactionId, int InboundTransactionId)> pairs, int? categoryId)
     {
         var now = DateTime.UtcNow;
 
@@ -61,13 +71,14 @@ public class TransferReconciliationRepository : RepositoryBase, ITransferReconci
                 var transfer = new Transfer { CreatedOn = now };
                 Context.Transfers.Add(transfer);
 
-                // stub agganciati senza caricarli: l'UPDATE tocca solo TransferId, CategoryId e UpdatedOn
+                // stub agganciati senza caricarli: l'UPDATE tocca solo TransferId, CategoryId (se indicata) e UpdatedOn
                 foreach (var transactionId in new[] { outboundId, inboundId })
                 {
                     var leg = new Transaction { Id = transactionId };
                     Context.Transactions.Attach(leg);
                     leg.TransferNavigation = transfer;
-                    leg.CategoryId = categoryId;
+                    if (categoryId.HasValue)
+                        leg.CategoryId = categoryId;
                     leg.UpdatedOn = now;
                 }
             }

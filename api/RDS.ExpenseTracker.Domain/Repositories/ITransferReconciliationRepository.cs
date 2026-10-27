@@ -1,4 +1,5 @@
-using RDS.ExpenseTracker.Domain.Entities;
+﻿using RDS.ExpenseTracker.Domain.Entities;
+using RDS.ExpenseTracker.Domain.Enums;
 
 namespace RDS.ExpenseTracker.Domain.Repositories;
 
@@ -14,6 +15,10 @@ public interface ITransferReconciliationRepository : IRepositoryBase
     // Le entità restituite non sono tracciate e contengono solo i campi utili al matching.
     Task<List<Transaction>> GetUnlinkedTransactions(IReadOnlyCollection<int> accountIds, DateTime? fromDate, DateTime? toDate);
 
-    // Crea un Transfer per ogni coppia e vi collega i due movimenti, impostando la categoria indicata.
-    Task LinkTransfers(IReadOnlyCollection<(int OutboundTransactionId, int InboundTransactionId)> pairs, int categoryId);
+    // Id della categoria di sistema indicata per ogni utente che la possiede (UserId → CategoryId).
+    Task<Dictionary<int, int>> GetCategoryIdsByKind(CategoryEnum kind);
+
+    // Crea un Transfer per ogni coppia e vi collega i due movimenti, impostando la categoria indicata
+    // (null = categoria dei movimenti invariata).
+    Task LinkTransfers(IReadOnlyCollection<(int OutboundTransactionId, int InboundTransactionId)> pairs, int? categoryId);
 }

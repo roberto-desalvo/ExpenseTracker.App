@@ -91,6 +91,10 @@ public class TransactionService : ITransactionService
         if (foreignAccountId != -1)
             return Result.Fail(DomainErrors.NotFound("Account", foreignAccountId));
 
+        var categoryCheck = await EnsureCategoriesBelongToUser(dtos.Select(d => d.CategoryId), userId);
+        if (categoryCheck.IsFailed)
+            return categoryCheck;
+
         var entities = _mapper.Map<IEnumerable<Transaction>>(dtos);
         await _repository.AddTransactions(entities);
         await _repository.SaveChangesAsync();
@@ -105,6 +109,10 @@ public class TransactionService : ITransactionService
         var account = await _accountRepository.GetAccount(dto.AccountId, userId);
         if (account is null)
             return Result.Fail(DomainErrors.NotFound("Account", dto.AccountId));
+
+        var categoryCheck = await EnsureCategoriesBelongToUser([dto.CategoryId], userId);
+        if (categoryCheck.IsFailed)
+            return Result.Fail(categoryCheck.Errors);
 
         var entity = _mapper.Map<Transaction>(dto);
         await _repository.AddTransactions([entity]);
@@ -126,10 +134,28 @@ public class TransactionService : ITransactionService
             && await _accountRepository.GetAccount(dto.AccountId, userId) is null)
             return Result.Fail(DomainErrors.NotFound("Account", dto.AccountId));
 
+        var categoryCheck = await EnsureCategoriesBelongToUser([dto.CategoryId], userId);
+        if (categoryCheck.IsFailed)
+            return categoryCheck;
+
         var entity = _mapper.Map<Transaction>(dto);
         await _repository.UpdateTransaction(entity);
         await _repository.SaveChangesAsync();
         return Result.Ok();
+    }
+
+    // Le categorie sono per utente: un movimento può usare solo le categorie del proprio utente (0 = nessuna).
+    private async Task<Result> EnsureCategoriesBelongToUser(IEnumerable<int> categoryIds, int userId)
+    {
+        var requested = categoryIds.Where(id => id > 0).ToHashSet();
+        if (requested.Count == 0)
+            return Result.Ok();
+
+        var userCategoryIds = (await _categoryRepository.GetCategories(userId)).Select(c => c.Id).ToHashSet();
+        var foreignCategoryId = requested.FirstOrDefault(id => !userCategoryIds.Contains(id), -1);
+        return foreignCategoryId == -1
+            ? Result.Ok()
+            : Result.Fail(DomainErrors.NotFound("Category", foreignCategoryId));
     }
 
     public async Task<Result> DeleteTransaction(int id, int userId)
@@ -368,7 +394,7 @@ public class TransactionService : ITransactionService
             .OrderBy(item => item.Name)
             .ToList();
 
-        var categories = (await _categoryRepository.GetCategories()).ToList();
+        var categories = (await _categoryRepository.GetCategories(userId)).ToList();
         var categoryTotals = (await _repository.GetCategoryMonthTotals(monthStart, asOf, excludeTransfers, userId))
             .ToDictionary(item => item.CategoryId);
 

@@ -264,7 +264,7 @@ public class TransferReconciliationServiceTests
     private sealed class FakeReconciliationRepository(List<Account> accounts, List<Transaction> transactions) : ITransferReconciliationRepository
     {
         public List<(int, int)> LinkedPairs { get; } = [];
-        public List<int> LinkedCategoryIds { get; } = [];
+        public List<int?> LinkedCategoryIds { get; } = [];
         public DateTime? LastToDate { get; private set; }
 
         public Task<List<Account>> GetAllAccounts() => Task.FromResult(accounts.ToList());
@@ -281,7 +281,11 @@ public class TransferReconciliationServiceTests
                 .ToList());
         }
 
-        public Task LinkTransfers(IReadOnlyCollection<(int OutboundTransactionId, int InboundTransactionId)> pairs, int categoryId)
+        // ogni utente ha la sua "Money transfers"; nei test l'id coincide con il valore dell'enum
+        public Task<Dictionary<int, int>> GetCategoryIdsByKind(CategoryEnum kind)
+            => Task.FromResult(accounts.Select(a => a.UserId).Distinct().ToDictionary(userId => userId, _ => (int)kind));
+
+        public Task LinkTransfers(IReadOnlyCollection<(int OutboundTransactionId, int InboundTransactionId)> pairs, int? categoryId)
         {
             LinkedPairs.AddRange(pairs.Select(p => (p.OutboundTransactionId, p.InboundTransactionId)));
             LinkedCategoryIds.Add(categoryId);

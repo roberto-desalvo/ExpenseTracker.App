@@ -166,14 +166,13 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             }
 
             // 4. Get categories ───────────────────────────────────────────────
-            var categories = (await _categoryRepository.GetCategories()).ToList();
+            var categories = new UserCategories(await _categoryRepository.GetCategories(userId));
+            var moneyTransfersCategoryId = categories.MoneyTransfersId;
 
             // 5. Build transactions ───────────────────────────────────────────
             var transactions = new List<Transaction>();
             var transferEntities = new List<Transfer>();
             var transferTransactions = new List<Transaction>();
-
-            var defaultCategoryId = (int)CategoryEnum.Default;
 
             var candidateRows = new List<SatisPayRow>();
             var remainingRows = new List<SatisPayRow>();
@@ -194,7 +193,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             foreach (var row in candidateRows.OrderBy(r => ParseDate(r.Date) ?? DateTime.UtcNow))
             {
                 await ProcessTransferCandidateRow(
-                    row, satispayAccount, transactions, transferEntities, transferTransactions, userId, consumedCandidateIds);
+                    row, satispayAccount, transactions, transferEntities, transferTransactions, userId, moneyTransfersCategoryId, consumedCandidateIds);
             }
 
             foreach (var row in remainingRows)
@@ -203,14 +202,14 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
                 if (IsBankRechargeRow(row))
                 {
                     var transferResult = await BuildBankRechargeTransfer(
-                        row, satispayAccount, accounts, transferEntities, transferTransactions);
+                        row, satispayAccount, accounts, transferEntities, transferTransactions, moneyTransfersCategoryId);
 
                     if (transferResult.IsSuccess)
                         continue; // Successfully added as transfer, skip plain transaction
                 }
 
                 // Otherwise, treat as plain transaction
-                var tx = BuildTransaction(row, satispayAccount, categories, defaultCategoryId);
+                var tx = BuildTransaction(row, satispayAccount, categories);
                 if (tx != null)
                     transactions.Add(tx);
             }
@@ -345,7 +344,8 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
         Account satispayAccount,
         List<Account> accounts,
         List<Transfer> transferEntities,
-        List<Transaction> transferTransactions)
+        List<Transaction> transferTransactions,
+        int? moneyTransfersCategoryId)
     {
         // Extract IBAN from description: "Ricarica Satispay (IT21W0367401600000921182111)"
         var ibanMatch = IbanExtractor.Match(row.Description ?? "");
@@ -406,7 +406,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
         transferTransactions.Add(new Transaction
         {
             AccountId = bankAccount.Id,
-            CategoryId = (int)CategoryEnum.MoneyTransfers,
+            CategoryId = moneyTransfersCategoryId,
             Amount = -amount,
             Description = description,
             Date = date ?? DateTime.UtcNow,
@@ -419,7 +419,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
         transferTransactions.Add(new Transaction
         {
             AccountId = satispayAccount.Id,
-            CategoryId = (int)CategoryEnum.MoneyTransfers,
+            CategoryId = moneyTransfersCategoryId,
             Amount = amount,
             Description = description,
             Date = date ?? DateTime.UtcNow,
@@ -441,6 +441,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
         List<Transfer> transferEntities,
         List<Transaction> transferTransactions,
         int userId,
+        int? moneyTransfersCategoryId,
         HashSet<int> consumedCandidateIds)
     {
         var amount = ParseAmount(row.AmountRaw);
@@ -468,13 +469,13 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             transferEntities.Add(transfer);
 
             matchResult.Candidate.TransferNavigation = transfer;
-            matchResult.Candidate.CategoryId = (int)CategoryEnum.MoneyTransfers;
+            matchResult.Candidate.CategoryId = moneyTransfersCategoryId;
             consumedCandidateIds.Add(matchResult.Candidate.Id);
 
             transferTransactions.Add(new Transaction
             {
                 AccountId = satispayAccount.Id,
-                CategoryId = (int)CategoryEnum.MoneyTransfers,
+                CategoryId = moneyTransfersCategoryId,
                 Amount = amount.Value,
                 Description = description,
                 Date = date,
@@ -488,7 +489,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             transactions.Add(new Transaction
             {
                 AccountId = satispayAccount.Id,
-                CategoryId = (int)CategoryEnum.MoneyTransfers,
+                CategoryId = moneyTransfersCategoryId,
                 Amount = amount.Value,
                 Description = description,
                 Date = date,
@@ -501,8 +502,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
     private Transaction? BuildTransaction(
         SatisPayRow row,
         Account satispayAccount,
-        List<Category> categories,
-        int defaultCategoryId)
+        UserCategories categories)
     {
         // P2P transfers and other charges become plain transactions
         // (not Transfer entities, as counterparty is typically not in our accounts)
@@ -522,7 +522,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             amount = amount.Value * -1; // Failed recharge is a negative transaction
         }
 
-        var categoryId = GetCategoryForRow(row, categories, defaultCategoryId);
+        var categoryId = GetCategoryForRow(row, categories);
 
         return new Transaction
         {
@@ -536,42 +536,45 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
         };
     }
 
-    private int GetCategoryForRow(SatisPayRow row, List<Category> categories, int defaultCategoryId)
+    // Categoria dell'utente per il tipo indicato; se l'utente non l'ha più si ripiega sulla predefinita.
+    private static int? GetCategoryForRow(SatisPayRow row, UserCategories categories)
     {
+        int? Kind(CategoryEnum kind) => categories.IdOf(kind) ?? categories.DefaultId;
+
         // Satispay categories: use description to infer category
         // "Ricarica" → Savings & Investments or Banking
         // "Pagamento" → Expenses
         // Merchant-based matching if description contains known keywords
 
         if (string.IsNullOrEmpty(row.Description))
-            return defaultCategoryId;
+            return categories.DefaultId;
 
         var description = row.Description.ToLowerInvariant();
 
         // Check for recharge indicators
         if (description.Contains("ricarica"))
-            return (int)CategoryEnum.SavingsAndInvestments;
+            return Kind(CategoryEnum.SavingsAndInvestments);
 
         // Check for subscription/recurring patterns
         if (description.Contains("abbonamento") || description.Contains("subscription"))
-            return (int)CategoryEnum.Entertainment;
+            return Kind(CategoryEnum.Entertainment);
 
         // Check for food/dining
         if (description.Contains("ristorante") || description.Contains("bar") ||
             description.Contains("pizza") || description.Contains("café"))
-            return (int)CategoryEnum.FoodAndBeverage;
+            return Kind(CategoryEnum.FoodAndBeverage);
 
         // Check for transport
         if (description.Contains("uber") || description.Contains("taxi") ||
             description.Contains("benzina") || description.Contains("carburante"))
-            return (int)CategoryEnum.Transportation;
+            return Kind(CategoryEnum.Transportation);
 
         // Check for shopping
         if (description.Contains("amazon") || description.Contains("ebay") ||
             description.Contains("negozio") || description.Contains("shop"))
-            return (int)CategoryEnum.FoodAndBeverage;
+            return Kind(CategoryEnum.FoodAndBeverage);
 
-        return defaultCategoryId;
+        return categories.DefaultId;
     }
 
     private string BuildDescription(SatisPayRow row)

@@ -17,13 +17,12 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
     private IQueryable<Transaction> ForUser(int userId)
         => Context.Transactions.Where(t => t.AccountNavigation.UserId == userId);
 
-    private const int MoneyTransfersCategoryId = (int)CategoryEnum.MoneyTransfers;
-
     // Un trasferimento sposta denaro tra conti dell'utente: non è né entrata né uscita.
-    // Oltre ai movimenti collegati a un Transfer, si considerano tali anche quelli in categoria
-    // "Money transfers" rimasti senza controparte (es. import senza match del conto opposto).
+    // Oltre ai movimenti collegati a un Transfer, si considerano tali anche quelli nella categoria
+    // "Money transfers" dell'utente rimasti senza controparte (es. import senza match del conto opposto).
+    // I movimenti senza categoria restano inclusi (semantica null di EF: Kind IS NULL passa il filtro).
     private static IQueryable<Transaction> ExcludingTransfers(IQueryable<Transaction> query)
-        => query.Where(t => t.TransferId == null && t.CategoryId != MoneyTransfersCategoryId);
+        => query.Where(t => t.TransferId == null && t.CategoryNavigation!.Kind != CategoryEnum.MoneyTransfers);
 
     // Ordinamento della lista paginata; campo sconosciuto o assente => data. L'Id come
     // chiave secondaria rende stabile la paginazione a parità di valore.

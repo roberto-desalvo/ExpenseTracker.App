@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RDS.ExpenseTracker.Domain.Dtos.Requests;
 using RDS.ExpenseTracker.Domain.Entities;
+using RDS.ExpenseTracker.Domain.Enums;
 using RDS.ExpenseTracker.Domain.Repositories;
 
 namespace RDS.ExpenseTracker.Infrastructure.Repositories;
@@ -43,9 +44,17 @@ public class CategoryRepository : RepositoryBase, ICategoryRepository
         return Task.CompletedTask;
     }
 
-    public async Task<IEnumerable<Category>> GetCategories(string? name = null)
+    public async Task DeleteCategories(int userId)
     {
-        var query = Context.Categories.AsQueryable();
+        var categories = await Context.Categories
+            .Where(c => c.UserId == userId)
+            .ToListAsync();
+        Context.Categories.RemoveRange(categories);
+    }
+
+    public async Task<IEnumerable<Category>> GetCategories(int userId, string? name = null)
+    {
+        var query = Context.Categories.Where(c => c.UserId == userId);
 
         if (!string.IsNullOrWhiteSpace(name))
         {
@@ -58,9 +67,9 @@ public class CategoryRepository : RepositoryBase, ICategoryRepository
             .ToListAsync();
     }
 
-    public async Task<(IEnumerable<Category> Items, int TotalCount)> GetPagedCategories(CategoryQueryRequest request)
+    public async Task<(IEnumerable<Category> Items, int TotalCount)> GetPagedCategories(CategoryQueryRequest request, int userId)
     {
-        var query = Context.Categories.AsQueryable();
+        var query = Context.Categories.Where(c => c.UserId == userId);
 
         if (!string.IsNullOrWhiteSpace(request.Name))
         {
@@ -78,14 +87,25 @@ public class CategoryRepository : RepositoryBase, ICategoryRepository
         return (items, totalCount);
     }
 
-    public async Task<Category?> GetCategory(int id)
+    public async Task<Category?> GetCategory(int id, int userId)
     {
-        return await Context.Categories.FirstOrDefaultAsync(x => x.Id == id);
+        return await Context.Categories.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
     }
 
-    public async Task<Category?> GetDefaultCategory()
+    public async Task<Category?> GetDefaultCategory(int userId)
     {
-        return await Context.Categories.FirstOrDefaultAsync(c => c.IsDefault == true);
+        return await Context.Categories
+            .Where(c => c.UserId == userId && c.IsDefault == true)
+            .OrderBy(c => c.Id)
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task<int?> GetCategoryIdByKind(int userId, CategoryEnum kind)
+    {
+        return await Context.Categories
+            .Where(c => c.UserId == userId && c.Kind == kind)
+            .Select(c => (int?)c.Id)
+            .FirstOrDefaultAsync();
     }
 
     public async Task ReassignTransactionsToCategory(int sourceCategoryId, int targetCategoryId)
