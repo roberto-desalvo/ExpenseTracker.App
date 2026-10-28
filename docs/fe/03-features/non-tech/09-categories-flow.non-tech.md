@@ -10,6 +10,7 @@ Ogni utente vede e gestisce solo le proprie categorie, partendo da un elenco pre
 
 ## Azioni utente
 - Cercare una categoria per nome.
+- Consultare l'elenco: per ogni categoria si vedono tutte le parole chiave, che vanno a capo restando dentro la pagina; se sono molte, lo spazio della riga ha un'altezza massima e si scorre al suo interno.
 - Creare o modificare una categoria in un pannello laterale, senza perdere di vista l'elenco: nome, descrizione, **parole chiave** e **priorità**.
   - Le parole chiave servono all'import e alla sincronizzazione: se la descrizione di un movimento ne contiene una, il movimento finisce in questa categoria.
   - La priorità decide chi vince quando più categorie corrispondono: vince il numero più basso.

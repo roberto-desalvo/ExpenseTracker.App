@@ -42,6 +42,8 @@ export interface DataTableBaseProps<T> {
   renderRow: (row: T, index: number) => React.ReactNode;
   rowsPerPageOptions?: number[];
   minTableWidth?: number;
+  /** "fixed" rispetta le larghezze delle colonne e manda a capo il contenuto invece di allargare la tabella */
+  tableLayout?: "auto" | "fixed";
   /** altezza massima dell'area scrollabile; l'intestazione resta fissa */
   tableViewportHeight?: number;
   /** id della colonna attualmente ordinata */
@@ -67,6 +69,7 @@ export default function DataTableBase<T>({
   renderRow,
   rowsPerPageOptions = [10, 25, 100],
   minTableWidth = 700,
+  tableLayout = "auto",
   tableViewportHeight,
   sortBy,
   sortDirection = "asc",
@@ -91,7 +94,7 @@ export default function DataTableBase<T>({
         <EmptyState icon={<InboxOutlined />} title={emptyMessage} text={emptySubtext} action={emptyAction} minHeight={320} />
       ) : (
         <TableContainer sx={{ overflowX: "auto", maxHeight: tableViewportHeight }}>
-          <Table stickyHeader sx={{ minWidth: minTableWidth }}>
+          <Table stickyHeader sx={{ minWidth: minTableWidth, tableLayout }}>
             <TableHead>
               <TableRow>
                 {columns.map((column) => (
