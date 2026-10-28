@@ -344,6 +344,7 @@ export default function DashboardPage() {
           ) : (
             <RankedBarList
               items={breakdownItems}
+              maxItems={Infinity}
               color={breakdownKind === "spent" ? a.expense : a.income}
               emptyMessage={breakdownEmpty}
             />

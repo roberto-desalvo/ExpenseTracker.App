@@ -8,7 +8,7 @@ import type { RankedItem } from "./RankedBarList";
 
 interface CategoryDonutChartProps {
   items: RankedItem[];
-  /** fette mostrate prima di raggruppare il resto in "Altre" (inclusa) */
+  /** fette mostrate prima di raggruppare il resto in "Altre" (inclusa); se omesso mostra tutte le voci */
   maxSlices?: number;
   otherLabel?: string;
   emptyMessage?: string;
@@ -21,15 +21,17 @@ interface Slice {
   value: number;
   share: number;
   color: string;
+  opacity: number;
 }
 
 /**
- * Composizione di un totale (parti di un intero) come ciambella. Le fette sono poche
- * (coda in "Altre") e colorate nell'ordine categoriale fisso, dalla più grande.
+ * Composizione di un totale (parti di un intero) come ciambella. Le fette sono colorate
+ * nell'ordine categoriale fisso, dalla più grande; oltre la palette i colori ripartono
+ * con opacità ridotta, così ogni fetta resta distinguibile dalle vicine.
  */
 export default function CategoryDonutChart({
   items,
-  maxSlices = 6,
+  maxSlices = Infinity,
   otherLabel = "Altre",
   emptyMessage = "Nessun movimento nel periodo",
   minHeight = 260,
@@ -45,11 +47,16 @@ export default function CategoryDonutChart({
     const head = positive.length <= maxSlices ? positive : positive.slice(0, maxSlices - 1);
     const tail = positive.slice(head.length);
 
-    const result: Slice[] = head.map((item, index) => ({
-      ...item,
-      share: sum > 0 ? (item.value / sum) * 100 : 0,
-      color: a.chart.series[index] ?? a.chart.other,
-    }));
+    const palette = a.chart.series;
+    const result: Slice[] = head.map((item, index) => {
+      const round = palette.length ? Math.floor(index / palette.length) : 0;
+      return {
+        ...item,
+        share: sum > 0 ? (item.value / sum) * 100 : 0,
+        color: palette.length ? palette[index % palette.length] : a.chart.other,
+        opacity: Math.max(0.3, 1 - round * 0.4),
+      };
+    });
     if (tail.length) {
       const value = tail.reduce((acc, item) => acc + item.value, 0);
       result.push({
@@ -58,6 +65,7 @@ export default function CategoryDonutChart({
         value,
         share: sum > 0 ? (value / sum) * 100 : 0,
         color: a.chart.other,
+        opacity: 1,
       });
     }
     return { slices: result, total: sum };
@@ -96,7 +104,7 @@ export default function CategoryDonutChart({
               isAnimationActive={false}
             >
               {slices.map((slice) => (
-                <Cell key={slice.id} fill={slice.color} />
+                <Cell key={slice.id} fill={slice.color} fillOpacity={slice.opacity} />
               ))}
             </Pie>
             <Tooltip content={renderTooltip} />
@@ -127,7 +135,7 @@ export default function CategoryDonutChart({
       <Stack spacing={0.75}>
         {slices.map((slice) => (
           <Stack key={slice.id} direction="row" alignItems="center" spacing={1}>
-            <Box sx={{ width: 9, height: 9, borderRadius: "2px", backgroundColor: slice.color, flexShrink: 0 }} />
+            <Box sx={{ width: 9, height: 9, borderRadius: "2px", backgroundColor: slice.color, opacity: slice.opacity, flexShrink: 0 }} />
             <Typography
               sx={{
                 flex: 1,
