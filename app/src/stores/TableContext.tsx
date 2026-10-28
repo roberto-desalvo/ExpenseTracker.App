@@ -9,7 +9,6 @@ import { useLocation } from "react-router-dom";
 import { useAccounts } from "./AccountContext";
 import { useCategories } from "./CategoryContext";
 import { useTransactions } from "./TransactionContext";
-import Transaction from "../models/Transaction";
 import { TransactionMonthOption } from "../models/TransactionMonthOption";
 import { SortDirection, TransactionSortField } from "../models/TransactionQueryRequest";
 
@@ -27,6 +26,13 @@ const defaultSortDirection = (field: TransactionSortField): SortDirection =>
   field === "date" || field === "amount" ? "desc" : "asc";
 
 export type MovementType = "all" | "incomes" | "outcomes";
+export type PeriodMode = "month" | "custom";
+
+/** Intervallo personalizzato, estremi inclusi in formato YYYY-MM-DD; null = nessun limite da quel lato. */
+export interface DateRange {
+  from: string | null;
+  to: string | null;
+}
 
 interface TableContextType {
   columns: TableColumn[];
@@ -34,6 +40,8 @@ interface TableContextType {
   selectedCategoryIds: number[];
   availableMonths: TransactionMonthOption[];
   selectedMonth: TransactionMonthOption | null;
+  periodMode: PeriodMode;
+  customRange: DateRange;
   movementType: MovementType;
   availableMonthsLoading: boolean;
   page: number;
@@ -42,12 +50,13 @@ interface TableContextType {
   sortDirection: SortDirection;
   modifySort: (field: TransactionSortField) => void;
   modifySelectedMonth: (month: TransactionMonthOption) => void;
+  modifyPeriodMode: (mode: PeriodMode) => void;
+  modifyCustomRange: (range: DateRange) => void;
   modifyMovementType: (movementType: MovementType) => void;
   modifyPage: (page: number) => void;
   modifyPageSize: (pageSize: number) => void;
   modifySelectedAccountIds: (accountIds: number[]) => void;
   modifySelectedCategoryIds: (categoryIds: number[]) => void;
-  getFilteredTransactions: () => Transaction[];
 }
 
 const TableContext = createContext<TableContextType | undefined>(undefined);
@@ -71,6 +80,8 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
   const [selectedAccountIds, setSelectedAccountIds] = useState<number[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<TransactionMonthOption | null>(null);
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
+  const [customRange, setCustomRange] = useState<DateRange>({ from: null, to: null });
   const [movementType, setMovementType] = useState<MovementType>("all");
   const [page, setPage] = useState<number>(0);
   const [pageSize, setPageSize] = useState<number>(10);
@@ -79,7 +90,8 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
   const transactionContext = useTransactions();
 
   const buildRequest = (
-    month: TransactionMonthOption,
+    fromDate: string | undefined,
+    toDate: string | undefined,
     p: number,
     ps: number,
     accountIds: number[],
@@ -98,8 +110,8 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
         : categoryIds;
 
     return {
-      fromDate: month.startDate,
-      toDate: month.endDate,
+      fromDate,
+      toDate,
       idAccounts: normalizedAccountIds,
       idCategories: normalizedCategoryIds,
       isIncome:
@@ -151,9 +163,19 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
     });
   }, [transactionContext.availableMonths]);
 
-  const request = selectedMonth
+  // mese: dal primo all'ultimo giorno; personalizzato: giorni interi, estremi inclusi
+  const period =
+    periodMode === "month"
+      ? selectedMonth && { fromDate: selectedMonth.startDate, toDate: selectedMonth.endDate }
+      : {
+          fromDate: customRange.from ? `${customRange.from}T00:00:00` : undefined,
+          toDate: customRange.to ? `${customRange.to}T23:59:59.999` : undefined,
+        };
+
+  const request = period
     ? buildRequest(
-        selectedMonth,
+        period.fromDate,
+        period.toDate,
         page,
         pageSize,
         selectedAccountIds,
@@ -163,7 +185,7 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
         sortDirection,
       )
     : null;
-  // la richiesta parte solo quando cambia davvero (filtri, ordinamento, pagina, mese), non a ogni nuovo riferimento di conti/categorie
+  // la richiesta parte solo quando cambia davvero (filtri, ordinamento, pagina, periodo), non a ogni nuovo riferimento di conti/categorie
   const requestKey = request ? JSON.stringify(request) : null;
 
   useEffect(() => {
@@ -176,6 +198,20 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
 
   const modifySelectedMonth = (month: TransactionMonthOption) => {
     setSelectedMonth(month);
+    setPage(0);
+  };
+
+  // passando a "personalizzato" l'intervallo parte dal mese selezionato, se non ne è già impostato uno
+  const modifyPeriodMode = (mode: PeriodMode) => {
+    if (mode === "custom" && !customRange.from && !customRange.to && selectedMonth) {
+      setCustomRange({ from: selectedMonth.startDate.slice(0, 10), to: selectedMonth.endDate.slice(0, 10) });
+    }
+    setPeriodMode(mode);
+    setPage(0);
+  };
+
+  const modifyCustomRange = (range: DateRange) => {
+    setCustomRange(range);
     setPage(0);
   };
 
@@ -200,9 +236,7 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const modifyMovementType = (newMovementType: MovementType) => {
-    setMovementType((currentMovementType) =>
-      currentMovementType === newMovementType ? "all" : newMovementType,
-    );
+    setMovementType(newMovementType);
     setPage(0);
   };
 
@@ -216,9 +250,6 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
     setPage(0);
   };
 
-  // l'ordinamento è applicato lato server (insieme alla paginazione)
-  const getFilteredTransactions = () => transactionContext.transactions;
-
   return (
     <TableContext.Provider
       value={{
@@ -227,6 +258,8 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
         selectedCategoryIds,
         availableMonths: transactionContext.availableMonths,
         selectedMonth,
+        periodMode,
+        customRange,
         movementType,
         availableMonthsLoading: transactionContext.availableMonthsLoading,
         page,
@@ -235,12 +268,13 @@ export const TableContextProvider: React.FC<{ children: ReactNode }> = ({
         sortDirection,
         modifySort,
         modifySelectedMonth,
+        modifyPeriodMode,
+        modifyCustomRange,
         modifyMovementType,
         modifyPage,
         modifyPageSize,
         modifySelectedAccountIds,
         modifySelectedCategoryIds,
-        getFilteredTransactions,
       }}
     >
       {children}

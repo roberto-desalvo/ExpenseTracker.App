@@ -11,16 +11,17 @@ export default function ExpenseTable() {
   const tableContext = useTableContext();
   const transactionContext = useTransactions();
   const { openNewTransaction } = useQuickActions();
-  const filteredTransactions = tableContext.getFilteredTransactions();
+  // ordinamento e paginazione sono applicati lato server
+  const transactions = transactionContext.transactions;
 
   return (
     <DataTableBase
       columns={tableContext.columns as unknown as DataTableColumn[]}
-      rows={filteredTransactions}
+      rows={transactions}
       isLoading={transactionContext.isLoading}
-      isEmpty={!transactionContext.isLoading && filteredTransactions.length === 0}
+      isEmpty={!transactionContext.isLoading && transactions.length === 0}
       emptyMessage="Nessun movimento trovato"
-      emptySubtext="Prova a cambiare mese o filtri, oppure registra un nuovo movimento."
+      emptySubtext="Prova a cambiare periodo o filtri, oppure registra un nuovo movimento."
       emptyAction={
         <Button variant="contained" startIcon={<AddRounded />} onClick={openNewTransaction}>
           Nuova transazione
