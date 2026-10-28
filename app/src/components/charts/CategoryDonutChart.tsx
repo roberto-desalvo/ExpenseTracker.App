@@ -107,7 +107,8 @@ export default function CategoryDonutChart({
                 <Cell key={slice.id} fill={slice.color} fillOpacity={slice.opacity} />
               ))}
             </Pie>
-            <Tooltip content={renderTooltip} />
+            {/* sopra al totale centrale, altrimenti il testo traspare dal tooltip */}
+            <Tooltip content={renderTooltip} wrapperStyle={{ zIndex: 2 }} />
           </PieChart>
         </ResponsiveContainer>
         {/* totale al centro della ciambella */}
