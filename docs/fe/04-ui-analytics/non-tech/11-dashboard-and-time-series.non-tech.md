@@ -22,7 +22,7 @@ La pagina Analisi permette di scegliere un periodo (3, 6, 12, 24 mesi, da inizio
 
 Ogni grafico (classifiche escluse) ha anche una **vista a tabella** con i numeri esatti.
 
-Per i grafici del patrimonio e dei saldi, il punto di ogni periodo è la giacenza *media* di quel periodo, non il saldo puntuale a fine periodo; nei periodi senza movimenti il saldo resta quello precedente. Questi saldi includono i giroconti (un giroconto sposta davvero denaro dentro o fuori da un conto), mentre i grafici di entrate e uscite li escludono.
+Per i grafici del patrimonio e dei saldi, il punto di ogni periodo è la giacenza *media* di quel periodo, non il saldo puntuale a fine periodo; nei periodi senza movimenti il saldo resta quello precedente. Questi saldi includono i giroconti (un giroconto sposta davvero denaro dentro o fuori da un conto), mentre i grafici di entrate e uscite li escludono. Anche la variazione "questo mese" accanto al saldo di ogni conto include i giroconti; le entrate, le uscite e il risparmio del mese no.
 
 ## Come sono pensati i grafici
 - Un solo asse in euro per grafico, così le grandezze sono sempre confrontabili.
