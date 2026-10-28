@@ -247,7 +247,7 @@ public class TransactionServiceTests
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => throw new NotImplementedException();
         public Task<Transaction?> GetTransaction(int id, int userId) => throw new NotImplementedException();
         public Task<IEnumerable<Transaction>> GetTransactions(int userId) => throw new NotImplementedException();
-        public Task<(IEnumerable<Transaction> Items, int TotalCount, decimal TotalIncomes, decimal TotalOutcomes, decimal TotalNet)> GetPagedTransactions(TransactionQueryRequest request, int userId) => throw new NotImplementedException();
+        public Task<(IEnumerable<Transaction> Items, int TotalCount)> GetPagedTransactions(TransactionQueryRequest request, int userId) => throw new NotImplementedException();
         public Task<IEnumerable<(int AccountId, decimal Balance)>> GetAccountBalances(DateTime asOfDate, int userId) => throw new NotImplementedException();
         public Task<IEnumerable<(int AccountId, decimal Spent, decimal Earned)>> GetAccountMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers, int userId) => throw new NotImplementedException();
         public Task<IEnumerable<(int CategoryId, decimal Spent, decimal Earned)>> GetCategoryMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers, int userId) => throw new NotImplementedException();

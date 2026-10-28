@@ -22,7 +22,7 @@ export interface StackSeries {
 
 interface StackedPeriodBarsProps {
   series: StackSeries[];
-  /** serie mostrate con un proprio colore; le altre confluiscono in "Altre" */
+  /** serie mostrate con un proprio colore (inclusa "Altre"); le altre confluiscono in "Altre"; `Infinity` mostra tutte le serie */
   maxSeries?: number;
   height?: number;
   view?: ChartView;
@@ -32,8 +32,9 @@ const OTHER_KEY = "__other__";
 
 /**
  * Barre impilate per periodo (composizione delle spese per categoria nel tempo).
- * Le serie sono ordinate per totale e oltre `maxSeries` raggruppate in "Altre",
- * così non si generano mai colori oltre la palette.
+ * Le serie sono ordinate per totale e oltre `maxSeries` raggruppate in "Altre".
+ * Oltre la palette i colori ripartono con opacità ridotta, così ogni serie resta
+ * distinguibile dalle vicine.
  */
 export default function StackedPeriodBars({ series, maxSeries = 6, height = 320, view = "chart" }: StackedPeriodBarsProps) {
   const a = useTheme().app;
@@ -44,9 +45,8 @@ export default function StackedPeriodBars({ series, maxSeries = 6, height = 320,
       .filter((s) => s.total > 0)
       .sort((x, y) => y.total - x.total);
 
-    const limit = Math.min(maxSeries, a.chart.series.length);
-    const head = ranked.length > limit ? ranked.slice(0, limit - 1) : ranked;
-    const tail = ranked.length > limit ? ranked.slice(limit - 1) : [];
+    const head = ranked.length > maxSeries ? ranked.slice(0, maxSeries - 1) : ranked;
+    const tail = ranked.slice(head.length);
 
     const map = new Map<string, Record<string, number | string>>();
     const add = (period: string, key: string, value: number) => {
@@ -58,9 +58,15 @@ export default function StackedPeriodBars({ series, maxSeries = 6, height = 320,
     head.forEach((s) => s.values.forEach((p) => add(p.period, s.key, p.value)));
     tail.forEach((s) => s.values.forEach((p) => add(p.period, OTHER_KEY, p.value)));
 
+    const palette = a.chart.series;
     const seriesKeys = [
-      ...head.map((s, i) => ({ key: s.key, name: s.name, color: a.chart.series[i] })),
-      ...(tail.length ? [{ key: OTHER_KEY, name: `Altre (${tail.length})`, color: a.chart.other }] : []),
+      ...head.map((s, i) => ({
+        key: s.key,
+        name: s.name,
+        color: palette.length ? palette[i % palette.length] : a.chart.other,
+        opacity: Math.max(0.3, 1 - (palette.length ? Math.floor(i / palette.length) : 0) * 0.4),
+      })),
+      ...(tail.length ? [{ key: OTHER_KEY, name: `Altre (${tail.length})`, color: a.chart.other, opacity: 1 }] : []),
     ];
 
     return {
@@ -97,6 +103,7 @@ export default function StackedPeriodBars({ series, maxSeries = 6, height = 320,
             <ChartTooltipRow
               key={String(item.dataKey)}
               color={k?.color}
+              opacity={k?.opacity}
               label={k?.name ?? String(item.dataKey)}
               value={formatCurrency(Number(item.value) || 0)}
             />
@@ -109,7 +116,7 @@ export default function StackedPeriodBars({ series, maxSeries = 6, height = 320,
 
   return (
     <Box>
-      <ChartLegend entries={keys.map((k) => ({ key: k.key, label: k.name, color: k.color }))} />
+      <ChartLegend entries={keys.map((k) => ({ key: k.key, label: k.name, color: k.color, opacity: k.opacity }))} />
       <Box sx={{ width: "100%", height, "& .recharts-surface:focus": { outline: "none" } }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={rows} margin={{ top: 4, right: 8, bottom: 0, left: 0 }} barCategoryGap="24%">
@@ -137,6 +144,7 @@ export default function StackedPeriodBars({ series, maxSeries = 6, height = 320,
                 dataKey={k.key}
                 stackId="stack"
                 fill={k.color}
+                fillOpacity={k.opacity}
                 stroke={a.surface}
                 strokeWidth={1}
                 maxBarSize={44}

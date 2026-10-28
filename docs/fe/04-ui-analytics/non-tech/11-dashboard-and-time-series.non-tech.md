@@ -8,7 +8,7 @@ La pagina iniziale risponde in pochi secondi a "come sto andando questo mese?":
 - **Patrimonio netto**: il totale di tutti i conti, quanto è cambiato negli ultimi 12 mesi e una piccola linea di andamento. Con l'icona a forma di occhio si nascondono gli importi (utile in pubblico); la scelta viene ricordata.
 - **Quattro indicatori del mese**: entrate, uscite (entrambe confrontate con la media degli ultimi 6 mesi, in verde se il confronto è favorevole, in rosso se no), risparmio netto con l'avanzamento del mese e tasso di risparmio (quanta parte delle entrate resta dopo le spese).
 - **Conti**: come il patrimonio è ripartito tra i conti e quanto si è mosso ciascun conto nel mese.
-- **Dove vanno i soldi**: le categorie con più spese (o entrate) del mese, ordinate dalla più grande, con importo e percentuale. Si può scegliere se vederle come barre o come grafico a torta, con il totale del mese al centro e le categorie minori raggruppate in "Altre".
+- **Dove vanno i soldi**: le categorie con più spese (o entrate) del mese, ordinate dalla più grande, con importo e percentuale. Si può scegliere se vederle come barre o come grafico a torta (con il totale del mese al centro); in entrambe le viste tutte le categorie sono mostrate singolarmente.
 - **Ultimi movimenti**: gli ultimi sette movimenti; cliccando su uno lo si modifica.
 
 Il grafico del flusso di cassa (entrate e uscite mese per mese) non è in dashboard: si trova nella pagina Analisi, dove si possono scegliere periodo e raggruppamento.
@@ -22,12 +22,12 @@ La pagina Analisi permette di scegliere un periodo (3, 6, 12, 24 mesi, da inizio
 
 Ogni grafico (classifiche escluse) ha anche una **vista a tabella** con i numeri esatti.
 
-Per i grafici del patrimonio e dei saldi, il punto di ogni periodo è la giacenza *media* di quel periodo, non il saldo puntuale a fine periodo; nei periodi senza movimenti il saldo resta quello precedente. Questi saldi includono i giroconti (un giroconto sposta davvero denaro dentro o fuori da un conto), mentre i grafici di entrate e uscite li escludono.
+Per i grafici del patrimonio e dei saldi, il punto di ogni periodo è la giacenza *media* di quel periodo, non il saldo puntuale a fine periodo; nei periodi senza movimenti il saldo resta quello precedente. Questi saldi includono i giroconti (un giroconto sposta davvero denaro dentro o fuori da un conto), mentre i grafici di entrate e uscite li escludono. Anche la variazione "questo mese" accanto al saldo di ogni conto include i giroconti; le entrate, le uscite e il risparmio del mese no.
 
 ## Come sono pensati i grafici
 - Un solo asse in euro per grafico, così le grandezze sono sempre confrontabili.
 - Ogni conto ha sempre lo stesso colore in tutta l'app, anche quando se ne nascondono alcuni.
-- Le categorie minori vengono raggruppate in "Altre" per non affollare i grafici di colori.
+- Sia in dashboard sia nella pagina Analisi i grafici per categoria mostrano tutte le categorie, senza raggrupparne nessuna in "Altre"; quando le categorie sono più di otto, torta e barre impilate riusano i colori in tonalità più tenue.
 - I colori sono scelti per restare distinguibili anche da chi ha difficoltà a percepire i colori, e ogni grafico ha legenda e valori al passaggio del mouse.
 
 ## Valore

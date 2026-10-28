@@ -170,7 +170,7 @@ export default function CategoriesPage() {
           </Box>
           <Box sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={1} alignItems="center">
-              <Typography sx={{ fontWeight: 600, fontSize: "0.88rem" }} noWrap>
+              <Typography sx={{ fontWeight: 600, fontSize: "0.88rem", minWidth: 0 }} noWrap>
                 {category.name}
               </Typography>
               {category.isDefault && (
@@ -185,13 +185,24 @@ export default function CategoriesPage() {
       </TableCell>
       <TableCell>
         {category.tags.length > 0 ? (
-          <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
-            {category.tags.slice(0, 5).map((tag) => (
-              <Chip key={tag} label={tag} size="small" variant="outlined" sx={{ height: 22, fontSize: "0.72rem", borderColor: a.border }} />
+          // tutti i tag vanno a capo; oltre ~3 righe la cella scorre in verticale
+          <Stack
+            direction="row"
+            spacing={0.5}
+            useFlexGap
+            flexWrap="wrap"
+            sx={{ maxHeight: 78, overflowY: "auto", pr: 0.5 }}
+          >
+            {category.tags.map((tag) => (
+              <Chip
+                key={tag}
+                label={tag}
+                title={tag}
+                size="small"
+                variant="outlined"
+                sx={{ height: 22, maxWidth: "100%", fontSize: "0.72rem", borderColor: a.border }}
+              />
             ))}
-            {category.tags.length > 5 && (
-              <Chip label={`+${category.tags.length - 5}`} size="small" sx={{ height: 22, fontSize: "0.72rem" }} />
-            )}
           </Stack>
         ) : (
           <Typography sx={{ fontSize: "0.8rem", color: a.textMuted }}>—</Typography>
@@ -254,6 +265,7 @@ export default function CategoriesPage() {
         onPageChange={(_e, newPage) => modifyPage(newPage)}
         onPageSizeChange={(e) => modifyPageSize(parseInt(e.target.value, 10))}
         minTableWidth={640}
+        tableLayout="fixed"
         renderRow={renderRow}
       />
 

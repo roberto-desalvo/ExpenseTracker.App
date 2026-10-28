@@ -8,7 +8,7 @@ namespace RDS.ExpenseTracker.Domain.Services;
 // Ogni operazione è limitata ai movimenti registrati su conti dell'utente indicato (userId).
 public interface ITransactionService : IService
 {
-    Task<Result<TransactionQueryResult>> GetPagedTransactions(TransactionQueryRequest request, int userId);
+    Task<Result<PagedResult<TransactionDto>>> GetPagedTransactions(TransactionQueryRequest request, int userId);
     Task<Result<IEnumerable<TransactionMonthOptionDto>>> GetAvailableMonthOptions(int userId);
     Task<Result<TransactionDto?>> GetTransaction(int id, int userId);
     Task<Result<TransactionDto?>> GetLatestTransaction(int userId);

@@ -141,7 +141,7 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .ToListAsync();
     }
 
-    public async Task<(IEnumerable<Transaction> Items, int TotalCount, decimal TotalIncomes, decimal TotalOutcomes, decimal TotalNet)> GetPagedTransactions(TransactionQueryRequest request, int userId)
+    public async Task<(IEnumerable<Transaction> Items, int TotalCount)> GetPagedTransactions(TransactionQueryRequest request, int userId)
     {
         var query = ForUser(userId)
             .Include(t => t.AccountNavigation)
@@ -162,24 +162,13 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
                 : query.Where(t => t.Amount < 0m);
 
         var totalCount = await query.CountAsync();
-        var flows = ExcludingTransfers(query);
-        var totalIncomes = await flows
-            .Where(t => t.Amount > 0m)
-            .Select(t => (decimal?)t.Amount)
-            .SumAsync() ?? 0m;
-        var totalOutcomes = Math.Abs(
-            await flows
-                .Where(t => t.Amount < 0m)
-                .Select(t => (decimal?)t.Amount)
-                .SumAsync() ?? 0m);
-        var totalNet = totalIncomes - totalOutcomes;
 
         var items = await ApplySorting(query, request.SortBy, request.SortDirection)
             .Skip(request.Page * request.PageSize)
             .Take(request.PageSize)
             .ToListAsync();
 
-        return (items, totalCount, totalIncomes, totalOutcomes, totalNet);
+        return (items, totalCount);
     }
 
     public async Task<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>> GetTimeSeriesTransactions(TimeSeriesRequestDto request, int userId)

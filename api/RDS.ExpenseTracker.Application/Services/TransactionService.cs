@@ -30,18 +30,15 @@ public class TransactionService : ITransactionService
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
     }
 
-    public async Task<Result<TransactionQueryResult>> GetPagedTransactions(TransactionQueryRequest request, int userId)
+    public async Task<Result<PagedResult<TransactionDto>>> GetPagedTransactions(TransactionQueryRequest request, int userId)
     {
-        var (items, totalCount, totalIncomes, totalOutcomes, totalNet) = await _repository.GetPagedTransactions(request, userId);
-        return Result.Ok(new TransactionQueryResult
+        var (items, totalCount) = await _repository.GetPagedTransactions(request, userId);
+        return Result.Ok(new PagedResult<TransactionDto>
         {
             Items = _mapper.Map<IEnumerable<TransactionDto>>(items),
             TotalCount = totalCount,
             Page = request.Page,
-            PageSize = request.PageSize,
-            TotalIncomes = totalIncomes,
-            TotalOutcomes = totalOutcomes,
-            TotalNet = totalNet
+            PageSize = request.PageSize
         });
     }
 
@@ -371,7 +368,10 @@ public class TransactionService : ITransactionService
         var accounts = (await _accountRepository.GetAccounts(userId)).ToList();
         var balances = (await _repository.GetAccountBalances(asOf, userId))
             .ToDictionary(item => item.AccountId, item => item.Balance);
-        var accountTotals = (await _repository.GetAccountMonthTotals(monthStart, asOf, excludeTransfers, userId))
+        // La variazione mensile del singolo conto spiega il movimento del suo saldo, quindi deve
+        // includere i trasferimenti (un giroconto sposta denaro dentro/fuori dal conto). Il flag
+        // excludeTransfers vale solo per i totali di flusso (categorie e totali generali).
+        var accountTotals = (await _repository.GetAccountMonthTotals(monthStart, asOf, excludeTransfers: false, userId))
             .ToDictionary(item => item.AccountId);
 
         var accountItems = accounts

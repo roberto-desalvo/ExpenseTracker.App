@@ -2,7 +2,7 @@ import { apiConfig } from "../config/api";
 import Transaction from "../models/Transaction";
 import { TransactionMonthOption } from "../models/TransactionMonthOption";
 import { TransactionQueryRequest } from "../models/TransactionQueryRequest";
-import { TransactionQueryResult } from "../models/TransactionQueryResult";
+import { PagedResult } from "../models/PagedResult";
 import { TimeSeriesList } from "../models/TimeSeries";
 import { TimeSeriesRequest } from "../models/TimeSeriesRequest";
 import { LandingDashboard } from "../models/LandingDashboard";
@@ -13,13 +13,13 @@ interface LandingRequestOptions {
 }
 
 const TransactionService = {
-  getAll: async (request: TransactionQueryRequest): Promise<TransactionQueryResult> => {
+  getAll: async (request: TransactionQueryRequest): Promise<PagedResult<Transaction>> => {
     const payload: TransactionQueryRequest = {
       ...request,
       idAccounts: request.idAccounts ?? null,
       idCategories: request.idCategories ?? null,
     };
-    return apiFetchJson<TransactionQueryResult>(
+    return apiFetchJson<PagedResult<Transaction>>(
       apiConfig.transactions.query,
       {
         method: 'POST',

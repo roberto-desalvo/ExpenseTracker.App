@@ -17,9 +17,6 @@ interface TransactionsContextType {
   transactions: Transaction[];
   isLoading: boolean;
   totalCount: number;
-  totalIncomes: number;
-  totalOutcomes: number;
-  totalNet: number;
   availableMonths: TransactionMonthOption[];
   availableMonthsLoading: boolean;
   /** incrementato a ogni modifica (crea/modifica/elimina/trasferimento): le viste aggregate lo osservano per ricaricarsi */
@@ -43,9 +40,6 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [totalCount, setTotalCount] = useState<number>(0);
-  const [totalIncomes, setTotalIncomes] = useState<number>(0);
-  const [totalOutcomes, setTotalOutcomes] = useState<number>(0);
-  const [totalNet, setTotalNet] = useState<number>(0);
   const [availableMonths, setAvailableMonths] = useState<TransactionMonthOption[]>([]);
   const [availableMonthsLoading, setAvailableMonthsLoading] = useState<boolean>(true);
   const [lastRequest, setLastRequest] = useState<TransactionQueryRequest | null>(null);
@@ -85,9 +79,6 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
         const result = await TransactionService.getAll(effectiveRequest);
         setTransactions(result.items);
         setTotalCount(result.totalCount);
-        setTotalIncomes(result.totalIncomes ?? 0);
-        setTotalOutcomes(result.totalOutcomes ?? 0);
-        setTotalNet(result.totalNet ?? 0);
       } catch (error) {
         console.error("Errore nel caricamento delle transactions:", error);
       } finally {
@@ -170,9 +161,6 @@ export const TransactionsProvider: React.FC<{ children: ReactNode }> = ({
         transactions,
         isLoading,
         totalCount,
-        totalIncomes,
-        totalOutcomes,
-        totalNet,
         availableMonths,
         availableMonthsLoading,
         dataVersion,
