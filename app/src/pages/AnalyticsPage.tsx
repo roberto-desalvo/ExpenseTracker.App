@@ -480,7 +480,7 @@ export default function AnalyticsPage() {
       <Box sx={{ display: "grid", gap: { xs: 2, md: 2.5 }, gridTemplateColumns: { xs: "1fr", lg: "2fr 1fr" } }}>
         <SurfaceCard
           title={categoryKind === "spent" ? "Spese per categoria" : "Entrate per categoria"}
-          subtitle="Composizione per periodo: le categorie minori sono raggruppate in “Altre”"
+          subtitle="Composizione per periodo di tutte le categorie"
           action={
             <Stack direction="row" spacing={1}>
               <ToggleButtonGroup
@@ -496,7 +496,7 @@ export default function AnalyticsPage() {
             </Stack>
           }
         >
-          {loading ? chartSkeleton : <StackedPeriodBars series={categorySeries} height={300} view={categoryView} />}
+          {loading ? chartSkeleton : <StackedPeriodBars series={categorySeries} maxSeries={Infinity} height={300} view={categoryView} />}
         </SurfaceCard>
 
         <SurfaceCard title="Classifica categorie" subtitle="Totale nel periodo selezionato">
@@ -505,7 +505,7 @@ export default function AnalyticsPage() {
           ) : (
             <RankedBarList
               items={categoryTotals}
-              maxItems={8}
+              maxItems={Infinity}
               color={categoryKind === "spent" ? a.expense : a.income}
               emptyMessage="Nessun movimento nel periodo"
             />

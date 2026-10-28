@@ -42,11 +42,13 @@ export function ChartTooltipCard({ title, children }: { title: ReactNode; childr
 
 export function ChartTooltipRow({
   color,
+  opacity = 1,
   label,
   value,
   emphasis = false,
 }: {
   color?: string;
+  opacity?: number;
   label: string;
   value: string;
   emphasis?: boolean;
@@ -56,7 +58,7 @@ export function ChartTooltipRow({
   return (
     <Stack direction="row" alignItems="center" spacing={1}>
       {color ? (
-        <Box sx={{ width: 8, height: 8, borderRadius: "2px", backgroundColor: color, flexShrink: 0 }} />
+        <Box sx={{ width: 8, height: 8, borderRadius: "2px", backgroundColor: color, opacity, flexShrink: 0 }} />
       ) : (
         <Box sx={{ width: 8, flexShrink: 0 }} />
       )}
@@ -80,6 +82,8 @@ export interface LegendEntry {
   key: string;
   label: string;
   color: string;
+  /** opacità del marcatore, per le serie che riusano un colore della palette */
+  opacity?: number;
   hidden?: boolean;
   /** forma del marcatore: quadrato per barre/aree, linea per serie a linea */
   shape?: "square" | "line";
@@ -101,6 +105,7 @@ export function ChartLegend({ entries, onToggle }: { entries: LegendEntry[]; onT
                 borderRadius: entry.shape === "line" ? 2 : "2px",
                 backgroundColor: entry.hidden ? "transparent" : entry.color,
                 border: entry.hidden ? `1.5px solid ${entry.color}` : "none",
+                opacity: entry.opacity ?? 1,
               }}
             />
             <Typography

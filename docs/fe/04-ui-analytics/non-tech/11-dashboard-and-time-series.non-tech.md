@@ -27,7 +27,7 @@ Per i grafici del patrimonio e dei saldi, il punto di ogni periodo è la giacenz
 ## Come sono pensati i grafici
 - Un solo asse in euro per grafico, così le grandezze sono sempre confrontabili.
 - Ogni conto ha sempre lo stesso colore in tutta l'app, anche quando se ne nascondono alcuni.
-- Nei grafici della pagina Analisi le categorie minori vengono raggruppate in "Altre" per non affollare i grafici; in dashboard invece barre e torta mostrano tutte le categorie, e la torta riusa i colori in tonalità più tenue quando sono più di otto.
+- Sia in dashboard sia nella pagina Analisi i grafici per categoria mostrano tutte le categorie, senza raggrupparne nessuna in "Altre"; quando le categorie sono più di otto, torta e barre impilate riusano i colori in tonalità più tenue.
 - I colori sono scelti per restare distinguibili anche da chi ha difficoltà a percepire i colori, e ogni grafico ha legenda e valori al passaggio del mouse.
 
 ## Valore
