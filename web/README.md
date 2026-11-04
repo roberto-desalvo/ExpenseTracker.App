@@ -1,7 +1,7 @@
 # Expense Tracker — frontend (Angular)
 
 SPA Angular 22 (componenti standalone, signals, zoneless) con Angular Material ed ECharts.
-Documentazione completa in [`docs/fe/`](../docs/fe/_index/tech/00-docs-index.tech.md).
+Documentazione in [`docs/03-frontend.md`](../docs/03-frontend.md).
 
 ## Configurazione
 Copiare `.env.example` in `.env.local` e impostare almeno `VITE_EXPENSE_TRACKER_API_BASE_URL`.

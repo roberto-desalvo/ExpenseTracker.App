@@ -36,5 +36,5 @@ dotnet test ./api/RDS.ExpenseTracker.Tests/RDS.ExpenseTracker.Tests.csproj
 - `api/` — soluzione .NET (Domain, Application, Infrastructure, Functions, Tests)
 - `web/` — frontend Angular
 - `app/` — vecchio frontend React (non più pubblicato, da rimuovere)
-- `docs/` — documentazione tecnica e funzionale (`be/`, `fe/`)
+- `docs/` — documentazione (parti da [`docs/README.md`](docs/README.md))
 - `tools/` — script PowerShell e collection Postman

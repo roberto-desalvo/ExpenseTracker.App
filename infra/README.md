@@ -1,8 +1,8 @@
 # Infrastruttura Azure (Bicep)
 
 Infrastructure as Code dell'ambiente ExpenseTracker: risorse Azure **e** app registration Entra ID
-(estensione Microsoft Graph per Bicep). Documentazione completa:
-[`docs/be/04-operations/tech/13-infrastructure-as-code.tech.md`](../docs/be/04-operations/tech/13-infrastructure-as-code.tech.md).
+(estensione Microsoft Graph per Bicep). Documentazione:
+[`docs/05-operazioni.md`](../docs/05-operazioni.md).
 
 Input esterni: solo il nome del **resource group** (creato dal bootstrap se non esiste), il **SQL server** e il
 **database** già esistenti (più il repository GitHub per le credenziali OIDC). Tenant e subscription si ricavano dal login.

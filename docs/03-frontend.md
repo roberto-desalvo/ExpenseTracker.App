@@ -1,0 +1,70 @@
+# 3. Frontend
+
+Il frontend (`web/`) è una SPA Angular 22 in italiano: componenti standalone, signals, change detection zoneless. Mostra la panoramica dei conti, l'elenco dei movimenti, le analisi nel tempo e le impostazioni; tutte le modifiche passano dall'API del backend.
+
+## Organizzazione dell'interfaccia
+
+```mermaid
+flowchart TD
+    app[App] -->|non autenticato| login[Pagina di login<br/>Microsoft / demo / sviluppo]
+    app -->|autenticato| shell[Shell AppLayout<br/>navigazione, tema, Nuovo, utente]
+    shell --> dash["/ Dashboard"]
+    shell --> mov["/movimenti Movimenti"]
+    shell --> ana["/analisi Analisi"]
+    shell --> imp["/impostazioni Impostazioni"]
+    imp --> cat[Categorie]
+    imp --> conti[Conti]
+    imp --> asp[Aspetto]
+    shell -.-> modali[Modali Transazione / Trasferimento]
+```
+
+| Pagina | Contenuto |
+|---|---|
+| **Dashboard** `/` | Patrimonio attuale con andamento a 12 mesi (importi nascondibili); entrate, uscite, risparmio e tasso di risparmio del mese a confronto con la media; ripartizione per conto; "Dove vanno i soldi" per categoria (barre o torta); ultimi movimenti |
+| **Movimenti** `/movimenti` | Tabella paginata e ordinabile con filtri per periodo (mese o intervallo), tipo (entrate/uscite), conti e categorie; modifica ed eliminazione per riga |
+| **Analisi** `/analisi` | Periodo (3–24 mesi, da inizio anno, personalizzato) e granularità (giorno, settimana, mese, anno); flusso di cassa, patrimonio totale e per conto, classifica dei periodi, spese/entrate per categoria. Ogni grafico ha anche la vista tabella |
+| **Impostazioni** `/impostazioni?sezione=` | **Categorie**: CRUD con parole chiave e priorità, sincronizzazione delle categorie su un periodo. **Conti**: card con saldo e netto del mese, creazione e modifica di nome e IBAN. **Aspetto**: stile, tema chiaro/scuro/automatico, navigazione laterale o superiore |
+
+**Shell.** Barra laterale comprimibile (default) o barra superiore, a scelta in Aspetto; sotto i 900px diventa una barra compatta con menu a scomparsa. Il pulsante **Nuovo** apre da qualunque pagina le modali di nuova transazione o nuovo trasferimento, montate una sola volta nella shell.
+
+**Login.** Se l'utente non è autenticato l'app mostra la pagina di login al posto della shell, senza cambiare URL: dopo l'accesso si torna alla pagina richiesta.
+
+## Struttura del codice (`web/src/app/`)
+
+| Cartella | Contenuto |
+|---|---|
+| `core/api/` | `ApiClient`, servizi `*.api.ts` per risorsa, interceptor (auth, errori), notifiche |
+| `core/auth/` | `AuthService`, istanza MSAL, sessioni demo e sviluppo |
+| `core/config/` | Variabili d'ambiente, URL dell'API, route, voci di menu |
+| `core/models/` | Tipi dei payload scambiati con l'API |
+| `core/state/` | Store a signal condivisi |
+| `core/theme/` | `ThemeService`, preset di stile, palette dei grafici |
+| `core/utils/` | Formattazione di importi, date e periodi |
+| `features/` | Pagine: `dashboard`, `transactions`, `analytics`, `settings` |
+| `layout/` | Shell e azioni dell'intestazione |
+| `pages/auth/` | Pagine di login |
+| `shared/ui/`, `shared/charts/` | Componenti riusabili (tabella dati, drawer, modali, ricerca, ...) e grafici ECharts |
+
+Le pagine sono caricate in lazy (`app.routes.ts`); anche ECharts viene scaricato solo alla prima pagina con un grafico.
+
+## Stato e dati
+
+- **Store** (`core/state/`) — servizi `providedIn: "root"` con signal: `AccountsStore` e `CategoriesStore` (anagrafiche caricate una volta dalla shell), `TransactionsStore`, `TransactionsTableStore` (filtri, ordinamento, paginazione della tabella), `QuickActionsService` (modali). Nessuna libreria di state management.
+- **Aggiornamento** — dopo ogni modifica `TransactionsStore` incrementa `dataVersion`; dashboard, analisi e conti lo osservano e ricaricano i propri aggregati.
+- **API** — tutte le chiamate passano da `ApiClient`, che condivide le richieste identiche in volo. L'interceptor di autenticazione aggiunge l'header; quello degli errori estrae il messaggio dai problem details, lo mostra in una snackbar e rilancia l'errore.
+
+## Autenticazione
+
+`AuthService` inizializza MSAL prima del primo render e gestisce tre modalità:
+
+| Modalità | Quando | Header |
+|---|---|---|
+| Entra ID (MSAL redirect) | Default | `Bearer` con scope `api://…/access_as_user` |
+| Demo | Pulsante "Prova la demo" (`VITE_DEMO_LOGIN_ENABLED`) | `Bearer` emesso da `POST /api/auth/demo` |
+| Sviluppo | `npm start`, salvo `VITE_DEV_AUTH_BYPASS=false` | `DevUser <nome>` |
+
+## Temi
+
+Tre preset di stile in `core/theme/stylePresets.ts` (`aurora` di default, `ledger`, `graphite`), ognuno in versione chiara e scura. `ThemeService` scrive i token del preset attivo come variabili CSS su `:root` (`--app-*` per l'app, `--mat-sys-*` per Angular Material); i componenti li usano con `var(--app-…)` e i grafici con `ThemeService.tokens()`. Le preferenze di aspetto sono salvate in `localStorage`.
+
+La palette dei grafici (`chartColors.ts`) ha 8 colori in ordine fisso, verificati per il daltonismo; ogni conto o categoria ha sempre lo stesso colore, mentre entrate e uscite usano i colori semantici del preset.

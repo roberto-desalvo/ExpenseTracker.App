@@ -216,7 +216,7 @@ module functionApp 'modules/functionApp.bicep' = {
 }
 
 output functionAppName string = functionApp.outputs.name
-output functionAppUrl string = 'https://${functionApp.outputs.defaultHostname}/api'
+output functionAppUrl string = 'https://${functionApp.outputs.defaultHostname}'
 output functionAppPrincipalId string = functionApp.outputs.principalId
 output staticWebAppName string = staticWebApp.outputs.name
 output staticWebAppUrl string = 'https://${staticWebApp.outputs.defaultHostname}'

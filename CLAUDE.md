@@ -30,7 +30,7 @@ dotnet ef migrations add <MigrationName> -p api/RDS.ExpenseTracker.Infrastructur
 dotnet ef database update -p api/RDS.ExpenseTracker.Infrastructure -s api/RDS.ExpenseTracker.Functions
 ```
 
-There is no OpenAPI/Scalar UI; the endpoint list is in `docs/be/01-platform/tech/03-api-surface-and-routing.tech.md`.
+There is no OpenAPI/Scalar UI; the endpoint list is in `docs/02-backend.md`.
 
 ### Infrastructure (Bicep, `infra/`)
 
@@ -53,7 +53,7 @@ az deployment sub create -l westeurope --parameters ./infra/bootstrap/bootstrap.
 
 Entra ID app registrations (API + SPA) are created by `infra/modules/entra.bicep` via the Microsoft Graph Bicep extension (`infra/bicepconfig.json`).
 
-CI: `.github/workflows/deploy-infra.yml` (validate → what-if on PRs → deploy on `main`). Details in `infra/README.md` and `docs/be/04-operations/tech/13-infrastructure-as-code.tech.md`.
+CI: `.github/workflows/deploy-infra.yml` (validate → what-if on PRs → deploy on `main`). Details in `infra/README.md` and `docs/05-operazioni.md`.
 
 ### Frontend (from `web/`)
 
@@ -124,14 +124,12 @@ Frontend unit tests are `*.spec.ts` files next to the code in `web/src/app/`, ru
 
 ## Documentation
 
-In-depth, modular documentation lives under `docs/`, mirrored for backend and frontend:
+Concise documentation (in Italian) lives in `docs/`, a single version for all readers. Start at `docs/README.md`:
 
-- `docs/be/` — backend (`RDS.ExpenseTracker.*` projects). Start at `docs/be/_index/tech/00-docs-index.tech.md`.
-- `docs/fe/` — frontend (`web/`). Start at `docs/fe/_index/tech/00-docs-index.tech.md`.
+- `01-architettura.md` — main technical choices, system components (Mermaid diagram)
+- `02-backend.md` — solution layers, request pipeline and auth, endpoint list, import pipeline
+- `03-frontend.md` — UI organization (pages, shell), code structure, state, auth modes, theming
+- `04-dati.md` — data schema (Mermaid ER diagram), constraints, data rules, migrations
+- `05-operazioni.md` — infrastructure, CI/CD workflows, configuration, local run, tests
 
-Each side is split into numbered topic folders (`00-foundation`, `01-platform`, ...), and every numbered module exists in two parallel versions:
-
-- `tech/NN-topic.tech.md` — implementation-level detail (files, classes, endpoints, config keys) for engineers.
-- `non-tech/NN-topic.non-tech.md` — functional, code-free explanation of value and behavior, for non-technical readers.
-
-**Maintenance rule — always follow this after making a code change:** whenever a change affects backend or frontend behavior, structure, endpoints, configuration, or data model (i.e. anything a module in `docs/be/` or `docs/fe/` describes), update the corresponding `.tech.md` module **and** its paired `.non-tech.md` module in the same change. Keep the module ID and logical title identical between the two versions. If a change introduces a new topic that doesn't fit an existing module, add a new numbered module pair (tech + non-tech) in the appropriate folder and register it in both `_index` files (`00-docs-index.tech.md` / `00-docs-index.non-tech.md`). Do not leave the two versions of a module out of sync.
+**Maintenance rule — always follow this after making a code change:** when a change alters a technical choice, a system component, an endpoint, a UI page or its organization, the data schema, or configuration, update the matching section of the relevant `docs/` file in the same change. Keep the docs short: describe choices and structure, not implementation details derivable from the code, and never the history of changes (git has it).

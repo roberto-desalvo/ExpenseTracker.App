@@ -1,0 +1,122 @@
+# 4. Dati
+
+Ogni utente possiede i propri conti e le proprie categorie; i movimenti appartengono a un conto e quindi, indirettamente, a un utente. Un trasferimento tra due conti è rappresentato da due movimenti (uno negativo, uno positivo) collegati da un record `Transfer`. Il database è SQL Server, gestito con EF Core code-first (`ExpenseTrackerContext`, configurazioni in `Infrastructure/EntityConfigurations/`).
+
+## Schema
+
+```mermaid
+erDiagram
+    User ||--o{ Account : possiede
+    User ||--o{ Category : possiede
+    User ||--o{ ImportLog : registra
+    Account ||--o{ Transaction : contiene
+    Category |o--o{ Transaction : classifica
+    Transfer |o--o{ Transaction : "collega (2 leg)"
+    Account |o--o{ ImportLog : riguarda
+
+    User {
+        int Id PK
+        string AzureOid "oid Entra ID, univoco"
+        string AppOid "oid app/managed identity, univoco"
+        string Email
+        bool IsDemo
+    }
+    Account {
+        int Id PK
+        int UserId FK
+        string Name
+        string Iban "univoco per utente"
+    }
+    Category {
+        int Id PK
+        int UserId FK
+        string Name
+        string Description
+        int Priority "vince la piu bassa"
+        bool IsDefault
+        string Tags "parole chiave , o ;"
+        int Kind "categoria di sistema (CategoryEnum)"
+    }
+    Transaction {
+        int Id PK
+        int AccountId FK
+        int CategoryId FK "opzionale"
+        int TransferId FK "opzionale"
+        decimal Amount "decimal(18,2), con segno"
+        string Description
+        datetime Date
+        string ExternalId "chiave di deduplica"
+        datetime CreatedOn
+        datetime UpdatedOn
+    }
+    Transfer {
+        int Id PK
+        string ExternalId
+        datetime CreatedOn
+    }
+    ImportLog {
+        int Id PK
+        int UserId FK
+        int AccountId FK "opzionale"
+        datetime ImportedOn
+        string Source
+        string FileName
+        datetime MinTransactionDate
+        datetime MaxTransactionDate
+        int NewTransactionsCount
+        int NewTransfersCount
+        int SkippedDuplicatesCount
+        string ErrorMessage
+    }
+    OneDriveSyncState {
+        int Id PK "riga unica, Id = 1"
+        string DeltaLink
+        string SubscriptionId
+        datetime SubscriptionExpiresAt
+        datetime LockedUntil
+        datetime LastSyncOn
+    }
+```
+
+| Tabella | Ruolo |
+|---|---|
+| `Users` | Utente interno, creato al primo accesso; `IsDemo` abilita la rigenerazione dei dati demo |
+| `Accounts` | Conto finanziario; l'IBAN serve a riconoscere i trasferimenti negli import |
+| `Categories` | Categorie dell'utente; quelle con `Kind` valorizzato sono le 11 di sistema create con l'utente |
+| `Transactions` | Movimento; importo positivo = entrata, negativo = uscita |
+| `Transfers` | Collega le due metà di un trasferimento |
+| `ImportLogs` | Esito di ogni import di file |
+| `OneDriveSyncStates` | Stato dell'import OneDrive: posizione della delta query, subscription Graph, lock |
+
+## Vincoli principali
+
+| Vincolo | Scopo |
+|---|---|
+| Univoco filtrato `Transactions (AccountId, ExternalId)` | Impedisce di importare due volte lo stesso movimento sullo stesso conto |
+| Univoco filtrato `Accounts (UserId, Iban)` | Un IBAN identifica un solo conto per utente (utenti diversi possono condividerlo) |
+| Univoco filtrato `Categories (UserId, Kind)` | Al più una categoria di sistema per tipo e per utente |
+| Univoci filtrati `Users.AzureOid`, `Users.AppOid` | Un utente per identità |
+| Indice `ImportLogs (UserId, ImportedOn)` | Consultazione cronologica degli import |
+
+| Relazione | Alla cancellazione del padre |
+|---|---|
+| User → Account, User → Category, Account → Transaction | Bloccata (Restrict) |
+| Category → Transaction, Transfer → Transaction | Il movimento resta, il riferimento diventa `NULL` |
+| User → ImportLog | I log vengono eliminati (Cascade) |
+| Account → ImportLog | Il log resta, `AccountId` diventa `NULL` |
+
+## Regole sui dati
+
+- **Saldo calcolato** — nessun saldo è memorizzato: si ottiene sommando i movimenti del conto.
+- **Categorie di sistema** — `CategoryEnum` (Default, MoneyTransfers, WorkIncomes, Housing, HealthAndFitness, FoodAndBeverage, Transportation, Entertainment, Clothes, SavingsAndInvestments, Gifts) definisce le categorie create per ogni utente. I valori non sono id: il codice risolve l'id dell'utente tramite `Category.Kind`.
+- **Giroconti esclusi dai flussi** — nei totali di entrate/uscite un movimento è un trasferimento se ha `TransferId` oppure è nella categoria `MoneyTransfers`. Saldi e patrimonio li includono sempre.
+- **Conti creati dagli import** — se un estratto conto riguarda un conto che l'utente non ha ancora, l'import lo crea.
+
+## Migration
+
+Le migration sono in `Infrastructure/Migrations/`; in produzione le applica la pipeline prima di ogni deploy del backend (vedi [Operazioni](05-operazioni.md)).
+
+```powershell
+dotnet ef migrations add <Nome> -p api/RDS.ExpenseTracker.Infrastructure -s api/RDS.ExpenseTracker.Functions -o Migrations
+dotnet ef database update -p api/RDS.ExpenseTracker.Infrastructure -s api/RDS.ExpenseTracker.Functions
+```
