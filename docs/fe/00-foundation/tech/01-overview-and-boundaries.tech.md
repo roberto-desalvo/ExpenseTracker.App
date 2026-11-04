@@ -29,7 +29,7 @@ Definite in `src/app/app.routes.ts` (componenti caricati in lazy); costanti in `
 - qualunque altro percorso → redirect a `/`
 
 ## Dipendenze esterne
-- Variabili d'ambiente (stessi nomi `VITE_*` del vecchio frontend, così i secret di CI restano invariati), lette da `scripts/write-env.mjs` e validate in `src/app/core/config/env.ts`:
+- Variabili d'ambiente (stessi nomi `VITE_*` del vecchio frontend; in CI `deploy-frontend.yml` li valorizza dagli output del deploy infra), lette da `scripts/write-env.mjs` e validate in `src/app/core/config/env.ts`:
   - `VITE_EXPENSE_TRACKER_API_BASE_URL`
   - `VITE_MSAL_CLIENT_ID`
   - `VITE_MSAL_TENANT_ID`

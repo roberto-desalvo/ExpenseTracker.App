@@ -12,14 +12,12 @@ infra/
 ├── bicepconfig.json               # estensione microsoftGraphV1 (app registration)
 ├── main.bicep                     # ambiente applicativo (scope: resource group) — deployato dalla pipeline
 ├── modules/
-│   ├── entra.bicep                # app registration API (scope, ruolo Files.Sender) + SPA
+│   ├── entra.bicep                # app registration API (scope, ruolo Files.Sender) + SPA + OneDrive import
 │   ├── monitoring.bicep           # Log Analytics + Application Insights
 │   ├── storage.bicep              # storage host Functions + container del pacchetto
 │   ├── functionApp.bicep          # piano Flex Consumption + Function App + ruoli RBAC
 │   ├── keyVault.bicep             # Key Vault (RBAC) + segreto DemoAuth
-│   ├── logicApps.bicep            # Logic App import OneDrive, identità, connessione OneDrive
 │   └── staticWebApp.bicep         # Static Web App del frontend (+ dominio custom opzionale)
-├── logicapps/                     # definizioni dei workflow (JSON del designer con segnaposto __X__)
 ├── parameters/
 │   └── prod.bicepparam            # parametri di produzione (valori da env var)
 ├── bootstrap/                     # una tantum, in locale, da admin (scope: subscription)
@@ -28,6 +26,7 @@ infra/
 │   └── modules/
 ├── scripts/
 │   ├── bootstrap.ps1              # .env + bootstrap Bicep + environment/secret/variabili GitHub
+│   ├── connect-onedrive.ps1       # consenso OneDrive (refresh token in Key Vault) + subscription Graph
 │   ├── grant-function-sql-access.sql
 │   ├── load-env.ps1               # carica infra/.env nella sessione PowerShell
 │   └── load-env.sh                # idem per bash (da usare con source)
@@ -41,7 +40,7 @@ infra/
 |---|---|---|
 | Chi lo esegue | Tu, in locale, una tantum (e quando cambiano i permessi) | La pipeline `deploy-infra.yml` |
 | Privilegi richiesti | Owner sulla subscription + *Privileged Role Administrator* (o Global Admin) in Entra ID | Quelli concessi dal bootstrap |
-| Cosa crea | Resource group dell'app (se manca), identità di deploy GitHub, permesso Graph `Application.ReadWrite.OwnedBy`, RBAC, assegnazioni `Files.Sender` (utenti + identità Logic App) | App registration API/SPA, Function App, storage, Key Vault, Static Web App, Logic App, monitoraggio |
+| Cosa crea | Resource group dell'app (se manca), identità di deploy GitHub, permesso Graph `Application.ReadWrite.OwnedBy`, RBAC, assegnazioni `Files.Sender` (utenti) | App registration API/SPA/OneDrive, Function App, storage, Key Vault, Static Web App, monitoraggio |
 
 La separazione serve perché la pipeline non può creare la propria identità né concedersi permessi:
 le operazioni privilegiate (consenso admin di permessi Graph, assegnazione di app role agli utenti)
@@ -63,23 +62,22 @@ az deployment sub create -l $env:AZURE_LOCATION -n expensetracker-bootstrap `
    delle PR): variabili e secret stanno lì e tutti i job della pipeline lo referenziano.
 3. **Secrets** dell'environment: gli output `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` e
    (opzionale) `DEMO_AUTH_SIGNING_KEY`. **Variables** dell'environment: `AZURE_RESOURCE_GROUP`, `SQL_SERVER_NAME`, `SQL_DATABASE_NAME`,
-   `SQL_SERVER_RESOURCE_GROUP`, `DEMO_AUTH_ENABLED`, `CUSTOM_DOMAIN` (vedi sotto).
+   `SQL_SERVER_RESOURCE_GROUP`, `DEMO_AUTH_ENABLED`, `CUSTOM_DOMAIN`, `ONEDRIVE_IMPORT_ENABLED`,
+   `ONEDRIVE_TARGET_USER_EMAIL` (vedi sotto).
 4. In alternativa ai passi 1-3 a mano: `scripts/bootstrap.ps1` (vedi sotto).
 5. Eseguire la pipeline `Deploy Infrastructure (Bicep)` (o deploy locale, vedi sotto).
 6. Impostare `FILES_SENDER_ASSIGN=true` e `FILES_SENDER_UPNS` in `infra/.env` e rieseguire il bootstrap
-   (passo 1): assegna il ruolo `Files.Sender` della nuova API agli utenti e all'identità delle Logic App.
-7. **Autorizzare la connessione OneDrive** nel portale (connessione API `onedrive` → *Modifica connessione API*
-   → *Autorizza* → *Salva*): il consenso OAuth non è automatizzabile. Finché non è autorizzata la Logic App
-   di import fallisce.
+   (passo 1): assegna il ruolo `Files.Sender` della nuova API agli utenti.
+7. **Import da OneDrive**: con `ONEDRIVE_IMPORT_ENABLED=true` e `ONEDRIVE_TARGET_USER_EMAIL` impostati (e il
+   deploy eseguito), lanciare `./infra/scripts/connect-onedrive.ps1` e accedere con l'account Microsoft del
+   OneDrive (vedi [Import da OneDrive](#import-da-onedrive)). Il consenso non è automatizzabile.
 8. Eseguire [`scripts/grant-function-sql-access.sql`](scripts/grant-function-sql-access.sql) sul database
    come amministratore Entra ID (utente DB della managed identity: T-SQL, non gestibile da Bicep).
-9. Allineare le pipeline applicative con gli output del deploy (riepilogati nel job summary):
-   - `deploy-frontend.yml`: secrets `VITE_MSAL_CLIENT_ID`, `VITE_MSAL_TENANT_ID`, `VITE_MSAL_API_SCOPE`,
-     `VITE_EXPENSE_TRACKER_API_BASE_URL` e il deployment token della Static Web App
-     (`az staticwebapp secrets list -n <swa> --query properties.apiKey`);
-   - `deploy-backend.yml`: variabile `AZURE_FUNCTIONAPP_NAME` e publish profile
-     (`az functionapp deployment list-publishing-profiles`).
-   - script di import in `tools/scripts`: passare `-Audience <output apiIdentifierUri>`.
+9. Le pipeline applicative (`deploy-backend.yml`, `deploy-frontend.yml`) non hanno configurazione propria:
+   usano lo stesso environment `production` (login OIDC + `AZURE_RESOURCE_GROUP`) e leggono dagli output
+   dell'ultimo deploy infra riuscito il nome della Function App, i valori `VITE_*` e la Static Web App (il cui
+   deployment token è letto a runtime con `az staticwebapp secrets list`). Niente publish profile né token da copiare.
+   Per gli script di import in `tools/scripts`: passare `-Audience <output apiIdentifierUri>`.
 
 ### Script di bootstrap
 
@@ -130,12 +128,40 @@ Gli utenti sono identificati dal claim `oid`, che non dipende dall'app registrat
 nuove app i dati esistenti restano associati agli stessi utenti. Le vecchie app registration create a
 mano non vengono toccate e si possono eliminare dopo il passaggio.
 
-## Logic App
+## Import da OneDrive
 
-`modules/logicApps.bicep` ricrea la Logic App di **import** (`logic-<appName>-import-<env>`) con un'identità
-gestita user-assigned (`id-<appName>-logic-<env>`) che chiama l'API con token per l'audience `apiIdentifierUri`:
-nuovi file nella cartella OneDrive `oneDriveFolderId` (`/Transazioni`, sottocartelle BBVA / Sella / Satispay /
-Trade_Republic / Excel) → `/api/import/<banca>-csv/stream` o `-xlsx`.
+L'import dei file salvati nella cartella OneDrive `oneDriveFolderId` (`/Transazioni`, sottocartelle BBVA /
+Sella / Satispay / Trade_Republic / Excel) non è più una Logic App: lo fanno le function `OneDrive_*` della
+Function App. Microsoft Graph notifica ogni modifica della cartella, la function importa i nuovi file e li
+sposta in `<Banca>/Importati` o `<Banca>/Errori`; il timer `OneDrive_SubscriptionRenewal` (parametro
+`oneDriveSubscriptionRenewalSchedule`, default `0 0 4 * * *` UTC) rinnova la subscription Graph.
+
+Il OneDrive è personale (account Microsoft), quindi la Function App usa un token delegato:
+
+```powershell
+. ./infra/scripts/load-env.ps1          # AZURE_RESOURCE_GROUP
+./infra/scripts/connect-onedrive.ps1    # device code: accedere con l'account del OneDrive
+```
+
+Lo script legge gli output dell'ultimo deploy e salva in Key Vault il refresh token (`OneDriveRefreshToken`) e
+il `clientState` delle notifiche (`OneDriveClientState`). Poi riavvia la Function App e crea la subscription.
+Richiede `Key Vault Secrets Officer` sul vault per l'utente che lo esegue. Va rieseguito solo se il token viene
+revocato o resta inutilizzato per 90 giorni. I file già presenti nella cartella al momento dell'attivazione non
+vengono importati.
+
+**Rimozione della vecchia Logic App**: il deploy incrementale non elimina le risorse tolte dal template.
+Dopo il primo deploy di questa versione:
+
+```powershell
+az logic workflow delete -g <resource-group> -n logic-<appName>-import-<env> --yes
+az resource delete -g <resource-group> -n onedrive --resource-type Microsoft.Web/connections
+az identity delete -g <resource-group> -n id-<appName>-logic-<env>
+```
+
+Il bootstrap va rieseguito **prima** del deploy: autorizza la pipeline ad assegnare i nuovi ruoli della
+Function App (`Storage Queue Data Contributor`, `Key Vault Secrets Officer`).
+
+## Reset demo
 
 Il **reset giornaliero dei dati demo** non è più una Logic App: è la timer function `Scheduled_DemoDataReset`
 della Function App (seed dell'utente demo e poi riconciliazione dei trasferimenti, in sequenza). L'orario è
@@ -143,11 +169,6 @@ il parametro `demoResetSchedule` (NCRONTAB in **UTC**, default `0 0 3 * * *`), s
 `DemoResetSchedule`. La vecchia `logic-<appName>-demo-reset-<env>` non viene cancellata dal deploy
 incrementale: dopo il primo deploy eliminarla a mano con
 `az logic workflow delete -g <resource-group> -n logic-<appName>-demo-reset-<env> --yes`.
-
-Le definizioni sono in `logicapps/*.json` (esportate dal designer): URL del backend, audience, identità e
-cartella sono segnaposto `__X__` sostituiti dal template. Per modificare un workflow: modificarlo nel
-designer, esportare `properties.definition`, rimettere i segnaposto e aggiornare il file. Lo storico delle
-esecuzioni va in Log Analytics (diagnostic settings + soluzione *Logic Apps Management*).
 
 ## Dominio custom
 

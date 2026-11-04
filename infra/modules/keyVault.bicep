@@ -36,5 +36,8 @@ resource demoAuthSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!em
 }
 
 output name string = keyVault.name
+output vaultUri string = keyVault.properties.vaultUri
 // Versionless URI: the Function App always resolves the latest version of the secret.
 output demoAuthSecretUri string = '${keyVault.properties.vaultUri}secrets/${demoAuthSecretName}'
+// Written by infra/scripts/connect-onedrive.ps1 (not by the template), together with OneDriveRefreshToken.
+output oneDriveClientStateSecretUri string = '${keyVault.properties.vaultUri}secrets/OneDriveClientState'

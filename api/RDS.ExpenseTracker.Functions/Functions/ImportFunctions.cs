@@ -1,21 +1,20 @@
-using ExcelDataReader;
 using FluentResults;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using RDS.ExpenseTracker.Domain.Dtos.Requests;
-using RDS.ExpenseTracker.Domain.Models.DataImport;
+using RDS.ExpenseTracker.Domain.Enums;
 using RDS.ExpenseTracker.Domain.Services;
 using RDS.ExpenseTracker.Functions.Auth;
-using System.Text;
 
 namespace RDS.ExpenseTracker.Functions.Functions;
 
 /// <summary>
 /// File import endpoints. Every function requires the <c>Files.Sender</c> app role.
 /// Rows already known (by fingerprint / external id) are skipped unless <c>importAll=true</c>.
-/// Every file import (successful or not) is recorded in <c>ImportLogs</c> via <see cref="IImportLogService"/>.
+/// Every file import (successful or not) is recorded in <c>ImportLogs</c> via <see cref="IBankFileImportService"/>,
+/// shared with the automatic OneDrive import (<see cref="OneDriveImportFunctions"/>).
 /// </summary>
 [RequireRole("Files.Sender")]
 public class ImportFunctions : FunctionBase
@@ -23,36 +22,24 @@ public class ImportFunctions : FunctionBase
     private const string XlsxContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
     private readonly IExcelImportService _excelImportService;
-    private readonly IBbvaCsvImportService _bbvaCsvImportService;
-    private readonly ITradeRepublicCsvImportService _tradeRepublicCsvImportService;
-    private readonly ISatisPayCsvImportService _satisPayCsvImportService;
-    private readonly ISellaCsvImportService _sellaCsvImportService;
+    private readonly IBankFileImportService _bankFileImportService;
     private readonly ITestSeedService _testSeedService;
     private readonly ITransferReconciliationService _transferReconciliationService;
-    private readonly IImportLogService _importLogService;
     private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly ILogger<ImportFunctions> _logger;
 
     public ImportFunctions(
         IExcelImportService excelImportService,
-        IBbvaCsvImportService bbvaCsvImportService,
-        ITradeRepublicCsvImportService tradeRepublicCsvImportService,
-        ISatisPayCsvImportService satisPayCsvImportService,
-        ISellaCsvImportService sellaCsvImportService,
+        IBankFileImportService bankFileImportService,
         ITestSeedService testSeedService,
         ITransferReconciliationService transferReconciliationService,
-        IImportLogService importLogService,
         ICurrentUserAccessor currentUserAccessor,
         ILogger<ImportFunctions> logger)
     {
         _excelImportService              = excelImportService              ?? throw new ArgumentNullException(nameof(excelImportService));
-        _bbvaCsvImportService            = bbvaCsvImportService            ?? throw new ArgumentNullException(nameof(bbvaCsvImportService));
-        _tradeRepublicCsvImportService   = tradeRepublicCsvImportService   ?? throw new ArgumentNullException(nameof(tradeRepublicCsvImportService));
-        _satisPayCsvImportService        = satisPayCsvImportService        ?? throw new ArgumentNullException(nameof(satisPayCsvImportService));
-        _sellaCsvImportService           = sellaCsvImportService           ?? throw new ArgumentNullException(nameof(sellaCsvImportService));
+        _bankFileImportService           = bankFileImportService           ?? throw new ArgumentNullException(nameof(bankFileImportService));
         _testSeedService                 = testSeedService                 ?? throw new ArgumentNullException(nameof(testSeedService));
         _transferReconciliationService   = transferReconciliationService   ?? throw new ArgumentNullException(nameof(transferReconciliationService));
-        _importLogService                = importLogService                ?? throw new ArgumentNullException(nameof(importLogService));
         _currentUserAccessor             = currentUserAccessor             ?? throw new ArgumentNullException(nameof(currentUserAccessor));
         _logger                          = logger                          ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -64,27 +51,27 @@ public class ImportFunctions : FunctionBase
     [Function("Import_Excel")]
     public Task<IActionResult> ImportExcel(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/excel")] HttpRequest req)
-        => ImportFormFileAsync(req, "Excel", requireCsv: false, _excelImportService.ImportFromExcelAsync);
+        => ImportFormFileAsync(req, "Excel", BankFileSource.Excel, requireCsv: false);
 
     [Function("Import_BbvaCsv")]
     public Task<IActionResult> ImportBbvaCsv(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/bbva-csv")] HttpRequest req)
-        => ImportFormFileAsync(req, "BBVA CSV", requireCsv: true, _bbvaCsvImportService.ImportFromCsvAsync);
+        => ImportFormFileAsync(req, "BBVA CSV", BankFileSource.Bbva, requireCsv: true);
 
     [Function("Import_TradeRepublicCsv")]
     public Task<IActionResult> ImportTradeRepublicCsv(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/traderepublic-csv")] HttpRequest req)
-        => ImportFormFileAsync(req, "Trade Republic CSV", requireCsv: true, _tradeRepublicCsvImportService.ImportFromCsvAsync);
+        => ImportFormFileAsync(req, "Trade Republic CSV", BankFileSource.TradeRepublic, requireCsv: true);
 
     [Function("Import_SatisPayCsv")]
     public Task<IActionResult> ImportSatisPayCsv(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/satispay-csv")] HttpRequest req)
-        => ImportFormFileAsync(req, "Satispay CSV", requireCsv: true, _satisPayCsvImportService.ImportFromCsvAsync);
+        => ImportFormFileAsync(req, "Satispay CSV", BankFileSource.SatisPay, requireCsv: true);
 
     [Function("Import_SellaCsv")]
     public Task<IActionResult> ImportSellaCsv(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/sella-csv")] HttpRequest req)
-        => ImportFormFileAsync(req, "Sella CSV", requireCsv: true, _sellaCsvImportService.ImportFromCsvAsync);
+        => ImportFormFileAsync(req, "Sella CSV", BankFileSource.Sella, requireCsv: true);
 
     // -------------------------------------------------------------------------
     // Base64 JSON variant
@@ -107,8 +94,9 @@ public class ImportFunctions : FunctionBase
             fileName, request.Base64Content.Length, importAll);
 
         var userId = await _currentUserAccessor.GetUserIdForImportAsync();
-        return await RunTrackedImportAsync("Excel base64", fileName, userId, statistics =>
+        var result = await _bankFileImportService.RunTrackedAsync("Excel base64", fileName, userId, statistics =>
             _excelImportService.ImportFromExcelBase64Async(request.Base64Content, fileName, userId, importAll, statistics));
+        return ToImportResult(result);
     }
 
     // -------------------------------------------------------------------------
@@ -118,27 +106,27 @@ public class ImportFunctions : FunctionBase
     [Function("Import_ExcelStream")]
     public Task<IActionResult> ImportExcelStream(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/excel/stream")] HttpRequest req)
-        => ImportRawBodyAsync(req, "Excel stream", "import.xlsx", requireCsv: false, _excelImportService.ImportFromExcelAsync);
+        => ImportRawBodyAsync(req, "Excel stream", "import.xlsx", BankFileSource.Excel, requireCsv: false);
 
     [Function("Import_BbvaCsvStream")]
     public Task<IActionResult> ImportBbvaCsvStream(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/bbva-csv/stream")] HttpRequest req)
-        => ImportRawBodyAsync(req, "BBVA CSV stream", "bbva.csv", requireCsv: true, _bbvaCsvImportService.ImportFromCsvAsync);
+        => ImportRawBodyAsync(req, "BBVA CSV stream", "bbva.csv", BankFileSource.Bbva, requireCsv: true);
 
     [Function("Import_TradeRepublicCsvStream")]
     public Task<IActionResult> ImportTradeRepublicCsvStream(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/traderepublic-csv/stream")] HttpRequest req)
-        => ImportRawBodyAsync(req, "Trade Republic CSV stream", "traderepublic.csv", requireCsv: true, _tradeRepublicCsvImportService.ImportFromCsvAsync);
+        => ImportRawBodyAsync(req, "Trade Republic CSV stream", "traderepublic.csv", BankFileSource.TradeRepublic, requireCsv: true);
 
     [Function("Import_SatisPayCsvStream")]
     public Task<IActionResult> ImportSatisPayCsvStream(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/satispay-csv/stream")] HttpRequest req)
-        => ImportRawBodyAsync(req, "Satispay CSV stream", "satispay.csv", requireCsv: true, _satisPayCsvImportService.ImportFromCsvAsync);
+        => ImportRawBodyAsync(req, "Satispay CSV stream", "satispay.csv", BankFileSource.SatisPay, requireCsv: true);
 
     [Function("Import_SellaCsvStream")]
     public Task<IActionResult> ImportSellaCsvStream(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/sella-csv/stream")] HttpRequest req)
-        => ImportRawBodyAsync(req, "Sella CSV stream", "sella.csv", requireCsv: true, _sellaCsvImportService.ImportFromCsvAsync);
+        => ImportRawBodyAsync(req, "Sella CSV stream", "sella.csv", BankFileSource.Sella, requireCsv: true);
 
     // -------------------------------------------------------------------------
     // XLSX variants (raw XLSX body converted to CSV before import)
@@ -147,22 +135,22 @@ public class ImportFunctions : FunctionBase
     [Function("Import_BbvaXlsx")]
     public Task<IActionResult> ImportBbvaCsvFromXlsx(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/bbva-xlsx")] HttpRequest req)
-        => ImportXlsxAsCsvAsync(req, "BBVA XLSX", "bbva.xlsx", ',', _bbvaCsvImportService.ImportFromCsvAsync);
+        => ImportXlsxAsCsvAsync(req, "BBVA XLSX", "bbva.xlsx", BankFileSource.Bbva);
 
     [Function("Import_TradeRepublicXlsx")]
     public Task<IActionResult> ImportTradeRepublicCsvFromXlsx(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/traderepublic-xlsx")] HttpRequest req)
-        => ImportXlsxAsCsvAsync(req, "Trade Republic XLSX", "traderepublic.xlsx", ',', _tradeRepublicCsvImportService.ImportFromCsvAsync);
+        => ImportXlsxAsCsvAsync(req, "Trade Republic XLSX", "traderepublic.xlsx", BankFileSource.TradeRepublic);
 
     [Function("Import_SatisPayXlsx")]
     public Task<IActionResult> ImportSatisPayCsvFromXlsx(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/satispay-xlsx")] HttpRequest req)
-        => ImportXlsxAsCsvAsync(req, "Satispay XLSX", "satispay.xlsx", ';', _satisPayCsvImportService.ImportFromCsvAsync);
+        => ImportXlsxAsCsvAsync(req, "Satispay XLSX", "satispay.xlsx", BankFileSource.SatisPay);
 
     [Function("Import_SellaXlsx")]
     public Task<IActionResult> ImportSellaCsvFromXlsx(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "import/sella-xlsx")] HttpRequest req)
-        => ImportXlsxAsCsvAsync(req, "Sella XLSX", "sella.xlsx", ',', _sellaCsvImportService.ImportFromCsvAsync);
+        => ImportXlsxAsCsvAsync(req, "Sella XLSX", "sella.xlsx", BankFileSource.Sella);
 
     // -------------------------------------------------------------------------
     // Riconciliazione trasferimenti (nessun file in input)
@@ -204,12 +192,10 @@ public class ImportFunctions : FunctionBase
     }
 
     // -------------------------------------------------------------------------
-    // Shared pipeline
+    // Shared pipeline (validazione HTTP; import e ImportLogs in IBankFileImportService)
     // -------------------------------------------------------------------------
 
-    private delegate Task<Result<int>> ImportDelegate(Stream stream, string fileName, int userId, bool importAll, ImportStatistics? statistics);
-
-    private async Task<IActionResult> ImportFormFileAsync(HttpRequest req, string label, bool requireCsv, ImportDelegate import)
+    private async Task<IActionResult> ImportFormFileAsync(HttpRequest req, string label, BankFileSource source, bool requireCsv)
     {
         var importAll = GetQueryBool(req, "importAll", false);
 
@@ -233,11 +219,12 @@ public class ImportFunctions : FunctionBase
 
         var userId = await _currentUserAccessor.GetUserIdForImportAsync();
         using var stream = file.OpenReadStream();
-        return await RunTrackedImportAsync(label, file.FileName, userId, statistics =>
-            import(stream, file.FileName, userId, importAll, statistics));
+        var result = await _bankFileImportService.ImportAsync(
+            source, NativeFormat(source), stream, file.FileName, userId, importAll, label);
+        return ToImportResult(result);
     }
 
-    private async Task<IActionResult> ImportRawBodyAsync(HttpRequest req, string label, string defaultFileName, bool requireCsv, ImportDelegate import)
+    private async Task<IActionResult> ImportRawBodyAsync(HttpRequest req, string label, string defaultFileName, BankFileSource source, bool requireCsv)
     {
         var importAll = GetQueryBool(req, "importAll", false);
         var fileName = GetQueryString(req, "fileName", defaultFileName);
@@ -256,11 +243,12 @@ public class ImportFunctions : FunctionBase
 
         var userId = await _currentUserAccessor.GetUserIdForImportAsync();
         using var memoryStream = await ReadBodyToMemoryAsync(req);
-        return await RunTrackedImportAsync(label, fileName, userId, statistics =>
-            import(memoryStream, fileName, userId, importAll, statistics));
+        var result = await _bankFileImportService.ImportAsync(
+            source, NativeFormat(source), memoryStream, fileName, userId, importAll, label);
+        return ToImportResult(result);
     }
 
-    private async Task<IActionResult> ImportXlsxAsCsvAsync(HttpRequest req, string label, string fileName, char delimiter, ImportDelegate import)
+    private async Task<IActionResult> ImportXlsxAsCsvAsync(HttpRequest req, string label, string fileName, BankFileSource source)
     {
         var importAll = GetQueryBool(req, "importAll", false);
 
@@ -281,52 +269,19 @@ public class ImportFunctions : FunctionBase
             label, xlsxStream.Length, importAll);
 
         var userId = await _currentUserAccessor.GetUserIdForImportAsync();
-        return await RunTrackedImportAsync(label, fileName, userId, async statistics =>
-        {
-            // conversione dentro il flusso tracciato: un XLSX illeggibile viene registrato come import fallito
-            using var csvPayload = PrepareCsvPayload(xlsxStream, fileName, delimiter);
-            return await import(csvPayload.Stream, csvPayload.FileName, userId, importAll, statistics);
-        });
+        var result = await _bankFileImportService.ImportAsync(
+            source, BankFileFormat.Xlsx, xlsxStream, fileName, userId, importAll, label);
+        return ToImportResult(result);
     }
 
-    /// <summary>
-    /// Esegue l'import e ne registra l'esito in <c>ImportLogs</c>, anche quando fallisce o solleva un'eccezione
-    /// (che viene poi rilanciata al middleware delle eccezioni).
-    /// </summary>
-    private async Task<IActionResult> RunTrackedImportAsync(
-        string label, string? fileName, int userId, Func<ImportStatistics, Task<Result<int>>> import)
-    {
-        var statistics = new ImportStatistics();
-        Result<int> result;
+    // Excel interno = cartella di lavoro; banche = CSV (le varianti XLSX usano ImportXlsxAsCsvAsync).
+    private static BankFileFormat NativeFormat(BankFileSource source)
+        => source == BankFileSource.Excel ? BankFileFormat.Xlsx : BankFileFormat.Csv;
 
-        try
-        {
-            result = await import(statistics);
-        }
-        catch (Exception ex)
-        {
-            await _importLogService.RecordAsync(label, fileName, userId, statistics, [ex.Message]);
-            throw;
-        }
-
-        await _importLogService.RecordAsync(label, fileName, userId, statistics,
-            result.IsFailed ? result.Errors.Select(e => e.Message) : null);
-
-        return ToImportResult(label, result);
-    }
-
-    private IActionResult ToImportResult(string label, Result<int> result)
-    {
-        if (result.IsFailed)
-        {
-            _logger.LogWarning("{Label} import failed: {Errors}",
-                label, string.Join(", ", result.Errors.Select(e => e.Message)));
-            return new BadRequestObjectResult(new { errors = result.Errors.Select(e => e.Message) });
-        }
-
-        _logger.LogInformation("{Label} import succeeded. ImportedCount={ImportedCount}", label, result.Value);
-        return new OkObjectResult(new { importedCount = result.Value });
-    }
+    private static IActionResult ToImportResult(Result<int> result)
+        => result.IsFailed
+            ? new BadRequestObjectResult(new { errors = result.Errors.Select(e => e.Message) })
+            : new OkObjectResult(new { importedCount = result.Value });
 
     private static async Task<MemoryStream> ReadBodyToMemoryAsync(HttpRequest req)
     {
@@ -336,88 +291,7 @@ public class ImportFunctions : FunctionBase
         return stream;
     }
 
-    private CsvPayload PrepareCsvPayload(Stream sourceStream, string fileName, char delimiter)
-    {
-        var normalizedFileName = string.IsNullOrWhiteSpace(fileName) ? "import.xlsx" : fileName;
-        _logger.LogDebug("Read XLSX source stream for {FileName}: {ByteCount} bytes", normalizedFileName, sourceStream.Length);
-
-        var csvContent = ConvertExcelToCsv(sourceStream, delimiter);
-
-        var lineCount = csvContent.Count(c => c == '\n');
-        _logger.LogDebug("Converted XLSX to CSV for {FileName}: {LineCount} lines, delimiter='{Delimiter}'",
-            normalizedFileName, lineCount, delimiter);
-
-        if (lineCount > 0)
-        {
-            var firstLine = csvContent.Split('\n', 2)[0];
-            _logger.LogDebug("CSV header row for {FileName}: {HeaderLine}", normalizedFileName, firstLine);
-        }
-
-        var csvStream = new MemoryStream(Encoding.UTF8.GetBytes(csvContent));
-        csvStream.Position = 0;
-
-        var csvFileName = Path.ChangeExtension(normalizedFileName, ".csv") ?? "import.csv";
-        _logger.LogInformation("Converted XLSX payload to CSV for import. OriginalFileName={OriginalFileName}, ConvertedFileName={ConvertedFileName}, LineCount={LineCount}",
-            normalizedFileName,
-            csvFileName,
-            lineCount);
-
-        return new CsvPayload(csvStream, csvFileName);
-    }
-
     private static bool IsCsvFileName(string? fileName)
         => !string.IsNullOrWhiteSpace(fileName)
             && Path.GetExtension(fileName).Equals(".csv", StringComparison.OrdinalIgnoreCase);
-
-    private static string ConvertExcelToCsv(Stream excelStream, char delimiter = ',')
-    {
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
-        excelStream.Position = 0;
-        using var reader = ExcelReaderFactory.CreateReader(excelStream);
-        var csvBuilder = new StringBuilder();
-
-        do
-        {
-            while (reader.Read())
-            {
-                for (var columnIndex = 0; columnIndex < reader.FieldCount; columnIndex++)
-                {
-                    if (columnIndex > 0)
-                    {
-                        csvBuilder.Append(delimiter);
-                    }
-
-                    var rawValue = reader.GetValue(columnIndex);
-                    var value = rawValue is DateTime dt
-                        ? dt.ToString("dd/MM/yyyy HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)
-                        : rawValue?.ToString() ?? string.Empty;
-                    csvBuilder.Append(EscapeCsvValue(value, delimiter));
-                }
-
-                csvBuilder.AppendLine();
-            }
-        }
-        while (reader.NextResult());
-
-        return csvBuilder.ToString();
-    }
-
-    private static string EscapeCsvValue(string value, char delimiter)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return string.Empty;
-        }
-
-        var escaped = value.Replace("\"", "\"\"");
-        return escaped.IndexOfAny([delimiter, '"', '\r', '\n']) >= 0
-            ? $"\"{escaped}\""
-            : escaped;
-    }
-
-    private sealed record CsvPayload(Stream Stream, string FileName) : IDisposable
-    {
-        public void Dispose() => Stream.Dispose();
-    }
 }

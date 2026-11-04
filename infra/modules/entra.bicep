@@ -1,6 +1,7 @@
 // Entra ID app registrations (Microsoft Graph Bicep extension):
 //   - API: exposes the delegated scopes and the Files.Sender app role validated by the Functions backend.
 //   - SPA: the Angular frontend (MSAL, auth code + PKCE), pre-authorized on the API (no consent prompt).
+//   - OneDrive import: public client for personal Microsoft accounts (delegated Files.ReadWrite on Graph).
 // The deployment identity needs the Graph application permission Application.ReadWrite.OwnedBy
 // (granted by infra/bootstrap): it becomes owner of the apps it creates.
 extension microsoftGraphV1
@@ -105,6 +106,47 @@ resource apiServicePrincipal 'Microsoft.Graph/servicePrincipals@v1.0' = {
   appId: apiApp.appId
 }
 
+// OneDrive import (functions OneDrive_*): the watched folder is on a personal OneDrive (Microsoft account),
+// where Microsoft Graph does not allow app-only access. The Function App therefore uses a delegated
+// refresh token, obtained once by infra/scripts/connect-onedrive.ps1 (device code flow) and kept in Key Vault.
+// Public client (no secret), personal Microsoft accounts only.
+var oneDriveUniqueName = '${appName}-onedrive-${environmentName}'
+var graphAppId = '00000003-0000-0000-c000-000000000000'
+var graphDelegatedScopeIds = {
+  filesReadWrite: '5c28f0bf-8a70-41f1-8ab2-9032436ddb65'
+  offlineAccess: '7427e0e9-2fba-42fe-b0c0-848c9e6a8182'
+}
+
+resource oneDriveApp 'Microsoft.Graph/applications@v1.0' = {
+  uniqueName: oneDriveUniqueName
+  displayName: 'ExpenseTracker OneDrive import (${environmentName})'
+  signInAudience: 'PersonalMicrosoftAccount'
+  isFallbackPublicClient: true // device code flow + refresh without client secret
+  api: {
+    requestedAccessTokenVersion: 2 // required for personal Microsoft accounts
+  }
+  publicClient: {
+    redirectUris: [
+      '${environment().authentication.loginEndpoint}common/oauth2/nativeclient'
+    ]
+  }
+  requiredResourceAccess: [
+    {
+      resourceAppId: graphAppId
+      resourceAccess: [
+        {
+          id: graphDelegatedScopeIds.filesReadWrite
+          type: 'Scope'
+        }
+        {
+          id: graphDelegatedScopeIds.offlineAccess
+          type: 'Scope'
+        }
+      ]
+    }
+  ]
+}
+
 output apiClientId string = apiApp.appId
 output apiIdentifierUri string = apiIdentifierUri
 output apiScope string = '${apiIdentifierUri}/access_as_user'
@@ -112,3 +154,4 @@ output apiServicePrincipalId string = apiServicePrincipal.id
 output filesSenderRoleId string = filesSenderRoleId
 output spaClientId string = spaApp.appId
 output spaServicePrincipalId string = spaServicePrincipal.id
+output oneDriveClientId string = oneDriveApp.appId

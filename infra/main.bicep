@@ -38,12 +38,18 @@ param staticWebAppName string = ''
 @description('Optional apex custom domain of the Static Web App (e.g. expensetracker.lol). Empty = none.')
 param customDomainName string = ''
 
-// ---- Logic Apps ----
-@description('OneDrive item ID of the folder watched by the import Logic App.')
+// ---- Import automatico da OneDrive (functions OneDrive_*) ----
+@description('OneDrive item ID of the watched folder (/Transazioni, one subfolder per bank).')
 param oneDriveFolderId string
 
-@description('Display path of the watched OneDrive folder (designer metadata only).')
-param oneDriveFolderPath string = '/Transazioni'
+@description('Enable the OneDrive import functions. Requires the one-time consent (infra/scripts/connect-onedrive.ps1).')
+param oneDriveImportEnabled bool = false
+
+@description('Email of the ExpenseTracker user that owns the data imported from OneDrive.')
+param oneDriveTargetUserEmail string = ''
+
+@description('NCRONTAB schedule (UTC) of the timer function that creates/renews the Graph subscription on the OneDrive folder.')
+param oneDriveSubscriptionRenewalSchedule string = '0 0 4 * * *'
 
 // ---- Entra ID (app registrations created by modules/entra.bicep) ----
 @description('Extra SPA redirect URIs besides the Static Web App origin (e.g. local dev server).')
@@ -65,8 +71,8 @@ param sqlServerResourceGroup string = ''
 @description('Extra origins allowed by the Function App CORS, besides the Static Web App hostname.')
 param extraCorsOrigins array = []
 
-@description('Keep SCM basic-auth publishing credentials enabled (required by the publish-profile deploy in deploy-backend.yml).')
-param enableScmBasicAuth bool = true
+@description('Enable SCM basic-auth publishing credentials. Not needed: deploy-backend.yml deploys with the OIDC identity (RBAC).')
+param enableScmBasicAuth bool = false
 
 @description('Maximum number of Flex Consumption instances.')
 @minValue(1)
@@ -101,8 +107,6 @@ var names = {
   storage: empty(storageAccountName) ? take('st${replace(appName, '-', '')}${environmentName}${suffix}', 24) : storageAccountName
   keyVault: empty(keyVaultName) ? take('kv-${appName}-${environmentName}-${suffix}', 24) : keyVaultName
   staticWebApp: empty(staticWebAppName) ? 'swa-${appName}-${environmentName}' : staticWebAppName
-  logicIdentity: 'id-${appName}-logic-${environmentName}'
-  importWorkflow: 'logic-${appName}-import-${environmentName}'
 }
 
 // Origins the SPA is served from: Static Web App default hostname + optional custom domain.
@@ -193,6 +197,13 @@ module functionApp 'modules/functionApp.bicep' = {
     demoAuthSecretUri: keyVault.outputs.demoAuthSecretUri
     demoAuthEnabled: demoAuthEnabled
     demoResetSchedule: demoResetSchedule
+    keyVaultUri: keyVault.outputs.vaultUri
+    oneDriveImportEnabled: oneDriveImportEnabled
+    oneDriveClientId: entra.outputs.oneDriveClientId
+    oneDriveFolderId: oneDriveFolderId
+    oneDriveTargetUserEmail: oneDriveTargetUserEmail
+    oneDriveClientStateSecretUri: keyVault.outputs.oneDriveClientStateSecretUri
+    oneDriveSubscriptionRenewalSchedule: oneDriveSubscriptionRenewalSchedule
     sqlConnectionString: sqlConnectionString
     azureAdTenantId: tenant().tenantId
     azureAdClientId: entra.outputs.apiClientId
@@ -204,22 +215,6 @@ module functionApp 'modules/functionApp.bicep' = {
   }
 }
 
-module logicApps 'modules/logicApps.bicep' = {
-  name: 'logicApps'
-  params: {
-    location: location
-    tags: tags
-    identityName: names.logicIdentity
-    importWorkflowName: names.importWorkflow
-    backendBaseUrl: 'https://${functionApp.outputs.defaultHostname}'
-    apiAudience: entra.outputs.apiIdentifierUri
-    oneDriveFolderId: oneDriveFolderId
-    oneDriveFolderPath: oneDriveFolderPath
-    logAnalyticsId: monitoring.outputs.logAnalyticsId
-    logAnalyticsName: monitoring.outputs.logAnalyticsName
-  }
-}
-
 output functionAppName string = functionApp.outputs.name
 output functionAppUrl string = 'https://${functionApp.outputs.defaultHostname}/api'
 output functionAppPrincipalId string = functionApp.outputs.principalId
@@ -227,14 +222,11 @@ output staticWebAppName string = staticWebApp.outputs.name
 output staticWebAppUrl string = 'https://${staticWebApp.outputs.defaultHostname}'
 output staticWebAppDefaultHostname string = staticWebApp.outputs.defaultHostname
 output customDomainValidationToken string = staticWebApp.outputs.customDomainValidationToken
-output logicAppIdentityName string = logicApps.outputs.identityName
-output logicAppIdentityPrincipalId string = logicApps.outputs.identityPrincipalId
-output oneDriveConnectionName string = logicApps.outputs.oneDriveConnectionName
 output sqlServerFqdn string = sqlServer.properties.fullyQualifiedDomainName
 output sqlDatabaseName string = sqlDatabase.name
 output keyVaultName string = keyVault.outputs.name
 
-// Values for the frontend build (deploy-frontend.yml VITE_* secrets) and the import scripts.
+// Values read by deploy-frontend.yml (VITE_* build values) and the import scripts.
 output tenantId string = tenant().tenantId
 output apiClientId string = entra.outputs.apiClientId
 output apiIdentifierUri string = entra.outputs.apiIdentifierUri
@@ -242,3 +234,5 @@ output apiScope string = entra.outputs.apiScope
 output apiServicePrincipalId string = entra.outputs.apiServicePrincipalId
 output filesSenderRoleId string = entra.outputs.filesSenderRoleId
 output spaClientId string = entra.outputs.spaClientId
+// Used by infra/scripts/connect-onedrive.ps1 (device code consent for the OneDrive import).
+output oneDriveClientId string = entra.outputs.oneDriveClientId

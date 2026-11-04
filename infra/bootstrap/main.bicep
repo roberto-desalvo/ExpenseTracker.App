@@ -3,8 +3,8 @@
 //   - GitHub deployment identity: app registration + service principal + federated credentials (OIDC)
 //   - Microsoft Graph permission Application.ReadWrite.OwnedBy for it (lets infra/main.bicep manage its app registrations)
 //   - Azure RBAC: Contributor + constrained RBAC Administrator on the app resource group, Reader on the SQL resource group
-//   - optional (assignFilesSender): Files.Sender app role of the API to users and to the Logic Apps identity
-//     (both created by infra/main.bicep, so only after the first infra deploy)
+//   - optional (assignFilesSender): Files.Sender app role of the API to users
+//     (the API app is created by infra/main.bicep, so only after the first infra deploy)
 // Requires: Owner (or User Access Administrator + Contributor) on the resource groups and the Entra role
 // Privileged Role Administrator (or Global Administrator) to grant Graph application permissions.
 targetScope = 'subscription'
@@ -32,14 +32,11 @@ param deployAppUniqueName string = 'expensetrk-github-deploy'
 @description('Unique name of the API app registration created by infra/main.bicep (appName-api-environmentName).')
 param apiAppUniqueName string = 'expensetrk-api-prod'
 
-@description('Assign the API app role Files.Sender. Set to true only after the first infra deploy (API app and Logic Apps identity must exist).')
+@description('Assign the API app role Files.Sender. Set to true only after the first infra deploy (the API app must exist).')
 param assignFilesSender bool = false
 
 @description('UPNs of the users to assign the API app role Files.Sender (import endpoints).')
 param filesSenderUserPrincipalNames array = []
-
-@description('Name of the Logic Apps managed identity created by infra/main.bicep (id-<appName>-logic-<environmentName>).')
-param logicAppIdentityName string = 'id-expensetrk-logic-prod'
 
 var graphAppId = '00000003-0000-0000-c000-000000000000'
 
@@ -117,8 +114,6 @@ module filesSender 'modules/filesSenderAssignments.bicep' = if (assignFilesSende
   params: {
     apiAppUniqueName: apiAppUniqueName
     userPrincipalNames: filesSenderUserPrincipalNames
-    resourceGroupName: appRg.name
-    logicAppIdentityName: logicAppIdentityName
   }
 }
 

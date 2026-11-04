@@ -1,5 +1,6 @@
 // Function App on the Flex Consumption plan (Linux, dotnet-isolated .NET 10) with system-assigned identity.
-// The identity is used for AzureWebJobsStorage, the deployment container, Key Vault references and Azure SQL.
+// The identity is used for AzureWebJobsStorage (blobs + the onedrive-sync queue), the deployment container,
+// Key Vault (references + the OneDrive refresh token, rewritten at every rotation) and Azure SQL.
 param location string
 param tags object
 param planName string
@@ -14,6 +15,27 @@ param demoAuthEnabled bool
 
 @description('NCRONTAB schedule (UTC) of Scheduled_DemoDataReset (Linux/Flex ignores WEBSITE_TIME_ZONE).')
 param demoResetSchedule string
+
+@description('Key Vault URI (https://<name>.vault.azure.net/): the OneDrive refresh token is read/written with the SDK.')
+param keyVaultUri string
+
+@description('Enable the OneDrive import functions (OneDrive_Notifications / OneDrive_Sync / OneDrive_SubscriptionRenewal).')
+param oneDriveImportEnabled bool
+
+@description('Client ID of the OneDrive app registration (personal Microsoft accounts, public client).')
+param oneDriveClientId string
+
+@description('OneDrive item ID of the watched folder.')
+param oneDriveFolderId string
+
+@description('Email of the ExpenseTracker user that owns the imported data.')
+param oneDriveTargetUserEmail string
+
+@description('Versionless URI of the OneDriveClientState secret (written by infra/scripts/connect-onedrive.ps1).')
+param oneDriveClientStateSecretUri string
+
+@description('NCRONTAB schedule (UTC) of OneDrive_SubscriptionRenewal.')
+param oneDriveSubscriptionRenewalSchedule string
 param sqlConnectionString string
 param azureAdTenantId string
 param azureAdClientId string
@@ -32,7 +54,9 @@ param instanceMemoryMB int = 2048
 
 var roleIds = {
   storageBlobDataOwner: 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
+  storageQueueDataContributor: '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
   keyVaultSecretsUser: '4633458b-17de-408a-b874-0445c86b69e6'
+  keyVaultSecretsOfficer: 'b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
   monitoringMetricsPublisher: '3913510d-42f4-4e42-8a64-420c390055eb'
 }
 
@@ -110,7 +134,42 @@ var baseAppSettings = [
     name: 'DemoResetSchedule'
     value: demoResetSchedule
   }
+  // Import automatico da OneDrive. NotificationUrl vuoto: la function usa WEBSITE_HOSTNAME.
+  {
+    name: 'OneDriveImport__Enabled'
+    value: string(oneDriveImportEnabled)
+  }
+  {
+    name: 'OneDriveImport__ClientId'
+    value: oneDriveClientId
+  }
+  {
+    name: 'OneDriveImport__FolderId'
+    value: oneDriveFolderId
+  }
+  {
+    name: 'OneDriveImport__TargetUserEmail'
+    value: oneDriveTargetUserEmail
+  }
+  {
+    name: 'OneDriveImport__KeyVaultUri'
+    value: keyVaultUri
+  }
+  {
+    name: 'OneDriveSubscriptionRenewalSchedule'
+    value: oneDriveSubscriptionRenewalSchedule
+  }
 ]
+
+// The secret exists only after connect-onedrive.ps1: the reference is added only when the import is enabled.
+var oneDriveAppSettings = oneDriveImportEnabled
+  ? [
+      {
+        name: 'OneDriveImport__ClientState'
+        value: '@Microsoft.KeyVault(SecretUri=${oneDriveClientStateSecretUri})'
+      }
+    ]
+  : []
 
 var demoAuthAppSettings = demoAuthEnabled
   ? [
@@ -141,7 +200,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
         allowedOrigins: corsAllowedOrigins
         supportCredentials: false
       }
-      appSettings: concat(baseAppSettings, demoAuthAppSettings)
+      appSettings: concat(baseAppSettings, demoAuthAppSettings, oneDriveAppSettings)
     }
     functionAppConfig: {
       deployment: {
@@ -194,11 +253,33 @@ resource storageBlobOwner 'Microsoft.Authorization/roleAssignments@2022-04-01' =
   }
 }
 
+// Queue trigger/output of the OneDrive import (queue onedrive-sync in the host storage).
+resource storageQueueContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: storage
+  name: guid(storage.id, functionApp.id, roleIds.storageQueueDataContributor)
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleIds.storageQueueDataContributor)
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 resource keyVaultSecretsUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   scope: keyVault
   name: guid(keyVault.id, functionApp.id, roleIds.keyVaultSecretsUser)
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleIds.keyVaultSecretsUser)
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// The OneDrive refresh token rotates at every renewal and is written back to Key Vault.
+resource keyVaultSecretsOfficer 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: keyVault
+  name: guid(keyVault.id, functionApp.id, roleIds.keyVaultSecretsOfficer)
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleIds.keyVaultSecretsOfficer)
     principalId: functionApp.identity.principalId
     principalType: 'ServicePrincipal'
   }

@@ -69,6 +69,11 @@ builder.Services.AddScoped<ISellaCsvOptions>(sp =>
 builder.Services.AddScoped<ITransferMatchingOptions>(sp =>
     sp.GetRequiredService<IOptions<TransferMatchingOptions>>().Value);
 
+// Import automatico da OneDrive: singleton perché lo usa anche il token provider (singleton).
+builder.Services.AddSingleton<IOneDriveImportOptions>(sp =>
+    sp.GetRequiredService<IOptions<OneDriveImportOptions>>().Value);
+builder.Services.AddOneDriveServices();
+
 builder.Services.AddSingleton<JwtTokenValidator>();
 builder.Services.AddSingleton<DemoTokenService>();
 builder.Services.AddScoped<RequestPrincipalAccessor>();

@@ -46,6 +46,9 @@ az deployment group what-if -g <resource-group> --parameters ./infra/parameters/
 az deployment sub create -l westeurope --parameters ./infra/bootstrap/bootstrap.bicepparam
 # ...or all in one (load .env + bootstrap + GitHub environment secrets/variables via gh); supports -WhatIf, -SkipBootstrap, -SkipGitHub
 ./infra/scripts/bootstrap.ps1
+
+# One-time OneDrive consent for the automatic import (device code; refresh token -> Key Vault, then creates the Graph subscription)
+./infra/scripts/connect-onedrive.ps1
 ```
 
 Entra ID app registrations (API + SPA) are created by `infra/modules/entra.bicep` via the Microsoft Graph Bicep extension (`infra/bicepconfig.json`).
@@ -92,7 +95,9 @@ SQL Server via EF Core Code-First. Core entities:
 
 ### Import Pipeline
 
-`ImportFunctions` accepts CSV or Excel uploads. Each bank has a dedicated import service (`BbvaCsvImportService`, `SellaCsvImportService`, `SatisPayCsvImportService`, `TradeRepublicCsvImportService`). After parsing, `TransferMatchingService` auto-links transfer pairs using configurable matching rules. PowerShell helper scripts in `scripts/` call these endpoints.
+`ImportFunctions` accepts CSV or Excel uploads; both it and the automatic OneDrive import go through `IBankFileImportService` (routing per bank, XLSX→CSV conversion, `ImportLogs`). Each bank has a dedicated import service (`BbvaCsvImportService`, `SellaCsvImportService`, `SatisPayCsvImportService`, `TradeRepublicCsvImportService`). After parsing, `TransferMatchingService` auto-links transfer pairs using configurable matching rules. PowerShell helper scripts in `tools/scripts/` call these endpoints.
+
+`OneDriveImportFunctions` replace the former Logic App: Microsoft Graph change notifications on the OneDrive folder (`/Transazioni/<Bank>/file`) → queue `onedrive-sync` → `OneDriveImportService` (delta query, import, move to `Importati`/`Errori`); a daily timer renews the Graph subscription. The drive is a personal OneDrive, so Graph is called with a delegated refresh token kept in Key Vault (`OneDriveTokenProvider`).
 
 ### Frontend
 
@@ -102,7 +107,7 @@ Authentication is MSAL (Azure AD) via `@azure/msal-browser` directly: the single
 
 ## Environment Variables
 
-Frontend (`web/.env.local` based on `web/.env.example`; the `VITE_` prefix is kept so CI secrets did not change). `scripts/write-env.mjs` merges the `.env*` files with the process environment (which wins) into the gitignored `src/environments/env.generated.ts`, read by `src/app/core/config/env.ts`:
+Frontend (`web/.env.local` based on `web/.env.example`; the `VITE_` prefix is historical; in CI `deploy-frontend.yml` fills them from the infra deployment outputs). `scripts/write-env.mjs` merges the `.env*` files with the process environment (which wins) into the gitignored `src/environments/env.generated.ts`, read by `src/app/core/config/env.ts`:
 - `VITE_EXPENSE_TRACKER_API_BASE_URL`
 - `VITE_MSAL_CLIENT_ID`
 - `VITE_MSAL_TENANT_ID`

@@ -151,7 +151,7 @@ if (-not $SkipGitHub) {
 
     # Variables read by deploy-infra.yml. CUSTOM_DOMAIN is set only when filled in .env (after moving the domain).
     $variables = 'AZURE_RESOURCE_GROUP', 'SQL_SERVER_NAME', 'SQL_DATABASE_NAME', 'SQL_SERVER_RESOURCE_GROUP',
-                 'DEMO_AUTH_ENABLED', 'CUSTOM_DOMAIN'
+                 'DEMO_AUTH_ENABLED', 'CUSTOM_DOMAIN', 'ONEDRIVE_IMPORT_ENABLED', 'ONEDRIVE_TARGET_USER_EMAIL'
     foreach ($name in $variables) {
         $value = [Environment]::GetEnvironmentVariable($name)
         if ([string]::IsNullOrEmpty($value)) { Write-Host "  variable $name skipped (empty)"; continue }

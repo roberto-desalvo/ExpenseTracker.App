@@ -12,7 +12,8 @@
 #            SQL_SERVER_NAME, SQL_DATABASE_NAME (existing SQL server/database),
 #            SQL_SERVER_RESOURCE_GROUP (optional, default AZURE_RESOURCE_GROUP),
 #            DEMO_AUTH_ENABLED (optional, default false),
-#            CUSTOM_DOMAIN (optional, apex custom domain of the Static Web App, e.g. expensetracker.lol)
+#            CUSTOM_DOMAIN (optional, apex custom domain of the Static Web App, e.g. expensetracker.lol),
+#            ONEDRIVE_IMPORT_ENABLED (optional, default false), ONEDRIVE_TARGET_USER_EMAIL (OneDrive import)
 
 name: Deploy Infrastructure (Bicep)
 
@@ -57,6 +58,8 @@ jobs:
       SQL_SERVER_RESOURCE_GROUP: ${{ vars.SQL_SERVER_RESOURCE_GROUP }}
       DEMO_AUTH_ENABLED: ${{ vars.DEMO_AUTH_ENABLED || 'false' }}
       CUSTOM_DOMAIN: ${{ vars.CUSTOM_DOMAIN }}
+      ONEDRIVE_IMPORT_ENABLED: ${{ vars.ONEDRIVE_IMPORT_ENABLED || 'false' }}
+      ONEDRIVE_TARGET_USER_EMAIL: ${{ vars.ONEDRIVE_TARGET_USER_EMAIL }}
       DEMO_AUTH_SIGNING_KEY: ${{ secrets.DEMO_AUTH_SIGNING_KEY }}
     steps:
       - uses: actions/checkout@v4
@@ -152,13 +155,7 @@ jobs:
             echo '|---|---|'
             jq -r 'to_entries[] | "| \(.key) | \(.value.value) |"' outputs.json
             echo
-            echo "### Frontend secrets (deploy-frontend.yml)"
-            echo '```'
-            jq -r '"VITE_MSAL_CLIENT_ID=\(.spaClientId.value)",
-                   "VITE_MSAL_TENANT_ID=\(.tenantId.value)",
-                   "VITE_MSAL_API_SCOPE=\(.apiScope.value)",
-                   "VITE_EXPENSE_TRACKER_API_BASE_URL=\(.functionAppUrl.value)"' outputs.json
-            echo '```'
+            echo "deploy-backend.yml and deploy-frontend.yml read these outputs directly: nothing to copy."
             if [ -n "$CUSTOM_DOMAIN" ]; then
               echo
               echo "### DNS for $CUSTOM_DOMAIN"

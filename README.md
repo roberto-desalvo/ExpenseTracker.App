@@ -13,9 +13,9 @@ Demo disponibile https://thankful-island-04ae49a03.7.azurestaticapps.net/
 - Gestione movimenti, categorie e conti.
 - Import di estratti conto CSV/Excel di BBVA, Sella, Satispay e Trade Republic, con deduplica dei movimenti.
 - Riconoscimento automatico dei trasferimenti tra conti (anche tramite IBAN).
-- Flusso di import parzialmente automatizzato tramite Logic App integrata con OneDrive.
+- Import automatico degli estratti conto salvati in una cartella OneDrive (notifiche Microsoft Graph → Azure Function).
 - Modalità demo: accesso senza account Microsoft come utente di test, con dati fittizi.
-- Seeding dei dati di test, richiamato una volta al giorno da Logic App per ripristinare i dati demo.
+- Seeding dei dati di test, eseguito ogni giorno da una timer function per ripristinare i dati demo.
 
 ## Demo 
 - https://thankful-island-04ae49a03.7.azurestaticapps.net/

@@ -18,6 +18,9 @@ Tutte le funzionalità richiedono che l'utente sia autenticato. Il caricamento d
 ## Caricamento automatico da un'app collegata
 Il caricamento degli estratti conto può avvenire anche in automatico, tramite un'app che opera per conto di un utente specifico invece che tramite una persona che carica manualmente un file dal browser. In questo caso l'app deve essere collegata in anticipo, una sola volta, all'utente per cui importa i dati; se non è ancora stata collegata, il caricamento automatico viene rifiutato.
 
+## Caricamento automatico da OneDrive
+Per leggere e spostare i file nella cartella OneDrive personale, il backend agisce a nome del proprietario di quel OneDrive. Questo permesso si concede una sola volta, accedendo con il proprio account Microsoft tramite una procedura guidata; da quel momento il backend lo rinnova da solo e lo conserva in una cassaforte digitale, senza password memorizzate nell'applicazione. Se il permesso viene revocato o resta inutilizzato per circa tre mesi, la procedura va ripetuta. I dati importati vengono sempre attribuiti all'utente indicato nella configurazione. Gli avvisi che OneDrive invia al backend sono accompagnati da un codice segreto condiviso: quelli che non lo riportano vengono ignorati.
+
 ## Cosa succede a ogni richiesta
 Ogni richiesta viene verificata, tracciata e, in caso di problema, trasformata in un messaggio d'errore comprensibile invece di un blocco improvviso dell'applicazione. La verifica dell'identità avviene direttamente nel backend a ogni chiamata: anche un accesso negato (identità mancante, scaduta o senza il permesso richiesto) produce un messaggio chiaro.
 

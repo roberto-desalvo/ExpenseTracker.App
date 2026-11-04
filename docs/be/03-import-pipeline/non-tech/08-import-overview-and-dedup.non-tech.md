@@ -3,6 +3,15 @@
 ## Cosa permette di fare
 Caricare l'estratto conto scaricato dalla propria banca (CSV o Excel) e vedere i movimenti aggiunti automaticamente all'applicazione, senza inserimento manuale.
 
+## Import automatico da OneDrive
+Invece di caricare il file a mano, lo si può salvare nella cartella OneDrive dedicata (Transazioni), dentro la sottocartella della banca: BBVA, Sella, Satispay, Trade_Republic oppure Excel per il file riepilogativo. OneDrive avvisa subito il backend, che in pochi secondi scarica il file e lo importa come se fosse stato caricato a mano.
+- Se l'import riesce, il file viene spostato nella sottocartella "Importati" della banca.
+- Se il file non è leggibile o ha un formato non previsto (sono accettati CSV ed Excel), viene spostato in "Errori", così si vede subito cosa non è andato.
+- I file già presenti nella cartella quando l'automatismo viene attivato non vengono importati: conta solo quello che arriva dopo.
+- I movimenti vengono attribuiti all'utente indicato nella configurazione, il proprietario del OneDrive.
+
+Prima l'automatismo controllava la cartella una sola volta al giorno e lasciava i file al loro posto; nel registro degli import ora compare anche il nome reale del file.
+
 ## Come evita i duplicati
 Ogni movimento importato viene "marcato" in modo univoco. Se lo stesso file (o parte di esso) viene caricato più volte, i movimenti già presenti non vengono duplicati. Il controllo riguarda solo i movimenti di chi sta importando: se un'altra persona ha già importato lo stesso movimento (es. da un conto cointestato), viene comunque aggiunto anche per te.
 

@@ -10,7 +10,6 @@ param githubEnvironment = 'production'
 
 // Must match appName/environmentName of infra/parameters/prod.bicepparam.
 param apiAppUniqueName = 'expensetrk-api-prod'
-param logicAppIdentityName = 'id-expensetrk-logic-prod'
 
 // Files.Sender assignments: FILES_SENDER_ASSIGN=true only after the first infra deploy.
 param assignFilesSender = bool(readEnvironmentVariable('FILES_SENDER_ASSIGN', 'false'))

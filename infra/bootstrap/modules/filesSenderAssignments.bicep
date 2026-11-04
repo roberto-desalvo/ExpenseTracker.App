@@ -1,5 +1,5 @@
-// Assigns the API app role Files.Sender (required by the import endpoints) to users (by UPN) and to the
-// managed identity of the Logic Apps (created by infra/main.bicep).
+// Assigns the API app role Files.Sender (required by the import endpoints) to users (by UPN).
+// The automatic OneDrive import runs inside the Function App and does not call the import endpoints.
 // Kept out of the pipeline: assigning app roles requires AppRoleAssignment.ReadWrite.All, too powerful for CI.
 targetScope = 'subscription'
 
@@ -7,8 +7,6 @@ extension microsoftGraphV1
 
 param apiAppUniqueName string
 param userPrincipalNames array
-param resourceGroupName string
-param logicAppIdentityName string
 
 resource apiApp 'Microsoft.Graph/applications@v1.0' existing = {
   uniqueName: apiAppUniqueName
@@ -33,14 +31,3 @@ resource userAssignments 'Microsoft.Graph/appRoleAssignedTo@v1.0' = [
     resourceId: apiSp.id
   }
 ]
-
-resource logicAppIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
-  scope: resourceGroup(resourceGroupName)
-  name: logicAppIdentityName
-}
-
-resource logicAppAssignment 'Microsoft.Graph/appRoleAssignedTo@v1.0' = {
-  appRoleId: filesSenderRoleId
-  principalId: logicAppIdentity.properties.principalId
-  resourceId: apiSp.id
-}

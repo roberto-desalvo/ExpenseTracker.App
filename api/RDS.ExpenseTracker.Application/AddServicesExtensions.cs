@@ -31,6 +31,8 @@ public static class AddServicesExtensions
         services.AddScoped<IImportLogService, ImportLogService>();
         services.AddScoped<IDemoDataService, DemoDataService>();
         services.AddScoped<ITestSeedService, TestSeedService>();
+        services.AddScoped<IBankFileImportService, BankFileImportService>();
+        services.AddScoped<IOneDriveImportService, OneDriveImportService>();
 
         return services;
     }

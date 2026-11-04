@@ -30,6 +30,9 @@ Nei conteggi di entrate e uscite (dashboard, analisi, totali dell'elenco movimen
 ## Il registro degli import
 Ogni caricamento di un estratto conto viene annotato in un registro dedicato (dettagli in [08-import-overview-and-dedup](../../03-import-pipeline/non-tech/08-import-overview-and-dedup.non-tech.md)). Le voci del registro appartengono all'utente che ha caricato il file. Se un conto viene eliminato le sue voci restano, ma senza il riferimento al conto.
 
+## Lo stato dell'import da OneDrive
+Il database conserva anche una sola scheda di servizio per l'import automatico da OneDrive. Registra fin dove la cartella è già stata controllata, l'abbonamento agli avvisi di OneDrive e la sua scadenza, e un "segnaposto" che impedisce a due controlli di lavorare nello stesso momento. Se un controllo si interrompe all'improvviso, il segnaposto scade da solo dopo pochi minuti.
+
 ## Come si evita di perdere o duplicare informazioni
 Ogni movimento importato porta con sé un'impronta univoca: se lo stesso utente importa due volte lo stesso movimento, il sistema lo riconosce e lo scarta automaticamente. Il controllo vale per singolo utente: due persone diverse possono importare lo stesso movimento (es. un conto cointestato) senza che il secondo venga scartato.
 

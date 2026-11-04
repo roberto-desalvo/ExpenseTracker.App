@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Repositories;
+using RDS.ExpenseTracker.Domain.Services;
+using RDS.ExpenseTracker.Infrastructure.OneDrive;
 using RDS.ExpenseTracker.Infrastructure.Repositories;
 using System.Reflection;
 
@@ -35,6 +37,23 @@ public static class AddServicesExtensions
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ITransferReconciliationRepository, TransferReconciliationRepository>();
         services.AddScoped<IImportLogRepository, ImportLogRepository>();
+        services.AddScoped<IOneDriveSyncStateRepository, OneDriveSyncStateRepository>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Client Microsoft Graph per l'import da OneDrive. Richiede <see cref="IOneDriveImportOptions"/> registrato.
+    /// </summary>
+    public static IServiceCollection AddOneDriveServices(this IServiceCollection services)
+    {
+        services.AddHttpClient(OneDriveTokenProvider.HttpClientName);
+        services.AddSingleton<IOneDriveTokenProvider, OneDriveTokenProvider>();
+        services.AddHttpClient<IOneDriveClient, GraphOneDriveClient>(client =>
+        {
+            client.BaseAddress = new Uri(GraphOneDriveClient.GraphBaseUrl);
+            client.Timeout = TimeSpan.FromMinutes(2);
+        });
 
         return services;
     }

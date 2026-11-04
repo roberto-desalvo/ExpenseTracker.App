@@ -8,7 +8,7 @@
 - `categories`: `base`, `query`, `sync`, `byId(id)`
 - `transfers`: `base`
 
-`VITE_EXPENSE_TRACKER_API_BASE_URL` deve essere un URL assoluto (`https://...`): `normalizeBaseUrl` rimuove gli slash finali e lancia un errore all'avvio se manca `http(s)://`; il workflow `deploy-frontend.yml` blocca il deploy se il secret non inizia con `https://`.
+`VITE_EXPENSE_TRACKER_API_BASE_URL` deve essere un URL assoluto (`https://...`): `normalizeBaseUrl` rimuove gli slash finali e lancia un errore all'avvio se manca `http(s)://`; in CI il valore è l'output `functionAppUrl` del deploy infra (sempre `https://`), letto da `deploy-frontend.yml`.
 
 ## Client condiviso
 `src/app/core/api/api-client.ts` (`ApiClient`, su `HttpClient`):

@@ -147,6 +147,39 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                     b.ToTable("ImportLogs");
                 });
 
+            modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.OneDriveSyncState", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DeltaLink")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<DateTime?>("LastSyncOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LockedUntil")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("SubscriptionExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SubscriptionId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("OneDriveSyncStates");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1
+                        });
+                });
+
             modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.Transaction", b =>
                 {
                     b.Property<int>("Id")
