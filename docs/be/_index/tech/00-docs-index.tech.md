@@ -5,7 +5,7 @@ Indice tecnico della documentazione modulare BE.
 
 ## Come usare questi documenti
 1. Parti da `01-overview-and-boundaries`.
-2. Segui l'ordine numerico fino a `12-cicd-and-configuration`.
+2. Segui l'ordine numerico fino a `13-infrastructure-as-code`.
 3. Per ogni modulo tecnico esiste la versione non tecnica con lo stesso ID.
 
 ## Mappa moduli (tech -> non-tech)
@@ -21,6 +21,7 @@ Indice tecnico della documentazione modulare BE.
 - 10 Transfer matching
 - 11 Testing
 - 12 CI/CD and configuration
+- 13 Infrastructure as Code
 
 ## Sorgenti principali
 - `api/RDS.ExpenseTracker.Domain/*`
@@ -29,6 +30,8 @@ Indice tecnico della documentazione modulare BE.
 - `api/RDS.ExpenseTracker.Functions/*`
 - `api/RDS.ExpenseTracker.Tests/*`
 - `.github/workflows/deploy-backend.yml`
+- `.github/workflows/deploy-infra.yml`
+- `infra/*`
 
 ## Regole di manutenzione
 - Quando cambia una feature BE, aggiornare sia il file `.tech.md` sia il file `.non-tech.md` corrispondente.

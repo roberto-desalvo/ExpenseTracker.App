@@ -1,0 +1,4 @@
+# Local environment variables for infrastructure deploys (may contain secrets)
+.env
+.env.*
+!.env.example

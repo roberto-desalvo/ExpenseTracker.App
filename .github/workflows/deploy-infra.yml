@@ -1,0 +1,163 @@
+# Deploys the Azure infrastructure described in infra/ (Bicep) to a resource group.
+#
+#   pull_request -> validate + what-if (preview of the changes, shown in the job summary)
+#   push to main / workflow_dispatch -> validate + what-if + deploy (GitHub environment "production")
+#
+# Required repository configuration (see infra/README.md):
+#   secrets: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID (OIDC login of the deployment identity)
+#            DEMO_AUTH_SIGNING_KEY (optional, written to Key Vault when set)
+#   vars:    AZURE_RESOURCE_GROUP, AZURE_LOCATION (default westeurope),
+#            AZURE_AD_TENANT_ID, AZURE_AD_CLIENT_ID, AZURE_AD_AUDIENCE (optional),
+#            SQL_SERVER_NAME, SQL_DATABASE_NAME (existing SQL server/database),
+#            SQL_SERVER_RESOURCE_GROUP (optional, default AZURE_RESOURCE_GROUP),
+#            DEMO_AUTH_ENABLED (optional, default false)
+
+name: Deploy Infrastructure (Bicep)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/**'
+      - '.github/workflows/deploy-infra.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'infra/**'
+      - '.github/workflows/deploy-infra.yml'
+  workflow_dispatch:
+
+concurrency:
+  # Never run two deployments against the same resource group at the same time.
+  group: deploy-infra-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'main' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  TEMPLATE_FILE: infra/main.bicep
+  PARAMETERS_FILE: infra/parameters/prod.bicepparam
+  AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+  AZURE_LOCATION: ${{ vars.AZURE_LOCATION || 'westeurope' }}
+  # Read by infra/parameters/prod.bicepparam through readEnvironmentVariable().
+  AZURE_AD_TENANT_ID: ${{ vars.AZURE_AD_TENANT_ID }}
+  AZURE_AD_CLIENT_ID: ${{ vars.AZURE_AD_CLIENT_ID }}
+  AZURE_AD_AUDIENCE: ${{ vars.AZURE_AD_AUDIENCE }}
+  SQL_SERVER_NAME: ${{ vars.SQL_SERVER_NAME }}
+  SQL_DATABASE_NAME: ${{ vars.SQL_DATABASE_NAME }}
+  SQL_SERVER_RESOURCE_GROUP: ${{ vars.SQL_SERVER_RESOURCE_GROUP }}
+  DEMO_AUTH_ENABLED: ${{ vars.DEMO_AUTH_ENABLED || 'false' }}
+
+jobs:
+  validate:
+    name: Validate (bicep build + lint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required configuration
+        shell: bash
+        run: |
+          missing=0
+          for v in AZURE_RESOURCE_GROUP AZURE_AD_TENANT_ID AZURE_AD_CLIENT_ID SQL_SERVER_NAME SQL_DATABASE_NAME; do
+            if [ -z "${!v}" ]; then echo "::error::Missing repository variable: $v"; missing=1; fi
+          done
+          exit $missing
+
+      - name: Install Bicep CLI
+        run: az bicep install
+
+      - name: Build and lint template
+        run: |
+          az bicep build --file "$TEMPLATE_FILE" --stdout > /dev/null
+          az bicep lint --file "$TEMPLATE_FILE"
+
+      - name: Build parameters
+        run: az bicep build-params --file "$PARAMETERS_FILE" --stdout > /dev/null
+
+  what-if:
+    name: What-if
+    runs-on: ubuntu-latest
+    needs: validate
+    timeout-minutes: 15
+    permissions:
+      id-token: write # OIDC login
+      contents: read
+    env:
+      DEMO_AUTH_SIGNING_KEY: ${{ secrets.DEMO_AUTH_SIGNING_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run what-if
+        shell: bash
+        run: |
+          if [ "$(az group exists --name "$AZURE_RESOURCE_GROUP")" != "true" ]; then
+            echo "Resource group '$AZURE_RESOURCE_GROUP' does not exist yet: it will be created by the deploy job, every resource will be new." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          az deployment group what-if \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "infra-whatif-${GITHUB_RUN_NUMBER}" \
+            --parameters "$PARAMETERS_FILE" | tee whatif.txt
+          {
+            echo "## What-if ($AZURE_RESOURCE_GROUP)"
+            echo '```'
+            sed 's/\x1b\[[0-9;]*m//g' whatif.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    needs: what-if
+    timeout-minutes: 45
+    environment: production
+    permissions:
+      id-token: write # OIDC login
+      contents: read
+    env:
+      DEMO_AUTH_SIGNING_KEY: ${{ secrets.DEMO_AUTH_SIGNING_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ensure resource group
+        shell: bash
+        run: |
+          if [ "$(az group exists --name "$AZURE_RESOURCE_GROUP")" != "true" ]; then
+            az group create --name "$AZURE_RESOURCE_GROUP" --location "$AZURE_LOCATION" \
+              --tags application=ExpenseTracker managedBy=bicep --output none
+          fi
+
+      - name: Deploy Bicep
+        id: deploy
+        shell: bash
+        run: |
+          az deployment group create \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "infra-${GITHUB_RUN_NUMBER}" \
+            --parameters "$PARAMETERS_FILE" \
+            --query properties.outputs --output json > outputs.json
+          {
+            echo "## Deployment outputs"
+            echo '| Output | Value |'
+            echo '|---|---|'
+            jq -r 'to_entries[] | "| \(.key) | \(.value.value) |"' outputs.json
+          } >> "$GITHUB_STEP_SUMMARY"

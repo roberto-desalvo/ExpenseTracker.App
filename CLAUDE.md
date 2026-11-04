@@ -32,6 +32,19 @@ dotnet ef database update -p api/RDS.ExpenseTracker.Infrastructure -s api/RDS.Ex
 
 There is no OpenAPI/Scalar UI; the endpoint list is in `docs/be/01-platform/tech/03-api-surface-and-routing.tech.md`.
 
+### Infrastructure (Bicep, `infra/`)
+
+```powershell
+# Build/lint the templates
+az bicep build --file ./infra/main.bicep; az bicep lint --file ./infra/main.bicep
+
+# Preview / deploy: prod.bicepparam reads env vars from infra/.env (gitignored, template infra/.env.example), loaded by the script below
+. ./infra/scripts/load-env.ps1
+az deployment group what-if -g <resource-group> --parameters ./infra/parameters/prod.bicepparam
+```
+
+CI: `.github/workflows/deploy-infra.yml` (validate → what-if on PRs → deploy on `main`). Details in `infra/README.md` and `docs/be/04-operations/tech/13-infrastructure-as-code.tech.md`.
+
 ### Frontend (from `web/`)
 
 ```bash

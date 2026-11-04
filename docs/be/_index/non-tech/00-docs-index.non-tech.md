@@ -21,6 +21,7 @@ Questa raccolta spiega il backend in modo funzionale e orientato al valore, senz
 - 10 Riconoscimento dei trasferimenti
 - 11 Collaudo e qualità
 - 12 Pubblicazione e configurazione
+- 13 Infrastructure as Code
 
 ## Nota operativa
 Ogni cambiamento funzionale deve aggiornare sia la versione tecnica sia quella non tecnica.

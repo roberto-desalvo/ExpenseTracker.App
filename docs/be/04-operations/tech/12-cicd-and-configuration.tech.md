@@ -26,6 +26,8 @@ Il deploy con publish profile richiede che sulla Function App siano abilitate le
 **Nota**: il workflow non esegue `dotnet test` — il deploy avviene senza gate di test automatico.
 
 ## Hosting
+Le risorse Azure (Function App, storage, Key Vault, Static Web App, monitoraggio; SQL server e database esistenti sono solo referenziati) sono definite in Bicep in `infra/` e deployate da `deploy-infra.yml`: vedi [13-infrastructure-as-code](13-infrastructure-as-code.tech.md). Le app settings elencate sotto sono impostate dal template.
+
 Function App Linux o Windows, runtime `dotnet-isolated`, Functions v4, .NET 10. Il progetto è `api/RDS.ExpenseTracker.Functions` (`OutputType=Exe`, `Microsoft.Azure.Functions.Worker.Sdk`).
 
 ## Configurazione
