@@ -52,6 +52,8 @@ jobs:
       - name: Build migrations bundle
         run: |
           dotnet tool install --global dotnet-ef --version "$EF_TOOL_VERSION"
+          # dotnet ef reads the project metadata (obj/project.assets.json) before building: restore first.
+          dotnet restore ./api/RDS.ExpenseTracker.sln
           dotnet ef migrations bundle \
             --project "$INFRASTRUCTURE_PROJECT" \
             --startup-project "$STARTUP_PROJECT" \
