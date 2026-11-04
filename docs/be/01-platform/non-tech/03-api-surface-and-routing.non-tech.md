@@ -9,14 +9,14 @@
 - Indicare l'IBAN di ciascun conto, così che i bonifici tra i propri conti vengano riconosciuti come trasferimenti.
 - Ricollegare i trasferimenti tra conti nei movimenti già importati, per tutti gli utenti in una sola richiesta (ognuno sempre e solo tra i propri conti), con la possibilità di vedere prima cosa verrebbe collegato. Come il caricamento degli estratti conto richiede il permesso dedicato all'import.
 - Per l'account dimostrativo: rigenerare con un solo clic un set completo di dati d'esempio realistici (conti, movimenti, trasferimenti), cancellando quelli precedenti.
-- Per l'utente di test (`test@dev.local`): riportarne i dati a uno stato pulito con una sola richiesta, che cancella tutto e ricrea cinque conti con circa cinque anni di movimenti fittizi ma credibili. È pensata per essere lanciata periodicamente da un servizio automatico.
+- Per l'utente di test (`test@dev.local`): riportarne i dati a uno stato pulito con una sola richiesta, che cancella tutto e ricrea cinque conti con circa cinque anni di movimenti fittizi ma credibili. Il backend la esegue da solo ogni notte a un orario fisso, subito seguita dal ricollegamento dei trasferimenti; la richiesta manuale resta disponibile per i casi in cui serve subito.
 - Avviare una demo senza account: si entra come utente di test e si esplora l'app con i suoi dati fittizi.
 
 ## Chi può farlo
 L'avvio della demo è l'unica operazione disponibile senza accesso, e si può spegnere dalla configurazione. Per tutto il resto servono utenti autenticati, e ciascuno vede e modifica soltanto i propri conti, categorie, movimenti e trasferimenti. L'importazione dei file, così come la rigenerazione dei dati dell'utente di test, richiede inoltre un permesso specifico dedicato, non assegnato a tutti gli utenti. La rigenerazione dei dati demo è riservata al solo account contrassegnato come dimostrativo: chiunque altro provi a richiederla riceve un rifiuto. Oltre ai movimenti, riporta anche le categorie del demo all'elenco di partenza.
 
 ## Dove girano queste funzionalità
-Ogni operazione è una piccola "funzione" ospitata su un servizio cloud serverless: si attiva quando arriva una richiesta e scala automaticamente con il carico, senza un server sempre acceso. Gli indirizzi usati dal frontend e dagli script di importazione sono rimasti gli stessi.
+Ogni operazione è una piccola "funzione" ospitata su un servizio cloud serverless: si attiva quando arriva una richiesta (o, per le attività programmate come il ripristino notturno della demo, a un orario prestabilito) e scala automaticamente con il carico, senza un server sempre acceso. Gli indirizzi usati dal frontend e dagli script di importazione sono rimasti gli stessi.
 
 ## Provare le operazioni a mano
 Per chi sviluppa o verifica il sistema c'è una raccolta pronta da importare in Postman (uno strumento per inviare richieste a un servizio web) con tutte le operazioni disponibili e dati di esempio, insieme a una configurazione già pronta per il servizio avviato in locale. Basta indicare l'indirizzo del servizio e un accesso valido per provarle una per una.

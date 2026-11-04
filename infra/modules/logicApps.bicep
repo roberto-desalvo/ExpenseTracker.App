@@ -1,14 +1,13 @@
-// Logic Apps that call the backend with a user-assigned managed identity (app role Files.Sender on the API,
+// Logic App that calls the backend with a user-assigned managed identity (app role Files.Sender on the API,
 // assigned by infra/bootstrap):
 //   - import: new files in a OneDrive folder -> /api/import/<bank>-csv/stream or -xlsx
-//   - demo reset: daily /api/import/test-seed + /api/import/transfers/reconcile
+// The daily demo data reset is the Scheduled_DemoDataReset timer function in the Function App.
 // Workflow definitions live in infra/logicapps/*.json (exported from the designer) with __PLACEHOLDER__ tokens.
 // The OneDrive API connection must be authorized once in the portal (OAuth consent cannot be automated).
 param location string
 param tags object
 param identityName string
 param importWorkflowName string
-param demoResetWorkflowName string
 param oneDriveConnectionName string = 'onedrive'
 
 @description('Backend base URL, without /api (e.g. https://<function-app>.azurewebsites.net).')
@@ -58,7 +57,6 @@ func render(template string, backendBaseUrl string, apiAudience string, identity
     '__ONEDRIVE_FOLDER_PATH__', folderPath))
 
 var importTemplate = loadTextContent('../logicapps/import-expenses-files.json')
-var demoResetTemplate = loadTextContent('../logicapps/trigger-demo-data-reset.json')
 
 var userAssignedIdentity = {
   type: 'UserAssigned'
@@ -89,40 +87,10 @@ resource importWorkflow 'Microsoft.Logic/workflows@2019-05-01' = {
   }
 }
 
-resource demoResetWorkflow 'Microsoft.Logic/workflows@2019-05-01' = {
-  name: demoResetWorkflowName
-  location: location
-  tags: tags
-  identity: userAssignedIdentity
-  properties: {
-    state: 'Enabled'
-    definition: render(demoResetTemplate, backendBaseUrl, apiAudience, identity.id, oneDriveFolderId, oneDriveFolderPath)
-    parameters: {
-      '$connections': {
-        value: {}
-      }
-    }
-  }
-}
-
 // Run history to Log Analytics, shown by the Logic Apps Management solution.
 resource importDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   name: 'to-log-analytics'
   scope: importWorkflow
-  properties: {
-    workspaceId: logAnalyticsId
-    logs: [
-      {
-        categoryGroup: 'allLogs'
-        enabled: true
-      }
-    ]
-  }
-}
-
-resource demoResetDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
-  name: 'to-log-analytics'
-  scope: demoResetWorkflow
   properties: {
     workspaceId: logAnalyticsId
     logs: [
@@ -153,4 +121,3 @@ output identityName string = identity.name
 output identityPrincipalId string = identity.properties.principalId
 output oneDriveConnectionName string = oneDriveConnection.name
 output importWorkflowName string = importWorkflow.name
-output demoResetWorkflowName string = demoResetWorkflow.name

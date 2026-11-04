@@ -24,7 +24,7 @@ Ogni caricamento di un file lascia una traccia in un registro, sia quando va a b
 Così si può ricostruire quali periodi di ciascun conto sono già stati caricati e capire subito perché un caricamento non è andato a buon fine. Se il registro non riesce a salvare la traccia, il caricamento non viene comunque bloccato. Per ora il registro si consulta direttamente nel database: non c'è ancora una pagina dedicata nell'applicazione.
 
 ## Dati di test
-Accanto agli import dei file c'è un'operazione speciale, riservata a chi ha lo stesso permesso di importazione, che non carica alcun file: cancella e ricrea i dati fittizi dell'utente di test (comprese le sue categorie, che tornano all'elenco di partenza), così un servizio automatico può riportarli periodicamente a uno stato pulito. Non tocca i dati di nessun altro utente.
+Accanto agli import dei file c'è un'operazione speciale, riservata a chi ha lo stesso permesso di importazione, che non carica alcun file: cancella e ricrea i dati fittizi dell'utente di test (comprese le sue categorie, che tornano all'elenco di partenza), per riportarli a uno stato pulito quando serve. La stessa pulizia avviene comunque in automatico ogni notte, svolta dal backend stesso. Non tocca i dati di nessun altro utente.
 
 ## Valore
 Import ripetuti e sicuri: si può ricaricare lo stesso estratto conto senza timore di sporcare i dati, e i movimenti di ciascuna persona restano sempre separati da quelli di chiunque altro usi l'applicazione. Il registro degli import rende ogni caricamento verificabile anche a distanza di tempo.

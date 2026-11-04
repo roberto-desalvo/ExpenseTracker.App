@@ -9,7 +9,9 @@ Il database fa eccezione: è un servizio già esistente, che la procedura non cr
 La procedura crea due registrazioni nel sistema di identità Microsoft: una per il backend, che dichiara quali permessi esistono (ad esempio quello speciale per importare i file delle banche), e una per il sito, autorizzata in anticipo a usare il backend, così all'utente non viene chiesto alcun consenso aggiuntivo. Gli utenti sono riconosciuti tramite il loro account, non tramite la registrazione: rifare le registrazioni non fa perdere a nessuno i propri dati.
 
 ## Automatismi
-Fanno parte dell'ambiente anche due automatismi giornalieri: uno controlla una cartella OneDrive e, quando vi trova nuovi estratti conto, li invia al backend per l'importazione (la sottocartella indica la banca); l'altro rigenera ogni giorno i dati della demo pubblica. Entrambi accedono al backend con un'identità propria, senza password. Il collegamento a OneDrive va però autorizzato una volta a mano, accedendo con il proprio account Microsoft: non si può fare in automatico.
+Fa parte dell'ambiente anche un automatismo giornaliero che controlla una cartella OneDrive e, quando vi trova nuovi estratti conto, li invia al backend per l'importazione (la sottocartella indica la banca). Accede al backend con un'identità propria, senza password. Il collegamento a OneDrive va però autorizzato una volta a mano, accedendo con il proprio account Microsoft: non si può fare in automatico.
+
+La rigenerazione giornaliera dei dati della demo pubblica invece non è più un servizio separato: la svolge il backend stesso a un orario fisso (di default le 3 di notte, ora UTC), modificabile dalle impostazioni della procedura. Il vecchio automatismo dedicato va cancellato a mano una volta, dopo il primo rilascio con questa modifica.
 
 ## Indirizzo del sito
 Il sito può essere raggiunto anche da un indirizzo personalizzato (ad esempio expensetracker.lol). La procedura lo associa al sito e lo autorizza per l'accesso e per il dialogo con il backend; resta da aggiornare una volta la configurazione del dominio presso il registrar, che dimostra ad Azure di esserne il proprietario.
@@ -30,4 +32,4 @@ Le stesse impostazioni usate dalla procedura automatica si possono tenere in un 
 - Il backend si accende solo quando riceve richieste, per contenere i costi; il monitoraggio ha un tetto giornaliero ai dati raccolti.
 
 ## Cosa resta da fare a mano
-Oltre alla preparazione iniziale, alcune operazioni si fanno una sola volta dopo la prima creazione dell'ambiente: autorizzare il collegamento a OneDrive, configurare il dominio personalizzato, autorizzare il backend a leggere e scrivere nel database esistente e aggiornare le procedure di pubblicazione del backend e del frontend con i riferimenti ai servizi e alle registrazioni appena creati.
+Oltre alla preparazione iniziale, alcune operazioni si fanno una sola volta dopo la prima creazione dell'ambiente: eliminare il vecchio automatismo di rigenerazione della demo, autorizzare il collegamento a OneDrive, configurare il dominio personalizzato, autorizzare il backend a leggere e scrivere nel database esistente e aggiornare le procedure di pubblicazione del backend e del frontend con i riferimenti ai servizi e alle registrazioni appena creati.

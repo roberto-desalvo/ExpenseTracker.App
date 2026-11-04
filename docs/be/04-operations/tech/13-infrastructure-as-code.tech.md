@@ -13,7 +13,7 @@ L'ambiente è descritto in Bicep nella cartella `infra/`: risorse Azure e app re
 | `main.bicep` (risorse `existing` `sqlServer` / `sqlDatabase`) | SQL server e database **già esistenti** (non creati né modificati), referenziati direttamente con scope sul resource group del server (`sqlServerResourceGroup`, default il resource group del deploy): forniscono FQDN e connection string. Niente modulo: un modulo sarebbe un deployment annidato in quel resource group, dove l'identità della pipeline ha solo `Reader` (manca `Microsoft.Resources/deployments/write`) |
 | `modules/keyVault.bicep` | Key Vault con RBAC, soft delete 7 gg, segreto `DemoAuthSigningKey` (creato solo se la chiave è passata) |
 | `modules/staticWebApp.bicep` | Static Web App `Free` per il frontend (non collegata al repo: il contenuto è caricato da `deploy-frontend.yml`) + dominio custom apex opzionale (`customDomainName`, validazione `dns-txt-token`) |
-| `modules/logicApps.bicep` | Identità user-assigned `id-<appName>-logic-<env>`, connessione API `onedrive`, Logic App di import e di reset demo, diagnostic settings verso Log Analytics, soluzione `LogicAppsManagement` |
+| `modules/logicApps.bicep` | Identità user-assigned `id-<appName>-logic-<env>`, connessione API `onedrive`, Logic App di import, diagnostic settings verso Log Analytics, soluzione `LogicAppsManagement` |
 | `logicapps/*.json` | Definizioni dei workflow esportate dal designer, con segnaposto `__BACKEND_BASE_URL__`, `__API_AUDIENCE__`, `__MANAGED_IDENTITY_ID__`, `__ONEDRIVE_FOLDER_ID__`, `__ONEDRIVE_FOLDER_PATH__` sostituiti dal template (`loadTextContent` + `replace` + `json`) |
 | `parameters/prod.bicepparam` | Parametri di produzione; nomi SQL e segreti letti con `readEnvironmentVariable()` |
 | `bootstrap/main.bicep` + `bootstrap.bicepparam` | Bootstrap una tantum (scope **subscription**, eseguito in locale da un admin, vedi sotto) |
@@ -50,12 +50,13 @@ Eseguito in locale (`az deployment sub create -l $env:AZURE_LOCATION --parameter
 `infra/scripts/bootstrap.ps1` automatizza tutto: carica `infra/.env`, esegue il deploy di bootstrap e, con la GitHub CLI, crea l'environment `production` e ne imposta secret (output + `DEMO_AUTH_SIGNING_KEY`) e variabili (da `.env`, quelle vuote sono saltate). Idempotente, supporta `-WhatIf`, `-SkipBootstrap` e `-SkipGitHub`.
 
 ## Logic App (`modules/logicApps.bicep`)
-Entrambi i workflow usano l'identità user-assigned con autenticazione `ManagedServiceIdentity` e audience = identifier URI dell'API (token v2, `aud` = client ID); l'identità deve avere l'app role `Files.Sender` (bootstrap).
+Il workflow usa l'identità user-assigned con autenticazione `ManagedServiceIdentity` e audience = identifier URI dell'API (token v2, `aud` = client ID); l'identità deve avere l'app role `Files.Sender` (bootstrap).
 
 - **Import** (`logic-<appName>-import-<env>`): trigger OneDrive `onnewfilev2` (ricorrenza giornaliera, sottocartelle incluse) sulla cartella `oneDriveFolderId` (`prod.bicepparam`, oggi `/Transazioni`); la sottocartella (`BBVA`, `Sella`, `Satispay`, `Trade_Republic`, `Excel`) sceglie la banca, l'estensione l'endpoint (`/api/import/<banca>-csv/stream` o `/api/import/<banca>-xlsx`).
-- **Demo reset** (`logic-<appName>-demo-reset-<env>`): ricorrenza giornaliera (W. Europe Standard Time), `POST /api/import/test-seed` e `/api/import/transfers/reconcile`.
 - Connessione `onedrive` (`Microsoft.Web/connections`, managed API `onedrive`): creata senza `parameterValues`, quindi un redeploy non tocca l'autorizzazione già data.
-- Diagnostic settings `allLogs` dei due workflow verso Log Analytics + soluzione `LogicAppsManagement(<workspace>)`.
+- Diagnostic settings `allLogs` del workflow verso Log Analytics + soluzione `LogicAppsManagement(<workspace>)`.
+
+**Reset demo**: non è più una Logic App ma la timer function `Scheduled_DemoDataReset` della Function App (vedi modulo 03), con orario dal parametro `demoResetSchedule` → app setting `DemoResetSchedule`. La vecchia `logic-<appName>-demo-reset-<env>` va eliminata a mano dopo il primo deploy (`az logic workflow delete`): il deploy incrementale non rimuove le risorse tolte dal template.
 
 ## App settings della Function App (gestite da Bicep)
 - `AzureWebJobsStorage__accountName` — connessione identity-based allo storage (ruolo `Storage Blob Data Owner`).
@@ -64,6 +65,7 @@ Entrambi i workflow usano l'identità user-assigned con autenticazione `ManagedS
 - `ConnectionStrings__DefaultConnection` — passwordless, `Authentication=Active Directory Default` (managed identity).
 - `App__FEUrl` = dominio custom se impostato, altrimenti URL della Static Web App; la CORS di piattaforma include tutte le origini del frontend più `extraCorsOrigins` (in `prod.bicepparam`: `https://portal.azure.com`, per il test delle funzioni dal portale). `supportCredentials: false` (autenticazione con bearer token, nessun cookie).
 - `DemoAuth__Enabled`; se attivo, `DemoAuth__SigningKey` è un riferimento Key Vault (`@Microsoft.KeyVault(SecretUri=...)`, ruolo `Key Vault Secrets User`).
+- `DemoResetSchedule` — espressione NCRONTAB (UTC: su Linux/Flex `WEBSITE_TIME_ZONE` non è supportato) della timer function `Scheduled_DemoDataReset`, dal parametro `demoResetSchedule` (default `0 0 3 * * *`, ogni giorno alle 03:00 UTC). È risolta dall'host Functions (`%DemoResetSchedule%`), quindi deve essere un app setting e non una chiave di `appsettings.json`. I lock del timer usano lo storage dell'host (`Storage Blob Data Owner`, già assegnato).
 - `FUNCTIONS_WORKER_RUNTIME` **non** è impostato: su Flex Consumption il runtime è in `functionAppConfig.runtime`.
 
 Policy `basicPublishingCredentialsPolicies`: `scm` = `enableScmBasicAuth` (default `true`, necessario al deploy con publish profile di `deploy-backend.yml`), `ftp` = `false`.

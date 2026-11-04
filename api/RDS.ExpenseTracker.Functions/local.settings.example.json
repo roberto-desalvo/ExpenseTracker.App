@@ -10,7 +10,9 @@
     "DevAuth__Enabled": "true",
     "DemoAuth__Enabled": "false",
     "DemoAuth__SigningKey": "",
-    "DemoAuth__TokenLifetimeMinutes": "60"
+    "DemoAuth__TokenLifetimeMinutes": "60",
+    "DemoResetSchedule": "0 0 3 * * *",
+    "AzureWebJobs.Scheduled_DemoDataReset.Disabled": "true"
   },
   "ConnectionStrings": {
     "DefaultConnection": ""

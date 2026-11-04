@@ -11,6 +11,9 @@ param appInsightsConnectionString string
 param keyVaultName string
 param demoAuthSecretUri string
 param demoAuthEnabled bool
+
+@description('NCRONTAB schedule (UTC) of Scheduled_DemoDataReset (Linux/Flex ignores WEBSITE_TIME_ZONE).')
+param demoResetSchedule string
 param sqlConnectionString string
 param azureAdTenantId string
 param azureAdClientId string
@@ -101,6 +104,11 @@ var baseAppSettings = [
   {
     name: 'DemoAuth__Enabled'
     value: string(demoAuthEnabled)
+  }
+  // Resolved by the Functions host for the %DemoResetSchedule% timer expression.
+  {
+    name: 'DemoResetSchedule'
+    value: demoResetSchedule
   }
 ]
 

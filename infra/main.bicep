@@ -76,6 +76,9 @@ param functionMaxInstances int = 40
 @description('Enable the demo login (DemoAuth). Requires the signing key to be stored in Key Vault at least once.')
 param demoAuthEnabled bool = false
 
+@description('NCRONTAB schedule (UTC) of the timer function that resets the demo user data.')
+param demoResetSchedule string = '0 0 3 * * *'
+
 @secure()
 @description('Demo token signing key (>= 32 bytes). Empty = keep the secret already in Key Vault.')
 param demoAuthSigningKey string = ''
@@ -100,7 +103,6 @@ var names = {
   staticWebApp: empty(staticWebAppName) ? 'swa-${appName}-${environmentName}' : staticWebAppName
   logicIdentity: 'id-${appName}-logic-${environmentName}'
   importWorkflow: 'logic-${appName}-import-${environmentName}'
-  demoResetWorkflow: 'logic-${appName}-demo-reset-${environmentName}'
 }
 
 // Origins the SPA is served from: Static Web App default hostname + optional custom domain.
@@ -190,6 +192,7 @@ module functionApp 'modules/functionApp.bicep' = {
     keyVaultName: keyVault.outputs.name
     demoAuthSecretUri: keyVault.outputs.demoAuthSecretUri
     demoAuthEnabled: demoAuthEnabled
+    demoResetSchedule: demoResetSchedule
     sqlConnectionString: sqlConnectionString
     azureAdTenantId: tenant().tenantId
     azureAdClientId: entra.outputs.apiClientId
@@ -208,7 +211,6 @@ module logicApps 'modules/logicApps.bicep' = {
     tags: tags
     identityName: names.logicIdentity
     importWorkflowName: names.importWorkflow
-    demoResetWorkflowName: names.demoResetWorkflow
     backendBaseUrl: 'https://${functionApp.outputs.defaultHostname}'
     apiAudience: entra.outputs.apiIdentifierUri
     oneDriveFolderId: oneDriveFolderId

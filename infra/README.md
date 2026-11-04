@@ -17,7 +17,7 @@ infra/
 │   ├── storage.bicep              # storage host Functions + container del pacchetto
 │   ├── functionApp.bicep          # piano Flex Consumption + Function App + ruoli RBAC
 │   ├── keyVault.bicep             # Key Vault (RBAC) + segreto DemoAuth
-│   ├── logicApps.bicep            # Logic App import OneDrive + reset demo, identità, connessione OneDrive
+│   ├── logicApps.bicep            # Logic App import OneDrive, identità, connessione OneDrive
 │   └── staticWebApp.bicep         # Static Web App del frontend (+ dominio custom opzionale)
 ├── logicapps/                     # definizioni dei workflow (JSON del designer con segnaposto __X__)
 ├── parameters/
@@ -132,12 +132,17 @@ mano non vengono toccate e si possono eliminare dopo il passaggio.
 
 ## Logic App
 
-`modules/logicApps.bicep` ricrea le due Logic App con un'identità gestita user-assigned
-(`id-<appName>-logic-<env>`) che chiama l'API con token per l'audience `apiIdentifierUri`:
+`modules/logicApps.bicep` ricrea la Logic App di **import** (`logic-<appName>-import-<env>`) con un'identità
+gestita user-assigned (`id-<appName>-logic-<env>`) che chiama l'API con token per l'audience `apiIdentifierUri`:
+nuovi file nella cartella OneDrive `oneDriveFolderId` (`/Transazioni`, sottocartelle BBVA / Sella / Satispay /
+Trade_Republic / Excel) → `/api/import/<banca>-csv/stream` o `-xlsx`.
 
-- **import** (`logic-<appName>-import-<env>`): nuovi file nella cartella OneDrive `oneDriveFolderId`
-  (`/Transazioni`, sottocartelle BBVA / Sella / Satispay / Trade_Republic / Excel) → `/api/import/<banca>-csv/stream` o `-xlsx`;
-- **demo reset** (`logic-<appName>-demo-reset-<env>`): ogni giorno `/api/import/test-seed` e `/api/import/transfers/reconcile`.
+Il **reset giornaliero dei dati demo** non è più una Logic App: è la timer function `Scheduled_DemoDataReset`
+della Function App (seed dell'utente demo e poi riconciliazione dei trasferimenti, in sequenza). L'orario è
+il parametro `demoResetSchedule` (NCRONTAB in **UTC**, default `0 0 3 * * *`), scritto nell'app setting
+`DemoResetSchedule`. La vecchia `logic-<appName>-demo-reset-<env>` non viene cancellata dal deploy
+incrementale: dopo il primo deploy eliminarla a mano con
+`az logic workflow delete -g <resource-group> -n logic-<appName>-demo-reset-<env> --yes`.
 
 Le definizioni sono in `logicapps/*.json` (esportate dal designer): URL del backend, audience, identità e
 cartella sono segnaposto `__X__` sostituiti dal template. Per modificare un workflow: modificarlo nel
