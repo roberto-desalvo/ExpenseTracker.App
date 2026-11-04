@@ -1,39 +1,29 @@
 # 02 - Bootstrap and providers (Tecnico)
 
 ## Flusso di avvio
-1. `src/main.tsx` crea/importa il singleton MSAL (`src/auth/msalInstance.ts`) e chiama `msalInstance.initialize()`.
-   Con il bypass di sviluppo (`appEnv.devAuthBypass`, modulo 04) `msalInstance` è `null`: l'app viene montata subito, senza `MsalProvider`.
-2. Solo dopo la risoluzione della Promise, l'app viene montata con `createRoot(...).render(...)` dentro i provider globali (gestisce il redirect MSAL prima del primo render).
-3. `App.tsx` avvolge tutto in `BrowserRouter` e renderizza `AppShell`, che applica `AuthGate` (template MSAL o login di sviluppo) e i provider di dominio prima di mostrare header e route.
+1. `src/main.ts` chiama `bootstrapApplication(App, appConfig)`.
+2. `provideAppInitializer` (in `app.config.ts`) esegue `AuthService.initialize()` **prima del primo render**: con MSAL attivo inizializza il singleton (`msalInstance.initialize()`), gestisce il ritorno dal redirect di Entra ID (`handleRedirectPromise`, imposta l'account attivo) e ricostruisce la sessione (demo, MSAL o utente di sviluppo). Con il bypass di sviluppo legge solo il nome utente salvato (modulo 04).
+3. `App` (`src/app/app.ts`) istanzia subito `ThemeService` (i token dello stile valgono anche per la pagina di login) e imposta `material-symbols-rounded` come font set di default di `mat-icon`. Poi mostra `AppLayout` se `AuthService.isAuthenticated()`, altrimenti `DevLoginPage` (bypass) o `LoginPage`. L'URL richiesto non cambia: dopo il login si atterra sulla pagina di partenza.
+4. `AppLayout` (shell) chiede una sola volta l'anagrafica di conti e categorie (`AccountsStore.ensureLoaded()`, `CategoriesStore.ensureLoaded()`) e monta una sola istanza di `TransactionModal` e `TransferModal`.
 
-## Catena provider
-Ordine effettivo dall'esterno verso l'interno.
+## Provider globali (`src/app/app.config.ts`)
+- `provideBrowserGlobalErrorListeners()`
+- `provideRouter(routes, withInMemoryScrolling({ scrollPositionRestoration: "top" }))` — a ogni navigazione la pagina torna in cima.
+- `provideHttpClient(withInterceptors([authInterceptor, errorInterceptor]))` — modulo 05.
+- `provideAppInitializer(() => inject(AuthService).initialize())`.
+- `provideDateFnsAdapter(IT_DATE_FORMATS)` + `MAT_DATE_LOCALE = it` (date-fns) e `LOCALE_ID = "it-IT"` (con `registerLocaleData(localeIt)`).
+- `MatPaginatorIntl` → `ItalianPaginatorIntl` (`src/app/shared/ui/paginator-intl.ts`).
+- `MAT_FORM_FIELD_DEFAULT_OPTIONS` → `{ appearance: "outline", subscriptSizing: "dynamic" }`.
+- `provideEchartsCore({ echarts: () => import("./shared/charts/echarts-setup") ... })` — ECharts viene scaricato solo alla prima pagina con un grafico.
 
-In `src/main.tsx`:
-- `MsalProvider` (istanza `msalInstance`; assente con il bypass di sviluppo)
-- `AppThemeProvider`
-- `ApiErrorProvider`
-- `SuccessMessageProvider`
-- `App` (che contiene `BrowserRouter`)
-
-In `src/App.tsx`, dentro `AppShell`:
-- `AuthGate` → `MsalAuthenticationTemplate` (`InteractionType.Redirect`, `errorComponent={AuthErrorPage}`) + `AuthContext`, oppure `DevLoginPage` + `AuthContext` con il bypass di sviluppo
-- `AccountsProvider`
-- `TransactionsProvider`
-- `CategoriesProvider`
-- `TableContextProvider`
-- `TransactionModalProvider`
-- `QuickActionsProvider` (monta una sola volta `TransactionModal` e `TransferModal`, apribili da ogni pagina)
-- contenuto: `AppLayout` (shell con barra laterale o superiore) + `Routes` (dettaglio nel modulo 03)
+## Stato applicativo
+Non ci sono provider annidati: tutti gli store sono servizi `@Injectable({ providedIn: "root" })` istanziati alla prima iniezione (modulo 07).
 
 ## Motivazione
-Centralizza autenticazione, tema e notifiche in alto nell'albero React, prima ancora del routing. I provider di dominio (account, transazioni, categorie, tabella, modale transazione) vengono inizializzati subito dopo l'autenticazione, dentro l'area protetta, così sono disponibili a tutte le pagine.
+Autenticazione e tema sono risolti prima di mostrare qualsiasi contenuto; l'anagrafica condivisa è pronta non appena l'utente entra nell'area protetta.
 
 ## File sorgente
-- `src/main.tsx`
-- `src/App.tsx`
-- `src/auth/msalInstance.ts`, `src/auth/AuthGate.tsx`, `src/auth/AuthContext.ts`, `src/auth/devAuth.ts`
-- `src/stores/ThemeContext.tsx`
-- `src/stores/ApiErrorContext.tsx`
-- `src/stores/SuccessMessageContext.tsx`
-- `src/stores/AccountContext.tsx`, `TransactionContext.tsx`, `CategoryContext.tsx`, `TableContext.tsx`, `TransactionModalContext.tsx`, `QuickActionsContext.tsx`
+- `src/main.ts`, `src/app/app.config.ts`, `src/app/app.ts`, `src/app/app.routes.ts`
+- `src/app/core/auth/auth.service.ts`, `msalInstance.ts`, `authConfig.ts`, `devAuth.ts`, `demoAuth.ts`
+- `src/app/core/theme/theme.service.ts`
+- `src/app/layout/app-layout.ts`

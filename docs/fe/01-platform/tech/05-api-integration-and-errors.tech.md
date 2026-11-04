@@ -1,24 +1,26 @@
 # 05 - API integration and errors (Tecnico)
 
 ## Endpoint registry
-`src/config/api.ts` centralizza gli URL REST in `apiConfig`, costruiti a partire da `appEnv.apiBaseUrl` (`src/config/env.ts`):
+`src/app/core/config/api.ts` centralizza gli URL REST in `apiConfig`, costruiti da `appEnv.apiBaseUrl` (`src/app/core/config/env.ts`):
+- `auth`: `demo`
 - `accounts`: `base`, `query`
 - `transactions`: `base`, `query`, `monthOptions`, `landing`, `series`, `stock`, `byId(id)`
-- `categories`: `base`, `query`, `byId(id)`
+- `categories`: `base`, `query`, `sync`, `byId(id)`
 - `transfers`: `base`
 
-`VITE_EXPENSE_TRACKER_API_BASE_URL` deve essere un URL assoluto (`https://...`): senza schema il browser lo risolverebbe come percorso relativo all'origine del frontend. `normalizeBaseUrl` in `env.ts` rimuove gli slash finali e lancia un errore all'avvio se manca `http(s)://`; il workflow `deploy-frontend.yml` blocca il deploy se il secret non inizia con `https://`.
+`VITE_EXPENSE_TRACKER_API_BASE_URL` deve essere un URL assoluto (`https://...`): `normalizeBaseUrl` rimuove gli slash finali e lancia un errore all'avvio se manca `http(s)://`; il workflow `deploy-frontend.yml` blocca il deploy se il secret non inizia con `https://`.
 
 ## Client condiviso
-`src/services/ApiClient.ts` espone:
-- `apiFetchJson<T>(url, init, fallbackMessage)`
-- `apiFetchVoid(url, init, fallbackMessage)`
+`src/app/core/api/api-client.ts` (`ApiClient`, su `HttpClient`):
+- `read<T>(method: "GET" | "POST", url, fallbackMessage, body?)` — letture, comprese le query in `POST`. Le richieste identiche ancora in volo (chiave `metodo + url + body serializzato`) condividono la stessa promise, rimossa al completamento: più componenti che chiedono lo stesso dato insieme producono una sola chiamata HTTP (e una sola notifica d'errore).
+- `write(method: "POST" | "PUT" | "DELETE", url, fallbackMessage, body?)` — scritture senza corpo di risposta atteso (`responseType: "text"`).
+Il messaggio di fallback viaggia nella richiesta come `HttpContextToken` (`ERROR_FALLBACK`).
 
-Entrambe iniettano l'header `Authorization: Bearer <token>` tramite `withAuthHeader`/`getAccessToken` (token silenzioso MSAL, vedi modulo 04) prima di eseguire la `fetch`.
+Servizi API (`@Injectable` root, restituiscono `Promise`): `AccountApi` (`query`, `add`, `update`), `CategoryApi` (`getAll`, `add`, `update`, `delete`, `syncTransactions`), `TransactionApi` (`getAll`, `getMonthOptions`, `getLanding`, `getTimeSeries`, `getStock`, `add`, `update`, `delete`, `addTransfer`). I trasferimenti, prima in un servizio a parte, sono in `TransactionApi.addTransfer`.
 
-`apiFetchJson` è usata solo per letture (anche le query in `POST`; le scritture passano da `apiFetchVoid`) e deduplica le richieste in volo: la mappa `inFlightRequests` è indicizzata per `metodo + url + body` (solo body stringa) e una richiesta identica a una ancora pendente riceve la stessa promise, che viene rimossa dalla mappa al completamento. Così il doppio effect di `StrictMode` in sviluppo o più componenti che chiedono lo stesso dato insieme producono una sola chiamata HTTP (ed eventualmente una sola notifica d'errore).
+## Interceptor (`src/app/core/api/interceptors.ts`)
+- `authInterceptor` — solo per URL che iniziano con `apiBaseUrl`: aggiunge `Authorization` da `getAuthorizationHeader()` (`DevUser`, token demo o token MSAL, modulo 04).
+- `errorInterceptor` — su errore calcola il messaggio con `extractErrorMessage(body)`: `detail`, poi `title`, poi il primo valore di `errors` (dizionario campo → messaggi); un body testuale viene prima interpretato come JSON, altrimenti usato così com'è; se non si ricava nulla → `${fallback} (HTTP {status})`; errori di rete (status 0) → fallback. Il messaggio viene mostrato con `NotificationService.showError` e rilanciato come `ApiRequestError(message, status)`: i chiamanti fanno solo `catch` per lasciare aperte modali/drawer.
 
-## Gestione errori
-- Se la response non è `ok`, `buildErrorMessage` estrae il messaggio dal body JSON: prova prima `detail`, poi `title`, poi il primo valore in `errors` (dizionario campo→messaggi); se non estrae nulla usa il testo grezzo del body o `${fallbackMessage} (HTTP {status})`.
-- Il messaggio viene emesso come evento globale `window` `expense-tracker:api-error` (costante `API_ERROR_EVENT`) e poi rilanciato come eccezione (`ApiRequestError`, con flag interno `alreadyNotified` per evitare doppie notifiche se l'errore risale nello stack).
-- `src/stores/ApiErrorContext.tsx` (`ApiErrorProvider`) resta in ascolto dell'evento e mostra un MUI `Snackbar`/`Alert` di severità `error` (auto-hide 5s); espone anche l'hook `useApiError()` (`showError(message)`) per notifiche manuali al di fuori del flusso HTTP.
+## Notifiche
+`src/app/core/api/notification.service.ts` (`NotificationService`) usa `MatSnackBar` in basso a destra: `showError(message)` (rosso, 5 s) e `showSuccess(message)` (verde, 4 s), con classi `app-snack--error`/`--success` in `styles.scss`. Sostituisce i vecchi `ApiErrorContext`/`SuccessMessageContext` e l'evento globale `expense-tracker:api-error`.

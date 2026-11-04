@@ -1,0 +1,70 @@
+<app-page-container>
+  <app-page-header
+    title="Movimenti"
+    subtitle="Le transazioni del periodo selezionato. Passa sopra una riga per modificarla o eliminarla."
+  >
+    <app-new-entry-button actions />
+  </app-page-header>
+
+  <app-transaction-filters />
+
+  <app-data-table
+    [columns]="table.columns"
+    [rows]="store.transactions()"
+    [isLoading]="store.isLoading()"
+    [isEmpty]="!store.isLoading() && store.transactions().length === 0"
+    emptyMessage="Nessun movimento trovato"
+    emptySubtext="Prova a cambiare periodo o filtri, oppure registra un nuovo movimento."
+    [page]="table.page()"
+    [pageSize]="table.pageSize()"
+    [totalCount]="store.totalCount()"
+    (pageChange)="table.modifyPage($event)"
+    (pageSizeChange)="table.modifyPageSize($event)"
+    [sortable]="true"
+    [sortBy]="table.sortBy()"
+    [sortDirection]="table.sortDirection()"
+    (sortChange)="sort($event)"
+    [pageSizeOptions]="[10, 20, 50]"
+    [minTableWidth]="760"
+  >
+    <button empty-action matButton="filled" (click)="quickActions.openNewTransaction()">
+      <mat-icon>add</mat-icon> Nuova transazione
+    </button>
+
+    <ng-template let-t>
+      <td>
+        <div class="date">{{ day(t.date) }}</div>
+        <div class="weekday">{{ weekday(t.date) }}</div>
+      </td>
+      <td>
+        <span class="description">{{ t.description || "—" }}</span>
+      </td>
+      <td>
+        <span class="category-pill">{{ t.category || "Senza categoria" }}</span>
+      </td>
+      <td>
+        <span class="account">{{ t.account }}</span>
+      </td>
+      <td class="align-right">
+        <span class="amount tabular" [class.income]="t.amount > 0">{{ formatSignedCurrency(t.amount) }}</span>
+      </td>
+      <td class="align-right">
+        <div class="row-actions">
+          <button matIconButton matTooltip="Modifica" aria-label="Modifica transazione" (click)="quickActions.openTransactionModal(t)">
+            <mat-icon class="icon-sm">edit</mat-icon>
+          </button>
+          <button matIconButton class="danger-hover" matTooltip="Elimina" aria-label="Elimina transazione" (click)="toDelete.set(t)">
+            <mat-icon class="icon-sm">delete</mat-icon>
+          </button>
+        </div>
+      </td>
+    </ng-template>
+  </app-data-table>
+</app-page-container>
+
+<app-confirm-delete-dialog
+  [open]="toDelete() !== null"
+  (closed)="toDelete.set(null)"
+  [confirmAction]="confirmDelete"
+  [message]="deleteMessage()"
+/>

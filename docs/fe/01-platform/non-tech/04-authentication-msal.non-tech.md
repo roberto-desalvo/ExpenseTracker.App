@@ -11,7 +11,7 @@ All'apertura dell'app, se non si è già entrati, compare una schermata con due 
 - Le sessioni sono protette e legate alla scheda del browser in uso.
 
 ## Se qualcosa va storto
-L'utente riceve una schermata d'errore con opzione di nuovo tentativo.
+Il motivo dell'errore compare direttamente nella schermata di accesso, da cui si può riprovare subito.
 
 ## In sviluppo
 Quando l'app viene avviata in locale dallo sviluppatore, l'accesso Microsoft è saltato: viene chiesto solo il nome utente con cui entrare, ed è possibile cambiare utente uscendo e indicando un altro nome. Questa modalità esiste solo in sviluppo e non è mai presente nella versione pubblicata.

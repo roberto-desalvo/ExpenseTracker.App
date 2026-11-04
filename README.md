@@ -5,7 +5,7 @@ Demo disponibile https://thankful-island-04ae49a03.7.azurestaticapps.net/
 
 ## Stack
 - **Backend**: Azure Functions (.NET 10, isolated worker), Clean Architecture, EF Core code-first su SQL Server.
-- **Frontend**: React + TypeScript (Vite, MUI, TailwindCSS).
+- **Frontend**: Angular + TypeScript (signals, Angular Material, ECharts).
 - **Autenticazione**: Azure AD (Entra ID) via MSAL.
 
 ## Funzionalità
@@ -25,8 +25,8 @@ Demo disponibile https://thankful-island-04ae49a03.7.azurestaticapps.net/
 # API (http://localhost:7120/api) — copiare prima local.settings.example.json in local.settings.json
 cd api/RDS.ExpenseTracker.Functions; func start
 
-# Frontend — configurare .env a partire da .env.example
-cd app; npm install; npm run dev
+# Frontend (http://localhost:5173) — configurare web/.env.local a partire da web/.env.example
+cd web; npm install; npm start
 
 # Test
 dotnet test ./api/RDS.ExpenseTracker.Tests/RDS.ExpenseTracker.Tests.csproj
@@ -34,6 +34,7 @@ dotnet test ./api/RDS.ExpenseTracker.Tests/RDS.ExpenseTracker.Tests.csproj
 
 ## Struttura
 - `api/` — soluzione .NET (Domain, Application, Infrastructure, Functions, Tests)
-- `app/` — frontend React
+- `web/` — frontend Angular
+- `app/` — vecchio frontend React (non più pubblicato, da rimuovere)
 - `docs/` — documentazione tecnica e funzionale (`be/`, `fe/`)
 - `tools/` — script PowerShell e collection Postman

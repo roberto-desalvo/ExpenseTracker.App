@@ -1,0 +1,262 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.presets {
+  grid-template-columns: 1fr;
+  @media (min-width: 900px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.modes {
+  gap: 12px;
+  grid-template-columns: 1fr;
+  @media (min-width: 600px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.navs {
+  grid-template-columns: 1fr;
+  max-width: 640px;
+  @media (min-width: 600px) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.option-card {
+  position: relative;
+  display: block;
+  text-align: left;
+  width: 100%;
+  padding: 0;
+  font: inherit;
+  color: var(--app-text);
+  cursor: pointer;
+  border-radius: var(--app-radius-card);
+  border: 1px solid var(--app-border);
+  background-color: var(--app-surface);
+  overflow: hidden;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+
+  &:hover {
+    border-color: var(--app-border-strong);
+    transform: translateY(-1px);
+  }
+
+  &.selected {
+    border-color: var(--app-primary);
+    box-shadow: 0 0 0 1px var(--app-primary);
+  }
+}
+
+.check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  color: var(--app-primary);
+  font-size: 22px;
+  width: 22px;
+  height: 22px;
+  background-color: var(--app-surface);
+  border-radius: 50%;
+}
+
+.option-foot {
+  padding: 14px;
+  border-top: 1px solid var(--app-border);
+}
+
+.option-title {
+  font-weight: 700;
+  font-size: 0.98rem;
+
+  &.small {
+    font-weight: 650;
+    font-size: 0.9rem;
+  }
+}
+
+.option-hint {
+  font-size: 0.76rem;
+  color: var(--app-text-secondary);
+  margin-top: 2px;
+}
+
+/* anteprima dello stile */
+.preset-preview {
+  padding: 12px;
+  height: 150px;
+  display: flex;
+  gap: 8px;
+}
+
+.pv-sidebar {
+  width: 34px;
+  border-radius: var(--r);
+  border: 1px solid;
+  padding: 6px;
+}
+
+.pv-line {
+  height: 6px;
+  border-radius: 2px;
+  margin-bottom: 6px;
+}
+
+.pv-grid {
+  flex: 1;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1.3fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.pv-hero {
+  grid-row: span 2;
+  border-radius: var(--r);
+  border: 1px solid;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.pv-bar {
+  width: 45%;
+  height: 4px;
+  border-radius: 2px;
+  margin-bottom: 6px;
+
+  &.short {
+    width: 55%;
+    opacity: 0.6;
+    margin-bottom: 0;
+  }
+}
+
+.pv-amount {
+  font-weight: 750;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.pv-tile {
+  border-radius: var(--r);
+  border: 1px solid;
+  padding: 7px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.pv-bars {
+  display: flex;
+  gap: 3px;
+  align-items: flex-end;
+  height: 22px;
+
+  span {
+    flex: 1;
+    border-radius: 2px 2px 0 0;
+  }
+}
+
+/* modalità */
+.mode-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.mode-icon {
+  color: var(--app-text-secondary);
+  font-size: 24px;
+  width: 24px;
+  height: 24px;
+
+  .selected & {
+    color: var(--app-primary);
+  }
+}
+
+/* anteprima navigazione */
+.nav-preview {
+  background-color: var(--app-background);
+  height: 110px;
+  padding: 10px;
+  display: flex;
+  gap: 8px;
+
+  &.topbar {
+    flex-direction: column;
+  }
+}
+
+.nv-side {
+  width: 42px;
+  background-color: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  padding: 6px;
+}
+
+.nv-line {
+  height: 5px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  background-color: var(--app-border);
+
+  &.active {
+    background-color: var(--app-primary);
+  }
+}
+
+.nv-top {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  height: 20px;
+  background-color: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  padding-inline: 6px;
+}
+
+.nv-pill {
+  width: 22px;
+  height: 5px;
+  border-radius: 4px;
+  background-color: var(--app-border);
+
+  &.active {
+    background-color: var(--app-primary);
+  }
+}
+
+.nv-grid {
+  flex: 1;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.nv-block {
+  background-color: var(--app-border);
+  border-radius: 4px;
+
+  &.span-2 {
+    grid-column: span 2;
+  }
+  &.span-3 {
+    grid-column: span 3;
+  }
+}

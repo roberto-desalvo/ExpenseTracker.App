@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ExpenseTracker is a personal financial management web application for tracking incomes, expenses, and bank transfers. The backend is an Azure Functions app (isolated worker, .NET 10) and the frontend is React/TypeScript. Authentication uses Azure AD (Entra ID) via MSAL.
+ExpenseTracker is a personal financial management web application for tracking incomes, expenses, and bank transfers. The backend is an Azure Functions app (isolated worker, .NET 10) and the frontend is Angular/TypeScript (`web/`). Authentication uses Azure AD (Entra ID) via MSAL.
 
 ## Commands
 
@@ -32,15 +32,17 @@ dotnet ef database update -p api/RDS.ExpenseTracker.Infrastructure -s api/RDS.Ex
 
 There is no OpenAPI/Scalar UI; the endpoint list is in `docs/be/01-platform/tech/03-api-surface-and-routing.tech.md`.
 
-### Frontend (from `app/`)
+### Frontend (from `web/`)
 
 ```bash
 npm install        # install dependencies
-npm run dev        # dev server with HMR
-npm run build      # production build
-npm run lint       # ESLint
-npm run preview    # preview production build
+npm start          # ng serve on http://localhost:5173 (generates src/environments/env.generated.ts first)
+npm run build      # production build -> dist/web/browser
+npm run lint       # angular-eslint
+npm test           # unit tests (Vitest, single run)
 ```
+
+`app/` contains the legacy React frontend, kept only until the Angular app is in production; it is no longer deployed or documented.
 
 ## Architecture
 
@@ -74,17 +76,18 @@ SQL Server via EF Core Code-First. Core entities:
 
 ### Frontend
 
-React 18 SPA built with Vite. State management uses React Context API (no Redux). UI uses MUI v6 + TailwindCSS. Pages: Dashboard (`/`), Movimenti (`/movimenti`), Analisi (`/analisi`), Impostazioni (`/impostazioni`: Categorie, Conti, Aspetto). Visual styles are switchable presets (`src/theme/stylePresets.ts`) built into the MUI theme by `buildAppTheme`; components read tokens via `useTheme().app`. All API calls go through service classes in `src/services/`.
+Angular 22 SPA (standalone components, signals, zoneless) in `web/`. State lives in root-provided signal stores in `src/app/core/state/` (no NgRx). UI uses Angular Material + CDK with SCSS; charts use ECharts via `ngx-echarts`. Pages (lazy routes in `src/app/app.routes.ts`): Dashboard (`/`), Movimenti (`/movimenti`), Analisi (`/analisi`), Impostazioni (`/impostazioni`: Categorie, Conti, Aspetto). Visual styles are switchable presets (`src/app/core/theme/stylePresets.ts`); `ThemeService` writes the active tokens as CSS variables (`--app-*`, `--mat-sys-*`) on `:root`, and components use `var(--app-…)` or `ThemeService.tokens()`. All API calls go through `ApiClient` + the `*.api.ts` services in `src/app/core/api/`; auth header and error notifications are HTTP interceptors.
 
-Authentication is MSAL (Azure AD). The singleton `msalInstance` is initialized in `src/auth/msalInstance.ts`; the required scope is `api://[client-id]/access_as_user`.
+Authentication is MSAL (Azure AD) via `@azure/msal-browser` directly: the singleton `msalInstance` is in `src/app/core/auth/msalInstance.ts` and `AuthService` initializes it in an app initializer; the required scope is `api://[client-id]/access_as_user`.
 
 ## Environment Variables
 
-Frontend (`.env` based on `.env.example`):
+Frontend (`web/.env.local` based on `web/.env.example`; the `VITE_` prefix is kept so CI secrets did not change). `scripts/write-env.mjs` merges the `.env*` files with the process environment (which wins) into the gitignored `src/environments/env.generated.ts`, read by `src/app/core/config/env.ts`:
 - `VITE_EXPENSE_TRACKER_API_BASE_URL`
 - `VITE_MSAL_CLIENT_ID`
 - `VITE_MSAL_TENANT_ID`
 - `VITE_MSAL_API_SCOPE`
+- optional: `VITE_DEV_AUTH_BYPASS` (`false` to use MSAL with `npm start`), `VITE_DEMO_LOGIN_ENABLED`
 
 Backend: connection string and Azure AD settings in `appsettings.json` / environment overrides.
 
@@ -92,12 +95,14 @@ Backend: connection string and Azure AD settings in `appsettings.json` / environ
 
 Tests are in `RDS.ExpenseTracker.Tests` using **xUnit**, **FluentAssertions**, and **ArchUnitNET** (architecture rule tests). Coverage via Coverlet.
 
+Frontend unit tests are `*.spec.ts` files next to the code in `web/src/app/`, run with Vitest through `ng test` (`npm test` from `web/`).
+
 ## Documentation
 
 In-depth, modular documentation lives under `docs/`, mirrored for backend and frontend:
 
 - `docs/be/` — backend (`RDS.ExpenseTracker.*` projects). Start at `docs/be/_index/tech/00-docs-index.tech.md`.
-- `docs/fe/` — frontend (`app/`). Start at `docs/fe/_index/tech/00-docs-index.tech.md`.
+- `docs/fe/` — frontend (`web/`). Start at `docs/fe/_index/tech/00-docs-index.tech.md`.
 
 Each side is split into numbered topic folders (`00-foundation`, `01-platform`, ...), and every numbered module exists in two parallel versions:
 

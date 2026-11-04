@@ -1,0 +1,266 @@
+:host {
+  display: block;
+}
+
+.shell {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background-color: var(--app-background);
+}
+
+.sidebar {
+  width: 256px;
+  flex-shrink: 0;
+  transition: width 0.2s ease;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  border-right: 1px solid var(--app-border);
+  background-color: var(--app-sidebar-background);
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  &.collapsed {
+    width: 76px;
+  }
+}
+
+.sidebar-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 20px 16px;
+
+  &.collapsed {
+    padding-inline: 12px;
+  }
+}
+
+.brand {
+  padding-inline: 4px;
+  display: flex;
+  justify-content: flex-start;
+
+  .collapsed & {
+    justify-content: center;
+  }
+}
+
+.new-entry {
+  display: flex;
+  justify-content: center;
+}
+
+.menu-label {
+  padding-inline: 12px;
+}
+
+.side-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.side-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 0 12px;
+  height: 42px;
+  width: 100%;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--app-radius-control);
+  color: var(--app-text-secondary);
+  background-color: transparent;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+
+  &:hover {
+    background-color: var(--app-surface-alt);
+    color: var(--app-text);
+  }
+
+  &.active {
+    color: var(--app-text);
+    background-color: var(--app-primary-soft);
+    font-weight: 650;
+
+    .nav-icon {
+      color: var(--app-primary);
+    }
+
+    &::before {
+      content: "";
+      position: absolute;
+      left: -12px;
+      top: 10px;
+      bottom: 10px;
+      width: 3px;
+      border-radius: 3px;
+      background-color: var(--app-primary);
+    }
+  }
+
+  .collapsed & {
+    justify-content: center;
+    padding: 0;
+
+    &.active::before {
+      left: 6px;
+    }
+  }
+}
+
+.side-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+
+  &.vertical {
+    flex-direction: column;
+  }
+}
+
+.user-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: calc(var(--app-radius-control) + 2px);
+  border: 1px solid var(--app-border);
+  background-color: var(--app-surface-alt);
+
+  &.collapsed {
+    padding: 0;
+    border: none;
+    background-color: transparent;
+  }
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  font-size: 0.78rem;
+}
+
+.user-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.main-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: saturate(180%) blur(14px);
+  background-color: var(--app-header-background);
+  border-bottom: 1px solid var(--app-border);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  max-width: 1440px;
+  margin-inline: auto;
+  padding-inline: 28px;
+  height: 64px;
+}
+
+.top-nav {
+  display: flex;
+  gap: 4px;
+}
+
+.top-nav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  height: 38px;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--app-radius-control);
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--app-text-secondary);
+  background-color: transparent;
+
+  &:hover {
+    color: var(--app-text);
+    background-color: var(--app-surface-alt);
+  }
+
+  &.active {
+    font-weight: 650;
+    color: var(--app-text);
+    background-color: var(--app-surface-alt);
+
+    .mat-icon {
+      color: var(--app-primary);
+    }
+  }
+}
+
+.mobilebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-inline: 12px;
+  height: 58px;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mobile-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background-color: var(--app-backdrop);
+}
+
+.mobile-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 901;
+  width: 280px;
+  background-color: var(--app-sidebar-background);
+  border-right: 1px solid var(--app-border);
+  overflow-y: auto;
+  animation: drawerIn 0.2s ease-out both;
+}
+
+@keyframes drawerIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}

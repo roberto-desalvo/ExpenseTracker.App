@@ -1,0 +1,140 @@
+<app-surface-card
+  title="Stile"
+  subtitle="Tre direzioni visive diverse: colori, forme, tipografia e card. Le anteprime usano la modalità attuale."
+>
+  <div class="grid presets">
+    @for (preset of presets; track preset.id) {
+      @let t = tokensOf(preset);
+      @let selected = theme.preferences().preset === preset.id;
+      <button
+        type="button"
+        class="option-card"
+        [class.selected]="selected"
+        [attr.aria-pressed]="selected"
+        [attr.aria-label]="'Stile ' + preset.name"
+        (click)="theme.setPreset(preset.id)"
+      >
+        @if (selected) {
+          <mat-icon class="icon-fill check">check_circle</mat-icon>
+        }
+        <!-- mini dashboard disegnata con i token dello stile -->
+        <div class="preset-preview" [style.background-color]="t.background" [style.--r.px]="preset.radiusCard / 2.2">
+          <div class="pv-sidebar" [style.background-color]="t.sidebarBackground" [style.border-color]="t.border">
+            @for (i of [0, 1, 2, 3]; track i) {
+              <div class="pv-line" [style.background-color]="i === 0 ? t.primary : t.border"></div>
+            }
+          </div>
+          <div class="pv-grid">
+            <div class="pv-hero" [style.background]="t.hero.background" [style.border-color]="t.hero.border">
+              <div>
+                <div class="pv-bar" [style.background-color]="t.hero.subtle"></div>
+                <span class="pv-amount" [style.font-family]="preset.headingFontFamily" [style.color]="t.hero.text">€24.180</span>
+              </div>
+              <svg viewBox="0 0 100 30" width="100%" height="30" preserveAspectRatio="none">
+                <path
+                  d="M0,24 C15,22 22,18 35,19 C48,20 55,10 68,11 C80,12 88,6 100,4"
+                  fill="none"
+                  [attr.stroke]="t.hero.spark"
+                  stroke-width="2"
+                />
+              </svg>
+            </div>
+            @for (color of [t.income, t.expense]; track $index) {
+              <div
+                class="pv-tile"
+                [style.background-color]="t.surface"
+                [style.border-color]="t.border"
+                [style.box-shadow]="t.cardShadow"
+              >
+                <div class="pv-bar short" [style.background-color]="t.textMuted"></div>
+                <div class="pv-bars">
+                  @for (h of previewBars; track $index) {
+                    <span [style.height.%]="h" [style.background-color]="color" [style.opacity]="$index === 3 ? 1 : 0.55"></span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+        <div class="option-foot">
+          <p class="option-title" [style.font-family]="preset.headingFontFamily">{{ preset.name }}</p>
+          <p class="option-hint">{{ preset.tagline }}</p>
+        </div>
+      </button>
+    }
+  </div>
+</app-surface-card>
+
+<app-surface-card title="Tema" subtitle="Chiaro, scuro o automatico in base alle impostazioni del dispositivo.">
+  <div class="grid modes">
+    @for (option of modeOptions; track option.value) {
+      @let selected = theme.preferences().mode === option.value;
+      <button
+        type="button"
+        class="option-card"
+        [class.selected]="selected"
+        [attr.aria-pressed]="selected"
+        [attr.aria-label]="'Tema ' + option.label"
+        (click)="theme.setModePreference(option.value)"
+      >
+        @if (selected) {
+          <mat-icon class="icon-fill check">check_circle</mat-icon>
+        }
+        <div class="mode-body">
+          <mat-icon class="mode-icon">{{ option.icon }}</mat-icon>
+          <div>
+            <p class="option-title small">{{ option.label }}</p>
+            <p class="option-hint">{{ option.hint }}</p>
+          </div>
+        </div>
+      </button>
+    }
+  </div>
+</app-surface-card>
+
+<app-surface-card
+  title="Navigazione"
+  subtitle="Posizione del menu principale sugli schermi grandi. Su smartphone il menu è sempre a scomparsa."
+>
+  <div class="grid navs">
+    @for (option of navOptions; track option.value) {
+      @let selected = theme.preferences().nav === option.value;
+      <button
+        type="button"
+        class="option-card"
+        [class.selected]="selected"
+        [attr.aria-pressed]="selected"
+        [attr.aria-label]="option.label"
+        (click)="theme.setNavLayout(option.value)"
+      >
+        @if (selected) {
+          <mat-icon class="icon-fill check">check_circle</mat-icon>
+        }
+        <div class="nav-preview" [class.topbar]="option.value === 'topbar'">
+          @if (option.value === "sidebar") {
+            <div class="nv-side">
+              @for (i of [0, 1, 2, 3]; track i) {
+                <div class="nv-line" [class.active]="i === 1"></div>
+              }
+            </div>
+          } @else {
+            <div class="nv-top">
+              @for (i of [0, 1, 2, 3]; track i) {
+                <div class="nv-pill" [class.active]="i === 1"></div>
+              }
+            </div>
+          }
+          <div class="nv-grid">
+            <span class="nv-block span-2"></span>
+            <span class="nv-block"></span>
+            <span class="nv-block span-3"></span>
+          </div>
+        </div>
+        <div class="option-foot">
+          <p class="option-title small">{{ option.label }}</p>
+          <p class="option-hint">{{ option.hint }}</p>
+        </div>
+      </button>
+    }
+  </div>
+</app-surface-card>
