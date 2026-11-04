@@ -1,0 +1,116 @@
+# Applies the EF Core migrations (api/RDS.ExpenseTracker.Infrastructure/Migrations) to the Azure SQL database.
+#
+#   workflow_call     -> called by deploy-backend.yml before the Function App deploy, so the schema is always
+#                        up to date when the new code starts (a push to api/** runs both, in this order)
+#   workflow_dispatch -> manual run (e.g. after restoring the database)
+#
+# No app-specific configuration: same OIDC identity and environment "production" as the other pipelines
+# (secrets AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID, variable AZURE_RESOURCE_GROUP);
+# SQL server FQDN and database name come from the outputs of the last infrastructure deploy.
+#
+# One-time prerequisites (see infra/README.md):
+#   - the deploy identity is a database user with db_ddladmin + db_datareader + db_datawriter
+#     (infra/scripts/grant-function-sql-access.sql, run as the Entra ID SQL administrator);
+#   - the deploy identity can write SQL firewall rules (SQL Server Contributor, granted by infra/bootstrap):
+#     GitHub-hosted runners are not covered by "Allow Azure services", so the job opens a temporary rule
+#     for the runner IP and always removes it at the end.
+
+name: Deploy Database (EF Core migrations)
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  EF_TOOL_VERSION: '10.0.7' # keep aligned with the Microsoft.EntityFrameworkCore.* packages
+  INFRASTRUCTURE_PROJECT: api/RDS.ExpenseTracker.Infrastructure
+  STARTUP_PROJECT: api/RDS.ExpenseTracker.Functions
+
+jobs:
+  migrate:
+    name: Apply migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    # Never apply migrations from two runs at the same time.
+    concurrency:
+      group: deploy-database
+      cancel-in-progress: false
+    permissions:
+      id-token: write # OIDC login
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Build migrations bundle
+        run: |
+          dotnet tool install --global dotnet-ef --version "$EF_TOOL_VERSION"
+          dotnet ef migrations bundle \
+            --project "$INFRASTRUCTURE_PROJECT" \
+            --startup-project "$STARTUP_PROJECT" \
+            --configuration Release \
+            --output ./efbundle \
+            --force
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Read infrastructure outputs
+        id: infra
+        shell: bash
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: |
+          az deployment group list -g "$AZURE_RESOURCE_GROUP" --query "[?starts_with(name,'infra-') && properties.provisioningState=='Succeeded'] | sort_by(@, &properties.timestamp)[-1].properties.outputs" -o json > outputs.json
+          fqdn=$(jq -r '.sqlServerFqdn.value // empty' outputs.json)
+          test -n "$fqdn" || { echo "::error::No successful infrastructure deploy found in $AZURE_RESOURCE_GROUP"; exit 1; }
+          server="${fqdn%%.*}"
+          # The SQL server may live in another resource group (SQL_SERVER_RESOURCE_GROUP): resolve it from its id.
+          serverRg=$(az sql server list --query "[?name=='$server'].resourceGroup | [0]" -o tsv)
+          test -n "$serverRg" || { echo "::error::SQL server $server not visible to the deploy identity"; exit 1; }
+          {
+            echo "sqlServerFqdn=$fqdn"
+            echo "sqlServerName=$server"
+            echo "sqlServerResourceGroup=$serverRg"
+            echo "sqlDatabaseName=$(jq -r .sqlDatabaseName.value outputs.json)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Open SQL firewall for the runner
+        id: firewall
+        shell: bash
+        run: |
+          ip=$(curl -fsS https://api.ipify.org)
+          rule="github-actions-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          az sql server firewall-rule create \
+            -g "${{ steps.infra.outputs.sqlServerResourceGroup }}" \
+            -s "${{ steps.infra.outputs.sqlServerName }}" \
+            -n "$rule" --start-ip-address "$ip" --end-ip-address "$ip" --output none
+          echo "rule=$rule" >> "$GITHUB_OUTPUT"
+
+      - name: Apply migrations
+        shell: bash
+        # "Active Directory Default" picks up the Azure CLI login above (deploy identity).
+        # The bundle keeps the retry policy of AddInfrastructureServices, which also covers a paused serverless database.
+        run: |
+          ./efbundle --verbose --connection "Server=tcp:${{ steps.infra.outputs.sqlServerFqdn }},1433;Initial Catalog=${{ steps.infra.outputs.sqlDatabaseName }};Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;Authentication=Active Directory Default;"
+          echo "Migrations applied to \`${{ steps.infra.outputs.sqlDatabaseName }}\` on \`${{ steps.infra.outputs.sqlServerFqdn }}\`." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Close SQL firewall
+        if: always() && steps.firewall.outputs.rule != ''
+        shell: bash
+        run: |
+          az sql server firewall-rule delete \
+            -g "${{ steps.infra.outputs.sqlServerResourceGroup }}" \
+            -s "${{ steps.infra.outputs.sqlServerName }}" \
+            -n "${{ steps.firewall.outputs.rule }}"

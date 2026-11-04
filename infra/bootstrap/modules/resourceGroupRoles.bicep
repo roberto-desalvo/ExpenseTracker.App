@@ -1,7 +1,8 @@
 // Azure RBAC for the GitHub deployment identity on one resource group.
 //   grantContributor = true  -> Contributor + RBAC Administrator limited (ABAC condition) to the roles
 //                               that infra/main.bicep assigns to the Function App identity
-//   grantContributor = false -> Reader (e.g. resource group of the existing SQL server)
+//   grantContributor = false -> Reader + SQL Server Contributor (resource group of the existing SQL server:
+//                               deploy-database.yml opens a temporary firewall rule for the GitHub runner)
 param principalId string
 param grantContributor bool
 
@@ -9,6 +10,7 @@ var roles = {
   contributor: 'b24988ac-6180-42a0-ab88-20f7382dd24c'
   rbacAdministrator: 'f58310d9-a9f6-439a-9e8d-f62e7b41a168'
   reader: 'acdd72a7-3385-48ef-bd42-f606fba81ae7'
+  sqlServerContributor: '6d8ee4ec-f05a-4a1d-8b00-a9b17e38b437'
   // Roles assigned by infra/modules/functionApp.bicep
   storageBlobDataOwner: 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
   storageQueueDataContributor: '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
@@ -45,6 +47,16 @@ resource reader 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!gran
   name: guid(resourceGroup().id, principalId, roles.reader)
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roles.reader)
+    principalId: principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Firewall rules of the SQL server (no access to the data: database permissions are granted with T-SQL).
+resource sqlServerContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!grantContributor) {
+  name: guid(resourceGroup().id, principalId, roles.sqlServerContributor)
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roles.sqlServerContributor)
     principalId: principalId
     principalType: 'ServicePrincipal'
   }

@@ -4,9 +4,21 @@
 `on: push` su `main` (path `api/**` o il workflow stesso) + `workflow_dispatch`, runner `ubuntu-latest`:
 
 1. **build** — `actions/setup-dotnet@v4` (.NET 10.0.x) → `dotnet build` della solution in Release → `dotnet publish` di `RDS.ExpenseTracker.Functions` → upload artifact `functions-app` (con `include-hidden-files: true`, necessario per la cartella `.azurefunctions` generata dal worker SDK).
-2. **deploy** — environment GitHub `production`, login OIDC (`azure/login@v2`) con la stessa identità di `deploy-infra.yml` → legge `functionAppName` dagli output dell'ultimo deploy infra riuscito (`az deployment group list -g $AZURE_RESOURCE_GROUP`, deployment `infra-*`) → download artifact → `Azure/functions-action@v1` (piano **Flex Consumption**: `sku: flexconsumption`, One Deploy, niente slot), autenticato con le credenziali Azure della sessione (RBAC: `Contributor` sul resource group, concesso dal bootstrap).
+2. **migrate** — chiama il workflow riusabile `deploy-database.yml` (vedi sotto) con `secrets: inherit`: le migration EF Core sono applicate **prima** del deploy, così il nuovo codice trova già lo schema aggiornato.
+3. **deploy** (`needs: [build, migrate]`) — environment GitHub `production`, login OIDC (`azure/login@v2`) con la stessa identità di `deploy-infra.yml` → legge `functionAppName` dagli output dell'ultimo deploy infra riuscito (`az deployment group list -g $AZURE_RESOURCE_GROUP`, deployment `infra-*`) → download artifact → `Azure/functions-action@v1` (piano **Flex Consumption**: `sku: flexconsumption`, One Deploy, niente slot), autenticato con le credenziali Azure della sessione (RBAC: `Contributor` sul resource group, concesso dal bootstrap).
 
 Nessuna configurazione propria: usa i secret `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` e la variabile `AZURE_RESOURCE_GROUP` dell'environment `production`, già impostati per la pipeline infra (vedi [13-infrastructure-as-code](13-infrastructure-as-code.tech.md)). Niente publish profile: le *SCM Basic Auth Publishing Credentials* restano disattivate (`enableScmBasicAuth = false`). La CORS di piattaforma e le app settings sono definite dal template Bicep.
+
+## Workflow migration (`.github/workflows/deploy-database.yml`)
+`on: workflow_call` (da `deploy-backend.yml`) + `workflow_dispatch` (esecuzione manuale, es. dopo un restore del database). Un solo job `migrate`, environment `production`, `concurrency: deploy-database` senza cancellazione (mai due run di migration in parallelo):
+
+1. `dotnet tool install --global dotnet-ef --version 10.0.7` (allineato ai pacchetti `Microsoft.EntityFrameworkCore.*`) → `dotnet ef migrations bundle -p api/RDS.ExpenseTracker.Infrastructure -s api/RDS.ExpenseTracker.Functions --configuration Release -o ./efbundle`.
+2. Login OIDC (`azure/login@v2`) → legge `sqlServerFqdn` / `sqlDatabaseName` dagli output dell'ultimo deploy `infra-*`; il resource group del server è ricavato con `az sql server list` (può essere `SQL_SERVER_RESOURCE_GROUP`).
+3. Apre una regola firewall temporanea `github-actions-<run_id>-<attempt>` sull'IP del runner (i runner GitHub non rientrano in *Allow Azure services*).
+4. `./efbundle --connection "...;Authentication=Active Directory Default;"`: il `DefaultAzureCredential` di SqlClient usa il login Azure CLI dell'identità di deploy. Il bundle applica solo le migration mancanti (`__EFMigrationsHistory`) e mantiene la retry policy di `AddInfrastructureServices` (copre il risveglio del database serverless in pausa).
+5. Rimuove la regola firewall (`if: always()`).
+
+Prerequisiti una tantum: utente DB dell'identità di deploy (`ExpenseTracker GitHub deploy`, `db_ddladmin` + `db_datareader` + `db_datawriter`) creato da `infra/scripts/grant-function-sql-access.sql`, e ruolo `SQL Server Contributor` sul resource group del SQL server (bootstrap; se il server è nel resource group dell'app basta il `Contributor` già concesso). Vedi [13-infrastructure-as-code](13-infrastructure-as-code.tech.md).
 
 **Nota**: il workflow non esegue `dotnet test` — il deploy avviene senza gate di test automatico.
 

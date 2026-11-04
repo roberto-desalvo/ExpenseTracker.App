@@ -72,11 +72,15 @@ az deployment sub create -l $env:AZURE_LOCATION -n expensetracker-bootstrap `
    deploy eseguito), lanciare `./infra/scripts/connect-onedrive.ps1` e accedere con l'account Microsoft del
    OneDrive (vedi [Import da OneDrive](#import-da-onedrive)). Il consenso non è automatizzabile.
 8. Eseguire [`scripts/grant-function-sql-access.sql`](scripts/grant-function-sql-access.sql) sul database
-   come amministratore Entra ID (utente DB della managed identity: T-SQL, non gestibile da Bicep).
+   come amministratore Entra ID (utenti DB della managed identity e dell'identità di deploy GitHub, che applica
+   le migration: T-SQL, non gestibile da Bicep).
 9. Le pipeline applicative (`deploy-backend.yml`, `deploy-frontend.yml`) non hanno configurazione propria:
    usano lo stesso environment `production` (login OIDC + `AZURE_RESOURCE_GROUP`) e leggono dagli output
    dell'ultimo deploy infra riuscito il nome della Function App, i valori `VITE_*` e la Static Web App (il cui
    deployment token è letto a runtime con `az staticwebapp secrets list`). Niente publish profile né token da copiare.
+   `deploy-backend.yml` chiama prima [`deploy-database.yml`](../.github/workflows/deploy-database.yml), che applica le
+   migration EF Core (migration bundle) aprendo una regola firewall temporanea per l'IP del runner (ruolo
+   `SQL Server Contributor` concesso dal bootstrap); si può lanciare anche a mano (`workflow_dispatch`).
    Per gli script di import in `tools/scripts`: passare `-Audience <output apiIdentifierUri>`.
 
 ### Script di bootstrap

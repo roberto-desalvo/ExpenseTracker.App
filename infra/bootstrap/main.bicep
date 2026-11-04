@@ -2,7 +2,7 @@
 //   - application resource group (created if missing)
 //   - GitHub deployment identity: app registration + service principal + federated credentials (OIDC)
 //   - Microsoft Graph permission Application.ReadWrite.OwnedBy for it (lets infra/main.bicep manage its app registrations)
-//   - Azure RBAC: Contributor + constrained RBAC Administrator on the app resource group, Reader on the SQL resource group
+//   - Azure RBAC: Contributor + constrained RBAC Administrator on the app resource group, Reader + SQL Server Contributor on the SQL resource group
 //   - optional (assignFilesSender): Files.Sender app role of the API to users
 //     (the API app is created by infra/main.bicep, so only after the first infra deploy)
 // Requires: Owner (or User Access Administrator + Contributor) on the resource groups and the Entra role
