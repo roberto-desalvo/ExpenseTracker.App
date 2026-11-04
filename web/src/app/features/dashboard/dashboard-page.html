@@ -1,0 +1,131 @@
+<app-page-container>
+  <app-page-header [eyebrow]="eyebrow" [title]="title()" [subtitle]="subtitle">
+    <button actions matButton="outlined" (click)="goTo('analytics')"><mat-icon>insights</mat-icon> Analisi dettagliata</button>
+  </app-page-header>
+
+  @if (!loading() && !data()) {
+    <div class="alert alert-warning">
+      <mat-icon class="icon-sm">warning</mat-icon>
+      <span>Impossibile caricare la dashboard. Riprova più tardi.</span>
+    </div>
+  }
+
+  <!-- Riga 1: patrimonio + KPI del mese -->
+  <div class="dash-grid">
+    <div class="span-5">
+      @if (loading() || !data()) {
+        <span class="skeleton skeleton-rounded" style="height: 280px"></span>
+      } @else {
+        <app-hero-balance-card
+          [balance]="data()!.totals.currentBalanceTotal"
+          [series]="netWorthPoints()"
+          [hidden]="!balanceVisible()"
+          (toggleHidden)="toggleBalance()"
+          [asOfText]="asOfText()"
+        />
+      }
+    </div>
+    <div class="span-7 kpis">
+      @if (loading() || !totals()) {
+        @for (i of [0, 1, 2, 3]; track i) {
+          <span class="skeleton skeleton-rounded" style="height: 130px"></span>
+        }
+      } @else {
+        @let t = totals()!;
+        <app-stat-tile label="Entrate del mese" tone="income" icon="south_west" [value]="formatCurrency(t.earnedMonth)">
+          <app-versus-average [current]="t.earnedMonth" [avg]="history().avgEarned" />
+        </app-stat-tile>
+        <app-stat-tile label="Uscite del mese" tone="expense" icon="north_east" [value]="formatCurrency(t.spentMonth)">
+          <app-versus-average [current]="t.spentMonth" [avg]="history().avgSpent" [lowerIsBetter]="true" />
+        </app-stat-tile>
+        <app-stat-tile
+          label="Risparmio netto"
+          tone="accent"
+          icon="savings"
+          [value]="formatSignedCurrency(t.netMonth)"
+          [progress]="monthProgress"
+          [progressLabel]="'Giorno ' + now.getDate() + ' di ' + daysInMonth + ': il mese è al ' + formatPercent(monthProgress, 0)"
+        />
+        <app-stat-tile
+          label="Tasso di risparmio"
+          [tone]="savingsRate() !== null && savingsRate()! < 0 ? 'expense' : 'income'"
+          icon="percent"
+          [value]="savingsRate() === null ? '—' : formatPercent(savingsRate()!)"
+          [progress]="savingsRate() === null ? 0 : (savingsRate()! > 0 ? savingsRate()! : 0)"
+          [progressLabel]="
+            savingsRate() === null ? 'Nessuna entrata registrata questo mese' : 'Quota delle entrate che resta dopo le spese'
+          "
+        />
+      }
+    </div>
+  </div>
+
+  <!-- Riga 2: conti + dove vanno i soldi + ultimi movimenti (il flusso di cassa è solo in Analisi) -->
+  <div class="dash-grid">
+    <app-surface-card class="span-4" title="Conti" subtitle="Saldo attuale e movimento del mese">
+      @if (loading() || !data()) {
+        <span class="skeleton skeleton-rounded" style="height: 240px"></span>
+      } @else {
+        <app-accounts-overview [accounts]="data()!.accounts" [hidden]="!balanceVisible()" />
+      }
+    </app-surface-card>
+
+    <app-surface-card class="span-4" title="Dove vanno i soldi" subtitle="Per categoria, mese corrente" [hasAction]="true">
+      <mat-button-toggle-group
+        card-action
+        class="segmented"
+        [value]="breakdownView()"
+        (change)="setBreakdownView($event.value)"
+        aria-label="Vista"
+        hideSingleSelectionIndicator
+      >
+        <mat-button-toggle value="bars" aria-label="Barre" matTooltip="Barre">
+          <mat-icon class="icon-sm rotate-90">bar_chart</mat-icon>
+        </mat-button-toggle>
+        <mat-button-toggle value="pie" aria-label="Torta" matTooltip="Torta">
+          <mat-icon class="icon-sm">donut_large</mat-icon>
+        </mat-button-toggle>
+      </mat-button-toggle-group>
+
+      <mat-button-toggle-group
+        class="segmented kind"
+        [value]="breakdownKind()"
+        (change)="setBreakdownKind($event.value)"
+        aria-label="Tipo"
+        hideSingleSelectionIndicator
+      >
+        <mat-button-toggle value="spent">Uscite</mat-button-toggle>
+        <mat-button-toggle value="earned">Entrate</mat-button-toggle>
+      </mat-button-toggle-group>
+
+      @if (loading()) {
+        <span class="skeleton skeleton-rounded" style="height: 280px"></span>
+      } @else if (breakdownView() === "pie") {
+        <app-category-donut-chart [items]="breakdownItems()" [emptyMessage]="breakdownEmpty()" />
+      } @else {
+        <app-ranked-bar-list
+          [items]="breakdownItems()"
+          [maxItems]="Infinity"
+          [color]="breakdownKind() === 'spent' ? 'var(--app-expense)' : 'var(--app-income)'"
+          [emptyMessage]="breakdownEmpty()"
+        />
+      }
+    </app-surface-card>
+
+    <app-surface-card
+      class="span-4"
+      title="Ultimi movimenti"
+      subtitle="Clicca su un movimento per modificarlo"
+      [hasAction]="true"
+    >
+      <button card-action matButton (click)="goTo('transactions')">
+        Vedi tutti <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+      </button>
+      <app-recent-transactions
+        [items]="recent()"
+        [loading]="recentLoading()"
+        (selected)="quickActions.openTransactionModal($event)"
+      />
+    </app-surface-card>
+  </div>
+</app-page-container>

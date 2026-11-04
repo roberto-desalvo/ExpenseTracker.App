@@ -1,0 +1,110 @@
+<div class="toolbar">
+  <app-search-field placeholder="Cerca conto per nome" (searchChange)="store.refreshPaged($event)" />
+  <span class="spacer"></span>
+  <button matButton="filled" (click)="openCreate()"><mat-icon>add</mat-icon> Nuovo conto</button>
+</div>
+
+@if (store.isLoading()) {
+  <div class="cards">
+    @for (i of [0, 1, 2, 3, 4, 5]; track i) {
+      <span class="skeleton skeleton-rounded" style="height: 150px"></span>
+    }
+  </div>
+} @else if (store.paged().length === 0) {
+  <div class="empty surface">
+    <app-empty-state
+      title="Nessun conto trovato"
+      text="Aggiungi i tuoi conti correnti, carte e wallet per tenere traccia di dove si trovano i tuoi soldi."
+      [minHeight]="300"
+    >
+      <button matButton="filled" (click)="openCreate()"><mat-icon>add</mat-icon> Nuovo conto</button>
+    </app-empty-state>
+  </div>
+} @else {
+  <div class="cards">
+    @for (account of store.paged(); track account.id) {
+      <div class="account-card" [style.--account-color]="colorOf(account)">
+        <div class="row gap-md">
+          <span class="initials account-initials">{{ initialsOf(account.name) }}</span>
+          <div class="col spacer">
+            <span class="account-name nowrap">{{ account.name }}</span>
+            @if (account.iban) {
+              <span class="account-iban nowrap">{{ account.iban }}</span>
+            }
+          </div>
+          <button
+            matIconButton
+            class="muted"
+            matTooltip="Modifica"
+            [attr.aria-label]="'Modifica ' + account.name"
+            (click)="openEdit(account)"
+          >
+            <mat-icon class="icon-sm">edit</mat-icon>
+          </button>
+        </div>
+
+        <p class="balance-label">Saldo attuale</p>
+        @let balance = balances().get(account.id);
+        @if (balancesLoading()) {
+          <span class="skeleton" style="width: 55%; height: 30px; margin-top: 4px"></span>
+        } @else {
+          <p class="balance heading-font">{{ balance ? formatCurrency(balance.currentBalance) : "—" }}</p>
+          @if (balance) {
+            <p class="month">
+              Questo mese
+              <strong [class.text-income]="balance.netMonth >= 0" [class.text-expense]="balance.netMonth < 0">
+                {{ formatSignedCurrency(balance.netMonth) }}
+              </strong>
+            </p>
+          }
+        }
+      </div>
+    }
+
+    <button type="button" class="add-card" (click)="openCreate()">
+      <mat-icon>add</mat-icon>
+      <span>Aggiungi conto</span>
+    </button>
+  </div>
+}
+
+@if (pageCount() > 1) {
+  <app-pagination [page]="store.page()" [pageCount]="pageCount()" (pageChange)="store.modifyPage($event)" />
+}
+
+<app-editor-drawer
+  [open]="editorOpen()"
+  (closed)="editorOpen.set(false)"
+  [title]="editing() ? 'Modifica conto' : 'Nuovo conto'"
+  [subtitle]="editing() ? undefined : 'Conto corrente, carta, wallet o investimenti'"
+  (submitted)="submit()"
+  [busy]="busy()"
+  [submitDisabled]="name().trim().length === 0"
+  [submitLabel]="editing() ? 'Salva' : 'Crea conto'"
+>
+  <mat-form-field appearance="outline" class="field-block">
+    <mat-label>Nome del conto</mat-label>
+    <input
+      matInput
+      required
+      [value]="name()"
+      (input)="name.set(inputValue($event))"
+      [disabled]="busy()"
+      placeholder="Es. Conto corrente BBVA"
+    />
+    <mat-hint>Usa lo stesso nome configurato per l'import, se il conto riceve movimenti da file.</mat-hint>
+  </mat-form-field>
+  <mat-form-field appearance="outline" class="field-block">
+    <mat-label>IBAN</mat-label>
+    <input
+      matInput
+      [value]="iban()"
+      (input)="iban.set(inputValue($event))"
+      [disabled]="busy()"
+      placeholder="Es. IT60X0542811101000000123456"
+      autocapitalize="characters"
+      spellcheck="false"
+    />
+    <mat-hint>Facoltativo. Serve agli import per riconoscere i trasferimenti verso e da questo conto.</mat-hint>
+  </mat-form-field>
+</app-editor-drawer>

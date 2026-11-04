@@ -1,0 +1,50 @@
+.dash-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+
+  @media (min-width: 900px) {
+    gap: 20px;
+  }
+
+  @media (min-width: 1200px) {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+
+    .span-4 {
+      grid-column: span 4;
+    }
+    .span-5 {
+      grid-column: span 5;
+    }
+    .span-7 {
+      grid-column: span 7;
+    }
+  }
+}
+
+.span-5 {
+  min-width: 0;
+}
+
+.kpis {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr 1fr;
+  min-width: 0;
+
+  @media (min-width: 900px) {
+    gap: 20px;
+  }
+}
+
+.kind {
+  margin-bottom: 16px;
+}
+
+.rotate-90 {
+  transform: rotate(90deg);
+}
+
+.mat-icon {
+  vertical-align: -4px;
+}

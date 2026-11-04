@@ -5,14 +5,14 @@ on:
     branches:
       - main
     paths:
-      - 'app/**'
+      - 'web/**'
       - '.github/workflows/deploy-frontend.yml'
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches:
       - main
     paths:
-      - 'app/**'
+      - 'web/**'
       - '.github/workflows/deploy-frontend.yml'
 
 concurrency:
@@ -48,15 +48,29 @@ jobs:
           test -n "$VITE_MSAL_TENANT_ID" || (echo "Missing required environment variable: VITE_MSAL_TENANT_ID" && exit 1)
           test -n "$VITE_MSAL_API_SCOPE" || (echo "Missing required environment variable: VITE_MSAL_API_SCOPE" && exit 1)
           [[ "$VITE_EXPENSE_TRACKER_API_BASE_URL" =~ ^https:// ]] || (echo "VITE_EXPENSE_TRACKER_API_BASE_URL must start with https://" && exit 1)
-      - name: Build And Deploy
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+      - name: Build (Angular)
+        working-directory: web
+        # prebuild genera src/environments/env.generated.ts dalle variabili VITE_* del job
+        run: npm run build
+      - name: Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_THANKFUL_ISLAND_04AE49A03 }}
           action: "upload"
-          app_location: "app"
+          # build già eseguita sopra: si carica direttamente l'output di ng build
+          app_location: "web/dist/web/browser"
           api_location: ""
-          output_location: "dist"
+          skip_app_build: true
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
@@ -70,4 +84,4 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_THANKFUL_ISLAND_04AE49A03 }}
           action: "close"
-          app_location: "app"
+          app_location: "web/dist/web/browser"

@@ -1,0 +1,110 @@
+<div class="filters-row">
+  <mat-button-toggle-group
+    class="segmented toggle"
+    [value]="table.periodMode()"
+    (change)="changePeriodMode($event.value)"
+    aria-label="Periodo"
+    hideSingleSelectionIndicator
+  >
+    <mat-button-toggle value="month">Mese</mat-button-toggle>
+    <mat-button-toggle value="custom">Personalizzato</mat-button-toggle>
+  </mat-button-toggle-group>
+
+  @if (table.periodMode() === "month") {
+    <div class="period-box">
+      <span matTooltip="Mese precedente">
+        <button
+          matIconButton
+          aria-label="Mese precedente"
+          [disabled]="monthIndex() < 0 || monthIndex() >= months().length - 1"
+          (click)="goTo(monthIndex() + 1)"
+        >
+          <mat-icon>chevron_left</mat-icon>
+        </button>
+      </span>
+      <mat-select
+        class="month-select"
+        aria-label="Mese"
+        [value]="table.selectedMonth()?.startDate ?? ''"
+        (selectionChange)="selectMonth($event.value)"
+        [disabled]="table.availableMonthsLoading() || months().length === 0"
+        panelClass="month-panel"
+      >
+        <mat-select-trigger>{{ table.selectedMonth()?.description ?? "Nessun mese" }}</mat-select-trigger>
+        @for (m of months(); track m.startDate) {
+          <mat-option [value]="m.startDate" class="capitalize">{{ m.description }}</mat-option>
+        }
+      </mat-select>
+      <span matTooltip="Mese successivo">
+        <button matIconButton aria-label="Mese successivo" [disabled]="monthIndex() <= 0" (click)="goTo(monthIndex() - 1)">
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+      </span>
+    </div>
+  } @else {
+    <div class="period-box range">
+      <span class="range-label">Dal</span>
+      <input
+        class="range-input"
+        aria-label="Dal"
+        [matDatepicker]="fromPicker"
+        [value]="fromValue()"
+        [max]="toValue()"
+        (dateChange)="changeFrom($event.value)"
+      />
+      <mat-datepicker-toggle [for]="fromPicker" class="range-toggle" />
+      <mat-datepicker #fromPicker />
+      <span class="range-divider"></span>
+      <span class="range-label">Al</span>
+      <input
+        class="range-input"
+        aria-label="Al"
+        [matDatepicker]="toPicker"
+        [value]="toValue()"
+        [min]="fromValue()"
+        (dateChange)="changeTo($event.value)"
+      />
+      <mat-datepicker-toggle [for]="toPicker" class="range-toggle" />
+      <mat-datepicker #toPicker />
+    </div>
+  }
+
+  <span class="spacer desktop-only"></span>
+
+  <mat-button-toggle-group
+    class="segmented toggle"
+    [value]="table.movementType()"
+    (change)="changeMovementType($event.value)"
+    aria-label="Tipo di movimento"
+    hideSingleSelectionIndicator
+  >
+    <mat-button-toggle value="all">Tutti</mat-button-toggle>
+    <mat-button-toggle value="incomes">Entrate</mat-button-toggle>
+    <mat-button-toggle value="outcomes">Uscite</mat-button-toggle>
+  </mat-button-toggle-group>
+</div>
+
+<div class="filters-row second">
+  <app-multi-select-filter
+    icon="account_balance_wallet"
+    allLabel="Tutti i conti"
+    [options]="accountOptions()"
+    [selected]="table.selectedAccountIds()"
+    (selectionChange)="table.modifySelectedAccountIds($event)"
+  />
+  <app-multi-select-filter
+    icon="category"
+    allLabel="Tutte le categorie"
+    [options]="categoryOptions()"
+    [selected]="table.selectedCategoryIds()"
+    (selectionChange)="table.modifySelectedCategoryIds($event)"
+  />
+
+  <span class="grow-mobile"></span>
+  @if (anyFilter()) {
+    <button matButton class="reset" (click)="resetFilters()"><mat-icon>filter_alt_off</mat-icon> Azzera filtri</button>
+  }
+  <button matIconButton class="refresh" matTooltip="Aggiorna" aria-label="Aggiorna" (click)="transactions.refreshTransactions()">
+    <mat-icon class="icon-sm">refresh</mat-icon>
+  </button>
+</div>

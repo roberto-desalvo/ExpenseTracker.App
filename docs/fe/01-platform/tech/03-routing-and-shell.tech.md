@@ -1,30 +1,29 @@
 # 03 - Routing and shell (Tecnico)
 
 ## Routing
-`src/App.tsx` usa `BrowserRouter` con un componente interno `AppShell`. I percorsi sono costanti in `src/config/routes.ts` (`ROUTES`):
-- `/` → `DashboardPage` (panoramica del mese e del patrimonio, modulo 11)
-- `/movimenti` → `TransactionsPage` (tabella transazioni con filtri, modulo 08)
-- `/analisi` → `AnalyticsPage` (serie temporali con periodo e granularità, modulo 11)
-- `/impostazioni` → `SettingsPage`
-- `*` → `<Navigate to="/" replace />`
+`src/app/app.routes.ts` definisce le rotte con `loadComponent` (ogni pagina è un chunk lazy). Le costanti dei percorsi sono in `src/app/core/config/routes.ts` (`ROUTES`):
+- `""` → `DashboardPage` (`features/dashboard/dashboard-page.ts`, modulo 11)
+- `movimenti` → `TransactionsPage` (`features/transactions/transactions-page.ts`, modulo 08)
+- `analisi` → `AnalyticsPage` (`features/analytics/analytics-page.ts`, modulo 11)
+- `impostazioni` → `SettingsPage` (`features/settings/settings-page.ts`)
+- `**` → `redirectTo: ""`
+
+Le rotte sono renderizzate dal `router-outlet` di `AppLayout`, che esiste solo a utente autenticato (il gate è nel componente radice, modulo 04).
 
 ### Deep link in produzione (Azure Static Web Apps)
-Il routing è lato client, quindi l'host deve servire `index.html` per qualsiasi percorso. `app/public/staticwebapp.config.json` (copiato da Vite in `dist/`) definisce `navigationFallback.rewrite = "/index.html"`, escludendo `/assets/*` e i file statici per estensione. Senza questo file, aprire o ricaricare `/movimenti`, `/analisi` o `/impostazioni` restituisce il 404 di SWA.
-
-`DATA_ROUTES` (stesso file) elenca le rotte su cui `AccountsProvider`/`CategoriesProvider` caricano l'anagrafica (oggi tutte).
+Il routing è lato client, quindi l'host deve servire `index.html` per qualsiasi percorso. `web/public/staticwebapp.config.json` (copiato in `dist/web/browser/`) definisce `navigationFallback.rewrite = "/index.html"`, escludendo `/assets/*` e i file statici per estensione. Senza questo file, aprire o ricaricare `/movimenti`, `/analisi` o `/impostazioni` restituisce il 404 di SWA.
 
 ### Impostazioni
-`SettingsPage` (`src/pages/SettingsPage.tsx`) ha tre sezioni selezionate dalla querystring `?sezione=categorie|conti|aspetto` (default `categorie`; per compatibilità accetta anche il vecchio `?tab=categorie|account`, `normalizeSection`). Su desktop (`md+`) le sezioni sono una colonna di navigazione verticale a sinistra; su mobile sono `Tabs` a larghezza piena. Il contenuto è `CategoriesPage`, `AccountsPage` o `AppearanceSettings` (`src/components/settings/AppearanceSettings.tsx`).
+`SettingsPage` ha tre sezioni selezionate dalla querystring `?sezione=categorie|conti|aspetto` (default `categorie`; accetta anche il vecchio `?tab=categorie|account`, `normalizeSection`). Su desktop (≥ 900px) le sezioni sono una colonna di navigazione verticale; su mobile una `mat-tab-nav-bar` a larghezza piena (link con `routerLink` + `queryParams`). Il contenuto è `CategoriesSettings`, `AccountsSettings` o `AppearanceSettings` (`features/settings/`).
 
-## Shell
-- `src/components/layout/AppLayout.tsx` avvolge tutte le route. La variante dipende dalla preferenza `nav` di `ThemeContext` (modulo 12):
-  - `sidebar` (default): barra laterale sticky a sinistra, larghezza 256px, comprimibile a 76px (solo icone con tooltip). Lo stato compresso è in `localStorage` (`expense-tracker:sidebar-collapsed`). Contiene logo (`BrandMark`), bottone "Nuovo", voci di menu, switch tema, comprimi/espandi e box utente con logout.
-  - `topbar`: header sticky con sfondo semitrasparente (`backdrop-filter`), logo, voci di menu orizzontali, switch tema, "Nuovo" e menu utente (`UserMenuButton`, con link ad Aspetto e logout).
-  - Sotto `md` entrambe le varianti diventano una barra superiore compatta (menu hamburger, logo, switch tema, "+") con `Drawer` laterale che riusa il contenuto della sidebar.
-- Voci di menu: `src/components/layout/navigation.tsx` (`NAV_ITEMS`: Dashboard, Movimenti, Analisi, Impostazioni; `isNavItemActive` usa il prefisso del percorso).
-- `src/components/layout/HeaderActions.tsx`: `NewEntryButton` (menu "Transazione"/"Trasferimento" → `useQuickActions()`), `ThemeModeButton` (`toggleTheme`), `UserMenuButton`.
-- A ogni cambio di rotta il drawer mobile si chiude e la pagina torna in cima.
-- Le pagine usano `PageContainer` (larghezza max 1440px, padding responsive) e `PageHeader` (titolo, sottotitolo, azioni) da `src/components/ui/`.
+## Shell (`src/app/layout/`)
+- `app-layout.ts/.html/.scss` avvolge tutte le route. La variante dipende dalla preferenza `nav` di `ThemeService` (modulo 12) e dal breakpoint `(min-width: 900px)` (`BreakpointObserver`):
+  - `sidebar` (default): barra laterale sticky, 256px, comprimibile a 76px (solo icone con tooltip). Stato compresso in `localStorage` (`expense-tracker:sidebar-collapsed`). Contiene logo (`BrandMark`), "Nuovo", voci di menu, switch tema, comprimi/espandi e box utente con logout.
+  - `topbar`: header sticky semitrasparente (`backdrop-filter`), logo, voci orizzontali, switch tema, "Nuovo" e `UserMenuButton` (link ad Aspetto e logout).
+  - Sotto 900px entrambe diventano una barra compatta (hamburger, logo, switch tema, "+") con un pannello laterale a scomparsa che riusa lo stesso `ng-template` della sidebar; si chiude a ogni navigazione, con clic sullo sfondo o con Esc.
+- Voci di menu: `src/app/core/config/navigation.ts` (`NAV_ITEMS` con nome dell'icona Material Symbols; `isNavItemActive` usa il prefisso del percorso).
+- `header-actions.ts`: `NewEntryButton` (`mat-menu` "Transazione"/"Trasferimento" → `QuickActionsService`), `ThemeModeButton` (`toggleTheme`), `UserMenuButton`.
+- Le pagine usano `PageContainer` (larghezza max 1440px, padding responsive) e `PageHeader` (titolo, sottotitolo, eyebrow; azioni proiettate con l'attributo `actions`) da `src/app/shared/ui/`.
 
 ## Note
-L'intera area route è protetta da `AuthGate` (MSAL o login di sviluppo; vedi modulo 04).
+L'intera area route è protetta: senza utente autenticato `App` mostra la pagina di login invece della shell (modulo 04).

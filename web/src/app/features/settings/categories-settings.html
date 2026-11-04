@@ -1,0 +1,159 @@
+<div class="toolbar">
+  <app-search-field placeholder="Cerca categoria per nome" (searchChange)="store.refreshPaged($event)" />
+  <span class="spacer"></span>
+  <button matButton="outlined" (click)="syncOpen.set(true)"><mat-icon>sync</mat-icon> Sincronizza categorie</button>
+  <button matButton="filled" (click)="openCreate()"><mat-icon>add</mat-icon> Nuova categoria</button>
+</div>
+
+<app-data-table
+  [columns]="columns"
+  [rows]="store.paged()"
+  [isLoading]="store.isLoading()"
+  [isEmpty]="!store.isLoading() && store.paged().length === 0"
+  emptyMessage="Nessuna categoria trovata"
+  emptySubtext="Crea una categoria per organizzare i movimenti e classificarli in automatico durante l'import o con la sincronizzazione."
+  [page]="store.page()"
+  [pageSize]="store.pageSize()"
+  [totalCount]="store.totalCount()"
+  (pageChange)="store.modifyPage($event)"
+  (pageSizeChange)="store.modifyPageSize($event)"
+  [minTableWidth]="640"
+  tableLayout="fixed"
+  [clickableRows]="true"
+>
+  <ng-template let-category>
+    <td (click)="openEdit(category)">
+      <div class="row gap-md">
+        <span class="initials" [class.default]="category.isDefault">{{ initialsOf(category.name) }}</span>
+        <div class="col">
+          <div class="row gap-sm">
+            <span class="name nowrap">{{ category.name }}</span>
+            @if (category.isDefault) {
+              <span class="badge"><mat-icon class="icon-xs">lock</mat-icon> Predefinita</span>
+            }
+          </div>
+          <span class="description nowrap">{{ category.description || "Nessuna descrizione" }}</span>
+        </div>
+      </div>
+    </td>
+    <td (click)="openEdit(category)">
+      @if (category.tags.length > 0) {
+        <!-- tutti i tag vanno a capo; oltre ~3 righe la cella scorre in verticale -->
+        <div class="tags">
+          @for (tag of category.tags; track tag) {
+            <span class="tag" [title]="tag">{{ tag }}</span>
+          }
+        </div>
+      } @else {
+        <span class="text-muted">—</span>
+      }
+    </td>
+    <td class="align-right" (click)="openEdit(category)">
+      <span class="priority tabular">{{ category.priority }}</span>
+    </td>
+    <td class="align-right">
+      <div class="row-actions">
+        <button matIconButton matTooltip="Modifica" [attr.aria-label]="'Modifica ' + category.name" (click)="openEdit(category)">
+          <mat-icon class="icon-sm">edit</mat-icon>
+        </button>
+        <span [matTooltip]="category.isDefault ? 'La categoria predefinita non si può eliminare' : 'Elimina'">
+          <button
+            matIconButton
+            class="danger-hover"
+            [disabled]="category.isDefault"
+            [attr.aria-label]="'Elimina ' + category.name"
+            (click)="toDelete.set(category)"
+          >
+            <mat-icon class="icon-sm">delete</mat-icon>
+          </button>
+        </span>
+      </div>
+    </td>
+  </ng-template>
+</app-data-table>
+
+<app-editor-drawer
+  [open]="editorOpen()"
+  (closed)="editorOpen.set(false)"
+  [title]="editing() ? 'Modifica categoria' : 'Nuova categoria'"
+  [subtitle]="editing()?.isDefault ? 'Categoria predefinita: riceve i movimenti non classificati' : undefined"
+  (submitted)="submit()"
+  [busy]="busy()"
+  [submitDisabled]="form().name.trim().length === 0"
+  [submitLabel]="editing() ? 'Salva modifiche' : 'Crea categoria'"
+>
+  @if (editing() && !editing()!.isDefault) {
+    <button secondary-action matButton type="button" class="btn-danger" [disabled]="busy()" (click)="toDelete.set(editing())">
+      <mat-icon>delete</mat-icon> Elimina
+    </button>
+  }
+
+  <mat-form-field appearance="outline" class="field-block">
+    <mat-label>Nome</mat-label>
+    <input matInput required [value]="form().name" (input)="patchForm({ name: inputValue($event) })" [disabled]="busy()" />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" class="field-block">
+    <mat-label>Descrizione</mat-label>
+    <textarea
+      matInput
+      rows="2"
+      [value]="form().description"
+      (input)="patchForm({ description: inputValue($event) })"
+      [disabled]="busy()"
+    ></textarea>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" class="field-block">
+    <mat-label>Parole chiave</mat-label>
+    <mat-chip-grid #chipGrid aria-label="Parole chiave" [disabled]="busy()">
+      @for (tag of form().tags; track tag) {
+        <mat-chip-row (removed)="removeTag(tag)">
+          {{ tag }}
+          <button matChipRemove [attr.aria-label]="'Rimuovi ' + tag"><mat-icon class="icon-xs">cancel</mat-icon></button>
+        </mat-chip-row>
+      }
+      <input
+        #tagField
+        [placeholder]="form().tags.length ? '' : 'Es. esselunga, conad'"
+        [matChipInputFor]="chipGrid"
+        [matChipInputSeparatorKeyCodes]="separatorKeys"
+        [matAutocomplete]="tagAuto"
+        (matChipInputTokenEnd)="onTagInputEnd($event)"
+        (input)="tagInput.set(inputValue($event))"
+      />
+    </mat-chip-grid>
+    <mat-autocomplete #tagAuto="matAutocomplete" (optionSelected)="onTagSelected($event, tagField)">
+      @for (tag of tagSuggestions(); track tag) {
+        <mat-option [value]="tag">{{ tag }}</mat-option>
+      }
+    </mat-autocomplete>
+    <mat-hint>
+      Premi Invio dopo ogni parola. Durante l'import e con “Sincronizza categorie”, un movimento la cui descrizione contiene
+      una di queste parole viene assegnato a questa categoria.
+    </mat-hint>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" class="priority-field">
+    <mat-label>Priorità</mat-label>
+    <input
+      matInput
+      type="number"
+      [value]="form().priority"
+      (input)="patchForm({ priority: inputValue($event) })"
+      [disabled]="busy()"
+    />
+    <mat-hint>Se più categorie corrispondono, vince quella con il numero più basso.</mat-hint>
+  </mat-form-field>
+</app-editor-drawer>
+
+<app-category-sync-modal [open]="syncOpen()" (closed)="syncOpen.set(false)" />
+
+<app-confirm-delete-dialog
+  [open]="toDelete() !== null"
+  (closed)="toDelete.set(null)"
+  [confirmAction]="confirmDelete"
+  [busy]="busy()"
+  title="Eliminare la categoria?"
+  [message]="deleteMessage()"
+/>

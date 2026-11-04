@@ -1,0 +1,131 @@
+<ng-template #sidebarContent let-collapsed="collapsed" let-collapsible="collapsible">
+  <div class="sidebar-content" [class.collapsed]="collapsed">
+    <div class="brand">
+      <app-brand-mark [compact]="collapsed" clickable (activated)="navigate('/')" />
+    </div>
+
+    <div class="new-entry">
+      <app-new-entry-button [iconOnly]="collapsed" fullWidth />
+    </div>
+
+    <div>
+      @if (!collapsed) {
+        <div class="overline menu-label">Menu</div>
+      }
+      <nav class="side-nav" aria-label="Navigazione principale">
+        @for (item of navItems; track item.path) {
+          <button
+            type="button"
+            class="side-nav-item"
+            [class.active]="isActive(item.path)"
+            [attr.aria-current]="isActive(item.path) ? 'page' : null"
+            [matTooltip]="collapsed ? item.label : ''"
+            matTooltipPosition="right"
+            (click)="navigate(item.path)"
+          >
+            <mat-icon class="icon-sm nav-icon">{{ item.icon }}</mat-icon>
+            @if (!collapsed) {
+              <span>{{ item.label }}</span>
+            }
+          </button>
+        }
+      </nav>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="col gap-sm">
+      <div class="side-tools" [class.vertical]="collapsed">
+        <app-theme-mode-button />
+        @if (collapsible) {
+          <button
+            matIconButton
+            class="muted"
+            aria-label="Comprimi menu"
+            [matTooltip]="collapsed ? 'Espandi menu' : 'Comprimi menu'"
+            matTooltipPosition="right"
+            (click)="toggleCollapsed()"
+          >
+            <mat-icon class="icon-sm">{{ collapsed ? "keyboard_double_arrow_right" : "keyboard_double_arrow_left" }}</mat-icon>
+          </button>
+        }
+      </div>
+
+      <div class="user-box" [class.collapsed]="collapsed">
+        <span class="initials user-avatar">{{ initials() }}</span>
+        @if (!collapsed) {
+          <span class="user-name nowrap">{{ auth.userName() || "Utente" }}</span>
+          <button matIconButton class="muted small" aria-label="Esci" matTooltip="Esci" (click)="auth.logout()">
+            <mat-icon class="icon-sm">logout</mat-icon>
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+</ng-template>
+
+<div class="shell">
+  @if (useSidebar()) {
+    <aside class="sidebar" [class.collapsed]="collapsed()">
+      <ng-container *ngTemplateOutlet="sidebarContent; context: { collapsed: collapsed(), collapsible: true }" />
+    </aside>
+  }
+
+  <div class="main-column">
+    @if (useTopbar()) {
+      <header class="app-header">
+        <div class="topbar">
+          <app-brand-mark clickable (activated)="navigate('/')" />
+          <nav class="top-nav" aria-label="Navigazione principale">
+            @for (item of navItems; track item.path) {
+              <button
+                type="button"
+                class="top-nav-item"
+                [class.active]="isActive(item.path)"
+                [attr.aria-current]="isActive(item.path) ? 'page' : null"
+                (click)="navigate(item.path)"
+              >
+                <mat-icon class="icon-sm">{{ item.icon }}</mat-icon>
+                {{ item.label }}
+              </button>
+            }
+          </nav>
+          <span class="spacer"></span>
+          <div class="row gap-sm">
+            <app-theme-mode-button />
+            <app-new-entry-button />
+            <app-user-menu-button />
+          </div>
+        </div>
+      </header>
+    }
+
+    @if (!isDesktop()) {
+      <header class="app-header">
+        <div class="mobilebar">
+          <button matIconButton class="muted" aria-label="Apri menu" (click)="mobileOpen.set(true)">
+            <mat-icon>menu</mat-icon>
+          </button>
+          <app-brand-mark clickable (activated)="navigate('/')" />
+          <span class="spacer"></span>
+          <app-theme-mode-button />
+          <app-new-entry-button iconOnly />
+        </div>
+      </header>
+    }
+
+    <main class="main">
+      <router-outlet />
+    </main>
+  </div>
+
+  @if (!isDesktop() && mobileOpen()) {
+    <div class="mobile-backdrop" (click)="mobileOpen.set(false)" aria-hidden="true"></div>
+    <aside class="mobile-drawer" role="dialog" aria-label="Menu" (keydown.escape)="mobileOpen.set(false)">
+      <ng-container *ngTemplateOutlet="sidebarContent; context: { collapsed: false, collapsible: false }" />
+    </aside>
+  }
+</div>
+
+<app-transaction-modal />
+<app-transfer-modal />

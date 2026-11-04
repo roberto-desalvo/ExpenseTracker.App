@@ -1,7 +1,7 @@
 # Frontend Handbook (Tecnico)
 
 ## Scopo
-Indice tecnico della documentazione modulare FE.
+Indice tecnico della documentazione modulare FE. Il frontend è l'app Angular in `web/` (il vecchio frontend React in `app/` è in dismissione e non è più documentato qui).
 
 ## Come usare questi documenti
 1. Parti da `01-overview-and-boundaries`.
@@ -15,22 +15,24 @@ Indice tecnico della documentazione modulare FE.
 - 04 Authentication (MSAL)
 - 05 API integration and errors
 - 06 Data contracts and models
-- 07 Global state (contexts)
+- 07 Global state (stores)
 - 08 Transactions flow
 - 09 Categories flow
 - 10 Accounts and transfers flow
 - 11 Dashboard and time series
 - 12 UI theming and design system
 
-## Sorgenti principali
-- `src/main.tsx`
-- `src/App.tsx`
-- `src/config/*`
-- `src/auth/*`
-- `src/services/*`
-- `src/stores/*`
-- `src/pages/*`
-- `src/components/*`
+## Sorgenti principali (percorsi relativi a `web/`)
+- `src/main.ts`, `src/app/app.config.ts`, `src/app/app.ts`, `src/app/app.routes.ts`
+- `src/app/core/config/*` (env, endpoint, rotte, navigazione)
+- `src/app/core/auth/*`
+- `src/app/core/api/*` (client HTTP, interceptor, servizi API, notifiche)
+- `src/app/core/state/*` (store a signal)
+- `src/app/core/theme/*`
+- `src/app/layout/*`, `src/app/pages/auth/*`
+- `src/app/features/*` (dashboard, transactions, analytics, settings)
+- `src/app/shared/ui/*`, `src/app/shared/charts/*`
+- `scripts/write-env.mjs`
 
 ## Regole di manutenzione
 - Quando cambia una feature FE, aggiornare sia file `.tech.md` sia file `.non-tech.md` corrispondente.

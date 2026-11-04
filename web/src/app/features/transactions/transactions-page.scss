@@ -1,0 +1,48 @@
+.date {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--app-text);
+  white-space: nowrap;
+}
+
+.weekday {
+  font-size: 0.72rem;
+  color: var(--app-text-muted);
+}
+
+.description {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--app-text);
+}
+
+.category-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: max(calc(var(--app-radius-control) - 2px), 4px);
+  background-color: var(--app-surface-alt);
+  color: var(--app-text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account {
+  font-size: 0.84rem;
+  color: var(--app-text-secondary);
+}
+
+.amount {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--app-text);
+  white-space: nowrap;
+
+  &.income {
+    color: var(--app-income);
+  }
+}

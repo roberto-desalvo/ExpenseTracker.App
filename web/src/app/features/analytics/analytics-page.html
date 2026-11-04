@@ -1,0 +1,192 @@
+<app-page-container>
+  <app-page-header title="Analisi" subtitle="Come si muovono patrimonio, entrate e spese nel tempo." />
+
+  <!-- Filtri: un'unica riga sopra tutti i grafici -->
+  <app-surface-card [padding]="16">
+    <div class="filters">
+      <div class="scroll-x">
+        <mat-button-toggle-group
+          class="segmented nowrap-group"
+          [value]="preset()"
+          (change)="choosePreset($event.value)"
+          aria-label="Periodo"
+          hideSingleSelectionIndicator
+        >
+          @for (p of presets; track p.value) {
+            <mat-button-toggle [value]="p.value">{{ p.label }}</mat-button-toggle>
+          }
+        </mat-button-toggle-group>
+      </div>
+      <span class="spacer"></span>
+      <div class="row gap-sm">
+        <span class="group-label">Raggruppa per</span>
+        <mat-button-toggle-group
+          class="segmented"
+          [value]="granularity()"
+          (change)="pick(granularity, $event.value)"
+          aria-label="Raggruppamento"
+          hideSingleSelectionIndicator
+        >
+          @for (g of granularities; track g.value) {
+            <mat-button-toggle [value]="g.value">{{ g.label }}</mat-button-toggle>
+          }
+        </mat-button-toggle-group>
+      </div>
+    </div>
+    @if (preset() === "custom") {
+      <div class="custom-range">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Dal</mat-label>
+          <input matInput type="date" [value]="range().start" (input)="setRangeValue('start', $event)" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Al</mat-label>
+          <input matInput type="date" [value]="range().end" (input)="setRangeValue('end', $event)" />
+        </mat-form-field>
+      </div>
+    }
+  </app-surface-card>
+
+  @if (invalidRange()) {
+    <div class="alert alert-warning">
+      <mat-icon class="icon-sm">warning</mat-icon>
+      <span>La data di inizio deve precedere la data di fine.</span>
+    </div>
+  }
+
+  <!-- Flusso di cassa + sintesi del periodo -->
+  <app-surface-card
+    title="Flusso di cassa"
+    [subtitle]="'Entrate sopra lo zero, uscite sotto, saldo netto come linea · ' + periodLabel()"
+    [hasAction]="true"
+  >
+    <app-chart-view-toggle card-action [(value)]="flowView" />
+    @let s = summary();
+    <div class="summary">
+      <app-summary-figure label="Inizio periodo" [value]="formatCurrency(s.startValue)" />
+      <app-summary-figure label="Fine periodo" [value]="formatCurrency(s.endValue)" />
+      <app-summary-figure
+        label="Variazione"
+        [value]="formatSignedCurrency(s.change)"
+        [tone]="s.change >= 0 ? tokens().income : tokens().expense"
+      />
+      <app-summary-figure label="Entrate totali" [value]="formatCurrency(s.earned)" hint="trasferimenti esclusi" />
+      <app-summary-figure label="Uscite totali" [value]="formatCurrency(s.spent)" hint="trasferimenti esclusi" />
+      <app-summary-figure
+        label="Tasso di risparmio"
+        [value]="s.rate === null ? '—' : formatPercent(s.rate)"
+        [hint]="'risparmio netto ' + formatSignedCurrency(s.net)"
+      />
+    </div>
+    @if (loading()) {
+      <span class="skeleton skeleton-rounded chart-skeleton"></span>
+    } @else {
+      <app-cash-flow-chart [points]="cashFlow()" [height]="300" [view]="flowView()" />
+    }
+  </app-surface-card>
+
+  <div class="two-cols">
+    <app-surface-card
+      title="Patrimonio"
+      subtitle="Saldo medio di tutti i conti per periodo · clicca un conto nella legenda per mostrarlo"
+      [hasAction]="true"
+    >
+      <app-chart-view-toggle card-action [(value)]="netWorthView" />
+      @if (loading()) {
+        <span class="skeleton skeleton-rounded chart-skeleton"></span>
+      } @else {
+        <app-net-worth-area-chart
+          [points]="netWorth()"
+          [accountSeries]="accountSeries()"
+          [height]="300"
+          [view]="netWorthView()"
+        />
+      }
+    </app-surface-card>
+
+    <app-surface-card
+      title="Classifica periodi"
+      [subtitle]="
+        'I ' + (rankGranularity() === 3 ? 'mesi' : 'anni') + ' migliori e peggiori nel periodo selezionato · trasferimenti esclusi'
+      "
+      [hasAction]="true"
+    >
+      <mat-button-toggle-group
+        card-action
+        class="segmented"
+        [value]="rankGranularity()"
+        (change)="pick(rankGranularity, $event.value)"
+        aria-label="Raggruppamento classifica"
+        hideSingleSelectionIndicator
+      >
+        <mat-button-toggle [value]="3">Mese</mat-button-toggle>
+        <mat-button-toggle [value]="4">Anno</mat-button-toggle>
+      </mat-button-toggle-group>
+      <div class="scroll-x metric">
+        <mat-button-toggle-group
+          class="segmented nowrap-group"
+          [value]="rankMetric()"
+          (change)="pick(rankMetric, $event.value)"
+          aria-label="Metrica classifica"
+          hideSingleSelectionIndicator
+        >
+          @for (m of rankMetrics; track m.value) {
+            <mat-button-toggle [value]="m.value">{{ m.label }}</mat-button-toggle>
+          }
+        </mat-button-toggle-group>
+      </div>
+      @if (rankLoading()) {
+        <span class="skeleton skeleton-rounded" style="height: 280px"></span>
+      } @else {
+        <app-ranked-bar-list
+          [items]="rankItems()"
+          [maxItems]="rankSize"
+          [showShare]="false"
+          [color]="rankMetric() === 'earned' || rankMetric() === 'saved' ? 'var(--app-income)' : 'var(--app-expense)'"
+          [emptyMessage]="rankEmpty[rankMetric()]"
+          [minHeight]="280"
+        />
+      }
+    </app-surface-card>
+  </div>
+
+  <div class="two-cols wide-left">
+    <app-surface-card
+      [title]="categoryKind() === 'spent' ? 'Spese per categoria' : 'Entrate per categoria'"
+      subtitle="Composizione per periodo di tutte le categorie"
+      [hasAction]="true"
+    >
+      <div card-action class="row gap-sm">
+        <mat-button-toggle-group
+          class="segmented"
+          [value]="categoryKind()"
+          (change)="pick(categoryKind, $event.value)"
+          aria-label="Tipo"
+          hideSingleSelectionIndicator
+        >
+          <mat-button-toggle value="spent">Uscite</mat-button-toggle>
+          <mat-button-toggle value="earned">Entrate</mat-button-toggle>
+        </mat-button-toggle-group>
+        <app-chart-view-toggle [(value)]="categoryView" />
+      </div>
+      @if (loading()) {
+        <span class="skeleton skeleton-rounded chart-skeleton"></span>
+      } @else {
+        <app-stacked-period-bars [series]="categorySeries()" [maxSeries]="Infinity" [height]="300" [view]="categoryView()" />
+      }
+    </app-surface-card>
+
+    <app-surface-card title="Classifica categorie" subtitle="Totale nel periodo selezionato">
+      @if (loading()) {
+        <span class="skeleton skeleton-rounded chart-skeleton"></span>
+      } @else {
+        <app-ranked-bar-list
+          [items]="categoryTotals()"
+          [maxItems]="Infinity"
+          [color]="categoryKind() === 'spent' ? 'var(--app-expense)' : 'var(--app-income)'"
+          emptyMessage="Nessun movimento nel periodo"
+        />
+      }
+    </app-surface-card>
+  </div>
+</app-page-container>
