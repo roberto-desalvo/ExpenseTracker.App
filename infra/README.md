@@ -16,7 +16,6 @@ infra/
 │   ├── monitoring.bicep           # Log Analytics + Application Insights
 │   ├── storage.bicep              # storage host Functions + container del pacchetto
 │   ├── functionApp.bicep          # piano Flex Consumption + Function App + ruoli RBAC
-│   ├── sql.bicep                  # riferimento (existing) a SQL server + database già esistenti
 │   ├── keyVault.bicep             # Key Vault (RBAC) + segreto DemoAuth
 │   ├── logicApps.bicep            # Logic App import OneDrive + reset demo, identità, connessione OneDrive
 │   └── staticWebApp.bicep         # Static Web App del frontend (+ dominio custom opzionale)

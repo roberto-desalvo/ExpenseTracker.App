@@ -150,14 +150,21 @@ module entra 'modules/entra.bicep' = {
   }
 }
 
-module sql 'modules/sql.bicep' = {
-  name: 'sql'
+// Existing SQL server + database (not created or modified). Referenced directly with a cross-resource-group
+// scope instead of a module: a module would be a nested deployment in the SQL resource group, which needs
+// Microsoft.Resources/deployments/write there, while the pipeline identity only has Reader on it.
+resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' existing = {
+  name: sqlServerName
   scope: resourceGroup(empty(sqlServerResourceGroup) ? resourceGroup().name : sqlServerResourceGroup)
-  params: {
-    sqlServerName: sqlServerName
-    sqlDatabaseName: sqlDatabaseName
-  }
 }
+
+resource sqlDatabase 'Microsoft.Sql/servers/databases@2023-08-01-preview' existing = {
+  parent: sqlServer
+  name: sqlDatabaseName
+}
+
+// Passwordless: the Function App authenticates with its system-assigned managed identity.
+var sqlConnectionString = 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Initial Catalog=${sqlDatabase.name};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;Authentication=Active Directory Default;'
 
 module keyVault 'modules/keyVault.bicep' = {
   name: 'keyVault'
@@ -183,7 +190,7 @@ module functionApp 'modules/functionApp.bicep' = {
     keyVaultName: keyVault.outputs.name
     demoAuthSecretUri: keyVault.outputs.demoAuthSecretUri
     demoAuthEnabled: demoAuthEnabled
-    sqlConnectionString: sql.outputs.connectionString
+    sqlConnectionString: sqlConnectionString
     azureAdTenantId: tenant().tenantId
     azureAdClientId: entra.outputs.apiClientId
     azureAdAudience: entra.outputs.apiIdentifierUri
@@ -221,8 +228,8 @@ output customDomainValidationToken string = staticWebApp.outputs.customDomainVal
 output logicAppIdentityName string = logicApps.outputs.identityName
 output logicAppIdentityPrincipalId string = logicApps.outputs.identityPrincipalId
 output oneDriveConnectionName string = logicApps.outputs.oneDriveConnectionName
-output sqlServerFqdn string = sql.outputs.fullyQualifiedDomainName
-output sqlDatabaseName string = sql.outputs.databaseName
+output sqlServerFqdn string = sqlServer.properties.fullyQualifiedDomainName
+output sqlDatabaseName string = sqlDatabase.name
 output keyVaultName string = keyVault.outputs.name
 
 // Values for the frontend build (deploy-frontend.yml VITE_* secrets) and the import scripts.
