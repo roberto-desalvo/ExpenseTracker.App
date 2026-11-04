@@ -41,7 +41,14 @@ az bicep build --file ./infra/main.bicep; az bicep lint --file ./infra/main.bice
 # Preview / deploy: prod.bicepparam reads env vars from infra/.env (gitignored, template infra/.env.example), loaded by the script below
 . ./infra/scripts/load-env.ps1
 az deployment group what-if -g <resource-group> --parameters ./infra/parameters/prod.bicepparam
+
+# One-time bootstrap (admin, local): resource group, GitHub OIDC deploy identity, Graph permission, RBAC, Files.Sender assignments
+az deployment sub create -l westeurope --parameters ./infra/bootstrap/bootstrap.bicepparam
+# ...or all in one (load .env + bootstrap + GitHub environment secrets/variables via gh); supports -WhatIf, -SkipBootstrap, -SkipGitHub
+./infra/scripts/bootstrap.ps1
 ```
+
+Entra ID app registrations (API + SPA) are created by `infra/modules/entra.bicep` via the Microsoft Graph Bicep extension (`infra/bicepconfig.json`).
 
 CI: `.github/workflows/deploy-infra.yml` (validate → what-if on PRs → deploy on `main`). Details in `infra/README.md` and `docs/be/04-operations/tech/13-infrastructure-as-code.tech.md`.
 

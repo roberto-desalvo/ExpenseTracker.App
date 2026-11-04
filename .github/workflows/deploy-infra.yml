@@ -3,14 +3,16 @@
 #   pull_request -> validate + what-if (preview of the changes, shown in the job summary)
 #   push to main / workflow_dispatch -> validate + what-if + deploy (GitHub environment "production")
 #
-# Required repository configuration (see infra/README.md):
-#   secrets: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID (OIDC login of the deployment identity)
+# The deployment identity and its permissions are created once by infra/bootstrap (run locally by an admin).
+# Required configuration in the GitHub environment "production" (see infra/README.md); all jobs reference it,
+# so required reviewers on the environment also gate the what-if of pull requests:
+#   secrets: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID (outputs of infra/bootstrap, OIDC login)
 #            DEMO_AUTH_SIGNING_KEY (optional, written to Key Vault when set)
-#   vars:    AZURE_RESOURCE_GROUP, AZURE_LOCATION (default westeurope),
-#            AZURE_AD_TENANT_ID, AZURE_AD_CLIENT_ID, AZURE_AD_AUDIENCE (optional),
+#   vars:    AZURE_RESOURCE_GROUP (resource group created by infra/bootstrap),
 #            SQL_SERVER_NAME, SQL_DATABASE_NAME (existing SQL server/database),
 #            SQL_SERVER_RESOURCE_GROUP (optional, default AZURE_RESOURCE_GROUP),
-#            DEMO_AUTH_ENABLED (optional, default false)
+#            DEMO_AUTH_ENABLED (optional, default false),
+#            CUSTOM_DOMAIN (optional, apex custom domain of the Static Web App, e.g. expensetracker.lol)
 
 name: Deploy Infrastructure (Bicep)
 
@@ -37,24 +39,25 @@ concurrency:
 env:
   TEMPLATE_FILE: infra/main.bicep
   PARAMETERS_FILE: infra/parameters/prod.bicepparam
-  AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-  AZURE_LOCATION: ${{ vars.AZURE_LOCATION || 'westeurope' }}
-  # Read by infra/parameters/prod.bicepparam through readEnvironmentVariable().
-  AZURE_AD_TENANT_ID: ${{ vars.AZURE_AD_TENANT_ID }}
-  AZURE_AD_CLIENT_ID: ${{ vars.AZURE_AD_CLIENT_ID }}
-  AZURE_AD_AUDIENCE: ${{ vars.AZURE_AD_AUDIENCE }}
-  SQL_SERVER_NAME: ${{ vars.SQL_SERVER_NAME }}
-  SQL_DATABASE_NAME: ${{ vars.SQL_DATABASE_NAME }}
-  SQL_SERVER_RESOURCE_GROUP: ${{ vars.SQL_SERVER_RESOURCE_GROUP }}
-  DEMO_AUTH_ENABLED: ${{ vars.DEMO_AUTH_ENABLED || 'false' }}
 
 jobs:
   validate:
     name: Validate (bicep build + lint)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Variables and secrets live in the "production" environment: every job that reads them must reference it.
+    environment: production
     permissions:
       contents: read
+    env: &infra-env
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      # Read by infra/parameters/prod.bicepparam through readEnvironmentVariable().
+      SQL_SERVER_NAME: ${{ vars.SQL_SERVER_NAME }}
+      SQL_DATABASE_NAME: ${{ vars.SQL_DATABASE_NAME }}
+      SQL_SERVER_RESOURCE_GROUP: ${{ vars.SQL_SERVER_RESOURCE_GROUP }}
+      DEMO_AUTH_ENABLED: ${{ vars.DEMO_AUTH_ENABLED || 'false' }}
+      CUSTOM_DOMAIN: ${{ vars.CUSTOM_DOMAIN }}
+      DEMO_AUTH_SIGNING_KEY: ${{ secrets.DEMO_AUTH_SIGNING_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -62,7 +65,7 @@ jobs:
         shell: bash
         run: |
           missing=0
-          for v in AZURE_RESOURCE_GROUP AZURE_AD_TENANT_ID AZURE_AD_CLIENT_ID SQL_SERVER_NAME SQL_DATABASE_NAME; do
+          for v in AZURE_RESOURCE_GROUP SQL_SERVER_NAME SQL_DATABASE_NAME; do
             if [ -z "${!v}" ]; then echo "::error::Missing repository variable: $v"; missing=1; fi
           done
           exit $missing
@@ -83,11 +86,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: validate
     timeout-minutes: 15
+    environment: production # OIDC subject repo:<repo>:environment:production
     permissions:
       id-token: write # OIDC login
       contents: read
-    env:
-      DEMO_AUTH_SIGNING_KEY: ${{ secrets.DEMO_AUTH_SIGNING_KEY }}
+    env: *infra-env
     steps:
       - uses: actions/checkout@v4
 
@@ -100,11 +103,8 @@ jobs:
 
       - name: Run what-if
         shell: bash
+        # Microsoft Graph resources (app registrations) are not evaluated by what-if: only Azure resources are previewed.
         run: |
-          if [ "$(az group exists --name "$AZURE_RESOURCE_GROUP")" != "true" ]; then
-            echo "Resource group '$AZURE_RESOURCE_GROUP' does not exist yet: it will be created by the deploy job, every resource will be new." | tee -a "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
           az deployment group what-if \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --name "infra-whatif-${GITHUB_RUN_NUMBER}" \
@@ -126,8 +126,7 @@ jobs:
     permissions:
       id-token: write # OIDC login
       contents: read
-    env:
-      DEMO_AUTH_SIGNING_KEY: ${{ secrets.DEMO_AUTH_SIGNING_KEY }}
+    env: *infra-env
     steps:
       - uses: actions/checkout@v4
 
@@ -137,14 +136,6 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Ensure resource group
-        shell: bash
-        run: |
-          if [ "$(az group exists --name "$AZURE_RESOURCE_GROUP")" != "true" ]; then
-            az group create --name "$AZURE_RESOURCE_GROUP" --location "$AZURE_LOCATION" \
-              --tags application=ExpenseTracker managedBy=bicep --output none
-          fi
 
       - name: Deploy Bicep
         id: deploy
@@ -160,4 +151,20 @@ jobs:
             echo '| Output | Value |'
             echo '|---|---|'
             jq -r 'to_entries[] | "| \(.key) | \(.value.value) |"' outputs.json
+            echo
+            echo "### Frontend secrets (deploy-frontend.yml)"
+            echo '```'
+            jq -r '"VITE_MSAL_CLIENT_ID=\(.spaClientId.value)",
+                   "VITE_MSAL_TENANT_ID=\(.tenantId.value)",
+                   "VITE_MSAL_API_SCOPE=\(.apiScope.value)",
+                   "VITE_EXPENSE_TRACKER_API_BASE_URL=\(.functionAppUrl.value)"' outputs.json
+            echo '```'
+            if [ -n "$CUSTOM_DOMAIN" ]; then
+              echo
+              echo "### DNS for $CUSTOM_DOMAIN"
+              echo '```'
+              jq -r '"TXT   @  \(.customDomainValidationToken.value)",
+                     "ALIAS @  \(.staticWebAppDefaultHostname.value)   (or A record to the Static Web App IP)"' outputs.json
+              echo '```'
+            fi
           } >> "$GITHUB_STEP_SUMMARY"

@@ -1,62 +1,99 @@
 # 13 - Infrastructure as Code (Tecnico)
 
 ## Struttura
-L'infrastruttura Azure è descritta in Bicep nella cartella `infra/` (scope **resource group**):
+L'ambiente è descritto in Bicep nella cartella `infra/`: risorse Azure e app registration Entra ID (estensione **Microsoft Graph Bicep** `microsoftGraphV1`, registrata in `infra/bicepconfig.json` come `br:mcr.microsoft.com/bicep/extensions/microsoftgraph/v1.0:1.0.0`, richiede Bicep ≥ 0.36.1). Gli unici input esterni sono il nome del resource group (creato dal bootstrap se non esiste), SQL server e database già esistenti (più il repository GitHub per l'OIDC); tenant e subscription sono ricavati dal contesto (`tenant()`, `subscription()`).
 
 | File | Risorse |
 |---|---|
-| `infra/main.bicep` | Entry point: naming, tag (`application`, `environment`, `managedBy=bicep`), orchestrazione moduli, output |
-| `modules/monitoring.bicep` | Log Analytics (`PerGB2018`, retention 30 gg, daily cap) + Application Insights workspace-based |
+| `infra/main.bicep` | Entry point (scope **resource group**): naming, tag (`application`, `environment`, `managedBy=bicep`), orchestrazione moduli, output |
+| `modules/entra.bicep` | App registration **API** e **SPA** + service principal (vedi sotto) |
+| `modules/monitoring.bicep` | Log Analytics (`PerGB2018`, retention 30 gg, daily cap) + Application Insights workspace-based con local auth disabilitata (`DisableLocalAuth`: telemetria solo con identità Entra ID) |
 | `modules/storage.bicep` | Storage `StorageV2` LRS con shared key **disabilitata**, container `app-package` per il pacchetto Flex |
 | `modules/functionApp.bicep` | Piano `FC1` (Flex Consumption, Linux) + Function App `dotnet-isolated` 10.0, identità system-assigned, CORS, app settings, policy basic auth, role assignment |
 | `modules/sql.bicep` | Riferimento `existing` a SQL server e database **già esistenti** (non creati né modificati): fornisce FQDN e connection string. Deployato con scope sul resource group del server (`sqlServerResourceGroup`, default il resource group del deploy) |
 | `modules/keyVault.bicep` | Key Vault con RBAC, soft delete 7 gg, segreto `DemoAuthSigningKey` (creato solo se la chiave è passata) |
-| `modules/staticWebApp.bicep` | Static Web App `Free` per il frontend (non collegata al repo: il contenuto è caricato da `deploy-frontend.yml`) |
-| `parameters/prod.bicepparam` | Parametri di produzione; i valori per tenant/segreti sono letti con `readEnvironmentVariable()` |
+| `modules/staticWebApp.bicep` | Static Web App `Free` per il frontend (non collegata al repo: il contenuto è caricato da `deploy-frontend.yml`) + dominio custom apex opzionale (`customDomainName`, validazione `dns-txt-token`) |
+| `modules/logicApps.bicep` | Identità user-assigned `id-<appName>-logic-<env>`, connessione API `onedrive`, Logic App di import e di reset demo, diagnostic settings verso Log Analytics, soluzione `LogicAppsManagement` |
+| `logicapps/*.json` | Definizioni dei workflow esportate dal designer, con segnaposto `__BACKEND_BASE_URL__`, `__API_AUDIENCE__`, `__MANAGED_IDENTITY_ID__`, `__ONEDRIVE_FOLDER_ID__`, `__ONEDRIVE_FOLDER_PATH__` sostituiti dal template (`loadTextContent` + `replace` + `json`) |
+| `parameters/prod.bicepparam` | Parametri di produzione; nomi SQL e segreti letti con `readEnvironmentVariable()` |
+| `bootstrap/main.bicep` + `bootstrap.bicepparam` | Bootstrap una tantum (scope **subscription**, eseguito in locale da un admin, vedi sotto) |
+| `bootstrap/modules/resourceGroupRoles.bicep` | RBAC dell'identità di deploy su un resource group |
+| `bootstrap/modules/filesSenderAssignments.bicep` | Assegnazione dell'app role `Files.Sender` agli utenti per UPN e all'identità delle Logic App |
 | `scripts/grant-function-sql-access.sql` | Crea l'utente DB della managed identity (`db_datareader` + `db_datawriter`) |
-| `.env.example` / `.env` | Modello committato / valori locali **gitignored** (`infra/.gitignore`) delle variabili d'ambiente del deploy (stessi nomi delle GitHub variables/secrets, più `AZURE_SUBSCRIPTION_ID`) |
+| `.env.example` / `.env` | Modello committato / valori locali **gitignored** (`infra/.gitignore`) delle variabili d'ambiente (stessi nomi delle GitHub variables/secrets, più quelle del bootstrap) |
 | `scripts/load-env.ps1` / `load-env.sh` | Caricano `infra/.env` (o `-Path` / primo argomento) nella sessione: righe `KEY=VALUE`, commenti `#`, virgolette rimosse; i valori vuoti rimuovono la variabile così valgono i default di `readEnvironmentVariable()`; avviso sulle obbligatorie vuote. `-SetSubscription` (solo PowerShell) esegue `az account set` con `AZURE_SUBSCRIPTION_ID` |
 
-Naming di default: `<prefisso>-<appName>-<environmentName>[-<uniqueString>]` (es. `func-expensetrk-prod-xxxxxx`). Ogni nome è sovrascrivibile da parametro (`functionAppName`, `storageAccountName`, `keyVaultName`, `staticWebAppName`) per adottare risorse esistenti.
+Naming di default: `<prefisso>-<appName>-<environmentName>[-<uniqueString>]` (es. `func-expensetrk-prod-xxxxxx`). Ogni nome Azure è sovrascrivibile da parametro (`functionAppName`, `storageAccountName`, `keyVaultName`, `staticWebAppName`) per adottare risorse esistenti.
 
-SQL server e database non seguono il naming: i nomi arrivano dalle variabili d'ambiente `SQL_SERVER_NAME`, `SQL_DATABASE_NAME` e (opzionale) `SQL_SERVER_RESOURCE_GROUP`, lette da `prod.bicepparam`. Amministratore Entra ID, firewall (serve `AllowAllWindowsAzureIps`: Flex Consumption non ha IP in uscita fissi), SKU e backup restano gestiti fuori da Bicep. Se il server non esiste il deploy fallisce.
+SQL server e database non seguono il naming: i nomi arrivano dalle variabili d'ambiente `SQL_SERVER_NAME`, `SQL_DATABASE_NAME` e (opzionale) `SQL_SERVER_RESOURCE_GROUP`. Amministratore Entra ID, firewall (serve `AllowAllWindowsAzureIps`: Flex Consumption non ha IP in uscita fissi), SKU e backup restano gestiti fuori da Bicep. Se il server non esiste il deploy fallisce.
+
+## App registration (`modules/entra.bicep`)
+Single-tenant (`AzureADMyOrg`), identificate da `uniqueName` (upsert idempotente):
+
+- **API** (`<appName>-api-<env>`): identifier URI `api://<tenant-id>/<appName>-api-<env>` (formato ammesso dalla policy Entra senza conoscere l'appId prima della creazione); `requestedAccessTokenVersion: 2` → `aud` = client ID, accettato da `JwtTokenValidator`. Scope delegati `access_as_user` (frontend) ed `execute_script` (script di import); `preAuthorizedApplications`: SPA per `access_as_user`, Azure CLI (`04b07795-8ddb-461a-bbee-02f9e1bf7b46`) per `execute_script`. App role `Files.Sender` (`User` + `Application`), richiesto da `ImportFunctions`. ID di scope e ruolo deterministici (`guid()`).
+- **SPA** (`<appName>-spa-<env>`): piattaforma `spa` con redirect URI = origine della Static Web App + `extraSpaRedirectUris` (default `http://localhost:5173`); MSAL usa `window.location.origin`, quindi senza slash finale. Gli ambienti di preview delle PR della Static Web App hanno hostname diversi e non sono registrati.
+
+Le app settings `AzureAd__TenantId` / `AzureAd__ClientId` / `AzureAd__Audience` sono valorizzate con `tenant().tenantId`, client ID e identifier URI dell'API. L'utente è identificato dal claim `oid` (`CurrentUserAccessor`), indipendente dall'app registration: il passaggio a nuove app non cambia l'associazione dei dati.
+
+Output per il frontend e gli script: `tenantId`, `spaClientId`, `apiClientId`, `apiIdentifierUri`, `apiScope`, `apiServicePrincipalId`, `filesSenderRoleId`.
+
+## Bootstrap (`infra/bootstrap`)
+Eseguito in locale (`az deployment sub create -l $env:AZURE_LOCATION --parameters infra/bootstrap/bootstrap.bicepparam`) da un utente con Owner sulla subscription (o sui resource group) e *Privileged Role Administrator* (o Global Admin) in Entra ID; rieseguibile.
+
+- Resource group dell'app (`AZURE_RESOURCE_GROUP`, location `AZURE_LOCATION`): creato se non esiste (la pipeline ha permessi solo al suo interno e non può crearlo).
+- App registration + service principal `expensetrk-github-deploy` con federated credentials GitHub (`repo:<GITHUB_REPOSITORY>:environment:production` e `repo:<GITHUB_REPOSITORY>:pull_request`; quest'ultima resta per compatibilità, oggi tutti i job della pipeline usano l'environment).
+- Permesso applicativo Graph `Application.ReadWrite.OwnedBy` (app role assignment sul service principal di Microsoft Graph, ID risolto per nome): la pipeline crea e aggiorna solo le app registration di cui è owner.
+- RBAC sul resource group dell'app: `Contributor` + `Role Based Access Control Administrator` con **condizione ABAC** che consente solo di assegnare/rimuovere `Storage Blob Data Owner`, `Key Vault Secrets User` e `Monitoring Metrics Publisher`. `Reader` sul resource group del SQL server se diverso.
+- Opzionale (`FILES_SENDER_ASSIGN=true`, utenti in `FILES_SENDER_UPNS` separati da virgola): assegnazione dell'app role `Files.Sender` dell'API agli utenti e all'identità delle Logic App (`logicAppIdentityName`). Va eseguito dopo il primo deploy di `main.bicep` (API e identità devono esistere); richiede privilegi (`AppRoleAssignment.ReadWrite.All`) volutamente non concessi alla CI.
+- Output: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` da copiare nei secrets GitHub.
+
+`infra/scripts/bootstrap.ps1` automatizza tutto: carica `infra/.env`, esegue il deploy di bootstrap e, con la GitHub CLI, crea l'environment `production` e ne imposta secret (output + `DEMO_AUTH_SIGNING_KEY`) e variabili (da `.env`, quelle vuote sono saltate). Idempotente, supporta `-WhatIf`, `-SkipBootstrap` e `-SkipGitHub`.
+
+## Logic App (`modules/logicApps.bicep`)
+Entrambi i workflow usano l'identità user-assigned con autenticazione `ManagedServiceIdentity` e audience = identifier URI dell'API (token v2, `aud` = client ID); l'identità deve avere l'app role `Files.Sender` (bootstrap).
+
+- **Import** (`logic-<appName>-import-<env>`): trigger OneDrive `onnewfilev2` (ricorrenza giornaliera, sottocartelle incluse) sulla cartella `oneDriveFolderId` (`prod.bicepparam`, oggi `/Transazioni`); la sottocartella (`BBVA`, `Sella`, `Satispay`, `Trade_Republic`, `Excel`) sceglie la banca, l'estensione l'endpoint (`/api/import/<banca>-csv/stream` o `/api/import/<banca>-xlsx`).
+- **Demo reset** (`logic-<appName>-demo-reset-<env>`): ricorrenza giornaliera (W. Europe Standard Time), `POST /api/import/test-seed` e `/api/import/transfers/reconcile`.
+- Connessione `onedrive` (`Microsoft.Web/connections`, managed API `onedrive`): creata senza `parameterValues`, quindi un redeploy non tocca l'autorizzazione già data.
+- Diagnostic settings `allLogs` dei due workflow verso Log Analytics + soluzione `LogicAppsManagement(<workspace>)`.
 
 ## App settings della Function App (gestite da Bicep)
 - `AzureWebJobsStorage__accountName` — connessione identity-based allo storage (ruolo `Storage Blob Data Owner`).
-- `APPLICATIONINSIGHTS_CONNECTION_STRING`, `AZURE_FUNCTIONS_ENVIRONMENT=Production`.
-- `AzureAd__TenantId`, `AzureAd__ClientId`, `AzureAd__Audience`.
+- `APPLICATIONINSIGHTS_CONNECTION_STRING` + `APPLICATIONINSIGHTS_AUTHENTICATION_STRING=Authorization=AAD` (ruolo `Monitoring Metrics Publisher` sull'Application Insights), `AZURE_FUNCTIONS_ENVIRONMENT=Production`.
+- `AzureAd__TenantId`, `AzureAd__ClientId`, `AzureAd__Audience` — dall'app registration API.
 - `ConnectionStrings__DefaultConnection` — passwordless, `Authentication=Active Directory Default` (managed identity).
-- `App__FEUrl` = URL della Static Web App; la CORS di piattaforma include lo stesso URL più `extraCorsOrigins`.
+- `App__FEUrl` = dominio custom se impostato, altrimenti URL della Static Web App; la CORS di piattaforma include tutte le origini del frontend più `extraCorsOrigins` (in `prod.bicepparam`: `https://portal.azure.com`, per il test delle funzioni dal portale). `supportCredentials: false` (autenticazione con bearer token, nessun cookie).
 - `DemoAuth__Enabled`; se attivo, `DemoAuth__SigningKey` è un riferimento Key Vault (`@Microsoft.KeyVault(SecretUri=...)`, ruolo `Key Vault Secrets User`).
 - `FUNCTIONS_WORKER_RUNTIME` **non** è impostato: su Flex Consumption il runtime è in `functionAppConfig.runtime`.
 
 Policy `basicPublishingCredentialsPolicies`: `scm` = `enableScmBasicAuth` (default `true`, necessario al deploy con publish profile di `deploy-backend.yml`), `ftp` = `false`.
 
 ## Pipeline (`.github/workflows/deploy-infra.yml`)
-Trigger: `push` su `main` e `pull_request` verso `main` sui path `infra/**` o il workflow stesso, più `workflow_dispatch`. Concurrency per PR / `main`, senza cancellare deploy in corso.
+Trigger: `push` su `main` e `pull_request` verso `main` sui path `infra/**` o il workflow stesso, più `workflow_dispatch`. Concurrency per PR / `main`, senza cancellare deploy in corso. **Tutti i job** referenziano l'environment GitHub `production`, dove stanno variabili e secret (le variabili/secret di environment sono visibili solo ai job che lo referenziano); il token OIDC ha quindi sempre subject `environment:production`. Eventuali *required reviewers* sull'environment bloccano anche il what-if delle PR.
 
 1. **validate** — controlla le variabili obbligatorie, `az bicep build` + `az bicep lint` del template, `az bicep build-params`.
-2. **what-if** — login OIDC (`azure/login@v2`), `az deployment group what-if` con l'output nel job summary (saltato se il resource group non esiste ancora).
-3. **deploy** — solo su push/dispatch, environment GitHub `production`: crea il resource group se manca, `az deployment group create --parameters infra/parameters/prod.bicepparam` (il template è risolto dal `using`), output nel job summary.
+2. **what-if** — login OIDC (`azure/login@v2`), `az deployment group what-if` con l'output nel job summary. Le risorse Microsoft Graph non sono valutate dal what-if.
+3. **deploy** — solo su push/dispatch, environment GitHub `production`: `az deployment group create --parameters infra/parameters/prod.bicepparam` (il template è risolto dal `using`); output e valori `VITE_*` per il frontend nel job summary.. Il resource group è creato dal bootstrap.
+
+Secret e variabili dell'environment `production`:
 
 | Secret | Obbligatorio | Uso |
 |---|---|---|
-| `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` | Sì | Login OIDC dell'identità di deploy |
+| `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` | Sì | Login OIDC dell'identità di deploy (output del bootstrap) |
 | `DEMO_AUTH_SIGNING_KEY` | No | Scritto in Key Vault quando valorizzato (basta una volta) |
 
 | Variabile | Obbligatoria | Uso |
 |---|---|---|
-| `AZURE_RESOURCE_GROUP` | Sì | Resource group di destinazione (condiviso con lo step CORS di `deploy-backend.yml`) |
-| `AZURE_LOCATION` | No | Region del resource group se va creato (default `westeurope`) |
-| `AZURE_AD_TENANT_ID`, `AZURE_AD_CLIENT_ID` | Sì | App settings `AzureAd__*` |
-| `AZURE_AD_AUDIENCE` | No | App setting `AzureAd__Audience` |
+| `AZURE_RESOURCE_GROUP` | Sì | Resource group di destinazione (creato dal bootstrap) |
 | `SQL_SERVER_NAME`, `SQL_DATABASE_NAME` | Sì | Nomi del SQL server e del database esistenti |
 | `SQL_SERVER_RESOURCE_GROUP` | No | Resource group del SQL server, se diverso da `AZURE_RESOURCE_GROUP` |
 | `DEMO_AUTH_ENABLED` | No | `true` per attivare il login demo (default `false`) |
-
-L'identità di deploy richiede federated credentials per `environment:production` e `pull_request`, e i ruoli `Contributor` + `Role Based Access Control Administrator` sul resource group (`Contributor` sulla subscription se il resource group va creato; `Reader` sul resource group del SQL server se è diverso).
+| `CUSTOM_DOMAIN` | No | Dominio custom apex della Static Web App (es. `expensetracker.lol`); da impostare solo dopo averlo rimosso dal sito precedente |
 
 ## Passi manuali residui
-- Utente DB della managed identity: `infra/scripts/grant-function-sql-access.sql` (T-SQL, non esprimibile in Bicep).
+- Bootstrap (una tantum, privilegiato): crea l'identità con cui la pipeline stessa si autentica.
+- Autorizzazione OAuth della connessione `onedrive` nel portale (consenso interattivo, non automatizzabile).
+- DNS del dominio custom: record TXT con `customDomainValidationToken` e ALIAS/A verso `staticWebAppDefaultHostname`.
+- Utente DB della managed identity: `infra/scripts/grant-function-sql-access.sql` (T-SQL sul data plane, non esprimibile in Bicep).
 - Migrazioni EF: da macchina locale con l'admin Entra ID (IP del client nel firewall del server esistente).
-- Allineamento pipeline applicative: `AZURE_FUNCTIONAPP_NAME` e publish profile per `deploy-backend.yml`; deployment token della Static Web App e `VITE_EXPENSE_TRACKER_API_BASE_URL` (output `functionAppUrl`) per `deploy-frontend.yml`.
+- Allineamento pipeline applicative: secrets `VITE_*` e deployment token della Static Web App per `deploy-frontend.yml`; `AZURE_FUNCTIONAPP_NAME` e publish profile per `deploy-backend.yml`; `-Audience <apiIdentifierUri>` per gli script di import in `tools/scripts`.

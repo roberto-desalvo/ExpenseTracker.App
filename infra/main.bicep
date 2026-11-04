@@ -34,15 +34,22 @@ param storageAccountName string = ''
 param keyVaultName string = ''
 param staticWebAppName string = ''
 
-// ---- Entra ID (API app registration validated by the JWT middleware) ----
-@description('Entra ID tenant ID used to validate access tokens.')
-param azureAdTenantId string = tenant().tenantId
+// ---- Frontend ----
+@description('Optional apex custom domain of the Static Web App (e.g. expensetracker.lol). Empty = none.')
+param customDomainName string = ''
 
-@description('Client ID of the API app registration.')
-param azureAdClientId string
+// ---- Logic Apps ----
+@description('OneDrive item ID of the folder watched by the import Logic App.')
+param oneDriveFolderId string
 
-@description('Optional token audience (e.g. api://<client-id>). Empty = default validation.')
-param azureAdAudience string = ''
+@description('Display path of the watched OneDrive folder (designer metadata only).')
+param oneDriveFolderPath string = '/Transazioni'
+
+// ---- Entra ID (app registrations created by modules/entra.bicep) ----
+@description('Extra SPA redirect URIs besides the Static Web App origin (e.g. local dev server).')
+param extraSpaRedirectUris array = [
+  'http://localhost:5173'
+]
 
 // ---- SQL (existing resources, referenced only: never created or modified) ----
 @description('Name of the existing Azure SQL logical server.')
@@ -91,7 +98,18 @@ var names = {
   storage: empty(storageAccountName) ? take('st${replace(appName, '-', '')}${environmentName}${suffix}', 24) : storageAccountName
   keyVault: empty(keyVaultName) ? take('kv-${appName}-${environmentName}-${suffix}', 24) : keyVaultName
   staticWebApp: empty(staticWebAppName) ? 'swa-${appName}-${environmentName}' : staticWebAppName
+  logicIdentity: 'id-${appName}-logic-${environmentName}'
+  importWorkflow: 'logic-${appName}-import-${environmentName}'
+  demoResetWorkflow: 'logic-${appName}-demo-reset-${environmentName}'
 }
+
+// Origins the SPA is served from: Static Web App default hostname + optional custom domain.
+var frontendOrigins = concat(
+  [
+    'https://${staticWebApp.outputs.defaultHostname}'
+  ],
+  empty(customDomainName) ? [] : ['https://${customDomainName}']
+)
 
 module monitoring 'modules/monitoring.bicep' = {
   name: 'monitoring'
@@ -119,6 +137,16 @@ module staticWebApp 'modules/staticWebApp.bicep' = {
     location: staticWebAppLocation
     tags: tags
     staticWebAppName: names.staticWebApp
+    customDomainName: customDomainName
+  }
+}
+
+module entra 'modules/entra.bicep' = {
+  name: 'entra'
+  params: {
+    appName: appName
+    environmentName: environmentName
+    spaRedirectUris: union(frontendOrigins, extraSpaRedirectUris)
   }
 }
 
@@ -150,20 +178,36 @@ module functionApp 'modules/functionApp.bicep' = {
     functionAppName: names.functionApp
     storageAccountName: storage.outputs.name
     deploymentContainerName: storage.outputs.deploymentContainerName
+    appInsightsName: monitoring.outputs.appInsightsName
     appInsightsConnectionString: monitoring.outputs.appInsightsConnectionString
     keyVaultName: keyVault.outputs.name
     demoAuthSecretUri: keyVault.outputs.demoAuthSecretUri
     demoAuthEnabled: demoAuthEnabled
     sqlConnectionString: sql.outputs.connectionString
-    azureAdTenantId: azureAdTenantId
-    azureAdClientId: azureAdClientId
-    azureAdAudience: azureAdAudience
-    frontendUrl: 'https://${staticWebApp.outputs.defaultHostname}'
-    corsAllowedOrigins: union([
-      'https://${staticWebApp.outputs.defaultHostname}'
-    ], extraCorsOrigins)
+    azureAdTenantId: tenant().tenantId
+    azureAdClientId: entra.outputs.apiClientId
+    azureAdAudience: entra.outputs.apiIdentifierUri
+    frontendUrl: last(frontendOrigins) // custom domain when set
+    corsAllowedOrigins: union(frontendOrigins, extraCorsOrigins)
     enableScmBasicAuth: enableScmBasicAuth
     maximumInstanceCount: functionMaxInstances
+  }
+}
+
+module logicApps 'modules/logicApps.bicep' = {
+  name: 'logicApps'
+  params: {
+    location: location
+    tags: tags
+    identityName: names.logicIdentity
+    importWorkflowName: names.importWorkflow
+    demoResetWorkflowName: names.demoResetWorkflow
+    backendBaseUrl: 'https://${functionApp.outputs.defaultHostname}'
+    apiAudience: entra.outputs.apiIdentifierUri
+    oneDriveFolderId: oneDriveFolderId
+    oneDriveFolderPath: oneDriveFolderPath
+    logAnalyticsId: monitoring.outputs.logAnalyticsId
+    logAnalyticsName: monitoring.outputs.logAnalyticsName
   }
 }
 
@@ -172,6 +216,20 @@ output functionAppUrl string = 'https://${functionApp.outputs.defaultHostname}/a
 output functionAppPrincipalId string = functionApp.outputs.principalId
 output staticWebAppName string = staticWebApp.outputs.name
 output staticWebAppUrl string = 'https://${staticWebApp.outputs.defaultHostname}'
+output staticWebAppDefaultHostname string = staticWebApp.outputs.defaultHostname
+output customDomainValidationToken string = staticWebApp.outputs.customDomainValidationToken
+output logicAppIdentityName string = logicApps.outputs.identityName
+output logicAppIdentityPrincipalId string = logicApps.outputs.identityPrincipalId
+output oneDriveConnectionName string = logicApps.outputs.oneDriveConnectionName
 output sqlServerFqdn string = sql.outputs.fullyQualifiedDomainName
 output sqlDatabaseName string = sql.outputs.databaseName
 output keyVaultName string = keyVault.outputs.name
+
+// Values for the frontend build (deploy-frontend.yml VITE_* secrets) and the import scripts.
+output tenantId string = tenant().tenantId
+output apiClientId string = entra.outputs.apiClientId
+output apiIdentifierUri string = entra.outputs.apiIdentifierUri
+output apiScope string = entra.outputs.apiScope
+output apiServicePrincipalId string = entra.outputs.apiServicePrincipalId
+output filesSenderRoleId string = entra.outputs.filesSenderRoleId
+output spaClientId string = entra.outputs.spaClientId

@@ -63,7 +63,7 @@ foreach ($line in Get-Content -LiteralPath $Path -Encoding UTF8) {
 
 Write-Host "Loaded $($loaded.Count) variables from $(Resolve-Path -LiteralPath $Path): $($loaded -join ', ')"
 
-$required = 'AZURE_RESOURCE_GROUP', 'AZURE_AD_TENANT_ID', 'AZURE_AD_CLIENT_ID', 'SQL_SERVER_NAME', 'SQL_DATABASE_NAME'
+$required = 'AZURE_RESOURCE_GROUP', 'SQL_SERVER_NAME', 'SQL_DATABASE_NAME'
 $missing = $required | Where-Object { [string]::IsNullOrEmpty([Environment]::GetEnvironmentVariable($_)) }
 if ($missing) {
     Write-Warning "Required variables still empty: $($missing -join ', ')"

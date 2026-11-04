@@ -4,8 +4,7 @@
 # Required repository configuration:
 #   secrets: AZUREAPPSERVICE_PUBLISHPROFILE_* (publish profile of the Function App, created by Azure Deployment Center)
 #   vars (optional): AZURE_FUNCTIONAPP_NAME (Function App name, defaults to ExpenseTracker-Functions)
-#   vars (optional, to sync platform CORS on deploy): AZURE_RESOURCE_GROUP, FE_URL
-#     + secrets AZUREAPPSERVICE_CLIENTID_*, AZUREAPPSERVICE_TENANTID_*, AZUREAPPSERVICE_SUBSCRIPTIONID_* (OIDC login for az CLI)
+# Platform CORS is managed by the infrastructure template (infra/modules/functionApp.bicep), not here.
 
 name: Deploy Backend (Azure Functions)
 
@@ -54,7 +53,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     permissions:
-      id-token: write #This is required for requesting the JWT (OIDC login, CORS sync only)
       contents: read #This is required for actions/checkout
 
     steps:
@@ -63,23 +61,6 @@ jobs:
         with:
           name: functions-app
           path: ${{ github.workspace }}/publish
-
-      - name: Login to Azure
-        if: ${{ vars.AZURE_RESOURCE_GROUP != '' && vars.FE_URL != '' }}
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_342688A107224B0E99571B02D9FA91AF }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_555D93CEFB8249E0981014734ED112E5 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_950642272ECC4A549CD46B25BE7E737C }}
-
-      - name: Sync CORS allowed origin
-        if: ${{ vars.AZURE_RESOURCE_GROUP != '' && vars.FE_URL != '' }}
-        shell: bash
-        run: |
-          existing=$(az functionapp cors show --name "$AZURE_FUNCTIONAPP_NAME" --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" --query "allowedOrigins" -o tsv)
-          if ! grep -qxF "${{ vars.FE_URL }}" <<< "$existing"; then
-            az functionapp cors add --name "$AZURE_FUNCTIONAPP_NAME" --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" --allowed-origins "${{ vars.FE_URL }}"
-          fi
 
       - name: Deploy to Azure Functions
         id: deploy-to-functionapp

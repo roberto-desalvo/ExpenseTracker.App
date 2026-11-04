@@ -16,11 +16,23 @@ param sqlServerName = readEnvironmentVariable('SQL_SERVER_NAME')
 param sqlDatabaseName = readEnvironmentVariable('SQL_DATABASE_NAME')
 param sqlServerResourceGroup = readEnvironmentVariable('SQL_SERVER_RESOURCE_GROUP', '')
 
-param azureAdTenantId = readEnvironmentVariable('AZURE_AD_TENANT_ID')
-param azureAdClientId = readEnvironmentVariable('AZURE_AD_CLIENT_ID')
-param azureAdAudience = readEnvironmentVariable('AZURE_AD_AUDIENCE', '')
+// Entra ID app registrations are created by the template (modules/entra.bicep).
+param extraSpaRedirectUris = [
+  'http://localhost:5173'
+]
 
-param extraCorsOrigins = []
+// Apex custom domain of the Static Web App. Set it (GitHub variable CUSTOM_DOMAIN) only after the
+// domain has been removed from the old Static Web App: a domain can be bound to one site at a time.
+param customDomainName = readEnvironmentVariable('CUSTOM_DOMAIN', '')
+
+// OneDrive folder watched by the import Logic App (item ID from the designer trigger metadata).
+param oneDriveFolderId = 'FDF9C7785021C0DD!s8fdd505250cf42f78945c5886597afd3'
+param oneDriveFolderPath = '/Transazioni'
+
+// portal.azure.com: lets you run the functions from the portal "Test/Run" pane.
+param extraCorsOrigins = [
+  'https://portal.azure.com'
+]
 param enableScmBasicAuth = true
 param functionMaxInstances = 40
 

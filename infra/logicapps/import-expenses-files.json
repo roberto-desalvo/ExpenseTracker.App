@@ -1,0 +1,244 @@
+{
+  "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+  "actions": {
+    "Initialize_accountPath": {
+      "inputs": {
+        "variables": [
+          {
+            "name": "accountPath",
+            "type": "string"
+          }
+        ]
+      },
+      "runAfter": {},
+      "type": "InitializeVariable"
+    },
+    "Initialize_variables": {
+      "inputs": {
+        "variables": [
+          {
+            "name": "completePath",
+            "type": "string"
+          },
+          {
+            "name": "contentType",
+            "type": "string"
+          },
+          {
+            "name": "requestBody",
+            "type": "string"
+          },
+          {
+            "name": "backEndBaseUrl",
+            "type": "string",
+            "value": "__BACKEND_BASE_URL__"
+          }
+        ]
+      },
+      "runAfter": {
+        "Switch_containing_folder": [
+          "Succeeded"
+        ]
+      },
+      "type": "InitializeVariable"
+    },
+    "Switch_containing_folder": {
+      "cases": {
+        "BBVA": {
+          "actions": {
+            "Set_accountPath_=_bbva": {
+              "inputs": {
+                "name": "accountPath",
+                "value": "bbva"
+              },
+              "type": "SetVariable"
+            }
+          },
+          "case": "BBVA"
+        },
+        "Excel": {
+          "actions": {
+            "Set_accountPath_=_excel": {
+              "inputs": {
+                "name": "accountPath",
+                "value": "excel"
+              },
+              "type": "SetVariable"
+            }
+          },
+          "case": "Excel"
+        },
+        "Satispay": {
+          "actions": {
+            "Set_accountPath_=_satispay": {
+              "inputs": {
+                "name": "accountPath",
+                "value": "satispay"
+              },
+              "type": "SetVariable"
+            }
+          },
+          "case": "Satispay"
+        },
+        "Sella": {
+          "actions": {
+            "Set_accountPath_=_sella": {
+              "inputs": {
+                "name": "accountPath",
+                "value": "sella"
+              },
+              "type": "SetVariable"
+            }
+          },
+          "case": "Sella"
+        },
+        "Trade_Republic": {
+          "actions": {
+            "Set_accountPath_=_traderepublic": {
+              "inputs": {
+                "name": "accountPath",
+                "value": "traderepublic"
+              },
+              "type": "SetVariable"
+            }
+          },
+          "case": "Trade_Republic"
+        }
+      },
+      "default": {
+        "actions": {
+          "Terminate": {
+            "inputs": {
+              "runError": {
+                "message": "Il path non rientra tra quelli previsti @{triggerOutputs()['headers']['x-ms-file-path-encoded']}"
+              },
+              "runStatus": "Failed"
+            },
+            "type": "Terminate"
+          }
+        }
+      },
+      "expression": "@split(triggerOutputs()?['headers']['x-ms-file-path'], '/')[2]",
+      "runAfter": {
+        "Initialize_accountPath": [
+          "Succeeded"
+        ]
+      },
+      "type": "Switch"
+    },
+    "Switch_file_extension": {
+      "cases": {
+        "Case_csv": {
+          "actions": {
+            "HTTP_stream": {
+              "inputs": {
+                "authentication": {
+                  "audience": "__API_AUDIENCE__",
+                  "identity": "__MANAGED_IDENTITY_ID__",
+                  "type": "ManagedServiceIdentity"
+                },
+                "body": "@triggerBody()",
+                "headers": {
+                  "Content-Type": "application/octet-stream"
+                },
+                "method": "POST",
+                "uri": "@{variables('backEndBaseUrl')}/api/import/@{variables('accountPath')}-csv/stream"
+              },
+              "runtimeConfiguration": {
+                "contentTransfer": {
+                  "transferMode": "Chunked"
+                }
+              },
+              "type": "Http"
+            }
+          },
+          "case": "csv"
+        },
+        "Case_xlsx": {
+          "actions": {
+            "HTTP_xlsx": {
+              "inputs": {
+                "authentication": {
+                  "audience": "__API_AUDIENCE__",
+                  "identity": "__MANAGED_IDENTITY_ID__",
+                  "type": "ManagedServiceIdentity"
+                },
+                "body": "@base64ToBinary(triggerBody()?['$content'])",
+                "headers": {
+                  "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                },
+                "method": "POST",
+                "uri": "@{variables('backEndBaseUrl')}/api/import/@{variables('accountPath')}-xlsx"
+              },
+              "runtimeConfiguration": {
+                "contentTransfer": {
+                  "transferMode": "Chunked"
+                }
+              },
+              "type": "Http"
+            }
+          },
+          "case": "xlsx"
+        }
+      },
+      "default": {
+        "actions": {
+          "Terminate-copy": {
+            "inputs": {
+              "runError": {
+                "message": "L'extension non rientra tra quelli previsti "
+              },
+              "runStatus": "Failed"
+            },
+            "type": "Terminate"
+          }
+        }
+      },
+      "expression": "@last(split(triggerOutputs()?['headers']['x-ms-file-name'], '.'))",
+      "runAfter": {
+        "Initialize_variables": [
+          "Succeeded"
+        ]
+      },
+      "type": "Switch"
+    }
+  },
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "notes": {}
+  },
+  "outputs": {},
+  "parameters": {
+    "$connections": {
+      "defaultValue": {},
+      "type": "Object"
+    }
+  },
+  "triggers": {
+    "When_a_file_is_created": {
+      "inputs": {
+        "host": {
+          "connection": {
+            "name": "@parameters('$connections')['onedrive']['connectionId']"
+          }
+        },
+        "method": "get",
+        "path": "/datasets/default/triggers/onnewfilev2",
+        "queries": {
+          "folderId": "__ONEDRIVE_FOLDER_ID__",
+          "includeSubfolders": true,
+          "inferContentType": true,
+          "simulate": false
+        }
+      },
+      "metadata": {
+        "__ONEDRIVE_FOLDER_ID__": "__ONEDRIVE_FOLDER_PATH__"
+      },
+      "recurrence": {
+        "frequency": "Day",
+        "interval": 1
+      },
+      "type": "ApiConnection"
+    }
+  }
+}
