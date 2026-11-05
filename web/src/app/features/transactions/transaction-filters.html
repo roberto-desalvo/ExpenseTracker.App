@@ -29,10 +29,11 @@
         (selectionChange)="selectMonth($event.value)"
         [disabled]="table.availableMonthsLoading() || months().length === 0"
         panelClass="month-panel"
+        [panelWidth]="null"
       >
         <mat-select-trigger>{{ table.selectedMonth()?.description ?? "Nessun mese" }}</mat-select-trigger>
         @for (m of months(); track m.startDate) {
-          <mat-option [value]="m.startDate" class="capitalize">{{ m.description }}</mat-option>
+          <mat-option [value]="m.startDate">{{ m.description }}</mat-option>
         }
       </mat-select>
       <span matTooltip="Mese successivo">

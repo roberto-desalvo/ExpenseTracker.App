@@ -334,7 +334,10 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
         }
 
         var oldestMonth = new DateTime(dateBounds.MinDate.Year, dateBounds.MinDate.Month, 1);
-        var newestMonth = new DateTime(dateBounds.MaxDate.Year, dateBounds.MaxDate.Month, 1);
+        // dal mese del movimento meno recente fino al mese corrente (o all'ultimo movimento, se successivo)
+        var today = DateTime.Today;
+        var newestDate = dateBounds.MaxDate > today ? dateBounds.MaxDate : today;
+        var newestMonth = new DateTime(newestDate.Year, newestDate.Month, 1);
         var monthRanges = new List<(DateTime StartDate, DateTime EndDate)>();
 
         for (var currentMonth = newestMonth; currentMonth >= oldestMonth; currentMonth = currentMonth.AddMonths(-1))

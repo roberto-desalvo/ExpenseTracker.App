@@ -51,7 +51,7 @@ public class TransactionService : ITransactionService
                 StartDate = range.StartDate,
                 EndDate = range.EndDate,
                 Description = cultureInfo.TextInfo.ToTitleCase(
-                    range.StartDate.ToString("MMMM yyyy", cultureInfo))
+                    range.StartDate.ToString("MMMM - yyyy", cultureInfo))
             });
 
         return Result.Ok(monthOptions);
