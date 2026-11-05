@@ -4,7 +4,7 @@ param location string
 param tags object
 param staticWebAppName string
 
-@description('Optional apex custom domain (e.g. example.com), validated with a DNS TXT record. Empty = none.')
+@description('Optional custom domain (apex or subdomain, e.g. www.example.com), validated with a DNS TXT record. Empty = none.')
 param customDomainName string = ''
 
 resource staticWebApp 'Microsoft.Web/staticSites@2024-04-01' = {
@@ -21,7 +21,7 @@ resource staticWebApp 'Microsoft.Web/staticSites@2024-04-01' = {
   }
 }
 
-// Apex domain: TXT validation (token in the validationToken output) + ALIAS/A record to the default hostname.
+// TXT validation (token in the validationToken output) + CNAME (subdomain) or ALIAS (apex) to the default hostname.
 resource customDomain 'Microsoft.Web/staticSites/customDomains@2024-04-01' = if (!empty(customDomainName)) {
   parent: staticWebApp
   name: empty(customDomainName) ? 'none' : customDomainName
@@ -32,4 +32,5 @@ resource customDomain 'Microsoft.Web/staticSites/customDomains@2024-04-01' = if 
 
 output name string = staticWebApp.name
 output defaultHostname string = staticWebApp.properties.defaultHostname
-output customDomainValidationToken string = empty(customDomainName) ? '' : customDomain!.properties.validationToken
+// validationToken exists only while the domain is being validated: once it is Ready the property disappears.
+output customDomainValidationToken string = empty(customDomainName) ? '' : (customDomain!.properties.?validationToken ?? '')

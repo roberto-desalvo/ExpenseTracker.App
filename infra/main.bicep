@@ -35,7 +35,7 @@ param keyVaultName string = ''
 param staticWebAppName string = ''
 
 // ---- Frontend ----
-@description('Optional apex custom domain of the Static Web App (e.g. expensetracker.lol). Empty = none.')
+@description('Optional custom domain of the Static Web App (e.g. www.expensetracker.lol). Empty = none.')
 param customDomainName string = ''
 
 // ---- Import automatico da OneDrive (functions OneDrive_*) ----

@@ -23,7 +23,7 @@ L'ambiente Azure è descritto interamente in Bicep (`infra/`) e distribuito da G
 | Bootstrap (resource group, identità OIDC, secret e variabili GitHub) | `./infra/scripts/bootstrap.ps1` |
 | Utenti SQL della managed identity e dell'identità di deploy | `infra/scripts/grant-function-sql-access.sql` |
 | Consenso OneDrive (refresh token in Key Vault, creazione subscription) | `./infra/scripts/connect-onedrive.ps1` (da ripetere se il token viene revocato o resta inutilizzato 90 giorni) |
-| Dominio custom | Record DNS TXT e ALIAS verso la Static Web App |
+| Dominio custom | Record DNS TXT e CNAME (o ALIAS per un apex) verso la Static Web App |
 
 ## CI/CD (`.github/workflows/`)
 

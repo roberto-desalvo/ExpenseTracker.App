@@ -176,7 +176,8 @@ incrementale: dopo il primo deploy eliminarla a mano con
 
 ## Dominio custom
 
-`CUSTOM_DOMAIN` (es. `expensetracker.lol`, dominio apex) aggiunge il dominio alla Static Web App, ai redirect
-URI della SPA, alla CORS dell'API e lo usa come `App__FEUrl`. Un dominio può stare su un solo sito: va
-impostato **dopo** averlo rimosso dalla vecchia Static Web App. Validazione con record TXT (token
-nell'output `customDomainValidationToken` e nel job summary) + record ALIAS/A verso `staticWebAppDefaultHostname`.
+`CUSTOM_DOMAIN` (es. `www.expensetracker.lol`, apex o sottodominio) aggiunge il dominio alla Static Web App, ai
+redirect URI della SPA, alla CORS dell'API e lo usa come `App__FEUrl`. Un dominio può stare su un solo sito: va
+impostato **dopo** averlo rimosso dalla vecchia Static Web App. DNS: CNAME (sottodominio) o ALIAS (apex) verso
+`staticWebAppDefaultHostname` + record TXT `_dnsauth[.<sottodominio>]` con il token di validazione (output
+`customDomainValidationToken`, vuoto quando il dominio è già validato; entrambi nel job summary).

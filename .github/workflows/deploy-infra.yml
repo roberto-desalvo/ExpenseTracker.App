@@ -12,7 +12,7 @@
 #            SQL_SERVER_NAME, SQL_DATABASE_NAME (existing SQL server/database),
 #            SQL_SERVER_RESOURCE_GROUP (optional, default AZURE_RESOURCE_GROUP),
 #            DEMO_AUTH_ENABLED (optional, default false),
-#            CUSTOM_DOMAIN (optional, apex custom domain of the Static Web App, e.g. expensetracker.lol),
+#            CUSTOM_DOMAIN (optional, custom domain of the Static Web App, e.g. www.expensetracker.lol),
 #            ONEDRIVE_IMPORT_ENABLED (optional, default false), ONEDRIVE_TARGET_USER_EMAIL (OneDrive import)
 
 name: Deploy Infrastructure (Bicep)
@@ -160,8 +160,16 @@ jobs:
               echo
               echo "### DNS for $CUSTOM_DOMAIN"
               echo '```'
-              jq -r '"TXT   @  \(.customDomainValidationToken.value)",
-                     "ALIAS @  \(.staticWebAppDefaultHostname.value)   (or A record to the Static Web App IP)"' outputs.json
+              # Host relative to the zone (assumes a two-label zone such as example.com): "@" for the apex, else e.g. "www".
+              host=$(echo "$CUSTOM_DOMAIN" | awk -F. 'NF<=2 {print "@"; next} {NF-=2; OFS="."; $1=$1; print}')
+              target=$(jq -r '.staticWebAppDefaultHostname.value' outputs.json)
+              token=$(jq -r '.customDomainValidationToken.value' outputs.json)
+              if [ "$host" = "@" ]; then echo "ALIAS @  $target"; else echo "CNAME $host  $target"; fi
+              if [ -n "$token" ]; then
+                if [ "$host" = "@" ]; then echo "TXT   _dnsauth  $token"; else echo "TXT   _dnsauth.$host  $token"; fi
+              else
+                echo "(domain already validated: no TXT record needed)"
+              fi
               echo '```'
             fi
           } >> "$GITHUB_STEP_SUMMARY"

@@ -21,7 +21,7 @@ param extraSpaRedirectUris = [
   'http://localhost:5173'
 ]
 
-// Apex custom domain of the Static Web App. Set it (GitHub variable CUSTOM_DOMAIN) only after the
+// Custom domain of the Static Web App (apex or subdomain). Set it (GitHub variable CUSTOM_DOMAIN) only after the
 // domain has been removed from the old Static Web App: a domain can be bound to one site at a time.
 param customDomainName = readEnvironmentVariable('CUSTOM_DOMAIN', '')
 
