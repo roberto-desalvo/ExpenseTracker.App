@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from "@angular/core";
 import { MatIconRegistry } from "@angular/material/icon";
 import { AuthService } from "./core/auth/auth.service";
+import { AppUpdateService } from "./core/pwa/app-update.service";
 import { ThemeService } from "./core/theme/theme.service";
 import { AppLayout } from "./layout/app-layout";
 import { DevLoginPage } from "./pages/auth/dev-login-page";
@@ -31,6 +32,7 @@ export class App {
   constructor() {
     // istanziato subito: applica i token dello stile attivo anche alla pagina di login
     inject(ThemeService);
+    inject(AppUpdateService).watch();
     inject(MatIconRegistry).setDefaultFontSetClass("material-symbols-rounded");
   }
 }

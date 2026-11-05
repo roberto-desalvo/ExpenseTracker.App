@@ -1,6 +1,14 @@
 {
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/assets/*", "/*.{svg,png,jpg,jpeg,gif,ico,webp,css,js,json,txt,woff,woff2}"]
+    "exclude": ["/assets/*", "/icons/*", "/*.{svg,png,jpg,jpeg,gif,ico,webp,css,js,json,txt,woff,woff2,webmanifest}"]
+  },
+  "routes": [
+    { "route": "/ngsw-worker.js", "headers": { "cache-control": "no-cache" } },
+    { "route": "/ngsw.json", "headers": { "cache-control": "no-cache" } },
+    { "route": "/index.html", "headers": { "cache-control": "no-cache" } }
+  ],
+  "mimeTypes": {
+    ".webmanifest": "application/manifest+json"
   }
 }

@@ -37,6 +37,7 @@ flowchart TD
 | `core/auth/` | `AuthService`, istanza MSAL, sessioni demo e sviluppo |
 | `core/config/` | Variabili d'ambiente, URL dell'API, route, voci di menu |
 | `core/models/` | Tipi dei payload scambiati con l'API |
+| `core/pwa/` | Avviso di nuova versione del service worker |
 | `core/state/` | Store a signal condivisi |
 | `core/theme/` | `ThemeService`, preset di stile, palette dei grafici |
 | `core/utils/` | Formattazione di importi, date e periodi |
@@ -62,6 +63,12 @@ Le pagine sono caricate in lazy (`app.routes.ts`); anche ECharts viene scaricato
 | Entra ID (MSAL redirect) | Default | `Bearer` con scope `api://…/access_as_user` |
 | Demo | Pulsante "Prova la demo" (`VITE_DEMO_LOGIN_ENABLED`) | `Bearer` emesso da `POST /api/auth/demo` |
 | Sviluppo | `npm start`, salvo `VITE_DEV_AUTH_BYPASS=false` | `DevUser <nome>` |
+
+## PWA
+
+L'app è una Progressive Web App installabile (Chrome/Edge: icona di installazione nella barra degli indirizzi), con finestra propria e scorciatoie a Movimenti e Analisi. Manifest e icone sono in `public/` (`manifest.webmanifest`, `icons/`); il service worker è quello di Angular (`@angular/service-worker`, configurato in `ngsw-config.json`) ed è attivo solo nelle build di produzione.
+
+Il service worker mette in cache solo la shell (JS, CSS, icone, Google Fonts): le chiamate all'API passano sempre dalla rete, quindi senza connessione l'app si apre ma non mostra dati. Quando viene pubblicata una nuova versione `AppUpdateService` propone di ricaricare; `staticwebapp.config.json` serve `index.html`, `ngsw.json` e `ngsw-worker.js` senza cache HTTP, così gli aggiornamenti vengono rilevati subito.
 
 ## Temi
 

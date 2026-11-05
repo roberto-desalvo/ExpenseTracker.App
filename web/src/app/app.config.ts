@@ -3,6 +3,7 @@ import {
   ApplicationConfig,
   LOCALE_ID,
   inject,
+  isDevMode,
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
 } from "@angular/core";
@@ -11,6 +12,7 @@ import { MAT_DATE_LOCALE } from "@angular/material/core";
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from "@angular/material/form-field";
 import { MatPaginatorIntl } from "@angular/material/paginator";
 import { provideRouter, withInMemoryScrolling } from "@angular/router";
+import { provideServiceWorker } from "@angular/service-worker";
 import { registerLocaleData } from "@angular/common";
 import localeIt from "@angular/common/locales/it";
 import { it } from "date-fns/locale";
@@ -47,5 +49,10 @@ export const appConfig: ApplicationConfig = {
     { provide: MAT_FORM_FIELD_DEFAULT_OPTIONS, useValue: { appearance: "outline", subscriptSizing: "dynamic" } },
     // ECharts viene caricato solo quando una pagina mostra un grafico
     provideEchartsCore({ echarts: () => import("./shared/charts/echarts-setup").then((m) => m.echarts) }),
+    // PWA installabile: service worker solo nelle build di produzione (ng serve non lo genera)
+    provideServiceWorker("ngsw-worker.js", {
+      enabled: !isDevMode(),
+      registrationStrategy: "registerWhenStable:30000",
+    }),
   ],
 };
