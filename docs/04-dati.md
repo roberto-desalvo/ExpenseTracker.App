@@ -21,6 +21,7 @@ erDiagram
         string AppOid "oid app/managed identity, univoco"
         string Email
         bool IsDemo
+        string AnalyticsLayout "JSON, null = predefinito"
     }
     Account {
         int Id PK
@@ -91,7 +92,7 @@ erDiagram
 
 | Tabella | Ruolo |
 |---|---|
-| `Users` | Utente interno, creato al primo accesso; `IsDemo` abilita la rigenerazione dei dati demo |
+| `Users` | Utente interno, creato al primo accesso; `IsDemo` abilita la rigenerazione dei dati demo; `AnalyticsLayout` è il layout della pagina Analisi in JSON (id e larghezza delle card, il catalogo è nel frontend) |
 | `Accounts` | Conto finanziario; l'IBAN serve a riconoscere i trasferimenti negli import, il tipo a scegliere il conto di destinazione |
 | `AccountTypes` | Catalogo fisso dei tipi di conto (BBVA, Satispay, Trade Republic, Sella, Revolut, Contanti, Hype, PayPal), creato dalla migration; i primi quattro hanno un import da file |
 | `Categories` | Categorie dell'utente; quelle con `Kind` valorizzato sono le 11 di sistema create con l'utente |

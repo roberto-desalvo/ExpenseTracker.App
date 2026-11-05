@@ -817,6 +817,61 @@
       ]
     },
     {
+        "name": "UserSettings",
+        "item": [
+            {
+                "name": "UserSettings_GetAnalyticsLayout",
+                "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                        "raw": "{{baseUrl}}/user/analytics-layout",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "user",
+                            "analytics-layout"
+                        ]
+                    },
+                    "description": "Layout della pagina Analisi dell'utente (`{ cards: [{ id, width }] }`), vuoto/null se mai personalizzato."
+                }
+            },
+            {
+                "name": "UserSettings_PutAnalyticsLayout",
+                "request": {
+                    "method": "PUT",
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "url": {
+                        "raw": "{{baseUrl}}/user/analytics-layout",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "user",
+                            "analytics-layout"
+                        ]
+                    },
+                    "description": "Salva il layout della pagina Analisi: ordine = ordine della lista, card assenti = nascoste. `width`: third, half, twoThirds, full.",
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n  \"cards\": [\n    {\n      \"id\": \"summary\",\n      \"width\": \"full\"\n    },\n    {\n      \"id\": \"cash-flow\",\n      \"width\": \"full\"\n    },\n    {\n      \"id\": \"net-worth\",\n      \"width\": \"half\"\n    },\n    {\n      \"id\": \"period-rank\",\n      \"width\": \"half\"\n    },\n    {\n      \"id\": \"category-periods\",\n      \"width\": \"twoThirds\"\n    },\n    {\n      \"id\": \"category-rank\",\n      \"width\": \"third\"\n    }\n  ]\n}",
+                        "options": {
+                            "raw": {
+                                "language": "json"
+                            }
+                        }
+                    }
+                }
+            }
+        ]
+    },
+    {
       "name": "Demo",
       "description": "`api/demo`",
       "item": [

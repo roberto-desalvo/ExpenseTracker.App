@@ -43,4 +43,7 @@ export const apiConfig = {
     base: importBase,
     query: `${importBase}/query`,
   },
+  userSettings: {
+    analyticsLayout: resource("user/analytics-layout"),
+  },
 } as const;

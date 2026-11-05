@@ -15,17 +15,18 @@ flowchart TD
     shell --> imp["/impostazioni Impostazioni"]
     imp --> cat[Categorie]
     imp --> conti[Conti]
+    imp --> impana[Analisi]
     imp --> asp[Aspetto]
     shell -.-> modali[Modali Transazione / Trasferimento]
 ```
 
 | Pagina | Contenuto |
 |---|---|
-| **Dashboard** `/` | Patrimonio attuale con andamento a 12 mesi (importi nascondibili); entrate, uscite, risparmio netto con tasso di risparmio, investito nel mese (uscite della categoria investimenti) con tasso di investimento, a confronto con la media; ripartizione per conto; "Dove vanno i soldi" per categoria (barre o torta); ultimi movimenti |
+| **Dashboard** `/` | Patrimonio attuale con andamento a 12 mesi (importi nascondibili); entrate, uscite, risparmio netto con tasso di risparmio, investito nel mese (uscite della categoria investimenti) con tasso di investimento, a confronto con la media; ripartizione per conto (esclusi i conti con saldo zero); "Dove vanno i soldi" per categoria (barre o torta); ultimi movimenti |
 | **Movimenti** `/movimenti` | Tabella paginata e ordinabile con filtri per periodo (mese o intervallo), tipo (entrate/uscite), conti e categorie; modifica ed eliminazione per riga. I filtri si possono impostare da URL (`periodo`, `categoria`, `tipo`, usati dal drill-down di Analisi; con `da=analisi` compare il pulsante **Torna all'analisi**). Se l'utente ha conti di un tipo importabile (non per l'utente demo): bottone **Importa** (modale con conto e file CSV/XLSX, caricato e accodato per l'import asincrono) e tab **Import** |
 | **Import** `/movimenti/import` | Tab di Movimenti: storico degli import da file (dall'app, OneDrive, script) con stato, conto, periodo, movimenti nuovi e già presenti, errore; quelli in coda o in elaborazione si aggiornano da soli |
-| **Analisi** `/analisi` | Periodo (3–24 mesi, da inizio anno, personalizzato) e granularità (giorno, settimana, mese, anno); flusso di cassa (con la quota investita delle uscite e il tasso di investimento), patrimonio totale e per conto, classifica dei periodi, spese/entrate per categoria. Ogni grafico ha anche la vista tabella. Cliccando un periodo nel flusso di cassa o nelle categorie si apre Movimenti filtrato su quel periodo (e sulla categoria/tipo cliccati); filtri e viste sono nei query param, quindi il back del browser ripristina la pagina com'era |
-| **Impostazioni** `/impostazioni?sezione=` | **Categorie**: CRUD con parole chiave e priorità, sincronizzazione delle categorie su un periodo. **Conti**: card con saldo e netto del mese, creazione e modifica di nome, IBAN e tipo di conto (un tipo per conto; i tipi delle banche abilitano l'import da file). **Aspetto**: stile, tema chiaro/scuro/automatico, navigazione laterale o superiore |
+| **Analisi** `/analisi` | Periodo (3–24 mesi, da inizio anno, personalizzato) e granularità (giorno, settimana, mese, anno), poi le card scelte dall'utente in Impostazioni → Analisi (ordine e larghezza; griglia a 6 colonne da 1200px, sotto tutte a piena larghezza): sintesi del periodo, flusso di cassa (con la quota investita delle uscite e il tasso di investimento), patrimonio totale e per conto, classifica dei periodi, spese/entrate per categoria, classifica delle categorie. Ogni grafico ha anche la vista tabella. Cliccando un periodo nel flusso di cassa o nelle categorie si apre Movimenti filtrato su quel periodo (e sulla categoria/tipo cliccati); filtri e viste sono nei query param, quindi il back del browser ripristina la pagina com'era |
+| **Impostazioni** `/impostazioni?sezione=` | **Categorie**: CRUD con parole chiave e priorità, sincronizzazione delle categorie su un periodo. **Conti**: card con saldo e netto del mese, creazione e modifica di nome, IBAN e tipo di conto (un tipo per conto; i tipi delle banche abilitano l'import da file). **Analisi**: scheletro della pagina Analisi su cui trascinare (CDK drag and drop) le card visibili e quelle nascoste; le card verticali (classifiche) occupano 1/3 o 1/2 della riga, quelle orizzontali (grafici per periodo) 1/2, 2/3 o tutta; il layout è salvato a DB al clic su Salva. **Aspetto**: stile, tema chiaro/scuro/automatico, navigazione laterale o superiore |
 
 **Shell.** Barra laterale comprimibile (default) o barra superiore, a scelta in Aspetto; sotto i 900px diventa una barra compatta con menu a scomparsa. Il pulsante **Nuovo** apre da qualunque pagina le modali di nuova transazione o nuovo trasferimento, montate una sola volta nella shell.
 
@@ -52,7 +53,7 @@ Le pagine sono caricate in lazy (`app.routes.ts`); anche ECharts viene scaricato
 
 ## Stato e dati
 
-- **Store** (`core/state/`) — servizi `providedIn: "root"` con signal: `AccountsStore`, `CategoriesStore` e `AccountTypesStore` (anagrafiche caricate una volta dalla shell), `TransactionsStore`, `ImportsStore` (conti importabili, upload, storico; finché ci sono import in corso li ricontrolla ogni pochi secondi e ne notifica l'esito), `TransactionsTableStore` (filtri, ordinamento, paginazione della tabella), `QuickActionsService` (modali). Nessuna libreria di state management.
+- **Store** (`core/state/`) — servizi `providedIn: "root"` con signal: `AccountsStore`, `CategoriesStore` e `AccountTypesStore` (anagrafiche caricate una volta dalla shell), `TransactionsStore`, `ImportsStore` (conti importabili, upload, storico; finché ci sono import in corso li ricontrolla ogni pochi secondi e ne notifica l'esito), `TransactionsTableStore` (filtri, ordinamento, paginazione della tabella), `AnalyticsLayoutStore` (layout della pagina Analisi; il catalogo delle card è in `core/config/analytics-cards.ts`), `QuickActionsService` (modali). Nessuna libreria di state management.
 - **Aggiornamento** — dopo ogni modifica `TransactionsStore` incrementa `dataVersion`; dashboard, analisi e conti lo osservano e ricaricano i propri aggregati. Lo fa anche quando un import da file si conclude con nuovi movimenti.
 - **API** — tutte le chiamate passano da `ApiClient`, che condivide le richieste identiche in volo. L'interceptor di autenticazione aggiunge l'header; quello degli errori estrae il messaggio dai problem details, lo mostra in una snackbar e rilancia l'errore.
 

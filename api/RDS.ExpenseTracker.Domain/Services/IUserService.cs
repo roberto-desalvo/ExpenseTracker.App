@@ -18,4 +18,9 @@ public interface IUserService : IService
     // app-only, prive di claim email): prova AzureOid, poi il fallback su AppOid, e crea
     // un nuovo utente solo se è disponibile un'email.
     Task<Result<UserDto>> GetOrCreateUserForImportAsync(string oid, string? email, string? name);
+
+    // Layout della pagina Analisi: null se l'utente non l'ha mai personalizzato.
+    Task<Result<AnalyticsLayoutDto?>> GetAnalyticsLayoutAsync(int userId);
+
+    Task<Result<AnalyticsLayoutDto>> SaveAnalyticsLayoutAsync(int userId, AnalyticsLayoutDto layout);
 }

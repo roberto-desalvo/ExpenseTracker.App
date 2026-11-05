@@ -48,7 +48,9 @@
           [progressLabel]="
             rate === null ? 'Nessuna entrata registrata questo mese' : 'Tasso di risparmio ' + formatPercent(rate) + ' delle entrate'
           "
-        />
+        >
+          <app-versus-average [current]="t.netMonth" [avg]="history().avgNet" />
+        </app-stat-tile>
         @let invRate = investedRate();
         <app-stat-tile
           label="Investito nel mese"

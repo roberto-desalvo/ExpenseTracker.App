@@ -1,0 +1,124 @@
+<div class="editor" cdkDropListGroup>
+  <app-surface-card
+    title="Disposizione"
+    subtitle="Trascina le card per cambiarne l'ordine e scegli quanto spazio occupano. Le card verticali occupano 1/3 o 1/2 della riga, quelle orizzontali 1/2, 2/3 o tutta la riga."
+  >
+    @if (!loaded()) {
+    <span class="skeleton skeleton-rounded" style="height: 320px"></span>
+    } @else {
+    <div class="canvas">
+      <div
+        class="grid"
+        cdkDropList
+        [id]="layoutList"
+        cdkDropListOrientation="mixed"
+        [cdkDropListData]="draft()"
+        (cdkDropListDropped)="drop($event)"
+        aria-label="Card visibili nella pagina Analisi"
+      >
+        @for (card of draft(); track card.id) { @let def = cardOf(card.id);
+        <div
+          class="block"
+          cdkDrag
+          [cdkDragData]="card.id"
+          [style.--span]="span[card.width]"
+          [class.vertical]="def.orientation === 'vertical'"
+        >
+          <div class="block-head">
+            <mat-icon class="handle" cdkDragHandle matTooltip="Trascina per spostare">drag_indicator</mat-icon>
+            <mat-icon class="icon-sm block-icon">{{ def.icon }}</mat-icon>
+            <span class="block-title">{{ def.title }}</span>
+            <button
+              matIconButton
+              type="button"
+              class="remove"
+              (click)="remove(card.id)"
+              [attr.aria-label]="'Nascondi ' + def.title"
+              matTooltip="Nascondi"
+            >
+              <mat-icon>visibility_off</mat-icon>
+            </button>
+          </div>
+
+          <!-- anteprima schematica: barre per i grafici orizzontali, righe per le classifiche verticali -->
+          @if (def.orientation === 'horizontal') {
+          <div class="preview bars" aria-hidden="true">
+            @for (h of previewBars; track $index) {
+            <span [style.height.%]="h"></span>
+            }
+          </div>
+          } @else {
+          <div class="preview rows" aria-hidden="true">
+            @for (w of [90, 70, 55, 40]; track $index) {
+            <span [style.width.%]="w"></span>
+            }
+          </div>
+          }
+
+          <div class="block-foot">
+            <span class="badge">{{ def.orientation === 'vertical' ? 'Verticale' : 'Orizzontale' }}</span>
+            <mat-button-toggle-group
+              class="segmented"
+              [value]="card.width"
+              (change)="setWidth(card.id, $event.value)"
+              [attr.aria-label]="'Larghezza ' + def.title"
+              hideSingleSelectionIndicator
+            >
+              @for (w of allowedWidthsOf(card.id); track w) {
+              <mat-button-toggle [value]="w">{{ widthLabel[w] }}</mat-button-toggle>
+              }
+            </mat-button-toggle-group>
+          </div>
+
+          <div *cdkDragPlaceholder class="block-placeholder" [style.--span]="span[card.width]"></div>
+        </div>
+        } @empty {
+        <p class="empty-drop">Nessuna card visibile: trascina qui una card disponibile.</p>
+        }
+      </div>
+    </div>
+    }
+  </app-surface-card>
+
+  <app-surface-card
+    title="Card disponibili"
+    subtitle="Nascoste nella pagina Analisi: trascinale nella disposizione o usa Aggiungi."
+  >
+    <div
+      class="available"
+      cdkDropList
+      cdkDropListOrientation="mixed"
+      [cdkDropListData]="hidden()"
+      (cdkDropListDropped)="drop($event)"
+      aria-label="Card nascoste"
+    >
+      @for (def of hidden(); track def.id) {
+      <div class="chip" cdkDrag [cdkDragData]="def.id" [cdkDragDisabled]="!loaded()">
+        <mat-icon class="handle" cdkDragHandle>drag_indicator</mat-icon>
+        <mat-icon class="icon-sm block-icon">{{ def.icon }}</mat-icon>
+        <span class="col chip-text">
+          <span class="block-title">{{ def.title }}</span>
+          <span class="chip-description">{{ def.description }}</span>
+        </span>
+        <button matButton type="button" (click)="add(def.id)" [disabled]="!loaded()">
+          <mat-icon>add</mat-icon> Aggiungi
+        </button>
+        <div *cdkDragPlaceholder class="block-placeholder" [style.--span]="span[def.defaultWidth]"></div>
+      </div>
+      } @empty {
+      <p class="empty-drop">Tutte le card sono visibili. Trascina qui una card per nasconderla.</p>
+      }
+    </div>
+  </app-surface-card>
+
+  <div class="actions">
+    <button matButton type="button" (click)="resetToDefault()" [disabled]="!loaded() || isDefault() || saving()">
+      <mat-icon>restart_alt</mat-icon> Ripristina predefinito
+    </button>
+    <span class="spacer"></span>
+    <button matButton="outlined" type="button" (click)="discard()" [disabled]="!dirty() || saving()">Annulla</button>
+    <button matButton="filled" type="button" (click)="save()" [disabled]="!loaded() || !dirty() || saving()">
+      {{ saving() ? 'Salvataggio…' : 'Salva' }}
+    </button>
+  </div>
+</div>

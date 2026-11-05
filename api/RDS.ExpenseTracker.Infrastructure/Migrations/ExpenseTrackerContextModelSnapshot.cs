@@ -355,6 +355,9 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AnalyticsLayout")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("AppOid")
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");

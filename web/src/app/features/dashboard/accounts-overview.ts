@@ -12,7 +12,7 @@ import { EmptyState } from "../../shared/ui/empty-state";
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MatTooltip, EmptyState],
   template: `
-    @if (accounts().length === 0) {
+    @if (visible().length === 0) {
       <app-empty-state title="Nessun conto" text="Aggiungi un conto dalle impostazioni per iniziare." />
     } @else {
       @if (positiveTotal() > 0) {
@@ -84,7 +84,10 @@ export class AccountsOverview {
     );
   });
 
-  protected readonly sorted = computed(() => [...this.accounts()].sort((x, y) => y.currentBalance - x.currentBalance));
+  /** Conti con saldo non nullo (arrotondato al centesimo): quelli a zero non vengono mostrati. */
+  protected readonly visible = computed(() => this.accounts().filter((x) => Math.round(x.currentBalance * 100) !== 0));
+
+  protected readonly sorted = computed(() => [...this.visible()].sort((x, y) => y.currentBalance - x.currentBalance));
   protected readonly positive = computed(() => this.sorted().filter((x) => x.currentBalance > 0));
   protected readonly positiveTotal = computed(() =>
     this.sorted().reduce((sum, x) => sum + Math.max(x.currentBalance, 0), 0),

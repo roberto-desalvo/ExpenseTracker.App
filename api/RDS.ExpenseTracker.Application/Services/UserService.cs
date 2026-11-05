@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AutoMapper;
 using FluentResults;
 using RDS.ExpenseTracker.Domain.Common;
@@ -75,4 +76,73 @@ public class UserService : IUserService
         var user = await _repository.GetOrCreateUserAsync(oid, email);
         return Result.Ok(_mapper.Map<UserDto>(user));
     }
+
+    public async Task<Result<AnalyticsLayoutDto?>> GetAnalyticsLayoutAsync(int userId)
+    {
+        var user = await _repository.GetById(userId);
+        if (user is null)
+            return Result.Fail(DomainErrors.NotFound("User", userId));
+
+        if (string.IsNullOrWhiteSpace(user.AnalyticsLayout))
+            return Result.Ok<AnalyticsLayoutDto?>(null);
+
+        try
+        {
+            return Result.Ok(JsonSerializer.Deserialize<AnalyticsLayoutDto>(user.AnalyticsLayout, JsonOptions));
+        }
+        catch (JsonException)
+        {
+            // JSON corrotto: si torna al layout predefinito invece di bloccare la pagina.
+            return Result.Ok<AnalyticsLayoutDto?>(null);
+        }
+    }
+
+    public async Task<Result<AnalyticsLayoutDto>> SaveAnalyticsLayoutAsync(int userId, AnalyticsLayoutDto layout)
+    {
+        var validation = ValidateAnalyticsLayout(layout);
+        if (validation is not null)
+            return Result.Fail(validation);
+
+        var user = await _repository.GetById(userId);
+        if (user is null)
+            return Result.Fail(DomainErrors.NotFound("User", userId));
+
+        var normalized = new AnalyticsLayoutDto
+        {
+            Cards = [.. layout.Cards.Select(c => new AnalyticsCardLayoutDto { Id = c.Id.Trim(), Width = c.Width })],
+        };
+        user.AnalyticsLayout = JsonSerializer.Serialize(normalized, JsonOptions);
+        await _repository.SaveChangesAsync();
+        return Result.Ok(normalized);
+    }
+
+    private static BadRequestResultError? ValidateAnalyticsLayout(AnalyticsLayoutDto? layout)
+    {
+        if (layout?.Cards is null)
+            return DomainErrors.BadRequest("cards is required.");
+
+        if (layout.Cards.Count > MaxAnalyticsCards)
+            return DomainErrors.BadRequest($"At most {MaxAnalyticsCards} cards are allowed.");
+
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var card in layout.Cards)
+        {
+            if (card is null || string.IsNullOrWhiteSpace(card.Id) || card.Id.Trim().Length > MaxAnalyticsCardIdLength)
+                return DomainErrors.BadRequest($"Every card needs an id of at most {MaxAnalyticsCardIdLength} characters.");
+
+            if (!ids.Add(card.Id.Trim()))
+                return DomainErrors.BadRequest($"Card '{card.Id}' appears more than once.");
+
+            if (!AnalyticsCardWidths.Contains(card.Width))
+                return DomainErrors.BadRequest(
+                    $"Invalid width '{card.Width}' for card '{card.Id}' (allowed: {string.Join(", ", AnalyticsCardWidths)}).");
+        }
+
+        return null;
+    }
+
+    private const int MaxAnalyticsCards = 20;
+    private const int MaxAnalyticsCardIdLength = 50;
+    private static readonly string[] AnalyticsCardWidths = ["third", "half", "twoThirds", "full"];
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 }

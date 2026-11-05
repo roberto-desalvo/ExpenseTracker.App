@@ -58,7 +58,7 @@ const average = (values: number[]) => (values.length ? values.reduce((s, v) => s
   selector: "app-versus-average",
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (avg() <= 0) {
+    @if (avg() === 0) {
       <span>Nessuno storico per il confronto</span>
     } @else {
       <span>
@@ -77,7 +77,8 @@ export class VersusAverage {
   readonly lowerIsBetter = input(false);
   protected readonly formatPercent = formatPercent;
   protected readonly formatCurrency = formatCurrency;
-  protected readonly diff = computed(() => ((this.current() - this.avg()) / this.avg()) * 100);
+  // valore assoluto al denominatore: la media del risparmio netto può essere negativa
+  protected readonly diff = computed(() => ((this.current() - this.avg()) / Math.abs(this.avg())) * 100);
   protected readonly absDiff = computed(() => Math.abs(this.diff()));
   protected readonly good = computed(() => (this.lowerIsBetter() ? this.diff() <= 0 : this.diff() >= 0));
 }
@@ -153,6 +154,7 @@ export class DashboardPage {
       avgSpent: average(past.map((p) => p.spent)),
       avgEarned: average(past.map((p) => p.earned)),
       avgInvested: average(past.map((p) => p.invested)),
+      avgNet: average(past.map((p) => p.earned - p.spent)),
     };
   });
 

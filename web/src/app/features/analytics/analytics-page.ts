@@ -1,15 +1,18 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from "@angular/core";
+import { MatButtonModule } from "@angular/material/button";
 import { MatButtonToggleModule } from "@angular/material/button-toggle";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatIconModule } from "@angular/material/icon";
 import { MatInputModule } from "@angular/material/input";
-import { ActivatedRoute, Router } from "@angular/router";
+import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import { TransactionApi } from "../../core/api/transaction.api";
+import { WIDTH_SPAN } from "../../core/config/analytics-cards";
 import { ROUTES } from "../../core/config/routes";
 import { drillDownParams } from "../../core/navigation/drill-down";
 import { DrillDownFilter, MovementType } from "../../core/state/transactions-table.store";
 import { TimeSeriesList } from "../../core/models/TimeSeries";
 import { AccountsStore } from "../../core/state/accounts.store";
+import { AnalyticsLayoutStore } from "../../core/state/analytics-layout.store";
 import { CategoriesStore } from "../../core/state/categories.store";
 import { TransactionsStore } from "../../core/state/transactions.store";
 import { ThemeService } from "../../core/theme/theme.service";
@@ -28,6 +31,7 @@ import { buildEntityColorMap } from "../../shared/charts/entityColors";
 import { LineSeries, NetWorthAreaChart } from "../../shared/charts/net-worth-area-chart";
 import { RankedBarList } from "../../shared/charts/ranked-bar-list";
 import { StackSeries, StackedPeriodBars } from "../../shared/charts/stacked-period-bars";
+import { EmptyState } from "../../shared/ui/empty-state";
 import { PageContainer } from "../../shared/ui/page-container";
 import { PageHeader } from "../../shared/ui/page-header";
 import { SurfaceCard } from "../../shared/ui/surface-card";
@@ -154,7 +158,7 @@ export class SummaryFigure {
   readonly tone = input<string>();
 }
 
-/** Analisi: flusso di cassa, patrimonio, classifiche di periodi e categorie sul periodo scelto. */
+/** Analisi: card scelte dall'utente (Impostazioni → Analisi) su flussi, patrimonio, periodi e categorie del periodo scelto. */
 @Component({
   selector: "app-analytics-page",
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -162,12 +166,15 @@ export class SummaryFigure {
     PageContainer,
     PageHeader,
     SurfaceCard,
+    EmptyState,
+    RouterLink,
     SummaryFigure,
     CashFlowChart,
     NetWorthAreaChart,
     StackedPeriodBars,
     RankedBarList,
     ChartViewToggle,
+    MatButtonModule,
     MatButtonToggleModule,
     MatFormFieldModule,
     MatInputModule,
@@ -182,6 +189,12 @@ export class AnalyticsPage {
   private readonly categories = inject(CategoriesStore);
   private readonly transactions = inject(TransactionsStore);
   private readonly theme = inject(ThemeService);
+  private readonly layout = inject(AnalyticsLayoutStore);
+
+  protected readonly cards = this.layout.layout;
+  protected readonly span = WIDTH_SPAN;
+  protected readonly settingsLink = ROUTES.settings;
+  protected readonly settingsQuery = { sezione: "analisi" };
 
   protected readonly presets = PRESETS;
   protected readonly granularities = GRANULARITIES;
@@ -219,6 +232,16 @@ export class AnalyticsPage {
   protected readonly categoryKind = signal<"spent" | "earned">(
     decode(CATEGORY_KIND_PARAMS, this.initial.get("categorie"), "spent"),
   );
+  protected readonly rankCategoryKind = signal<"spent" | "earned">(
+    decode(CATEGORY_KIND_PARAMS, this.initial.get("classifica-categorie"), "spent"),
+  );
+
+  // le chiamate servono solo alle card visibili
+  private readonly needsAccounts = computed(() => this.layout.isVisible("net-worth"));
+  private readonly needsCategories = computed(
+    () => this.layout.isVisible("category-periods") || this.layout.isVisible("category-rank"),
+  );
+  private readonly needsRank = computed(() => this.layout.isVisible("period-rank"));
 
   protected readonly invalidRange = computed(() => this.range().start > this.range().end);
   // chiavi stabili: un nuovo array con gli stessi id (es. dopo una rinomina) non deve far ripartire le chiamate
@@ -289,8 +312,7 @@ export class AnalyticsPage {
     });
   });
 
-  protected readonly categorySeries = computed<StackSeries[]>(() => {
-    const kind = this.categoryKind();
+  private categorySeriesOf(kind: "spent" | "earned"): StackSeries[] {
     const categories = this.categories.all();
     return (this.byCategory()?.series ?? []).map((s, index) => {
       const id = dimensionId(s.dimensions, "CategoryId");
@@ -300,10 +322,17 @@ export class AnalyticsPage {
         values: s.values.map((v) => ({ period: v.period, value: kind === "spent" ? v.spent : v.earned })),
       };
     });
-  });
+  }
 
+  protected readonly categorySeries = computed(() => this.categorySeriesOf(this.categoryKind()));
+
+  // la classifica categorie ha un tipo (uscite/entrate) proprio: resta valida anche se l'altra card è nascosta
   protected readonly categoryTotals = computed(() =>
-    this.categorySeries().map((s) => ({ id: s.key, name: s.name, value: s.values.reduce((sum, v) => sum + v.value, 0) })),
+    this.categorySeriesOf(this.rankCategoryKind()).map((s) => ({
+      id: s.key,
+      name: s.name,
+      value: s.values.reduce((sum, v) => sum + v.value, 0),
+    })),
   );
 
   protected readonly summary = computed(() => {
@@ -334,11 +363,13 @@ export class AnalyticsPage {
   });
 
   constructor() {
+    this.layout.ensureLoaded();
+
     effect(() => {
       const { start, end } = this.range();
       const granularity = this.granularity();
-      const accountIds = toIds(this.accountIdsKey());
-      const categoryIds = toIds(this.categoryIdsKey());
+      const accountIds = this.needsAccounts() ? toIds(this.accountIdsKey()) : [];
+      const categoryIds = this.needsCategories() ? toIds(this.categoryIdsKey()) : [];
       this.transactions.dataVersion();
       if (!this.lookupsReady() || this.invalidRange() || !start || !end) return;
       untracked(() => void this.loadSeries(start, end, granularity, accountIds, categoryIds));
@@ -349,7 +380,7 @@ export class AnalyticsPage {
       const { start, end } = this.range();
       const granularity = this.rankGranularity();
       this.transactions.dataVersion();
-      if (this.invalidRange() || !start || !end) return;
+      if (!this.needsRank() || this.invalidRange() || !start || !end) return;
       untracked(() => void this.loadRank(start, end, granularity));
     });
 
@@ -368,6 +399,7 @@ export class AnalyticsPage {
         "classifica-per": encode(RANK_GRANULARITY_PARAMS, this.rankGranularity(), 3),
         categorie: encode(CATEGORY_KIND_PARAMS, this.categoryKind(), "spent"),
         "categorie-vista": encode(VIEW_PARAMS, this.categoryView(), "chart"),
+        "classifica-categorie": encode(CATEGORY_KIND_PARAMS, this.rankCategoryKind(), "spent"),
       };
       untracked(() => void this.router.navigate([], { relativeTo: this.route, queryParams, replaceUrl: true }));
     });

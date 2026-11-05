@@ -8,6 +8,9 @@ public class User(int id, string email, bool isDemo = false)
     public string Email { get; set; } = email ?? throw new ArgumentNullException(nameof(email));
     public bool IsDemo { get; set; } = isDemo;
 
+    // Layout della pagina Analisi in JSON (AnalyticsLayoutDto); null = layout predefinito.
+    public string? AnalyticsLayout { get; set; }
+
     public ICollection<Account> Accounts { get; set; } = [];
     public ICollection<Category> Categories { get; set; } = [];
 }

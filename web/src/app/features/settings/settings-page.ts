@@ -9,14 +9,16 @@ import { ROUTES } from "../../core/config/routes";
 import { PageContainer } from "../../shared/ui/page-container";
 import { PageHeader } from "../../shared/ui/page-header";
 import { AccountsSettings } from "./accounts-settings";
+import { AnalyticsLayoutSettings } from "./analytics-layout-settings";
 import { AppearanceSettings } from "./appearance-settings";
 import { CategoriesSettings } from "./categories-settings";
 
-type SettingsSection = "categorie" | "conti" | "aspetto";
+type SettingsSection = "categorie" | "conti" | "analisi" | "aspetto";
 
 const SECTIONS: { id: SettingsSection; label: string; description: string; icon: string }[] = [
   { id: "categorie", label: "Categorie", description: "Classificazione dei movimenti e regole di import", icon: "category" },
   { id: "conti", label: "Conti", description: "Conti correnti, carte e wallet", icon: "account_balance_wallet" },
+  { id: "analisi", label: "Analisi", description: "Card della pagina Analisi e loro disposizione", icon: "dashboard_customize" },
   { id: "aspetto", label: "Aspetto", description: "Stile, tema e navigazione", icon: "palette" },
 ];
 
@@ -24,6 +26,7 @@ const SECTIONS: { id: SettingsSection; label: string; description: string; icon:
 const normalizeSection = (params: ParamMap): SettingsSection => {
   const value = params.get("sezione") ?? params.get("tab");
   if (value === "conti" || value === "account") return "conti";
+  if (value === "analisi") return "analisi";
   if (value === "aspetto") return "aspetto";
   return "categorie";
 };
@@ -31,10 +34,20 @@ const normalizeSection = (params: ParamMap): SettingsSection => {
 @Component({
   selector: "app-settings-page",
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, PageContainer, PageHeader, MatTabsModule, MatIconModule, AccountsSettings, CategoriesSettings, AppearanceSettings],
+  imports: [
+    RouterLink,
+    PageContainer,
+    PageHeader,
+    MatTabsModule,
+    MatIconModule,
+    AccountsSettings,
+    CategoriesSettings,
+    AnalyticsLayoutSettings,
+    AppearanceSettings,
+  ],
   template: `
     <app-page-container>
-      <app-page-header title="Impostazioni" subtitle="Gestisci le anagrafiche e personalizza l'aspetto dell'app." />
+      <app-page-header title="Impostazioni" subtitle="Gestisci le anagrafiche e personalizza le pagine e l'aspetto dell'app." />
 
       @if (!isDesktop()) {
         <nav mat-tab-nav-bar [tabPanel]="panel" mat-stretch-tabs class="mobile-tabs">
@@ -81,6 +94,9 @@ const normalizeSection = (params: ParamMap): SettingsSection => {
             }
             @case ("conti") {
               <app-accounts-settings />
+            }
+            @case ("analisi") {
+              <app-analytics-layout-settings />
             }
             @case ("aspetto") {
               <app-appearance-settings />
