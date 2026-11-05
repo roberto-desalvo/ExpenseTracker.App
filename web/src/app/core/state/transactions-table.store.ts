@@ -1,6 +1,7 @@
 import { Injectable, computed, effect, inject, signal, untracked } from "@angular/core";
 import { TransactionMonthOption } from "../models/TransactionMonthOption";
 import { SortDirection, TransactionQueryRequest, TransactionSortField } from "../models/TransactionQueryRequest";
+import { periodRange } from "../utils/date.utilities";
 import { AccountsStore } from "./accounts.store";
 import { CategoriesStore } from "./categories.store";
 import { TransactionsStore } from "./transactions.store";
@@ -20,6 +21,13 @@ export type PeriodMode = "month" | "custom";
 export interface DateRange {
   from: string | null;
   to: string | null;
+}
+
+/** Filtri di un drill-down verso Movimenti; `period` è una chiave di periodo del BE (vedi `periodRange`). */
+export interface DrillDownFilter {
+  period: string;
+  categoryIds: number[];
+  movementType: MovementType;
 }
 
 export const TRANSACTION_COLUMNS: TableColumn[] = [
@@ -68,7 +76,12 @@ export class TransactionsTableStore {
 
   private readonly active = signal(false);
 
+  /** Mese (yyyy-MM) richiesto da un drill-down, in attesa che arrivino i mesi disponibili. */
+  private readonly pendingMonthKey = signal<string | null>(null);
+
   readonly request = computed<TransactionQueryRequest | null>(() => {
+    // in attesa del mese del drill-down non si carica il periodo precedente
+    if (this.pendingMonthKey()) return null;
     // mese: dal primo all'ultimo giorno; personalizzato: giorni interi, estremi inclusi
     const month = this.selectedMonth();
     const range = this.customRange();
@@ -120,7 +133,23 @@ export class TransactionsTableStore {
 
     effect(() => {
       const months = this.availableMonths();
+      const loading = this.availableMonthsLoading();
+      const pending = this.pendingMonthKey();
       untracked(() => {
+        if (pending && !loading) {
+          this.pendingMonthKey.set(null);
+          const month = months.find((m) => m.startDate.startsWith(pending));
+          if (month) {
+            this.selectedMonth.set(month);
+            return;
+          }
+          // mese senza movimenti (non elencato): lo si mostra come intervallo personalizzato
+          const range = periodRange(pending);
+          if (range) {
+            this.customRange.set(range);
+            this.periodMode.set("custom");
+          }
+        }
         if (months.length === 0) {
           this.selectedMonth.set(null);
           return;
@@ -144,6 +173,26 @@ export class TransactionsTableStore {
   activate(): () => void {
     this.active.set(true);
     return () => this.active.set(false);
+  }
+
+  /**
+   * Filtri impostati arrivando da un altro grafico (es. Analisi): periodo, categorie e tipo; i conti vengono azzerati.
+   * Un mese (yyyy-MM) apre la vista per mese, le altre chiavi di periodo un intervallo personalizzato.
+   */
+  applyDrillDown(filter: DrillDownFilter) {
+    const range = periodRange(filter.period);
+    if (!range) return;
+    this.selectedAccountIds.set([]);
+    this.selectedCategoryIds.set(filter.categoryIds);
+    this.movementType.set(filter.movementType);
+    this.page.set(0);
+    if (/^\d{4}-\d{2}$/.test(filter.period)) {
+      this.periodMode.set("month");
+      this.pendingMonthKey.set(filter.period);
+    } else {
+      this.customRange.set(range);
+      this.periodMode.set("custom");
+    }
   }
 
   modifySelectedMonth(month: TransactionMonthOption) {

@@ -37,7 +37,8 @@ const IT_DATE_FORMATS = {
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideRouter(routes, withInMemoryScrolling({ scrollPositionRestoration: "top" })),
+    // "enabled": in avanti si parte dall'alto, col back si torna alla posizione precedente (es. al grafico del drill-down)
+    provideRouter(routes, withInMemoryScrolling({ scrollPositionRestoration: "enabled" })),
     provideHttpClient(withInterceptors([authInterceptor, errorInterceptor])),
     // MSAL va inizializzato (e il ritorno dal redirect gestito) prima del primo render
     provideAppInitializer(() => inject(AuthService).initialize()),

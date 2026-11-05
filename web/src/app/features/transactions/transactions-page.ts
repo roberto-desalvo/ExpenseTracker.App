@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from "@angular/core";
+import { Location } from "@angular/common";
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from "@angular/core";
+import { toSignal } from "@angular/core/rxjs-interop";
+import { ActivatedRoute, Router } from "@angular/router";
+import { ROUTES } from "../../core/config/routes";
+import { DRILL_DOWN_PARAMS, parseDrillDown } from "../../core/navigation/drill-down";
 import { MatButton, MatIconButton } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { MatTooltip } from "@angular/material/tooltip";
@@ -54,6 +59,14 @@ export class TransactionsPage {
     return `Vuoi eliminare “${t.description || "questa transazione"}” (${formatSignedCurrency(t.amount)})? L'operazione non può essere annullata.`;
   });
 
+  private readonly router = inject(Router);
+  private readonly location = inject(Location);
+  private readonly query = toSignal(inject(ActivatedRoute).queryParamMap);
+  // pagina raggiunta da un'altra pagina dell'app (non aperta direttamente da URL)
+  private readonly hasInAppHistory = this.router.lastSuccessfulNavigation() !== null;
+
+  protected readonly fromAnalytics = computed(() => this.query()?.get(DRILL_DOWN_PARAMS.source) === "analisi");
+
   constructor() {
     // mesi disponibili e lista vengono caricati solo mentre la pagina è aperta
     const deactivateStore = this.store.activatePage();
@@ -62,6 +75,18 @@ export class TransactionsPage {
       deactivateTable();
       deactivateStore();
     });
+
+    // drill-down (es. da Analisi): i filtri arrivano dai query param e restano nell'URL, così la cronologia li ripristina
+    effect(() => {
+      const query = this.query();
+      const filter = query && parseDrillDown(query);
+      if (filter) untracked(() => this.table.applyDrillDown(filter));
+    });
+  }
+
+  protected backToAnalytics() {
+    if (this.hasInAppHistory) this.location.back();
+    else void this.router.navigateByUrl(ROUTES.analytics);
   }
 
   protected day(date: Date | string) {

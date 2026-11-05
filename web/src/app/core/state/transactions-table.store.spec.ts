@@ -69,6 +69,36 @@ describe("TransactionsTableStore", () => {
     expect(store.request()?.toDate).toBe("2026-11-30T23:59:59.999");
   });
 
+  it("drill-down su un mese disponibile: vista per mese con categoria e tipo, conti azzerati", () => {
+    store.modifySelectedAccountIds([2]);
+    store.modifyPage(2);
+    store.applyDrillDown({ period: "2026-10", categoryIds: [10], movementType: "outcomes" });
+    TestBed.tick();
+    expect(store.periodMode()).toBe("month");
+    expect(store.selectedMonth()?.startDate).toBe(MONTHS[1].startDate);
+    expect(store.request()).toMatchObject({
+      fromDate: MONTHS[1].startDate,
+      idAccounts: null,
+      isIncome: false,
+      page: 0,
+    });
+    expect(store.selectedCategoryIds()).toEqual([10]);
+  });
+
+  it("drill-down su un mese non disponibile: intervallo personalizzato", () => {
+    store.applyDrillDown({ period: "2025-03", categoryIds: [], movementType: "incomes" });
+    TestBed.tick();
+    expect(store.periodMode()).toBe("custom");
+    expect(store.customRange()).toEqual({ from: "2025-03-01", to: "2025-03-31" });
+    expect(store.request()).toMatchObject({ fromDate: "2025-03-01T00:00:00", isIncome: true });
+  });
+
+  it("drill-down su una settimana: intervallo personalizzato", () => {
+    store.applyDrillDown({ period: "2026-W45", categoryIds: [], movementType: "all" });
+    expect(store.periodMode()).toBe("custom");
+    expect(store.customRange()).toEqual({ from: "2026-11-02", to: "2026-11-08" });
+  });
+
   it("carica la lista solo mentre la pagina è attiva", () => {
     TestBed.tick();
     expect(refreshTransactions).not.toHaveBeenCalled();

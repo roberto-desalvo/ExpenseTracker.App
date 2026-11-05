@@ -57,7 +57,7 @@
   <!-- Flusso di cassa + sintesi del periodo -->
   <app-surface-card
     title="Flusso di cassa"
-    [subtitle]="'Entrate sopra lo zero, uscite sotto (investimenti in fondo), saldo netto come linea · ' + periodLabel()"
+    [subtitle]="'Entrate sopra lo zero, uscite sotto (investimenti in fondo), saldo netto come linea · ' + periodLabel() + ' · clicca un periodo per vederne i movimenti'"
     [hasAction]="true"
   >
     <app-chart-view-toggle card-action [(value)]="flowView" />
@@ -86,7 +86,7 @@
     @if (loading()) {
       <span class="skeleton skeleton-rounded chart-skeleton"></span>
     } @else {
-      <app-cash-flow-chart [points]="cashFlow()" [height]="300" [view]="flowView()" />
+      <app-cash-flow-chart [points]="cashFlow()" [height]="300" [view]="flowView()" (periodClick)="openFlowPeriod($event)" />
     }
   </app-surface-card>
 
@@ -158,7 +158,7 @@
   <div class="two-cols wide-left">
     <app-surface-card
       [title]="categoryKind() === 'spent' ? 'Spese per categoria' : 'Entrate per categoria'"
-      subtitle="Composizione per periodo di tutte le categorie"
+      subtitle="Composizione per periodo di tutte le categorie · clicca un periodo per vederne i movimenti"
       [hasAction]="true"
     >
       <div card-action class="row gap-sm">
@@ -177,7 +177,9 @@
       @if (loading()) {
         <span class="skeleton skeleton-rounded chart-skeleton"></span>
       } @else {
-        <app-stacked-period-bars [series]="categorySeries()" [maxSeries]="Infinity" [height]="300" [view]="categoryView()" />
+        <app-stacked-period-bars [series]="categorySeries()" [maxSeries]="Infinity" [height]="300" [view]="categoryView()"
+          (periodClick)="openCategoryPeriod($event)"
+        />
       }
     </app-surface-card>
 

@@ -3,6 +3,9 @@
     title="Movimenti"
     subtitle="Le transazioni del periodo selezionato. Passa sopra una riga per modificarla o eliminarla."
   >
+    @if (fromAnalytics()) {
+      <button actions matButton (click)="backToAnalytics()"><mat-icon>arrow_back</mat-icon> Torna all'analisi</button>
+    }
     <app-import-button actions />
     <app-new-entry-button actions />
   </app-page-header>

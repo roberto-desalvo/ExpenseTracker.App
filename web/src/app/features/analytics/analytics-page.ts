@@ -3,7 +3,11 @@ import { MatButtonToggleModule } from "@angular/material/button-toggle";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatIconModule } from "@angular/material/icon";
 import { MatInputModule } from "@angular/material/input";
+import { ActivatedRoute, Router } from "@angular/router";
 import { TransactionApi } from "../../core/api/transaction.api";
+import { ROUTES } from "../../core/config/routes";
+import { drillDownParams } from "../../core/navigation/drill-down";
+import { DrillDownFilter, MovementType } from "../../core/state/transactions-table.store";
 import { TimeSeriesList } from "../../core/models/TimeSeries";
 import { AccountsStore } from "../../core/state/accounts.store";
 import { CategoriesStore } from "../../core/state/categories.store";
@@ -18,6 +22,7 @@ import {
   formatSignedCurrency,
 } from "../../core/utils/format.utilities";
 import { CashFlowChart, CashFlowPoint } from "../../shared/charts/cash-flow-chart";
+import { PeriodClick } from "../../shared/charts/chart-options";
 import { ChartView, ChartViewToggle } from "../../shared/charts/chart-parts";
 import { buildEntityColorMap } from "../../shared/charts/entityColors";
 import { LineSeries, NetWorthAreaChart } from "../../shared/charts/net-worth-area-chart";
@@ -81,7 +86,44 @@ const rangeFor = (preset: RangePreset): { start: string; end: string } => {
   }
 };
 
-const dimensionId = (dimensions: { key: string; value: string }[], key: string) => {
+// stato della pagina nei query param (valori di default omessi): il back del browser ripristina la vista
+type ParamPairs<T> = readonly (readonly [T, string])[];
+
+const GRANULARITY_PARAMS: ParamPairs<Granularity> = [
+  [1, "giorno"],
+  [2, "settimana"],
+  [3, "mese"],
+  [4, "anno"],
+];
+const RANK_METRIC_PARAMS: ParamPairs<RankMetric> = [
+  ["earned", "entrate"],
+  ["spent", "uscite"],
+  ["saved", "risparmio"],
+  ["lost", "perdite"],
+];
+const RANK_GRANULARITY_PARAMS: ParamPairs<RankGranularity> = [
+  [3, "mese"],
+  [4, "anno"],
+];
+const CATEGORY_KIND_PARAMS: ParamPairs<"spent" | "earned"> = [
+  ["spent", "uscite"],
+  ["earned", "entrate"],
+];
+const VIEW_PARAMS: ParamPairs<ChartView> = [
+  ["chart", "grafico"],
+  ["table", "tabella"],
+];
+const PRESET_PARAMS: ParamPairs<RangePreset> = PRESETS.map((p) => [p.value, p.value] as const);
+
+const decode = <T>(pairs: ParamPairs<T>, param: string | null, fallback: T): T =>
+  pairs.find(([, p]) => p === param)?.[0] ?? fallback;
+
+const encode = <T>(pairs: ParamPairs<T>, value: T, fallback: T): string | null =>
+  value === fallback ? null : (pairs.find(([v]) => v === value)?.[1] ?? null);
+
+const isDateParam = (value: string | null): value is string => !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);
+
+const dimensionId =(dimensions: { key: string; value: string }[], key: string) => {
   const raw = dimensions.find((d) => d.key === key)?.value;
   return raw === undefined ? NaN : Number(raw);
 };
@@ -151,9 +193,13 @@ export class AnalyticsPage {
   protected readonly formatSignedCurrency = formatSignedCurrency;
   protected readonly formatPercent = formatPercent;
 
-  protected readonly preset = signal<RangePreset>("12m");
-  protected readonly range = signal(rangeFor("12m"));
-  protected readonly granularity = signal<Granularity>(3);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly initial = this.route.snapshot.queryParamMap;
+
+  protected readonly preset = signal<RangePreset>(decode(PRESET_PARAMS, this.initial.get("periodo"), "12m"));
+  protected readonly range = signal(this.initialRange());
+  protected readonly granularity = signal<Granularity>(decode(GRANULARITY_PARAMS, this.initial.get("raggruppa"), 3));
   protected readonly loading = signal(false);
 
   private readonly total = signal<TimeSeriesList | null>(null);
@@ -161,14 +207,18 @@ export class AnalyticsPage {
   private readonly flow = signal<TimeSeriesList | null>(null);
   private readonly byCategory = signal<TimeSeriesList | null>(null);
 
-  protected readonly flowView = signal<ChartView>("chart");
-  protected readonly netWorthView = signal<ChartView>("chart");
-  protected readonly rankMetric = signal<RankMetric>("earned");
-  protected readonly rankGranularity = signal<RankGranularity>(3);
+  protected readonly flowView = signal<ChartView>(decode(VIEW_PARAMS, this.initial.get("flusso"), "chart"));
+  protected readonly netWorthView = signal<ChartView>(decode(VIEW_PARAMS, this.initial.get("patrimonio"), "chart"));
+  protected readonly rankMetric = signal<RankMetric>(decode(RANK_METRIC_PARAMS, this.initial.get("classifica"), "earned"));
+  protected readonly rankGranularity = signal<RankGranularity>(
+    decode(RANK_GRANULARITY_PARAMS, this.initial.get("classifica-per"), 3),
+  );
   private readonly rankFlow = signal<TimeSeriesList | null>(null);
   protected readonly rankLoading = signal(false);
-  protected readonly categoryView = signal<ChartView>("chart");
-  protected readonly categoryKind = signal<"spent" | "earned">("spent");
+  protected readonly categoryView = signal<ChartView>(decode(VIEW_PARAMS, this.initial.get("categorie-vista"), "chart"));
+  protected readonly categoryKind = signal<"spent" | "earned">(
+    decode(CATEGORY_KIND_PARAMS, this.initial.get("categorie"), "spent"),
+  );
 
   protected readonly invalidRange = computed(() => this.range().start > this.range().end);
   // chiavi stabili: un nuovo array con gli stessi id (es. dopo una rinomina) non deve far ripartire le chiamate
@@ -302,6 +352,52 @@ export class AnalyticsPage {
       if (this.invalidRange() || !start || !end) return;
       untracked(() => void this.loadRank(start, end, granularity));
     });
+
+    // i cambi di filtro sostituiscono la voce di cronologia corrente; solo il drill-down ne aggiunge una
+    effect(() => {
+      const preset = this.preset();
+      const { start, end } = this.range();
+      const queryParams = {
+        periodo: encode(PRESET_PARAMS, preset, "12m"),
+        dal: preset === "custom" ? start || null : null,
+        al: preset === "custom" ? end || null : null,
+        raggruppa: encode(GRANULARITY_PARAMS, this.granularity(), 3),
+        flusso: encode(VIEW_PARAMS, this.flowView(), "chart"),
+        patrimonio: encode(VIEW_PARAMS, this.netWorthView(), "chart"),
+        classifica: encode(RANK_METRIC_PARAMS, this.rankMetric(), "earned"),
+        "classifica-per": encode(RANK_GRANULARITY_PARAMS, this.rankGranularity(), 3),
+        categorie: encode(CATEGORY_KIND_PARAMS, this.categoryKind(), "spent"),
+        "categorie-vista": encode(VIEW_PARAMS, this.categoryView(), "chart"),
+      };
+      untracked(() => void this.router.navigate([], { relativeTo: this.route, queryParams, replaceUrl: true }));
+    });
+  }
+
+  private initialRange() {
+    const start = this.initial.get("dal");
+    const end = this.initial.get("al");
+    return this.preset() === "custom" && isDateParam(start) && isDateParam(end) ? { start, end } : rangeFor(this.preset());
+  }
+
+  /** Flusso di cassa → Movimenti del periodo: barra entrate = entrate, uscite/investimenti = uscite, altrove tutti. */
+  protected openFlowPeriod(click: PeriodClick) {
+    const movementType: MovementType =
+      click.seriesKey === "earned" ? "incomes" : click.seriesKey === "spent" || click.seriesKey === "invested" ? "outcomes" : "all";
+    this.openTransactions({ period: click.period, categoryIds: [], movementType });
+  }
+
+  /** Categorie → Movimenti del periodo, della categoria cliccata e del tipo mostrato (uscite/entrate). */
+  protected openCategoryPeriod(click: PeriodClick) {
+    const id = click.seriesKey?.startsWith("cat-") ? Number(click.seriesKey.slice(4)) : NaN;
+    this.openTransactions({
+      period: click.period,
+      categoryIds: Number.isInteger(id) ? [id] : [],
+      movementType: this.categoryKind() === "spent" ? "outcomes" : "incomes",
+    });
+  }
+
+  private openTransactions(filter: DrillDownFilter) {
+    void this.router.navigate([ROUTES.transactions], { queryParams: drillDownParams(filter, "analisi") });
   }
 
   private async loadSeries(start: string, end: string, granularity: Granularity, accountIds: number[], categoryIds: number[]) {

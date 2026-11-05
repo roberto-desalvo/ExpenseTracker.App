@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from "@angular/core";
-import type { EChartsCoreOption } from "echarts/core";
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from "@angular/core";
+import type { ECharts, EChartsCoreOption } from "echarts/core";
 import { NgxEchartsDirective } from "ngx-echarts";
 import { ThemeService } from "../../core/theme/theme.service";
 import {
@@ -9,7 +9,7 @@ import {
   formatSignedCurrency,
 } from "../../core/utils/format.utilities";
 import { ChartDataTable, ChartEmpty, ChartLegend, ChartView, tooltipBase, tooltipHtml } from "./chart-parts";
-import { asParams, categoryAxis, chartGrid, valueAxis } from "./chart-options";
+import { PeriodClick, asParams, bindPeriodClick, categoryAxis, chartGrid, valueAxis } from "./chart-options";
 
 export interface CashFlowPoint {
   period: string;
@@ -42,7 +42,7 @@ interface Row extends CashFlowPoint {
       <app-chart-data-table [height]="height() + 34" [columns]="tableColumns" [rows]="tableRows()" />
     } @else {
       <app-chart-legend [entries]="legend()" />
-      <div echarts class="chart" [options]="options()" [style.height.px]="height()"></div>
+      <div echarts class="chart" [options]="options()" [style.height.px]="height()" (chartInit)="bindClicks($event)"></div>
     }
   `,
   styles: `
@@ -54,8 +54,14 @@ export class CashFlowChart {
   readonly points = input.required<CashFlowPoint[]>();
   readonly height = input(300);
   readonly view = input<ChartView>("chart");
+  /** click su un periodo: serie `earned`/`spent`/`invested`/`net`, null a vuoto nella colonna */
+  readonly periodClick = output<PeriodClick>();
 
   private readonly theme = inject(ThemeService);
+
+  protected bindClicks(chart: ECharts) {
+    bindPeriodClick(chart, (index) => this.rows()[index]?.period, (click) => this.periodClick.emit(click));
+  }
 
   private readonly rows = computed<Row[]>(() =>
     this.points().map((p) => ({

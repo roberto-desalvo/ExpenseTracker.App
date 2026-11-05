@@ -1,3 +1,4 @@
+import type { ECharts } from "echarts/core";
 import { AppTokens } from "../../core/theme/theme.service";
 import { formatCompact, formatPeriodLabel } from "../../core/utils/format.utilities";
 
@@ -80,3 +81,32 @@ export interface TooltipParam {
 }
 
 export const asParams = (params: unknown): TooltipParam[] => (Array.isArray(params) ? params : [params]) as TooltipParam[];
+
+/** Click su un periodo del grafico: `seriesKey` è la serie cliccata, null per un click a vuoto nella colonna. */
+export interface PeriodClick {
+  period: string;
+  seriesKey: string | null;
+}
+
+/**
+ * Collega i click di un grafico a periodi (asse x a categorie): sugli elementi riporta la serie,
+ * nell'area vuota della colonna solo il periodo. `periodAt` legge le righe correnti al momento del click.
+ */
+export const bindPeriodClick = (
+  chart: ECharts,
+  periodAt: (index: number) => string | undefined,
+  emit: (click: PeriodClick) => void,
+) => {
+  chart.on("click", (params) => {
+    const period = periodAt(params.dataIndex);
+    if (period) emit({ period, seriesKey: params.seriesId ?? null });
+  });
+  chart.getZr().on("click", (event) => {
+    if (event.target) return; // click su un elemento: gestito sopra
+    const point = [event.offsetX, event.offsetY];
+    if (!chart.containPixel({ gridIndex: 0 }, point)) return;
+    const [index] = chart.convertFromPixel({ gridIndex: 0 }, point) as number[];
+    const period = periodAt(Math.round(index));
+    if (period) emit({ period, seriesKey: null });
+  });
+};

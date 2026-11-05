@@ -1,10 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from "@angular/core";
-import type { EChartsCoreOption } from "echarts/core";
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from "@angular/core";
+import type { ECharts, EChartsCoreOption } from "echarts/core";
 import { NgxEchartsDirective } from "ngx-echarts";
 import { ThemeService } from "../../core/theme/theme.service";
 import { formatCurrency, formatPeriodLabel } from "../../core/utils/format.utilities";
 import { ChartDataTable, ChartEmpty, ChartLegend, ChartView, TooltipRow, tooltipBase, tooltipHtml } from "./chart-parts";
-import { PeriodRow, asParams, categoryAxis, chartGrid, valueAxis } from "./chart-options";
+import { PeriodClick, PeriodRow, asParams, bindPeriodClick, categoryAxis, chartGrid, valueAxis } from "./chart-options";
 
 export interface StackSeries {
   key: string;
@@ -30,7 +30,7 @@ const OTHER_KEY = "__other__";
       <app-chart-data-table [height]="height() + 40" [columns]="tableColumns()" [rows]="tableRows()" />
     } @else {
       <app-chart-legend [entries]="legend()" />
-      <div echarts class="chart" [options]="options()" [style.height.px]="height()"></div>
+      <div echarts class="chart" [options]="options()" [style.height.px]="height()" (chartInit)="bindClicks($event)"></div>
     }
   `,
   styles: `
@@ -44,8 +44,18 @@ export class StackedPeriodBars {
   readonly maxSeries = input(6);
   readonly height = input(320);
   readonly view = input<ChartView>("chart");
+  /** click su un periodo: `seriesKey` della serie cliccata, null a vuoto nella colonna o su "Altre" */
+  readonly periodClick = output<PeriodClick>();
 
   private readonly theme = inject(ThemeService);
+
+  protected bindClicks(chart: ECharts) {
+    bindPeriodClick(
+      chart,
+      (index) => this.model().rows[index]?.period,
+      (click) => this.periodClick.emit(click.seriesKey === OTHER_KEY ? { ...click, seriesKey: null } : click),
+    );
+  }
 
   protected readonly model = computed(() => {
     const a = this.theme.tokens();
