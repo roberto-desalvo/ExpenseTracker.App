@@ -1,6 +1,6 @@
 # Expense Tracker
 
-Web app personale per la gestione di entrate, uscite e trasferimenti tra conti.
+PWA personale per la gestione di entrate, uscite e trasferimenti tra conti.
 Demo disponibile https://thankful-island-04ae49a03.7.azurestaticapps.net/
 
 ## Stack
