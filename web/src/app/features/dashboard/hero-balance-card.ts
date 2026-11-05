@@ -67,22 +67,22 @@ import { AmountPoint, NetWorthAreaChart } from "../../shared/charts/net-worth-ar
       background: radial-gradient(circle, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 70%);
     }
     .head { display: flex; align-items: center; justify-content: space-between; position: relative; }
-    .label { font-size: 0.82rem; font-weight: 600; color: var(--app-hero-subtle); letter-spacing: 0.02em; }
+    .label { font-size: var(--app-text-md); font-weight: 600; color: var(--app-hero-subtle); letter-spacing: 0.02em; }
     .eye { color: var(--app-hero-subtle); }
     .eye:hover { background-color: rgba(255,255,255,0.1); }
     .balance {
-      position: relative; font-size: 2.1rem; font-weight: 750; letter-spacing: -0.03em; line-height: 1.1; margin-top: 8px;
+      position: relative; font-size: var(--app-text-xl); font-weight: 750; letter-spacing: -0.03em; line-height: 1.1; margin-top: 8px;
     }
-    @media (min-width: 900px) { .balance { font-size: 2.6rem; } }
-    .delta-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; position: relative; flex-wrap: wrap; }
+    @media (min-width: 900px) { .balance { font-size: var(--app-text-xl); } }
+    .delta-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; position: relative; flex-wrap: wrap; }
     .delta {
       display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px;
-      background-color: rgba(255,255,255,0.14); font-size: 0.78rem; font-weight: 650;
+      background-color: rgba(255,255,255,0.14); font-size: var(--app-text-sm); font-weight: 650;
     }
-    .subtle { font-size: 0.78rem; color: var(--app-hero-subtle); }
+    .subtle { font-size: var(--app-text-sm); color: var(--app-hero-subtle); }
     .spacer { flex: 1; min-height: 24px; }
     .spark { margin: 0 -8px -8px; position: relative; }
-    .foot { font-size: 0.7rem; color: var(--app-hero-subtle); margin-top: 8px; position: relative; }
+    .foot { font-size: var(--app-text-sm); color: var(--app-hero-subtle); margin-top: 8px; position: relative; }
   `,
 })
 export class HeroBalanceCard {

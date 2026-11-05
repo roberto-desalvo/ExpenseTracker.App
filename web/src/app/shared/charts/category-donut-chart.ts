@@ -56,14 +56,14 @@ interface Slice {
     .donut { position: relative; width: 100%; height: 190px; }
     .chart { width: 100%; height: 100%; }
     .center { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; text-align: center; }
-    .total-label { font-size: 0.72rem; color: var(--app-text-muted); }
-    .total { font-size: 1.05rem; font-weight: 750; color: var(--app-text); letter-spacing: -0.01em; }
-    .list { display: flex; flex-direction: column; gap: 6px; }
+    .total-label { font-size: var(--app-text-sm); color: var(--app-text-muted); }
+    .total { font-size: var(--app-text-md); font-weight: 750; color: var(--app-text); letter-spacing: -0.01em; }
+    .list { display: flex; flex-direction: column; gap: 8px; }
     .dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
-    .name { flex: 1; min-width: 0; font-size: 0.82rem; color: var(--app-text); }
+    .name { flex: 1; min-width: 0; font-size: var(--app-text-md); color: var(--app-text); }
     .name.other { color: var(--app-text-secondary); }
-    .value { font-size: 0.82rem; font-weight: 650; color: var(--app-text); }
-    .share { font-size: 0.75rem; color: var(--app-text-muted); width: 40px; text-align: right; }
+    .value { font-size: var(--app-text-md); font-weight: 650; color: var(--app-text); }
+    .share { font-size: var(--app-text-sm); color: var(--app-text-muted); width: 40px; text-align: right; }
   `,
 })
 export class CategoryDonutChart {

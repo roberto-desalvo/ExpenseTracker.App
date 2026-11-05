@@ -42,8 +42,8 @@ import { TemplateDialogHost } from "./template-dialog-host";
     .drawer { display: flex; flex-direction: column; height: 100%; background-color: var(--app-surface); }
     .head { display: flex; align-items: flex-start; gap: 16px; padding: 20px 24px; border-bottom: 1px solid var(--app-border); }
     .titles { flex: 1; }
-    h2 { font-weight: 700; font-size: 1.1rem; color: var(--app-text); }
-    p { font-size: 0.84rem; color: var(--app-text-secondary); margin-top: 2px; }
+    h2 { font-weight: 700; font-size: var(--app-text-lg); color: var(--app-text); }
+    p { font-size: var(--app-text-md); color: var(--app-text-secondary); margin-top: 2px; }
     .close { color: var(--app-text-muted); }
     .content { padding: 24px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
     .footer {

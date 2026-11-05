@@ -107,10 +107,10 @@ export class ThemeModeButton {
     </mat-menu>
   `,
   styles: `
-    .avatar { width: 32px; height: 32px; font-size: 0.8rem; }
+    .avatar { width: 32px; height: 32px; font-size: var(--app-text-sm); }
     .who { padding: 8px 12px; min-width: 200px; display: flex; flex-direction: column; }
-    .label { font-size: 0.72rem; }
-    .name { font-weight: 600; font-size: 0.88rem; }
+    .label { font-size: var(--app-text-sm); }
+    .name { font-weight: 600; font-size: var(--app-text-md); }
   `,
 })
 export class UserMenuButton {

@@ -38,8 +38,8 @@ import { MatIconModule } from "@angular/material/icon";
   styles: `
     nav { display: flex; gap: 4px; align-items: center; justify-content: center; }
     button {
-      min-width: 32px; height: 32px; padding: 0 6px; border: none; background: transparent; cursor: pointer;
-      border-radius: var(--app-radius-option); color: var(--app-text); font-size: 0.875rem;
+      min-width: 32px; height: 32px; padding: 0 8px; border: none; background: transparent; cursor: pointer;
+      border-radius: var(--app-radius-option); color: var(--app-text); font-size: var(--app-text-md);
       display: grid; place-items: center;
     }
     button:hover:not(:disabled) { background-color: var(--app-hover); }

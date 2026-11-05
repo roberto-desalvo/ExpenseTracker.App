@@ -61,9 +61,9 @@ const dayFormatter = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "
       background-color: var(--app-expense-soft); color: var(--app-expense);
     }
     .icon.income { background-color: var(--app-income-soft); color: var(--app-income); }
-    .description { font-size: 0.86rem; font-weight: 600; color: var(--app-text); }
-    .meta { font-size: 0.74rem; color: var(--app-text-muted); }
-    .amount { font-size: 0.88rem; font-weight: 700; color: var(--app-text); white-space: nowrap; }
+    .description { font-size: var(--app-text-md); font-weight: 600; color: var(--app-text); }
+    .meta { font-size: var(--app-text-sm); color: var(--app-text-muted); }
+    .amount { font-size: var(--app-text-md); font-weight: 700; color: var(--app-text); white-space: nowrap; }
   `,
 })
 export class RecentTransactions {

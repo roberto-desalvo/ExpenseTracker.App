@@ -106,12 +106,12 @@ const normalizeSection = (params: ParamMap): SettingsSection => {
       background-color: var(--app-surface-alt); color: var(--app-text-secondary);
     }
     .selected .section-icon { background-color: var(--app-primary-soft); color: var(--app-primary); }
-    .section-label { font-weight: 650; font-size: 0.9rem; color: var(--app-text); }
-    .section-description { font-size: 0.74rem; color: var(--app-text-secondary); line-height: 1.35; }
+    .section-label { font-weight: 650; font-size: var(--app-text-md); color: var(--app-text); }
+    .section-description { font-size: var(--app-text-sm); color: var(--app-text-secondary); line-height: 1.35; }
     .content { flex: 1; min-width: 0; display: block; }
     .content-head { margin-bottom: 16px; }
-    .content-head h2 { font-weight: 700; font-size: 1.15rem; }
-    .content-head p { font-size: 0.84rem; }
+    .content-head h2 { font-weight: 700; font-size: var(--app-text-lg); }
+    .content-head p { font-size: var(--app-text-md); }
   `,
 })
 export class SettingsPage {

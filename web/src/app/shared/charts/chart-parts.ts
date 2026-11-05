@@ -25,13 +25,13 @@ export const tooltipHtml = (a: AppTokens, title: string, rows: TooltipRow[]) => 
       (r) => `
       <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
         <span style="width:8px;height:8px;border-radius:2px;flex-shrink:0;background:${r.color ?? "transparent"};opacity:${r.opacity ?? 1}"></span>
-        <span style="font-size:0.8rem;color:${a.textSecondary};flex:1">${escapeHtml(r.label)}</span>
-        <span style="font-size:0.8rem;font-weight:${r.emphasis ? 700 : 600};color:${a.text};font-variant-numeric:tabular-nums;margin-left:16px">${escapeHtml(r.value)}</span>
+        <span style="font-size:var(--app-text-sm);color:${a.textSecondary};flex:1">${escapeHtml(r.label)}</span>
+        <span style="font-size:var(--app-text-sm);font-weight:${r.emphasis ? 700 : 600};color:${a.text};font-variant-numeric:tabular-nums;margin-left:16px">${escapeHtml(r.value)}</span>
       </div>`,
     )
     .join("");
   return `<div style="min-width:180px;font-family:${a.fontFamily.replace(/"/g, "'")}">
-    <div style="font-size:0.75rem;font-weight:600;color:${a.textSecondary};margin-bottom:2px">${escapeHtml(title)}</div>
+    <div style="font-size:var(--app-text-sm);font-weight:600;color:${a.textSecondary};margin-bottom:2px">${escapeHtml(title)}</div>
     ${rowHtml}
   </div>`;
 };
@@ -90,14 +90,14 @@ export interface LegendEntry {
   styles: `
     :host { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
     .entry {
-      display: inline-flex; align-items: center; gap: 6px; padding: 2px 6px; border: none; background: none; font: inherit;
+      display: inline-flex; align-items: center; gap: 8px; padding: 2px 8px; border: none; background: none; font: inherit;
       border-radius: var(--app-radius-control);
     }
     .entry.clickable { cursor: pointer; }
     .entry.clickable:hover { background-color: var(--app-surface-alt); }
     .marker { width: 9px; height: 9px; border-radius: 2px; box-sizing: border-box; }
     .marker.line { width: 14px; height: 3px; border-radius: 2px; }
-    .label { font-size: 0.78rem; color: var(--app-text-secondary); white-space: nowrap; }
+    .label { font-size: var(--app-text-sm); color: var(--app-text-secondary); white-space: nowrap; }
     .label.hidden { color: var(--app-text-muted); text-decoration: line-through; }
   `,
 })
@@ -177,12 +177,12 @@ export interface ChartTableColumn {
     :host { display: block; overflow: auto; }
     table { width: 100%; border-collapse: separate; border-spacing: 0; }
     th {
-      position: sticky; top: 0; background-color: var(--app-surface); padding: 6px 16px; white-space: nowrap;
-      border-bottom: 1px solid var(--app-border); color: var(--app-text-muted); font-size: 0.7rem; font-weight: 600;
+      position: sticky; top: 0; background-color: var(--app-surface); padding: 8px 16px; white-space: nowrap;
+      border-bottom: 1px solid var(--app-border); color: var(--app-text-muted); font-size: var(--app-text-sm); font-weight: 600;
       text-transform: uppercase; letter-spacing: 0.08em;
     }
     td {
-      padding: 6px 16px; border-bottom: 1px solid var(--app-border); font-size: 0.82rem;
+      padding: 8px 16px; border-bottom: 1px solid var(--app-border); font-size: var(--app-text-md);
       font-variant-numeric: tabular-nums; color: var(--app-text);
     }
     tbody tr:hover { background-color: var(--app-hover); }
@@ -204,7 +204,7 @@ export class ChartDataTable {
   template: `{{ message() }}`,
   styles: `
     :host {
-      display: grid; place-items: center; color: var(--app-text-muted); font-size: 0.85rem;
+      display: grid; place-items: center; color: var(--app-text-muted); font-size: var(--app-text-md);
       border: 1px dashed var(--app-border); border-radius: var(--app-radius-control); text-align: center; padding: 8px;
     }
   `,

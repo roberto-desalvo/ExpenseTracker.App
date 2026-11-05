@@ -25,7 +25,7 @@ export const categoryAxis = (a: AppTokens, periods: string[], showLine = true) =
   axisLine: { show: showLine, lineStyle: { color: a.chart.grid } },
   axisLabel: {
     color: a.chart.axis,
-    fontSize: 11,
+    fontSize: 12,
     margin: 10,
     hideOverlap: true,
     fontFamily: a.fontFamily,
@@ -38,7 +38,7 @@ export const valueAxis = (a: AppTokens, extra: Record<string, unknown> = {}) => 
   splitLine: { lineStyle: { color: a.chart.grid } },
   axisLabel: {
     color: a.chart.axis,
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: a.fontFamily,
     formatter: (value: number) => formatCompact(value),
   },

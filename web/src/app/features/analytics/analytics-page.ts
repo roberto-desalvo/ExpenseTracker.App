@@ -100,9 +100,9 @@ const toIds = (key: string) => (key ? key.split(",").map(Number) : []);
   `,
   styles: `
     :host { display: block; min-width: 0; }
-    .label { font-size: 0.76rem; font-weight: 600; color: var(--app-text-secondary); }
-    .value { font-size: 1.3rem; font-weight: 750; letter-spacing: -0.02em; color: var(--app-text); line-height: 1.3; }
-    .hint { font-size: 0.72rem; color: var(--app-text-muted); }
+    .label { font-size: var(--app-text-sm); font-weight: 600; color: var(--app-text-secondary); }
+    .value { font-size: var(--app-text-lg); font-weight: 750; letter-spacing: -0.02em; color: var(--app-text); line-height: 1.3; }
+    .hint { font-size: var(--app-text-sm); color: var(--app-text-muted); }
   `,
 })
 export class SummaryFigure {

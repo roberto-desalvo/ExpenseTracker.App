@@ -1,17 +1,17 @@
 .date {
-  font-size: 0.86rem;
+  font-size: var(--app-text-md);
   font-weight: 600;
   color: var(--app-text);
   white-space: nowrap;
 }
 
 .weekday {
-  font-size: 0.72rem;
+  font-size: var(--app-text-sm);
   color: var(--app-text-muted);
 }
 
 .description {
-  font-size: 0.88rem;
+  font-size: var(--app-text-md);
   font-weight: 500;
   color: var(--app-text);
 }
@@ -23,7 +23,7 @@
   border-radius: max(calc(var(--app-radius-control) - 2px), 4px);
   background-color: var(--app-surface-alt);
   color: var(--app-text-secondary);
-  font-size: 0.76rem;
+  font-size: var(--app-text-sm);
   font-weight: 600;
   max-width: 100%;
   white-space: nowrap;
@@ -32,12 +32,12 @@
 }
 
 .account {
-  font-size: 0.84rem;
+  font-size: var(--app-text-md);
   color: var(--app-text-secondary);
 }
 
 .amount {
-  font-size: 0.9rem;
+  font-size: var(--app-text-md);
   font-weight: 700;
   color: var(--app-text);
   white-space: nowrap;

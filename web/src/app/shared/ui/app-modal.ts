@@ -47,12 +47,12 @@ export type ModalSubmitAction = () => string | void | Promise<string | void>;
   `,
   styles: `
     .modal { display: flex; flex-direction: column; max-height: 100%; }
-    .head { display: flex; align-items: flex-start; gap: 16px; padding: 22px 24px 8px; }
+    .head { display: flex; align-items: flex-start; gap: 16px; padding: 24px 24px 8px; }
     .titles { flex: 1; }
-    h2 { font-weight: 700; font-size: 1.1rem; letter-spacing: -0.01em; color: var(--app-text); }
-    p { font-size: 0.84rem; color: var(--app-text-secondary); margin-top: 2px; }
+    h2 { font-weight: 700; font-size: var(--app-text-lg); letter-spacing: -0.01em; color: var(--app-text); }
+    p { font-size: var(--app-text-md); color: var(--app-text-secondary); margin-top: 2px; }
     .close { color: var(--app-text-muted); margin: -4px -8px 0 0; }
-    .content { padding: 12px 24px 8px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; flex: 1; }
+    .content { padding: 12px 24px 8px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; flex: 1; }
     .actions {
       display: flex; justify-content: flex-end; gap: 8px; padding: 16px 24px;
       border-top: 1px solid var(--app-border); margin-top: 8px;

@@ -78,7 +78,7 @@
   color: var(--app-text-secondary);
   background-color: transparent;
   font-weight: 500;
-  font-size: 0.9rem;
+  font-size: var(--app-text-md);
   transition:
     background-color 0.15s ease,
     color 0.15s ease;
@@ -134,7 +134,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 12px;
   padding: 8px;
   border-radius: calc(var(--app-radius-control) + 2px);
   border: 1px solid var(--app-border);
@@ -150,13 +150,13 @@
 .user-avatar {
   width: 32px;
   height: 32px;
-  font-size: 0.78rem;
+  font-size: var(--app-text-sm);
 }
 
 .user-name {
   flex: 1;
   min-width: 0;
-  font-size: 0.82rem;
+  font-size: var(--app-text-md);
   font-weight: 600;
 }
 
@@ -200,7 +200,7 @@
   border: none;
   cursor: pointer;
   border-radius: var(--app-radius-control);
-  font-size: 0.88rem;
+  font-size: var(--app-text-md);
   font-weight: 500;
   color: var(--app-text-secondary);
   background-color: transparent;

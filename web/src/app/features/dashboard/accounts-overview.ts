@@ -59,11 +59,11 @@ import { EmptyState } from "../../shared/ui/empty-state";
     }
     .item:hover { background-color: var(--app-surface-alt); }
     .dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
-    .name { font-size: 0.88rem; font-weight: 600; color: var(--app-text); }
-    .share { font-size: 0.74rem; color: var(--app-text-muted); }
+    .name { font-size: var(--app-text-md); font-weight: 600; color: var(--app-text); }
+    .share { font-size: var(--app-text-sm); color: var(--app-text-muted); }
     .amounts { display: flex; flex-direction: column; text-align: right; }
-    .balance { font-size: 0.88rem; font-weight: 650; color: var(--app-text); }
-    .month { font-size: 0.74rem; font-weight: 600; }
+    .balance { font-size: var(--app-text-md); font-weight: 650; color: var(--app-text); }
+    .month { font-size: var(--app-text-sm); font-weight: 600; }
   `,
 })
 export class AccountsOverview {

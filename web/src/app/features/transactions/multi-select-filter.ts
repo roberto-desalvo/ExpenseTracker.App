@@ -42,11 +42,11 @@ import { MatSelectChange, MatSelectModule } from "@angular/material/select";
   styles: `
     :host { display: block; min-width: 0; flex: 1 1 100%; }
     @media (min-width: 600px) { :host { flex: 1 1 0; } }
-    .prefix { margin-inline: 10px 6px; color: var(--app-text-muted); }
+    .prefix { margin-inline: 12px 8px; color: var(--app-text-muted); }
     .panel-header {
       position: sticky; top: -4px; z-index: 1; display: flex; align-items: center; justify-content: space-between;
-      padding: 2px 6px 2px 12px; margin: -4px -4px 4px; background-color: var(--app-surface);
-      border-bottom: 1px solid var(--app-border); font-size: 0.8rem; font-weight: 600; color: var(--app-text-secondary);
+      padding: 2px 8px 2px 12px; margin: -4px -4px 4px; background-color: var(--app-surface);
+      border-bottom: 1px solid var(--app-border); font-size: var(--app-text-sm); font-weight: 600; color: var(--app-text-secondary);
     }
     .panel-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; }
   `,

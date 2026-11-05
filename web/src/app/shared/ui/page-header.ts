@@ -19,14 +19,14 @@ import { ChangeDetectionStrategy, Component, input } from "@angular/core";
   styles: `
     :host { display: flex; flex-direction: column; gap: 16px; }
     .titles { min-width: 0; }
-    .eyebrow { display: block; margin-bottom: 2px; color: var(--app-text-secondary); font-size: 0.75rem; }
-    h1 { font-size: 1.45rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.334; }
-    .subtitle { color: var(--app-text-secondary); font-size: 0.9rem; margin-top: 4px; }
+    .eyebrow { display: block; margin-bottom: 2px; color: var(--app-text-secondary); font-size: var(--app-text-sm); }
+    h1 { font-size: var(--app-text-lg); font-weight: 700; letter-spacing: -0.02em; line-height: 1.334; }
+    .subtitle { color: var(--app-text-secondary); font-size: var(--app-text-md); margin-top: 4px; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
     .actions:empty { display: none; }
     @media (min-width: 900px) {
       :host { flex-direction: row; align-items: flex-end; justify-content: space-between; }
-      h1 { font-size: 1.7rem; }
+      h1 { font-size: var(--app-text-xl); }
     }
   `,
 })

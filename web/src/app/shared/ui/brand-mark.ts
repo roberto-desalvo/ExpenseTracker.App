@@ -21,7 +21,7 @@ import { booleanAttribute, ChangeDetectionStrategy, Component, input, output } f
     }
   `,
   styles: `
-    :host { display: flex; align-items: center; gap: 10px; user-select: none; min-width: 0; }
+    :host { display: flex; align-items: center; gap: 12px; user-select: none; min-width: 0; }
     :host(.clickable) { cursor: pointer; }
     .logo {
       width: 34px; height: 34px; flex-shrink: 0; border-radius: var(--app-radius-avatar);
@@ -30,10 +30,10 @@ import { booleanAttribute, ChangeDetectionStrategy, Component, input, output } f
     }
     .texts { display: flex; flex-direction: column; min-width: 0; }
     .name {
-      font-family: var(--app-heading-font-family); font-weight: 750; font-size: 0.98rem;
+      font-family: var(--app-heading-font-family); font-weight: 750; font-size: var(--app-text-md);
       letter-spacing: -0.015em; color: var(--app-text); line-height: 1.1; white-space: nowrap;
     }
-    .tagline { font-size: 0.7rem; color: var(--app-text-muted); line-height: 1.3; }
+    .tagline { font-size: var(--app-text-sm); color: var(--app-text-muted); line-height: 1.3; }
   `,
 })
 export class BrandMark {

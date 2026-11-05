@@ -38,8 +38,8 @@ type TransactionsTab = "movimenti" | "import";
     .tabs { border-bottom: 1px solid var(--app-border); }
     .tab-icon { margin-right: 8px; }
     .badge {
-      margin-left: 8px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
-      display: inline-grid; place-items: center; font-size: 0.72rem; font-weight: 700;
+      margin-left: 8px; min-width: 20px; height: 20px; padding: 0 8px; border-radius: 10px;
+      display: inline-grid; place-items: center; font-size: var(--app-text-sm); font-weight: 700;
       background-color: var(--app-primary-soft); color: var(--app-primary);
     }
   `,

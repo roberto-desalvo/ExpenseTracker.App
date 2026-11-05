@@ -26,7 +26,7 @@ import { MatInputModule } from "@angular/material/input";
   styles: `
     :host { display: block; width: 100%; }
     mat-form-field { width: 100%; }
-    .prefix { margin-inline: 10px 4px; color: var(--app-text-muted); }
+    .prefix { margin-inline: 12px 4px; color: var(--app-text-muted); }
     @media (min-width: 600px) { :host { width: auto; min-width: 300px; } }
   `,
 })

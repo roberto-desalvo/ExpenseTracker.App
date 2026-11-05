@@ -34,8 +34,8 @@ import { booleanAttribute, ChangeDetectionStrategy, Component, computed, input }
     }
     :host(.flush) .header { padding-bottom: 12px; }
     .titles { min-width: 0; flex: 1 1 160px; }
-    h2 { font-size: 0.98rem; font-weight: 650; color: var(--app-text); line-height: 1.35; }
-    p { font-size: 0.8rem; color: var(--app-text-secondary); margin-top: 2px; }
+    h2 { font-size: var(--app-text-md); font-weight: 650; color: var(--app-text); line-height: 1.35; }
+    p { font-size: var(--app-text-sm); color: var(--app-text-secondary); margin-top: 2px; }
     .action { flex-shrink: 0; }
     .body { padding: var(--card-pad); flex: 1; min-width: 0; }
     .body.with-header { padding-top: 16px; }

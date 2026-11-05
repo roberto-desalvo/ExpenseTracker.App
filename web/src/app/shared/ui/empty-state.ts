@@ -18,14 +18,14 @@ import { MatIconModule } from "@angular/material/icon";
     <ng-content />
   `,
   styles: `
-    :host { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding-inline: 16px; }
+    :host { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding-inline: 16px; }
     .icon {
       width: 48px; height: 48px; border-radius: calc(var(--app-radius-control) + 4px);
       display: grid; place-items: center; background-color: var(--app-surface-alt); color: var(--app-text-secondary);
     }
     .icon .mat-icon { font-size: 24px; width: 24px; height: 24px; }
-    .title { font-weight: 600; color: var(--app-text); font-size: 1rem; }
-    .text { font-size: 0.85rem; color: var(--app-text-secondary); max-width: 360px; }
+    .title { font-weight: 600; color: var(--app-text); font-size: var(--app-text-md); }
+    .text { font-size: var(--app-text-md); color: var(--app-text-secondary); max-width: 360px; }
   `,
 })
 export class EmptyState {

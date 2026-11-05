@@ -55,7 +55,7 @@ const createInitialRange = () => {
   styles: `
     .range { display: flex; flex-direction: column; gap: 12px; }
     @media (min-width: 600px) { .range { flex-direction: row; } }
-    .explain { font-size: 0.82rem; color: var(--app-text-secondary); }
+    .explain { font-size: var(--app-text-md); color: var(--app-text-secondary); }
   `,
 })
 export class CategorySyncModal {

@@ -77,3 +77,20 @@ Il service worker mette in cache solo la shell (JS, CSS, icone, Google Fonts): l
 Tre preset di stile in `core/theme/stylePresets.ts` (`aurora` di default, `ledger`, `graphite`), ognuno in versione chiara e scura. `ThemeService` scrive i token del preset attivo come variabili CSS su `:root` (`--app-*` per l'app, `--mat-sys-*` per Angular Material); i componenti li usano con `var(--app-…)` e i grafici con `ThemeService.tokens()`. Le preferenze di aspetto sono salvate in `localStorage`.
 
 La palette dei grafici (`chartColors.ts`) ha 8 colori in ordine fisso, verificati per il daltonismo; ogni conto o categoria ha sempre lo stesso colore, mentre entrate e uscite usano i colori semantici del preset.
+
+## Tipografia e spaziature
+
+Regole valide per tutti i componenti, Material compresi:
+
+- **Testo: 4 grandezze**, definite come variabili in `styles.scss` e usate sempre tramite `var(--app-text-…)`, mai con valori diretti:
+
+  | Variabile | Grandezza | Uso |
+  |---|---|---|
+  | `--app-text-sm` | 12px (0.75rem) | etichette, didascalie, intestazioni di tabella, chip, tooltip, assi dei grafici |
+  | `--app-text-md` | 14px (0.875rem) | testo base, controlli (pulsanti, campi, dropdown), voci di elenco |
+  | `--app-text-lg` | 18px (1.125rem) | titoli di card e dialog, importi in evidenza |
+  | `--app-text-xl` | 28px (1.75rem) | titolo di pagina, importo principale |
+
+  La gerarchia si ottiene con peso (400/600/650) e colore (`--app-text`, `--app-text-secondary`, `--app-text-muted`), non con grandezze intermedie. La typescale di Angular Material è ricondotta alle stesse 4 grandezze con `mat.theme-overrides`. Le icone hanno grandezze proprie (14, 18, 20, 24px).
+- **Spaziature** (padding, margin, gap): solo 2px o multipli di 4px — 4, 8, 12, 16, 20, 24, 32…
+- **Font**: uno solo per volta, quello del preset di stile attivo (Inter, Manrope o IBM Plex Sans); le icone usano Material Symbols Rounded.

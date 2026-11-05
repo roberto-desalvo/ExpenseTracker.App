@@ -35,8 +35,8 @@ export type ConfirmAction = () => string | void | Promise<string | void>;
       width: 40px; height: 40px; flex-shrink: 0; border-radius: max(var(--app-radius-control), 8px);
       display: grid; place-items: center; background-color: var(--app-expense-soft); color: var(--app-expense);
     }
-    h2 { font-weight: 650; font-size: 1.02rem; margin-bottom: 6px; color: var(--app-text); }
-    p { font-size: 0.88rem; color: var(--app-text-secondary); }
+    h2 { font-weight: 650; font-size: var(--app-text-md); margin-bottom: 8px; color: var(--app-text); }
+    p { font-size: var(--app-text-md); color: var(--app-text-secondary); }
     .actions { display: flex; justify-content: flex-end; gap: 8px; padding: 8px 24px 20px; }
   `,
 })

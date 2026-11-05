@@ -27,7 +27,7 @@
 }
 
 .group-label {
-  font-size: 0.8rem;
+  font-size: var(--app-text-sm);
   color: var(--app-text-secondary);
   white-space: nowrap;
 }

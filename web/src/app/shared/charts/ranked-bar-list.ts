@@ -50,13 +50,13 @@ export interface RankedItem {
     }
   `,
   styles: `
-    :host { display: flex; flex-direction: column; gap: 13px; }
+    :host { display: flex; flex-direction: column; gap: 12px; }
     .item { cursor: default; }
-    .head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
-    .name { flex: 1; min-width: 0; font-size: 0.85rem; font-weight: 500; color: var(--app-text); }
+    .head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+    .name { flex: 1; min-width: 0; font-size: var(--app-text-md); font-weight: 500; color: var(--app-text); }
     .name.other { color: var(--app-text-secondary); }
-    .value { font-size: 0.85rem; font-weight: 650; color: var(--app-text); }
-    .share { font-size: 0.75rem; color: var(--app-text-muted); width: 44px; text-align: right; }
+    .value { font-size: var(--app-text-md); font-weight: 650; color: var(--app-text); }
+    .share { font-size: var(--app-text-sm); color: var(--app-text-muted); width: 44px; text-align: right; }
     .track { height: 8px; border-radius: 4px; background-color: var(--app-surface-alt); overflow: hidden; }
     .bar { height: 100%; border-radius: 4px; transition: width .4s ease; }
   `,

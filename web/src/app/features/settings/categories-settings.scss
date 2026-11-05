@@ -23,12 +23,12 @@
 
 .name {
   font-weight: 600;
-  font-size: 0.88rem;
+  font-size: var(--app-text-md);
   min-width: 0;
 }
 
 .description {
-  font-size: 0.78rem;
+  font-size: var(--app-text-sm);
   color: var(--app-text-muted);
 }
 
@@ -41,7 +41,7 @@
   border-radius: var(--app-radius-option);
   background-color: var(--app-surface-alt);
   color: var(--app-text-secondary);
-  font-size: 0.7rem;
+  font-size: var(--app-text-sm);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -66,12 +66,12 @@
   white-space: nowrap;
   border: 1px solid var(--app-border);
   border-radius: var(--app-radius-option);
-  font-size: 0.72rem;
+  font-size: var(--app-text-sm);
   color: var(--app-text);
 }
 
 .priority {
-  font-size: 0.86rem;
+  font-size: var(--app-text-md);
   font-weight: 600;
 }
 

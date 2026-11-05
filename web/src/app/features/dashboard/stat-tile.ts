@@ -34,25 +34,25 @@ const TONE_VARS: Record<StatTone, { color: string; soft: string }> = {
   `,
   styles: `
     :host {
-      height: 100%; display: flex; flex-direction: column; gap: 10px; padding: 14px;
+      height: 100%; display: flex; flex-direction: column; gap: 12px; padding: 16px;
       background-color: var(--app-surface); border: 1px solid var(--app-border); border-radius: var(--app-radius-card);
       box-shadow: var(--app-card-shadow); animation: fadeUp .35s ease-out both; min-width: 0;
     }
-    @media (min-width: 600px) { :host { padding: 18px; } }
-    .head { display: flex; align-items: center; gap: 10px; }
+    @media (min-width: 600px) { :host { padding: 20px; } }
+    .head { display: flex; align-items: center; gap: 12px; }
     .icon {
       width: 34px; height: 34px; flex-shrink: 0; border-radius: var(--app-radius-avatar); display: grid; place-items: center;
       background-color: var(--tone-soft); color: var(--tone);
     }
-    .icon .mat-icon { font-size: 19px; width: 19px; height: 19px; }
-    .label { font-size: 0.82rem; font-weight: 600; color: var(--app-text-secondary); }
-    .value { font-size: 1.2rem; font-weight: 750; letter-spacing: -0.025em; color: var(--app-text); line-height: 1.15; }
-    @media (min-width: 600px) { .value { font-size: 1.45rem; } }
-    @media (min-width: 900px) { .value { font-size: 1.6rem; } }
+    .icon .mat-icon { font-size: 20px; width: 19px; height: 19px; }
+    .label { font-size: var(--app-text-md); font-weight: 600; color: var(--app-text-secondary); }
+    .value { font-size: var(--app-text-lg); font-weight: 750; letter-spacing: -0.025em; color: var(--app-text); line-height: 1.15; }
+    @media (min-width: 600px) { .value { font-size: var(--app-text-lg); } }
+    @media (min-width: 900px) { .value { font-size: var(--app-text-xl); } }
     .track { height: 6px; border-radius: 3px; background-color: var(--app-surface-alt); overflow: hidden; }
     .bar { height: 100%; border-radius: 3px; background-color: var(--tone); transition: width .4s ease; }
-    .progress-label { font-size: 0.72rem; color: var(--app-text-muted); margin-top: 4px; }
-    .footnote { margin-top: auto; font-size: 0.78rem; color: var(--app-text-secondary); }
+    .progress-label { font-size: var(--app-text-sm); color: var(--app-text-muted); margin-top: 4px; }
+    .footnote { margin-top: auto; font-size: var(--app-text-sm); color: var(--app-text-secondary); }
     .footnote:empty { display: none; }
   `,
 })

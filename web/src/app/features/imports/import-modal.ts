@@ -72,7 +72,7 @@ const extensionOf = (name: string) => {
   `,
   styles: `
     .hidden-input { display: none; }
-    .option-type { color: var(--app-text-muted); font-size: 0.8rem; }
+    .option-type { color: var(--app-text-muted); font-size: var(--app-text-sm); }
     .file-picker {
       display: flex; align-items: center; gap: 12px; padding: 12px;
       border: 1px dashed var(--app-border-strong); border-radius: var(--app-radius-control);
@@ -80,9 +80,9 @@ const extensionOf = (name: string) => {
     .file-picker.selected { border-style: solid; border-color: var(--app-border); background-color: var(--app-surface-alt); }
     .file-icon { color: var(--app-text-secondary); flex-shrink: 0; }
     .file-text { min-width: 0; }
-    .file-name { font-weight: 600; font-size: 0.88rem; color: var(--app-text); }
-    .file-hint { font-size: 0.76rem; color: var(--app-text-secondary); }
-    .explain { font-size: 0.82rem; color: var(--app-text-secondary); }
+    .file-name { font-weight: 600; font-size: var(--app-text-md); color: var(--app-text); }
+    .file-hint { font-size: var(--app-text-sm); color: var(--app-text-secondary); }
+    .explain { font-size: var(--app-text-md); color: var(--app-text-secondary); }
   `,
 })
 export class ImportModal {
