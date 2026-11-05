@@ -15,6 +15,7 @@ on:
     paths:
       - 'api/**'
       - '.github/workflows/deploy-backend.yml'
+      - '.github/workflows/deploy-database.yml'
   workflow_dispatch:
 
 env:
