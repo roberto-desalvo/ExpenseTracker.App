@@ -57,7 +57,7 @@
   <!-- Flusso di cassa + sintesi del periodo -->
   <app-surface-card
     title="Flusso di cassa"
-    [subtitle]="'Entrate sopra lo zero, uscite sotto, saldo netto come linea · ' + periodLabel()"
+    [subtitle]="'Entrate sopra lo zero, uscite sotto (investimenti in fondo), saldo netto come linea · ' + periodLabel()"
     [hasAction]="true"
   >
     <app-chart-view-toggle card-action [(value)]="flowView" />
@@ -76,6 +76,11 @@
         label="Tasso di risparmio"
         [value]="s.rate === null ? '—' : formatPercent(s.rate)"
         [hint]="'risparmio netto ' + formatSignedCurrency(s.net)"
+      />
+      <app-summary-figure
+        label="Tasso di investimento"
+        [value]="s.investedRate === null ? '—' : formatPercent(s.investedRate)"
+        [hint]="'investiti ' + formatCurrency(s.invested)"
       />
     </div>
     @if (loading()) {

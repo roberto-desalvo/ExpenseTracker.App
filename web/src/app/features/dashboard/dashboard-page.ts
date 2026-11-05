@@ -149,7 +149,11 @@ export class DashboardPage {
     const past = this.cashFlow()
       .filter((p) => p.period !== currentKey)
       .slice(-6);
-    return { avgSpent: average(past.map((p) => p.spent)), avgEarned: average(past.map((p) => p.earned)) };
+    return {
+      avgSpent: average(past.map((p) => p.spent)),
+      avgEarned: average(past.map((p) => p.earned)),
+      avgInvested: average(past.map((p) => p.invested)),
+    };
   });
 
   protected readonly breakdownItems = computed(() =>
@@ -163,11 +167,13 @@ export class DashboardPage {
     this.breakdownKind() === "spent" ? "Nessuna uscita questo mese" : "Nessuna entrata questo mese",
   );
 
-  protected readonly daysInMonth = new Date(this.now.getFullYear(), this.now.getMonth() + 1, 0).getDate();
-  protected readonly monthProgress = (this.now.getDate() / this.daysInMonth) * 100;
   protected readonly savingsRate = computed(() => {
     const totals = this.totals();
     return totals && totals.earnedMonth > 0 ? (totals.netMonth / totals.earnedMonth) * 100 : null;
+  });
+  protected readonly investedRate = computed(() => {
+    const totals = this.totals();
+    return totals && totals.earnedMonth > 0 ? (totals.investedMonth / totals.earnedMonth) * 100 : null;
   });
 
   constructor() {
@@ -210,6 +216,7 @@ export class DashboardPage {
             period,
             earned: byPeriod.get(period)?.earned ?? 0,
             spent: byPeriod.get(period)?.spent ?? 0,
+            invested: byPeriod.get(period)?.invested ?? 0,
           })),
         );
       } catch {

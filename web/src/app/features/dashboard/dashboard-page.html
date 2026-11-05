@@ -38,24 +38,30 @@
         <app-stat-tile label="Uscite del mese" tone="expense" icon="north_east" [value]="formatCurrency(t.spentMonth)">
           <app-versus-average [current]="t.spentMonth" [avg]="history().avgSpent" [lowerIsBetter]="true" />
         </app-stat-tile>
+        @let rate = savingsRate();
         <app-stat-tile
           label="Risparmio netto"
-          tone="accent"
+          [tone]="t.netMonth < 0 ? 'expense' : 'accent'"
           icon="savings"
           [value]="formatSignedCurrency(t.netMonth)"
-          [progress]="monthProgress"
-          [progressLabel]="'Giorno ' + now.getDate() + ' di ' + daysInMonth + ': il mese è al ' + formatPercent(monthProgress, 0)"
-        />
-        <app-stat-tile
-          label="Tasso di risparmio"
-          [tone]="savingsRate() !== null && savingsRate()! < 0 ? 'expense' : 'income'"
-          icon="percent"
-          [value]="savingsRate() === null ? '—' : formatPercent(savingsRate()!)"
-          [progress]="savingsRate() === null ? 0 : (savingsRate()! > 0 ? savingsRate()! : 0)"
+          [progress]="rate !== null && rate > 0 ? rate : 0"
           [progressLabel]="
-            savingsRate() === null ? 'Nessuna entrata registrata questo mese' : 'Quota delle entrate che resta dopo le spese'
+            rate === null ? 'Nessuna entrata registrata questo mese' : 'Tasso di risparmio ' + formatPercent(rate) + ' delle entrate'
           "
         />
+        @let invRate = investedRate();
+        <app-stat-tile
+          label="Investito nel mese"
+          tone="invested"
+          icon="trending_up"
+          [value]="formatCurrency(t.investedMonth)"
+          [progress]="invRate ?? 0"
+          [progressLabel]="
+            invRate === null ? 'Nessuna entrata registrata questo mese' : 'Tasso di investimento ' + formatPercent(invRate) + ' delle entrate'
+          "
+        >
+          <app-versus-average [current]="t.investedMonth" [avg]="history().avgInvested" />
+        </app-stat-tile>
       }
     </div>
   </div>

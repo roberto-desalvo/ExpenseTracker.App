@@ -212,7 +212,7 @@ export class AnalyticsPage {
   protected readonly cashFlow = computed<CashFlowPoint[]>(() => {
     const values = this.flow()?.series[0]?.values ?? [];
     if (this.granularity() !== 3) {
-      return values.map((v) => ({ period: v.period, earned: v.earned, spent: v.spent }));
+      return values.map((v) => ({ period: v.period, earned: v.earned, spent: v.spent, invested: v.invested }));
     }
     const byPeriod = new Map(values.map((v) => [v.period, v]));
     const { start, end } = this.range();
@@ -220,6 +220,7 @@ export class AnalyticsPage {
       period,
       earned: byPeriod.get(period)?.earned ?? 0,
       spent: byPeriod.get(period)?.spent ?? 0,
+      invested: byPeriod.get(period)?.invested ?? 0,
     }));
   });
 
@@ -260,6 +261,7 @@ export class AnalyticsPage {
     const netWorth = this.netWorth();
     const earned = cashFlow.reduce((s, p) => s + p.earned, 0);
     const spent = cashFlow.reduce((s, p) => s + p.spent, 0);
+    const invested = cashFlow.reduce((s, p) => s + p.invested, 0);
     const startValue = netWorth[0]?.amount ?? 0;
     const endValue = netWorth[netWorth.length - 1]?.amount ?? 0;
     return {
@@ -267,6 +269,8 @@ export class AnalyticsPage {
       spent,
       net: earned - spent,
       rate: earned > 0 ? ((earned - spent) / earned) * 100 : null,
+      invested,
+      investedRate: earned > 0 ? (invested / earned) * 100 : null,
       startValue,
       endValue,
       change: endValue - startValue,

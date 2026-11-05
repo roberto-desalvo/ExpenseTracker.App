@@ -22,6 +22,8 @@ export interface LandingTotals {
   spentMonth: number;
   earnedMonth: number;
   netMonth: number;
+  /** uscite del mese nella categoria investimenti */
+  investedMonth: number;
 }
 
 export interface LandingDashboard {

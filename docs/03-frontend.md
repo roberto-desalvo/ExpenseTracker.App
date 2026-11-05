@@ -21,10 +21,10 @@ flowchart TD
 
 | Pagina | Contenuto |
 |---|---|
-| **Dashboard** `/` | Patrimonio attuale con andamento a 12 mesi (importi nascondibili); entrate, uscite, risparmio e tasso di risparmio del mese a confronto con la media; ripartizione per conto; "Dove vanno i soldi" per categoria (barre o torta); ultimi movimenti |
+| **Dashboard** `/` | Patrimonio attuale con andamento a 12 mesi (importi nascondibili); entrate, uscite, risparmio netto con tasso di risparmio, investito nel mese (uscite della categoria investimenti) con tasso di investimento, a confronto con la media; ripartizione per conto; "Dove vanno i soldi" per categoria (barre o torta); ultimi movimenti |
 | **Movimenti** `/movimenti` | Tabella paginata e ordinabile con filtri per periodo (mese o intervallo), tipo (entrate/uscite), conti e categorie; modifica ed eliminazione per riga. Se l'utente ha conti di un tipo importabile (non per l'utente demo): bottone **Importa** (modale con conto e file CSV/XLSX, caricato e accodato per l'import asincrono) e tab **Import** |
 | **Import** `/movimenti/import` | Tab di Movimenti: storico degli import da file (dall'app, OneDrive, script) con stato, conto, periodo, movimenti nuovi e già presenti, errore; quelli in coda o in elaborazione si aggiornano da soli |
-| **Analisi** `/analisi` | Periodo (3–24 mesi, da inizio anno, personalizzato) e granularità (giorno, settimana, mese, anno); flusso di cassa, patrimonio totale e per conto, classifica dei periodi, spese/entrate per categoria. Ogni grafico ha anche la vista tabella |
+| **Analisi** `/analisi` | Periodo (3–24 mesi, da inizio anno, personalizzato) e granularità (giorno, settimana, mese, anno); flusso di cassa (con la quota investita delle uscite e il tasso di investimento), patrimonio totale e per conto, classifica dei periodi, spese/entrate per categoria. Ogni grafico ha anche la vista tabella |
 | **Impostazioni** `/impostazioni?sezione=` | **Categorie**: CRUD con parole chiave e priorità, sincronizzazione delle categorie su un periodo. **Conti**: card con saldo e netto del mese, creazione e modifica di nome, IBAN e tipo di conto (un tipo per conto; i tipi delle banche abilitano l'import da file). **Aspetto**: stile, tema chiaro/scuro/automatico, navigazione laterale o superiore |
 
 **Shell.** Barra laterale comprimibile (default) o barra superiore, a scelta in Aspetto; sotto i 900px diventa una barra compatta con menu a scomparsa. Il pulsante **Nuovo** apre da qualunque pagina le modali di nuova transazione o nuovo trasferimento, montate una sola volta nella shell.

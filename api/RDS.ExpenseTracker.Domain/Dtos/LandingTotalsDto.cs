@@ -1,4 +1,4 @@
-namespace RDS.ExpenseTracker.Domain.Dtos;
+﻿namespace RDS.ExpenseTracker.Domain.Dtos;
 
 public class LandingTotalsDto
 {
@@ -6,4 +6,6 @@ public class LandingTotalsDto
     public decimal SpentMonth { get; set; }
     public decimal EarnedMonth { get; set; }
     public decimal NetMonth { get; set; }
+    /// <summary>Uscite del mese nella categoria Savings and investments (valore assoluto).</summary>
+    public decimal InvestedMonth { get; set; }
 }

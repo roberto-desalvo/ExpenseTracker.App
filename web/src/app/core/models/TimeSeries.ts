@@ -8,6 +8,8 @@ export interface TimeSeriesPoint {
   amount: number;
   earned: number;
   spent: number;
+  /** parte di `spent` nella categoria investimenti */
+  invested: number;
 }
 
 export interface TimeSeries {

@@ -15,17 +15,21 @@ export interface CashFlowPoint {
   period: string;
   earned: number;
   spent: number;
+  /** parte di `spent` investita (categoria investimenti) */
+  invested: number;
 }
 
 interface Row extends CashFlowPoint {
   net: number;
   /** Tasso di risparmio (% delle entrate); null se nel periodo non ci sono entrate. */
   rate: number | null;
+  /** Quota delle entrate investita; null se nel periodo non ci sono entrate. */
+  investedRate: number | null;
 }
 
 /**
- * Flusso di cassa per periodo: entrate sopra lo zero, uscite sotto, saldo netto come linea.
- * Un solo asse (euro) per tutte e tre le grandezze.
+ * Flusso di cassa per periodo: entrate sopra lo zero, uscite sotto (la quota investita in fondo, con colore
+ * proprio), saldo netto come linea. Un solo asse (euro) per tutte le grandezze.
  */
 @Component({
   selector: "app-cash-flow-chart",
@@ -58,6 +62,7 @@ export class CashFlowChart {
       ...p,
       net: p.earned - p.spent,
       rate: p.earned > 0 ? ((p.earned - p.spent) / p.earned) * 100 : null,
+      investedRate: p.earned > 0 ? (p.invested / p.earned) * 100 : null,
     })),
   );
 
@@ -69,6 +74,7 @@ export class CashFlowChart {
     { key: "period", label: "Periodo" },
     { key: "earned", label: "Entrate", align: "right" as const },
     { key: "spent", label: "Uscite", align: "right" as const },
+    { key: "invested", label: "di cui investite", align: "right" as const },
     { key: "net", label: "Saldo", align: "right" as const },
   ];
 
@@ -77,6 +83,7 @@ export class CashFlowChart {
       period: formatPeriodLabel(r.period, true),
       earned: formatCurrency(r.earned),
       spent: formatCurrency(r.spent),
+      invested: formatCurrency(r.invested),
       net: formatSignedCurrency(r.net),
     })),
   );
@@ -86,6 +93,7 @@ export class CashFlowChart {
     return [
       { key: "earned", label: "Entrate", color: a.income },
       { key: "spent", label: "Uscite", color: a.expense },
+      { key: "invested", label: "Investimenti", color: a.chart.invested },
       { key: "net", label: "Saldo netto", color: a.chart.net, shape: "line" as const },
     ];
   });
@@ -109,8 +117,13 @@ export class CashFlowChart {
           return tooltipHtml(a, formatPeriodLabel(row.period, true), [
             { color: a.income, label: "Entrate", value: formatCurrency(row.earned) },
             { color: a.expense, label: "Uscite", value: formatCurrency(row.spent) },
+            { color: a.chart.invested, label: "di cui investite", value: formatCurrency(row.invested) },
             { color: a.chart.net, label: "Saldo", value: formatSignedCurrency(row.net), emphasis: true },
             { label: "Tasso di risparmio", value: row.rate === null ? "—" : formatPercent(row.rate) },
+            {
+              label: "Tasso di investimento",
+              value: row.investedRate === null ? "—" : formatPercent(row.investedRate),
+            },
           ]);
         },
       },
@@ -137,9 +150,22 @@ export class CashFlowChart {
           type: "bar",
           stack: "flow",
           barMaxWidth: 36,
-          data: rows.map((r) => -r.spent),
-          // barre negative: angoli arrotondati verso il basso
-          itemStyle: { color: a.expense, borderRadius: [0, 0, 4, 4] },
+          // uscite non investite; la quota investita si impila sotto
+          data: rows.map((r) => ({
+            value: -(r.spent - r.invested),
+            // barre negative: angoli arrotondati verso il basso solo se è il segmento più basso
+            itemStyle: { borderRadius: r.invested > 0 ? 0 : [0, 0, 4, 4] },
+          })),
+          itemStyle: { color: a.expense },
+          emphasis: { disabled: true },
+        },
+        {
+          id: "invested",
+          type: "bar",
+          stack: "flow",
+          barMaxWidth: 36,
+          data: rows.map((r) => -r.invested),
+          itemStyle: { color: a.chart.invested, borderRadius: [0, 0, 4, 4] },
           emphasis: { disabled: true },
         },
         {

@@ -27,6 +27,8 @@ export interface AppTokens extends ModeTokens {
     grid: string;
     axis: string;
     net: string;
+    /** quota investita delle uscite */
+    invested: string;
   };
 }
 
@@ -77,6 +79,7 @@ export const buildAppTokens = (presetId: StylePresetId, mode: ResolvedMode): App
       grid: isDark ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.07)",
       axis: t.textMuted,
       net: t.text,
+      invested: isDark ? "#9085e9" : "#6250d6",
     },
   };
 };
@@ -102,6 +105,8 @@ const toCssVariables = (a: AppTokens): Record<string, string> => {
     "--app-expense": a.expense,
     "--app-income-soft": a.incomeSoft,
     "--app-expense-soft": a.expenseSoft,
+    "--app-invested": a.chart.invested,
+    "--app-invested-soft": `color-mix(in srgb, ${a.chart.invested} 14%, transparent)`,
     "--app-card-shadow": a.cardShadow,
     "--app-sidebar-background": a.sidebarBackground,
     "--app-hero-background": a.hero.background,

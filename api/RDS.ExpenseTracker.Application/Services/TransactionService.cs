@@ -198,6 +198,7 @@ public class TransactionService : ITransactionService
                 Series = []
             });
 
+        var investmentsId = await _categoryRepository.GetCategoryIdByKind(userId, CategoryEnum.SavingsAndInvestments);
         var series = new List<TimeSeriesDto>();
 
         if (request.IdAccounts.Any())
@@ -208,13 +209,7 @@ public class TransactionService : ITransactionService
                     .Where(t => t.AccountId == accountId)
                     .GroupBy(t => GetPeriodKey(t.Date, granularity))
                     .OrderBy(g => g.Key)
-                    .Select(g => new TimeSeriesPointDto
-                    {
-                        Period = g.Key,
-                        Amount = g.Sum(x => x.Amount),
-                        Earned = g.Where(x => x.Amount > 0).Sum(x => x.Amount),
-                        Spent = Math.Abs(g.Where(x => x.Amount < 0).Sum(x => x.Amount))
-                    })
+                    .Select(g => ToFlowPoint(g.Key, g, investmentsId))
                     .ToList();
 
                 series.Add(new TimeSeriesDto
@@ -232,13 +227,7 @@ public class TransactionService : ITransactionService
                     .Where(t => t.CategoryId == categoryId)
                     .GroupBy(t => GetPeriodKey(t.Date, granularity))
                     .OrderBy(g => g.Key)
-                    .Select(g => new TimeSeriesPointDto
-                    {
-                        Period = g.Key,
-                        Amount = g.Sum(x => x.Amount),
-                        Earned = g.Where(x => x.Amount > 0).Sum(x => x.Amount),
-                        Spent = Math.Abs(g.Where(x => x.Amount < 0).Sum(x => x.Amount))
-                    })
+                    .Select(g => ToFlowPoint(g.Key, g, investmentsId))
                     .ToList();
 
                 series.Add(new TimeSeriesDto
@@ -253,13 +242,7 @@ public class TransactionService : ITransactionService
             var points = filtered
                 .GroupBy(t => GetPeriodKey(t.Date, granularity))
                 .OrderBy(g => g.Key)
-                .Select(g => new TimeSeriesPointDto
-                {
-                    Period = g.Key,
-                    Amount = g.Sum(x => x.Amount),
-                    Earned = g.Where(x => x.Amount > 0).Sum(x => x.Amount),
-                    Spent = Math.Abs(g.Where(x => x.Amount < 0).Sum(x => x.Amount))
-                })
+                .Select(g => ToFlowPoint(g.Key, g, investmentsId))
                 .ToList();
 
             series.Add(new TimeSeriesDto
@@ -274,6 +257,28 @@ public class TransactionService : ITransactionService
             Granularity = granularity.ToString(),
             Series = series
         });
+    }
+
+    /// <summary>
+    /// Punto di flusso di un periodo: Earned/Spent separati e in valore assoluto; Invested è la parte delle
+    /// uscite (solo importi negativi) nella categoria Savings and investments.
+    /// </summary>
+    private static TimeSeriesPointDto ToFlowPoint(
+        string period,
+        IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)> items,
+        int? investmentsId)
+    {
+        var list = items as ICollection<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)> ?? items.ToList();
+        return new TimeSeriesPointDto
+        {
+            Period = period,
+            Amount = list.Sum(x => x.Amount),
+            Earned = list.Where(x => x.Amount > 0).Sum(x => x.Amount),
+            Spent = Math.Abs(list.Where(x => x.Amount < 0).Sum(x => x.Amount)),
+            Invested = investmentsId is null
+                ? 0m
+                : Math.Abs(list.Where(x => x.Amount < 0 && x.CategoryId == investmentsId).Sum(x => x.Amount))
+        };
     }
 
     public async Task<Result<TimeSeriesListDto>> GetStock(TimeSeriesRequestDto request, int userId)
@@ -418,6 +423,11 @@ public class TransactionService : ITransactionService
             .ToList();
 
         var monthTotals = await _repository.GetMonthTotals(monthStart, asOf, excludeTransfers, userId);
+        // investito = uscite della categoria Savings and investments (le entrate, es. dividendi, non contano)
+        var investmentsId = categories.FirstOrDefault(c => c.Kind == CategoryEnum.SavingsAndInvestments)?.Id;
+        var investedMonth = investmentsId is int id && categoryTotals.TryGetValue(id, out var investments)
+            ? investments.Spent
+            : 0m;
 
         var netWorthSeries = await BuildNetWorthSeries(asOf, userId);
 
@@ -432,7 +442,8 @@ public class TransactionService : ITransactionService
                 CurrentBalanceTotal = accountItems.Sum(item => item.CurrentBalance),
                 SpentMonth = monthTotals.Spent,
                 EarnedMonth = monthTotals.Earned,
-                NetMonth = monthTotals.Earned - monthTotals.Spent
+                NetMonth = monthTotals.Earned - monthTotals.Spent,
+                InvestedMonth = investedMonth
             },
             NetWorthSeries = netWorthSeries
         });

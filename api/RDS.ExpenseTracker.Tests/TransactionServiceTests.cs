@@ -190,6 +190,43 @@ public class TransactionServiceTests
         point.Spent.Should().Be(150m);
     }
 
+    [Fact]
+    public async Task GetTimeSeries_Invested_CountsOnlyOutflowsOfInvestmentsCategory()
+    {
+        // Gennaio: acquisto ETF (-200) e dividendo (+15) in Investimenti, spesa (-80) in altra categoria.
+        var investmentsId = (int)CategoryEnum.SavingsAndInvestments;
+        var transactionRepository = new FakeTransactionRepository(
+        [
+            Transaction(new DateTime(2026, 1, 5), -200m, investmentsId),
+            Transaction(new DateTime(2026, 1, 10), 15m, investmentsId),
+            Transaction(new DateTime(2026, 1, 20), -80m, (int)CategoryEnum.FoodAndBeverage),
+        ]);
+
+        var service = CreateService(transactionRepository);
+
+        var result = await service.GetTimeSeries(new TimeSeriesRequestDto
+        {
+            StartDate = new DateTime(2026, 1, 1),
+            EndDate = new DateTime(2026, 1, 31),
+            Granularity = (int)TimeGranularityEnum.Monthly,
+            IdAccounts = [],
+            IdCategories = [],
+        }, UserId);
+
+        result.IsSuccess.Should().BeTrue();
+        var point = result.Value.Series.Single().Values.Single(p => p.Period == "2026-01");
+        point.Spent.Should().Be(280m);
+        point.Invested.Should().Be(200m);
+    }
+
+    private static Transaction Transaction(DateTime date, decimal amount, int categoryId) => new()
+    {
+        AccountId = AccountId,
+        Date = date,
+        Amount = amount,
+        CategoryId = categoryId,
+    };
+
     private static Transaction Transaction(DateTime date, decimal amount) => new()
     {
         AccountId = AccountId,

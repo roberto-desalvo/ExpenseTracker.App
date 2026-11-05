@@ -1,13 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, input } from "@angular/core";
 import { MatIconModule } from "@angular/material/icon";
 
-export type StatTone = "income" | "expense" | "neutral" | "accent";
+export type StatTone = "income" | "expense" | "neutral" | "accent" | "invested";
 
 const TONE_VARS: Record<StatTone, { color: string; soft: string }> = {
   income: { color: "var(--app-income)", soft: "var(--app-income-soft)" },
   expense: { color: "var(--app-expense)", soft: "var(--app-expense-soft)" },
   neutral: { color: "var(--app-text-secondary)", soft: "var(--app-surface-alt)" },
   accent: { color: "var(--app-primary)", soft: "var(--app-primary-soft)" },
+  invested: { color: "var(--app-invested)", soft: "var(--app-invested-soft)" },
 };
 
 /** Tile con un solo numero: quando la storia è un valore, il numero è il grafico. Nota a piè proiettata (`footnote`). */
