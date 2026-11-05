@@ -3,11 +3,13 @@ import { MatButton, MatIconButton } from "@angular/material/button";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatIconModule } from "@angular/material/icon";
 import { MatInputModule } from "@angular/material/input";
+import { MatSelectModule } from "@angular/material/select";
 import { MatTooltip } from "@angular/material/tooltip";
 import { NotificationService } from "../../core/api/notification.service";
 import { TransactionApi } from "../../core/api/transaction.api";
 import Account from "../../core/models/Account";
 import { LandingAccountBalance } from "../../core/models/LandingDashboard";
+import { AccountTypesStore } from "../../core/state/account-types.store";
 import { AccountsStore } from "../../core/state/accounts.store";
 import { TransactionsStore } from "../../core/state/transactions.store";
 import { ThemeService } from "../../core/theme/theme.service";
@@ -29,6 +31,7 @@ import { SearchField } from "../../shared/ui/search-field";
     MatTooltip,
     MatFormFieldModule,
     MatInputModule,
+    MatSelectModule,
     EditorDrawer,
     EmptyState,
     Pagination,
@@ -39,6 +42,7 @@ import { SearchField } from "../../shared/ui/search-field";
 })
 export class AccountsSettings {
   protected readonly store = inject(AccountsStore);
+  protected readonly accountTypes = inject(AccountTypesStore);
   private readonly transactions = inject(TransactionsStore);
   private readonly transactionApi = inject(TransactionApi);
   private readonly notifications = inject(NotificationService);
@@ -50,11 +54,28 @@ export class AccountsSettings {
   protected readonly editing = signal<Account | null>(null);
   protected readonly name = signal("");
   protected readonly iban = signal("");
+  protected readonly accountTypeId = signal<number | null>(null);
   protected readonly busy = signal(false);
 
   protected readonly formatCurrency = formatCurrency;
   protected readonly formatSignedCurrency = formatSignedCurrency;
   protected readonly initialsOf = initialsOf;
+
+  /** Tipi già assegnati ad altri conti dell'utente: un tipo identifica un solo conto (gli import lo usano). */
+  protected readonly usedTypeIds = computed(() => {
+    const editingId = this.editing()?.id;
+    return new Set(
+      this.store
+        .all()
+        .filter((a) => a.id !== editingId && a.accountTypeId != null)
+        .map((a) => a.accountTypeId as number),
+    );
+  });
+
+  protected readonly selectedTypeSupportsImport = computed(() => {
+    const id = this.accountTypeId();
+    return id != null && this.accountTypes.byId().get(id)?.supportsImport === true;
+  });
 
   protected readonly pageCount = computed(() => Math.max(Math.ceil(this.store.totalCount() / this.store.pageSize()), 1));
 
@@ -88,6 +109,10 @@ export class AccountsSettings {
     });
   }
 
+  protected typeName(account: Account) {
+    return account.accountTypeId == null ? null : (this.accountTypes.byId().get(account.accountTypeId)?.name ?? null);
+  }
+
   protected colorOf(account: Account) {
     return this.colorMap().get(account.id) ?? this.theme.tokens().chart.other;
   }
@@ -112,6 +137,7 @@ export class AccountsSettings {
     this.editing.set(null);
     this.name.set("");
     this.iban.set("");
+    this.accountTypeId.set(null);
     this.editorOpen.set(true);
   }
 
@@ -119,6 +145,7 @@ export class AccountsSettings {
     this.editing.set(account);
     this.name.set(account.name);
     this.iban.set(account.iban ?? "");
+    this.accountTypeId.set(account.accountTypeId ?? null);
     this.editorOpen.set(true);
   }
 
@@ -127,14 +154,15 @@ export class AccountsSettings {
     if (!trimmed) return;
     // il BE normalizza (maiuscolo, senza spazi) e valida l'IBAN
     const normalizedIban = this.iban().replace(/\s+/g, "").toUpperCase() || null;
+    const accountTypeId = this.accountTypeId();
     const editing = this.editing();
     this.busy.set(true);
     try {
       if (editing) {
-        await this.store.updateAccount({ id: editing.id, name: trimmed, iban: normalizedIban });
+        await this.store.updateAccount({ id: editing.id, name: trimmed, iban: normalizedIban, accountTypeId });
         this.notifications.showSuccess(`Conto "${trimmed}" aggiornato`);
       } else {
-        await this.store.addAccount({ id: 0, name: trimmed, iban: normalizedIban });
+        await this.store.addAccount({ id: 0, name: trimmed, iban: normalizedIban, accountTypeId });
         this.notifications.showSuccess(`Conto "${trimmed}" creato`);
       }
       this.editorOpen.set(false);

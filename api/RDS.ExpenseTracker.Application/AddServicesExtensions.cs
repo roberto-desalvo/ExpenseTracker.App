@@ -17,6 +17,7 @@ public static class AddServicesExtensions
         });
         
         services.AddScoped<IAccountService, AccountService>();
+        services.AddScoped<IAccountTypeService, AccountTypeService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<ITransactionService, TransactionService>();
@@ -32,6 +33,7 @@ public static class AddServicesExtensions
         services.AddScoped<IDemoDataService, DemoDataService>();
         services.AddScoped<ITestSeedService, TestSeedService>();
         services.AddScoped<IBankFileImportService, BankFileImportService>();
+        services.AddScoped<IImportJobService, ImportJobService>();
         services.AddScoped<IOneDriveImportService, OneDriveImportService>();
 
         return services;

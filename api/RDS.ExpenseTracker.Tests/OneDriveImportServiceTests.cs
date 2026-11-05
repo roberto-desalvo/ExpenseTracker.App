@@ -389,5 +389,8 @@ public class OneDriveImportServiceTests
 
         public Task<Result<int>> RunTrackedAsync(string logSource, string? fileName, int userId, Func<ImportStatistics, Task<Result<int>>> import)
             => throw new NotSupportedException();
+
+        public Task<Result<int>> ImportWithoutLogAsync(BankFileSource source, BankFileFormat format, Stream content, string fileName, int userId, bool importAll, ImportStatistics statistics, int? accountId = null)
+            => throw new NotSupportedException();
     }
 }

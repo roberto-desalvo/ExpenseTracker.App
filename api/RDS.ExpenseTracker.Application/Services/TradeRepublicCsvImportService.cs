@@ -69,9 +69,11 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
 
     // ── Public API ──────────────────────────────────────────────────────────
 
-    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false, ImportStatistics? statistics = null)
+    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, Account tradeRepublicAccount, bool importAll = false, ImportStatistics? statistics = null)
     {
+        ArgumentNullException.ThrowIfNull(tradeRepublicAccount);
         statistics ??= new ImportStatistics();
+        var userId = tradeRepublicAccount.UserId;
 
         try
         {
@@ -94,12 +96,12 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
                 .Where(r => r.Amount is not null && r.Amount != 0)
                 .Select(r => ParseDate(r.Datetime)));
 
-            // Ensure all referenced accounts exist (auto-create if needed) ---
-            var accounts = await EnsureAccountsExistAsync(GetRequiredAccountNames(), userId);
+            // Tutti i conti dell'utente: controparti dei trasferimenti (per IBAN) ed eventuale conto trading.
+            var accounts = (await _accountRepository.GetAccounts(userId)).ToList();
+            var tradingAccount = ResolveTradingAccount(accounts, tradeRepublicAccount);
 
             // Il file può toccare anche il conto trading: come conto dell'import si registra quello principale.
-            statistics.AccountId = accounts.FirstOrDefault(a =>
-                a.Name.Equals(_csvOptions.DefaultAccountName, StringComparison.OrdinalIgnoreCase))?.Id;
+            statistics.AccountId = tradeRepublicAccount.Id;
 
             // 2. Deduplicate by ExternalId (transaction_id) ------------------
             if (!importAll)
@@ -146,10 +148,10 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
             {
                 if (row.Amount is null || row.Amount == 0) continue;
 
-                var accountName = ResolveAccountName(row);
+                var account     = ResolveAccount(row, tradeRepublicAccount, tradingAccount);
                 var description = BuildDescription(row);
 
-                if (_transferMatchingService.IsTransferCandidate(accountName, description))
+                if (_transferMatchingService.IsTransferCandidate(account, description))
                     candidateRows.Add(row);
                 else
                     remainingRows.Add(row);
@@ -162,7 +164,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
             foreach (var row in candidateRows.OrderBy(r => ParseDate(r.Datetime) ?? DateTime.UtcNow))
             {
                 await ProcessTransferCandidateRow(
-                    row, accounts, transactions, transferEntities, transferTransactions, userId, moneyTransfersCategoryId, consumedCandidateIds);
+                    row, ResolveAccount(row, tradeRepublicAccount, tradingAccount), transactions, transferEntities, transferTransactions, userId, moneyTransfersCategoryId, consumedCandidateIds);
             }
 
             foreach (var row in remainingRows)
@@ -173,17 +175,17 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
                     : null;
 
                 // un IBAN che punta a un conto Trade Republic non è un trasferimento verso un altro conto
-                if (counterpartyAccount != null && IsTradeRepublicAccount(counterpartyAccount))
+                if (counterpartyAccount != null
+                    && (counterpartyAccount.Id == tradeRepublicAccount.Id || counterpartyAccount.Id == tradingAccount?.Id))
                     counterpartyAccount = null;
 
                 if (counterpartyAccount != null)
                 {
-                    BuildTransferEntities(row, counterpartyAccount.Name, accounts, transferEntities, transferTransactions, moneyTransfersCategoryId);
+                    BuildTransferEntities(row, counterpartyAccount, tradeRepublicAccount, transferEntities, transferTransactions, moneyTransfersCategoryId);
                 }
                 else
                 {
-                    var tx = BuildTransaction(row, accounts, categories);
-                    if (tx != null) transactions.Add(tx);
+                    transactions.Add(BuildTransaction(row, ResolveAccount(row, tradeRepublicAccount, tradingAccount), categories));
                 }
             }
 
@@ -239,49 +241,10 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         return [.. csv.GetRecords<TradeRepublicRow>()];
     }
 
-    // I conti controparte dei trasferimenti non vengono creati qui: sono i conti dell'utente con l'IBAN valorizzato.
-    private IEnumerable<string> GetRequiredAccountNames()
-    {
-        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            _csvOptions.DefaultAccountName,
-        };
-
-        if (!string.IsNullOrEmpty(_csvOptions.TradingAccountName))
-            names.Add(_csvOptions.TradingAccountName);
-
-        return names;
-    }
-
-    private bool IsTradeRepublicAccount(Account account)
-        => account.Name.Equals(_csvOptions.DefaultAccountName, StringComparison.OrdinalIgnoreCase)
-            || (!string.IsNullOrEmpty(_csvOptions.TradingAccountName)
-                && account.Name.Equals(_csvOptions.TradingAccountName, StringComparison.OrdinalIgnoreCase));
-
-    private async Task<List<Account>> EnsureAccountsExistAsync(IEnumerable<string> requiredAccountNames, int userId)
-    {
-        var accounts = (await _accountRepository.GetAccounts(userId)).ToList();
-
-        var missingNames = requiredAccountNames
-            .Where(name => !accounts.Any(a =>
-                a.Name != null && a.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
-            .ToList();
-
-        if (missingNames.Count > 0)
-        {
-            var newAccounts = missingNames.Select(name => new Account(0, name, userId)).ToList();
-            await _accountRepository.AddAccounts(newAccounts);
-            await _accountRepository.SaveChangesAsync();
-            accounts = (await _accountRepository.GetAccounts(userId)).ToList();
-        }
-
-        return accounts;
-    }
-
-    private void BuildTransferEntities(
+    private static void BuildTransferEntities(
         TradeRepublicRow row,
-        string counterpartyAccountName,
-        List<Account> accounts,
+        Account counterpartyAccount,
+        Account tradeRepublicAccount,
         List<Transfer> transferEntities,
         List<Transaction> transferTransactions,
         int? moneyTransfersCategoryId)
@@ -294,21 +257,8 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
 
         bool isInbound = string.Equals(row.Type, TransferInstantInbound, StringComparison.OrdinalIgnoreCase);
 
-        string fromAccountName = isInbound ? counterpartyAccountName : _csvOptions.DefaultAccountName;
-        string toAccountName   = isInbound ? _csvOptions.DefaultAccountName : counterpartyAccountName;
-
-        var fromAccount = accounts.FirstOrDefault(a =>
-            a.Name.Equals(fromAccountName, StringComparison.OrdinalIgnoreCase));
-        var toAccount = accounts.FirstOrDefault(a =>
-            a.Name.Equals(toAccountName, StringComparison.OrdinalIgnoreCase));
-
-        if (fromAccount == null || toAccount == null)
-        {
-            _logger.LogWarning(
-                "Skipping transfer row {TransactionId}: could not resolve account '{From}' or '{To}'",
-                row.TransactionId, fromAccountName, toAccountName);
-            return;
-        }
+        var fromAccount = isInbound ? counterpartyAccount : tradeRepublicAccount;
+        var toAccount   = isInbound ? tradeRepublicAccount : counterpartyAccount;
 
         var transferEntity = new Transfer { CreatedOn = DateTime.UtcNow };
         transferEntities.Add(transferEntity);
@@ -349,7 +299,7 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
 
     private async Task ProcessTransferCandidateRow(
         TradeRepublicRow row,
-        List<Account> accounts,
+        Account account,
         List<Transaction> transactions,
         List<Transfer> transferEntities,
         List<Transaction> transferTransactions,
@@ -357,24 +307,12 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         int? moneyTransfersCategoryId,
         HashSet<int> consumedCandidateIds)
     {
-        var accountName = ResolveAccountName(row);
-        var account = accounts.FirstOrDefault(a =>
-            a.Name.Equals(accountName, StringComparison.OrdinalIgnoreCase));
-
-        if (account == null)
-        {
-            _logger.LogWarning(
-                "Skipping row {TransactionId}: account '{Account}' not found",
-                row.TransactionId, accountName);
-            return;
-        }
-
         var amount      = (row.Amount ?? 0) + (row.Tax ?? 0) + (row.Fee ?? 0);
         var date        = ParseDate(row.Datetime) ?? DateTime.UtcNow;
         var description = BuildDescription(row);
 
         var matchResult = await _transferMatchingService.TryMatchAsync(
-            accountName, description, amount, date, userId, consumedCandidateIds);
+            account, description, amount, date, userId, consumedCandidateIds);
 
         if (matchResult.Candidate != null)
         {
@@ -412,29 +350,28 @@ public class TradeRepublicCsvImportService : ITradeRepublicCsvImportService
         }
     }
 
-    private string ResolveAccountName(TradeRepublicRow row)
-        => row.AccountType == AccountTypeTrading && !string.IsNullOrEmpty(_csvOptions.TradingAccountName)
-            ? _csvOptions.TradingAccountName
-            : _csvOptions.DefaultAccountName;
+    // Il conto trading è un sotto-conto senza tipo: si riconosce per nome (opzione TradingAccountName).
+    // Se l'utente non lo ha, le righe TRADING finiscono sul conto Trade Republic.
+    private Account? ResolveTradingAccount(List<Account> accounts, Account tradeRepublicAccount)
+    {
+        if (string.IsNullOrWhiteSpace(_csvOptions.TradingAccountName))
+            return null;
 
-    private Transaction? BuildTransaction(
+        return accounts.FirstOrDefault(a =>
+            a.Id != tradeRepublicAccount.Id
+            && a.Name.Equals(_csvOptions.TradingAccountName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static Account ResolveAccount(TradeRepublicRow row, Account tradeRepublicAccount, Account? tradingAccount)
+        => row.AccountType == AccountTypeTrading && tradingAccount != null
+            ? tradingAccount
+            : tradeRepublicAccount;
+
+    private static Transaction BuildTransaction(
         TradeRepublicRow row,
-        List<Account> accounts,
+        Account account,
         UserCategories categories)
     {
-        var accountName = ResolveAccountName(row);
-
-        var account = accounts.FirstOrDefault(a =>
-            a.Name.Equals(accountName, StringComparison.OrdinalIgnoreCase));
-
-        if (account == null)
-        {
-            _logger.LogWarning(
-                "Skipping row {TransactionId}: account '{Account}' not found",
-                row.TransactionId, accountName);
-            return null;
-        }
-
         var amount = (row.Amount ?? 0) + (row.Tax ?? 0) + (row.Fee ?? 0);
 
         return new Transaction

@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RDS.ExpenseTracker.Domain.Dtos.Requests;
 using RDS.ExpenseTracker.Domain.Entities;
+using RDS.ExpenseTracker.Domain.Enums;
 using RDS.ExpenseTracker.Domain.Repositories;
 
 namespace RDS.ExpenseTracker.Infrastructure.Repositories;
@@ -52,15 +53,27 @@ public class AccountRepository : RepositoryBase, IAccountRepository
 
     public async Task<Account?> GetAccount(int id, int userId)
     {
-        return await Context.Accounts.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
+        return await Context.Accounts
+            .Include(a => a.AccountTypeNavigation)
+            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
     }
 
     public async Task<IEnumerable<Account>> GetAccounts(int userId)
     {
         return await Context.Accounts
+            .Include(a => a.AccountTypeNavigation)
             .Where(a => a.UserId == userId)
             .OrderBy(a => a.Name)
             .ToListAsync();
+    }
+
+    public async Task<Account?> GetAccountByImportSource(int userId, BankFileSource source)
+    {
+        return await Context.Accounts
+            .Include(a => a.AccountTypeNavigation)
+            .FirstOrDefaultAsync(a => a.UserId == userId
+                && a.AccountTypeNavigation != null
+                && a.AccountTypeNavigation.ImportSource == source);
     }
 
     public async Task<(IEnumerable<Account> Items, int TotalCount)> GetPagedAccounts(AccountQueryRequest request, int userId)

@@ -19,6 +19,7 @@ public class TransferReconciliationRepository : RepositoryBase, ITransferReconci
     {
         return await Context.Accounts
             .AsNoTracking()
+            .Include(a => a.AccountTypeNavigation)
             .ToListAsync();
     }
 

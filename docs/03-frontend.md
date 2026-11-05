@@ -10,6 +10,7 @@ flowchart TD
     app -->|autenticato| shell[Shell AppLayout<br/>navigazione, tema, Nuovo, utente]
     shell --> dash["/ Dashboard"]
     shell --> mov["/movimenti Movimenti"]
+    mov --> movimp["/movimenti/import Import"]
     shell --> ana["/analisi Analisi"]
     shell --> imp["/impostazioni Impostazioni"]
     imp --> cat[Categorie]
@@ -21,9 +22,10 @@ flowchart TD
 | Pagina | Contenuto |
 |---|---|
 | **Dashboard** `/` | Patrimonio attuale con andamento a 12 mesi (importi nascondibili); entrate, uscite, risparmio e tasso di risparmio del mese a confronto con la media; ripartizione per conto; "Dove vanno i soldi" per categoria (barre o torta); ultimi movimenti |
-| **Movimenti** `/movimenti` | Tabella paginata e ordinabile con filtri per periodo (mese o intervallo), tipo (entrate/uscite), conti e categorie; modifica ed eliminazione per riga |
+| **Movimenti** `/movimenti` | Tabella paginata e ordinabile con filtri per periodo (mese o intervallo), tipo (entrate/uscite), conti e categorie; modifica ed eliminazione per riga. Se l'utente ha conti di un tipo importabile (non per l'utente demo): bottone **Importa** (modale con conto e file CSV/XLSX, caricato e accodato per l'import asincrono) e tab **Import** |
+| **Import** `/movimenti/import` | Tab di Movimenti: storico degli import da file (dall'app, OneDrive, script) con stato, conto, periodo, movimenti nuovi e già presenti, errore; quelli in coda o in elaborazione si aggiornano da soli |
 | **Analisi** `/analisi` | Periodo (3–24 mesi, da inizio anno, personalizzato) e granularità (giorno, settimana, mese, anno); flusso di cassa, patrimonio totale e per conto, classifica dei periodi, spese/entrate per categoria. Ogni grafico ha anche la vista tabella |
-| **Impostazioni** `/impostazioni?sezione=` | **Categorie**: CRUD con parole chiave e priorità, sincronizzazione delle categorie su un periodo. **Conti**: card con saldo e netto del mese, creazione e modifica di nome e IBAN. **Aspetto**: stile, tema chiaro/scuro/automatico, navigazione laterale o superiore |
+| **Impostazioni** `/impostazioni?sezione=` | **Categorie**: CRUD con parole chiave e priorità, sincronizzazione delle categorie su un periodo. **Conti**: card con saldo e netto del mese, creazione e modifica di nome, IBAN e tipo di conto (un tipo per conto; i tipi delle banche abilitano l'import da file). **Aspetto**: stile, tema chiaro/scuro/automatico, navigazione laterale o superiore |
 
 **Shell.** Barra laterale comprimibile (default) o barra superiore, a scelta in Aspetto; sotto i 900px diventa una barra compatta con menu a scomparsa. Il pulsante **Nuovo** apre da qualunque pagina le modali di nuova transazione o nuovo trasferimento, montate una sola volta nella shell.
 
@@ -41,7 +43,7 @@ flowchart TD
 | `core/state/` | Store a signal condivisi |
 | `core/theme/` | `ThemeService`, preset di stile, palette dei grafici |
 | `core/utils/` | Formattazione di importi, date e periodi |
-| `features/` | Pagine: `dashboard`, `transactions`, `analytics`, `settings` |
+| `features/` | Pagine: `dashboard`, `transactions`, `imports`, `analytics`, `settings` |
 | `layout/` | Shell e azioni dell'intestazione |
 | `pages/auth/` | Pagine di login |
 | `shared/ui/`, `shared/charts/` | Componenti riusabili (tabella dati, drawer, modali, ricerca, ...) e grafici ECharts |
@@ -50,8 +52,8 @@ Le pagine sono caricate in lazy (`app.routes.ts`); anche ECharts viene scaricato
 
 ## Stato e dati
 
-- **Store** (`core/state/`) — servizi `providedIn: "root"` con signal: `AccountsStore` e `CategoriesStore` (anagrafiche caricate una volta dalla shell), `TransactionsStore`, `TransactionsTableStore` (filtri, ordinamento, paginazione della tabella), `QuickActionsService` (modali). Nessuna libreria di state management.
-- **Aggiornamento** — dopo ogni modifica `TransactionsStore` incrementa `dataVersion`; dashboard, analisi e conti lo osservano e ricaricano i propri aggregati.
+- **Store** (`core/state/`) — servizi `providedIn: "root"` con signal: `AccountsStore`, `CategoriesStore` e `AccountTypesStore` (anagrafiche caricate una volta dalla shell), `TransactionsStore`, `ImportsStore` (conti importabili, upload, storico; finché ci sono import in corso li ricontrolla ogni pochi secondi e ne notifica l'esito), `TransactionsTableStore` (filtri, ordinamento, paginazione della tabella), `QuickActionsService` (modali). Nessuna libreria di state management.
+- **Aggiornamento** — dopo ogni modifica `TransactionsStore` incrementa `dataVersion`; dashboard, analisi e conti lo osservano e ricaricano i propri aggregati. Lo fa anche quando un import da file si conclude con nuovi movimenti.
 - **API** — tutte le chiamate passano da `ApiClient`, che condivide le richieste identiche in volo. L'interceptor di autenticazione aggiunge l'header; quello degli errori estrae il messaggio dai problem details, lo mostra in una snackbar e rilancia l'errore.
 
 ## Autenticazione

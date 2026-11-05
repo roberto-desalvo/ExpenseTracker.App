@@ -30,6 +30,9 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("AccountTypeId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Iban")
                         .HasMaxLength(34)
                         .HasColumnType("nvarchar(34)");
@@ -44,11 +47,84 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AccountTypeId");
+
+                    b.HasIndex("UserId", "AccountTypeId")
+                        .IsUnique()
+                        .HasFilter("[AccountTypeId] IS NOT NULL");
+
                     b.HasIndex("UserId", "Iban")
                         .IsUnique()
                         .HasFilter("[Iban] IS NOT NULL");
 
                     b.ToTable("Accounts");
+                });
+
+            modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.AccountType", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ImportSource")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("AccountTypes");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            ImportSource = 0,
+                            Name = "BBVA"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            ImportSource = 2,
+                            Name = "Satispay"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            ImportSource = 3,
+                            Name = "Trade Republic"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            ImportSource = 1,
+                            Name = "Sella"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Name = "Revolut"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Name = "Contanti"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Name = "Hype"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Name = "PayPal"
+                        });
                 });
 
             modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.Category", b =>
@@ -104,6 +180,13 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                     b.Property<int?>("AccountId")
                         .HasColumnType("int");
 
+                    b.Property<string>("BlobName")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<DateTime?>("CompletedOn")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("ErrorMessage")
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
@@ -135,6 +218,12 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<DateTime?>("StartedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
@@ -143,6 +232,8 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                     b.HasIndex("AccountId");
 
                     b.HasIndex("UserId", "ImportedOn");
+
+                    b.HasIndex("UserId", "Status");
 
                     b.ToTable("ImportLogs");
                 });
@@ -297,11 +388,18 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
 
             modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.Account", b =>
                 {
+                    b.HasOne("RDS.ExpenseTracker.Domain.Entities.AccountType", "AccountTypeNavigation")
+                        .WithMany()
+                        .HasForeignKey("AccountTypeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("RDS.ExpenseTracker.Domain.Entities.User", "UserNavigation")
                         .WithMany("Accounts")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("AccountTypeNavigation");
 
                     b.Navigation("UserNavigation");
                 });

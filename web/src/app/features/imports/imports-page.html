@@ -1,0 +1,83 @@
+<app-page-container>
+  <app-page-header title="Movimenti" subtitle="Lo storico degli import da file e l'avanzamento di quelli in corso.">
+    <app-import-button actions />
+  </app-page-header>
+
+  <app-transactions-tabs active="import" />
+
+  @if (store.activeCount() > 0) {
+    <div class="alert alert-info progress-banner">
+      <mat-spinner diameter="16" />
+      <span>
+        {{ store.activeCount() === 1 ? "1 import in corso" : store.activeCount() + " import in corso" }}: la pagina si aggiorna
+        da sola e ti avvisiamo quando hanno finito.
+      </span>
+    </div>
+  }
+
+  @if (!store.canImport()) {
+    <div class="alert alert-info">
+      <mat-icon class="icon-sm">info</mat-icon>
+      <span>
+        Per importare un estratto conto assegna a un conto il tipo della sua banca in
+        <a [routerLink]="settingsAccounts" [queryParams]="{ sezione: 'conti' }">Impostazioni › Conti</a>.
+      </span>
+    </div>
+  }
+
+  <app-data-table
+    [columns]="columns"
+    [rows]="store.logs()"
+    [isLoading]="store.isLoading()"
+    [isEmpty]="!store.isLoading() && store.logs().length === 0"
+    emptyMessage="Nessun import"
+    emptySubtext="Qui trovi i file importati, da questa pagina, da OneDrive o dagli script, con l'esito di ciascuno."
+    [page]="store.page()"
+    [pageSize]="store.pageSize()"
+    [totalCount]="store.totalCount()"
+    (pageChange)="store.modifyPage($event)"
+    (pageSizeChange)="store.modifyPageSize($event)"
+    [pageSizeOptions]="[10, 20, 50]"
+    [minTableWidth]="820"
+  >
+    <app-import-button empty-action />
+
+    <ng-template let-log>
+      <td>
+        <span class="date">{{ dateTime(log.importedOn) }}</span>
+      </td>
+      <td>
+        <span class="account">{{ log.accountName || "—" }}</span>
+      </td>
+      <td>
+        <div class="file nowrap" [matTooltip]="log.fileName ?? ''">{{ log.fileName || "—" }}</div>
+        <div class="source">{{ log.source }}</div>
+        @if (log.errorMessage) {
+          <div class="error" [matTooltip]="log.errorMessage">{{ log.errorMessage }}</div>
+        }
+      </td>
+      <td>
+        @let s = status(log);
+        <span class="status" [attr.data-status]="log.status">
+          @if (isActive(log)) {
+            <mat-spinner diameter="12" />
+          } @else {
+            <mat-icon class="icon-xs">{{ s.icon }}</mat-icon>
+          }
+          {{ s.label }}
+        </span>
+      </td>
+      <td>
+        <span class="period">{{ period(log) }}</span>
+      </td>
+      <td class="align-right">
+        <span class="count tabular" [matTooltip]="log.newTransfersCount ? log.newTransfersCount + ' trasferimenti' : ''">
+          {{ isActive(log) ? "—" : log.newTransactionsCount }}
+        </span>
+      </td>
+      <td class="align-right">
+        <span class="count muted tabular">{{ isActive(log) ? "—" : log.skippedDuplicatesCount }}</span>
+      </td>
+    </ng-template>
+  </app-data-table>
+</app-page-container>

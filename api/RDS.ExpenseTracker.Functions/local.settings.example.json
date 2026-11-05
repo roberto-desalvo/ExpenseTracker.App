@@ -21,7 +21,8 @@
     "OneDriveImport__ClientState": "",
     "OneDriveImport__KeyVaultUri": "",
     "OneDriveSubscriptionRenewalSchedule": "0 0 4 * * *",
-    "AzureWebJobs.OneDrive_SubscriptionRenewal.Disabled": "true"
+    "AzureWebJobs.OneDrive_SubscriptionRenewal.Disabled": "true",
+    "ImportStorage__ContainerName": "bank-imports"
   },
   "ConnectionStrings": {
     "DefaultConnection": ""

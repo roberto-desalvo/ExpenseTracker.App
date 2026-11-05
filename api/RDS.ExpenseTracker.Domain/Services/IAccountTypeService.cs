@@ -1,0 +1,10 @@
+using FluentResults;
+using RDS.ExpenseTracker.Domain.Common;
+using RDS.ExpenseTracker.Domain.Dtos;
+
+namespace RDS.ExpenseTracker.Domain.Services;
+
+public interface IAccountTypeService : IService
+{
+    Task<Result<IEnumerable<AccountTypeDto>>> GetAccountTypes();
+}

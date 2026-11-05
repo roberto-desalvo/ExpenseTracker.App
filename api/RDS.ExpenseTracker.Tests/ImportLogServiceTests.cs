@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using RDS.ExpenseTracker.Application.Services;
+using RDS.ExpenseTracker.Domain.Dtos.Requests;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Models.DataImport;
 using RDS.ExpenseTracker.Domain.Repositories;
@@ -80,6 +81,10 @@ public class ImportLogServiceTests
             SavedLogs.Add(importLog);
             return Task.CompletedTask;
         }
+
+        public Task UpdateImportLog(ImportLog importLog) => throw new NotSupportedException();
+        public Task<ImportLog?> GetImportLog(int id) => throw new NotSupportedException();
+        public Task<(IEnumerable<ImportLog> Items, int TotalCount)> GetPagedImportLogs(ImportLogQueryRequest request, int userId) => throw new NotSupportedException();
 
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
     }

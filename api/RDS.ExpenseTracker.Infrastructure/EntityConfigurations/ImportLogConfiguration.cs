@@ -13,8 +13,10 @@ public class ImportLogConfiguration : IEntityTypeConfiguration<ImportLog>
         builder.Property(l => l.Source).IsRequired().HasMaxLength(50);
         builder.Property(l => l.FileName).HasMaxLength(260);
         builder.Property(l => l.ErrorMessage).HasMaxLength(4000);
+        builder.Property(l => l.BlobName).HasMaxLength(300);
 
         builder.HasIndex(l => new { l.UserId, l.ImportedOn });
+        builder.HasIndex(l => new { l.UserId, l.Status });
 
         builder.HasOne(l => l.UserNavigation)
                .WithMany()

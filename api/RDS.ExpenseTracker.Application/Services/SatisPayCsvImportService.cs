@@ -34,7 +34,6 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
     private readonly ITransferRepository _transferRepository;
     private readonly ICategoryRepository _categoryRepository;
     private readonly IAccountRepository _accountRepository;
-    private readonly ISatisPayCsvOptions _csvOptions;
     private readonly ITransferMatchingService _transferMatchingService;
     private readonly ILogger<SatisPayCsvImportService> _logger;
 
@@ -43,7 +42,6 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
         ITransferRepository transferRepository,
         ICategoryRepository categoryRepository,
         IAccountRepository accountRepository,
-        ISatisPayCsvOptions csvOptions,
         ITransferMatchingService transferMatchingService,
         ILogger<SatisPayCsvImportService> logger)
     {
@@ -51,16 +49,17 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
         _transferRepository = transferRepository ?? throw new ArgumentNullException(nameof(transferRepository));
         _categoryRepository = categoryRepository ?? throw new ArgumentNullException(nameof(categoryRepository));
         _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
-        _csvOptions = csvOptions ?? throw new ArgumentNullException(nameof(csvOptions));
         _transferMatchingService = transferMatchingService ?? throw new ArgumentNullException(nameof(transferMatchingService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     // ── Public API ──────────────────────────────────────────────────────────
 
-    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false, ImportStatistics? statistics = null)
+    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, Account satispayAccount, bool importAll = false, ImportStatistics? statistics = null)
     {
+        ArgumentNullException.ThrowIfNull(satispayAccount);
         statistics ??= new ImportStatistics();
+        var userId = satispayAccount.UserId;
 
         try
         {
@@ -118,18 +117,9 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
 
             statistics.TrackDates(rows.Select(r => ParseDate(r.Date)));
 
-            // Ensure accounts ─────────────────────────────────────────────────
-            var requiredAccountNames = GetRequiredAccountNames();
-            var accounts = await EnsureAccountsExistAsync(requiredAccountNames, userId);
-
-            var satispayAccount = accounts.FirstOrDefault(a =>
-                a.Name.Equals(_csvOptions.DefaultAccountName, StringComparison.OrdinalIgnoreCase));
-
-            if (satispayAccount == null)
-            {
-                _logger.LogError("Could not find Satispay account '{AccountName}'", _csvOptions.DefaultAccountName);
-                return Result.Fail($"Account '{_csvOptions.DefaultAccountName}' not found");
-            }
+            // Accounts ───────────────────────────────────────────────────────────
+            // I conti bancari di provenienza delle ricariche sono i conti dell'utente con l'IBAN valorizzato.
+            var accounts = (await _accountRepository.GetAccounts(userId)).ToList();
 
             statistics.AccountId = satispayAccount.Id;
 
@@ -180,7 +170,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             foreach (var row in rows)
             {
                 var description = BuildDescription(row);
-                if (_transferMatchingService.IsTransferCandidate(_csvOptions.DefaultAccountName, description))
+                if (_transferMatchingService.IsTransferCandidate(satispayAccount, description))
                     candidateRows.Add(row);
                 else
                     remainingRows.Add(row);
@@ -297,40 +287,6 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
         return string.Join("\n", dataLines);
     }
 
-    // I conti bancari di provenienza delle ricariche non vengono creati qui: sono i conti dell'utente con l'IBAN valorizzato.
-    private IEnumerable<string> GetRequiredAccountNames()
-    {
-        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            _csvOptions.DefaultAccountName,
-        };
-
-        if (!string.IsNullOrEmpty(_csvOptions.BankAccountName))
-            names.Add(_csvOptions.BankAccountName);
-
-        return names;
-    }
-
-    private async Task<List<Account>> EnsureAccountsExistAsync(IEnumerable<string> requiredAccountNames, int userId)
-    {
-        var accounts = (await _accountRepository.GetAccounts(userId)).ToList();
-
-        var missingNames = requiredAccountNames
-            .Where(name => !accounts.Any(a =>
-                a.Name != null && a.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
-            .ToList();
-
-        if (missingNames.Count > 0)
-        {
-            var newAccounts = missingNames.Select(name => new Account(0, name, userId)).ToList();
-            await _accountRepository.AddAccounts(newAccounts);
-            await _accountRepository.SaveChangesAsync();
-            accounts = (await _accountRepository.GetAccounts(userId)).ToList();
-        }
-
-        return accounts;
-    }
-
     private bool IsBankRechargeRow(SatisPayRow row)
     {
         if (string.IsNullOrEmpty(row.Description)) return false;
@@ -387,7 +343,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             {
                 _logger.LogInformation(
                     "Transfer already exists: {From} → {To} amount {Amount} on {Date}. Skipping row {ID}",
-                    bankAccountName, _csvOptions.DefaultAccountName, amount, date.Value.Date, row.TransactionId);
+                    bankAccountName, satispayAccount.Name, amount, date.Value.Date, row.TransactionId);
                 return Result.Fail("Transfer already exists");
             }
         }
@@ -429,7 +385,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
         });
 
         _logger.LogInformation("Created bank recharge transfer: {From} → {To} amount {Amount}",
-            bankAccountName, _csvOptions.DefaultAccountName, amount);
+            bankAccountName, satispayAccount.Name, amount);
 
         return Result.Ok();
     }
@@ -461,7 +417,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
 
 
         var matchResult = await _transferMatchingService.TryMatchAsync(
-            _csvOptions.DefaultAccountName, description, amount.Value, date, userId, consumedCandidateIds);
+            satispayAccount, description, amount.Value, date, userId, consumedCandidateIds);
 
         if (matchResult.Candidate != null)
         {

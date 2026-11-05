@@ -99,6 +99,23 @@
       "description": "`api/account`",
       "item": [
         {
+          "name": "AccountType_GetAll",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/account-type",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "account-type"
+              ]
+            },
+            "description": "Catalogo dei tipi di conto (comune a tutti gli utenti); `supportsImport` indica quelli importabili da file."
+          }
+        },
+        {
           "name": "Account_Query",
           "request": {
             "method": "POST",
@@ -189,7 +206,7 @@
             "description": "Creazione bulk di account (body = array).",
             "body": {
               "mode": "raw",
-              "raw": "[\n  {\n    \"name\": \"Conto corrente\",\n    \"iban\": \"IT60X0542811101000000123456\"\n  }\n]",
+              "raw": "[\n  {\n    \"name\": \"Conto corrente\",\n    \"iban\": \"IT60X0542811101000000123456\",\n    \"accountTypeId\": 1\n  }\n]",
               "options": {
                 "raw": {
                   "language": "json"
@@ -220,7 +237,7 @@
             "description": "Aggiorna un account.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": {{accountId}},\n  \"name\": \"Conto corrente (rinominato)\",\n  \"iban\": \"IT60X0542811101000000123456\"\n}",
+              "raw": "{\n  \"id\": {{accountId}},\n  \"name\": \"Conto corrente (rinominato)\",\n  \"iban\": \"IT60X0542811101000000123456\",\n  \"accountTypeId\": 1\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -819,6 +836,76 @@
               ]
             },
             "description": "Rigenera da zero i dati demo dell'utente autenticato. 403 se l'utente non ha `IsDemo = true`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "ImportJob",
+      "description": "Import asincrono dei file caricati dall'app (qualsiasi utente autenticato non demo).",
+      "item": [
+        {
+          "name": "ImportJob_Upload",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/imports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "imports"
+              ]
+            },
+            "description": "Carica un estratto conto (CSV o XLSX, max 10 MB) sul conto indicato, che deve essere di un tipo importabile. Risponde 202 con l'import in stato `Queued`; l'elaborazione avviene in coda (`bank-file-import`).",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "accountId",
+                  "value": "{{accountId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "ImportJob_Query",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/imports/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "imports",
+                "query"
+              ]
+            },
+            "description": "Storico paginato degli import dell'utente, dal più recente. `statuses` opzionale: `Queued`, `Processing`, `Completed`, `Failed`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"page\": 0,\n  \"pageSize\": 20,\n  \"statuses\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           }
         }
       ]

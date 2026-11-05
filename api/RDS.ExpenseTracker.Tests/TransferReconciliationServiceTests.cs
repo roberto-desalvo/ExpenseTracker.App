@@ -22,19 +22,19 @@ public class TransferReconciliationServiceTests
 
     private static readonly TransferMatchRule SellaSatispayRule = new()
     {
-        AccountName1 = "Sella",
+        AccountType1 = "Sella",
         DescriptionPattern1 = "Satispay Europe",
         DescriptionMatchMode1 = DescriptionMatchMode.StartsWith,
-        AccountName2 = "Satispay",
+        AccountType2 = "Satispay",
         DescriptionPattern2 = "Ricarica Satispay",
     };
 
     private static List<Account> DefaultAccounts() =>
     [
-        new Account(SellaId, "Sella", UserA),
-        new Account(SatispayId, "Satispay", UserA),
-        new Account(TradeRepublicId, "Trade Republic", UserA) { Iban = TradeRepublicIban },
-        new Account(OtherUserAccountId, "Sella", UserB),
+        TestAccounts.Create(SellaId, "Sella", UserA),
+        TestAccounts.Create(SatispayId, "Satispay", UserA),
+        TestAccounts.Create(TradeRepublicId, "Trade Republic", UserA).WithIban(TradeRepublicIban),
+        TestAccounts.Create(OtherUserAccountId, "Sella", UserB),
     ];
 
     [Fact]
@@ -336,5 +336,6 @@ public class TransferReconciliationServiceTests
         public Task<decimal> GetAvailability(int accountId, int userId) => throw new NotImplementedException();
         public Task<bool> UpdateAvailability(int accountId, decimal amount, bool saveChanges) => throw new NotImplementedException();
         public Task CalculateAvailabilities(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
+        public Task<Account?> GetAccountByImportSource(int userId, BankFileSource source) => throw new NotImplementedException();
     }
 }

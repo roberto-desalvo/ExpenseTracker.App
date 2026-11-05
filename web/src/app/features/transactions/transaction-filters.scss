@@ -53,12 +53,8 @@
 .month-select {
   flex: 1;
   min-width: 150px;
-  font-size: 0.9rem;
-  font-weight: 650;
-  text-transform: capitalize;
   text-align: center;
-  --mat-select-trigger-text-size: 0.9rem;
-  --mat-select-trigger-text-weight: 650;
+  --mat-select-trigger-text-weight: 600;
 }
 
 .range {
@@ -79,8 +75,8 @@
   background: transparent;
   color: var(--app-text);
   font: inherit;
-  font-size: 0.9rem;
-  font-weight: 650;
+  font-size: 0.875rem;
+  font-weight: 600;
   width: 100%;
   min-width: 0;
   flex: 1;

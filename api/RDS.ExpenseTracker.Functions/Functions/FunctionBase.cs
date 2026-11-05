@@ -32,6 +32,19 @@ public abstract class FunctionBase
     }
 
     /// <summary>
+    /// Returns the value of a successful result or throws the domain exception mapped from its errors
+    /// (for functions that build their own output, e.g. multi-output bindings).
+    /// </summary>
+    protected static T Unwrap<T>(Result<T> result)
+    {
+        if (result.IsFailed)
+        {
+            ThrowForResultFailure(result.Errors);
+        }
+        return result.Value;
+    }
+
+    /// <summary>
     /// Deserializes the JSON request body using the ASP.NET Core web defaults (camelCase, case-insensitive).
     /// </summary>
     protected static async Task<T> ReadBodyAsync<T>(HttpRequest request)

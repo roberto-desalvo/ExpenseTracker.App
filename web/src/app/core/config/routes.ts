@@ -1,6 +1,7 @@
 export const ROUTES = {
   dashboard: "/",
   transactions: "/movimenti",
+  imports: "/movimenti/import",
   analytics: "/analisi",
   settings: "/impostazioni",
 } as const;

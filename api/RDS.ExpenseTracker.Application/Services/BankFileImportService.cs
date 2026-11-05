@@ -1,8 +1,11 @@
 using ExcelDataReader;
 using FluentResults;
 using Microsoft.Extensions.Logging;
+using RDS.ExpenseTracker.Domain.Common;
+using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
 using RDS.ExpenseTracker.Domain.Models.DataImport;
+using RDS.ExpenseTracker.Domain.Repositories;
 using RDS.ExpenseTracker.Domain.Services;
 using System.Globalization;
 using System.Text;
@@ -17,6 +20,7 @@ public class BankFileImportService : IBankFileImportService
     private readonly ISatisPayCsvImportService _satisPayCsvImportService;
     private readonly ISellaCsvImportService _sellaCsvImportService;
     private readonly IImportLogService _importLogService;
+    private readonly IAccountRepository _accountRepository;
     private readonly ILogger<BankFileImportService> _logger;
 
     public BankFileImportService(
@@ -26,6 +30,7 @@ public class BankFileImportService : IBankFileImportService
         ISatisPayCsvImportService satisPayCsvImportService,
         ISellaCsvImportService sellaCsvImportService,
         IImportLogService importLogService,
+        IAccountRepository accountRepository,
         ILogger<BankFileImportService> logger)
     {
         _excelImportService            = excelImportService            ?? throw new ArgumentNullException(nameof(excelImportService));
@@ -34,6 +39,7 @@ public class BankFileImportService : IBankFileImportService
         _satisPayCsvImportService      = satisPayCsvImportService      ?? throw new ArgumentNullException(nameof(satisPayCsvImportService));
         _sellaCsvImportService         = sellaCsvImportService         ?? throw new ArgumentNullException(nameof(sellaCsvImportService));
         _importLogService              = importLogService              ?? throw new ArgumentNullException(nameof(importLogService));
+        _accountRepository             = accountRepository             ?? throw new ArgumentNullException(nameof(accountRepository));
         _logger                        = logger                        ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -50,29 +56,68 @@ public class BankFileImportService : IBankFileImportService
 
         var label = logSource ?? IBankFileImportService.DefaultLogSource(source, format);
 
+        // risoluzione del conto e conversione dentro il flusso tracciato: anche questi errori finiscono in ImportLogs
+        return RunTrackedAsync(label, fileName, userId, statistics =>
+            ImportWithoutLogAsync(source, format, content, fileName, userId, importAll, statistics));
+    }
+
+    public async Task<Result<int>> ImportWithoutLogAsync(
+        BankFileSource source,
+        BankFileFormat format,
+        Stream content,
+        string fileName,
+        int userId,
+        bool importAll,
+        ImportStatistics statistics,
+        int? accountId = null)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentNullException.ThrowIfNull(statistics);
+
         if (source == BankFileSource.Excel)
-        {
-            return RunTrackedAsync(label, fileName, userId, statistics =>
-                _excelImportService.ImportFromExcelAsync(content, fileName, userId, importAll, statistics));
-        }
+            return await _excelImportService.ImportFromExcelAsync(content, fileName, userId, importAll, statistics);
+
+        var accountResult = await ResolveAccountAsync(source, userId, accountId);
+        if (accountResult.IsFailed)
+            return accountResult.ToResult<int>();
+
+        var account = accountResult.Value;
+        statistics.AccountId = account.Id;
 
         var importCsv = GetCsvImporter(source);
 
         if (format == BankFileFormat.Csv)
+            return await importCsv(content, fileName, account, importAll, statistics);
+
+        var (csvStream, csvFileName) = ConvertToCsvPayload(content, fileName, GetCsvDelimiter(source));
+        await using (csvStream)
         {
-            return RunTrackedAsync(label, fileName, userId, statistics =>
-                importCsv(content, fileName, userId, importAll, statistics));
+            return await importCsv(csvStream, csvFileName, account, importAll, statistics);
+        }
+    }
+
+    // Il conto di destinazione è sempre un conto dell'utente il cui tipo è elaborato dall'import della banca.
+    private async Task<Result<Account>> ResolveAccountAsync(BankFileSource source, int userId, int? accountId)
+    {
+        var typeName = IBankFileImportService.DisplayName(source);
+
+        if (accountId is not { } id)
+        {
+            var byType = await _accountRepository.GetAccountByImportSource(userId, source);
+            return byType is null
+                ? Result.Fail(DomainErrors.BadRequest(
+                    $"No account of type '{typeName}' found: assign the account type to one of your accounts."))
+                : Result.Ok(byType);
         }
 
-        return RunTrackedAsync(label, fileName, userId, async statistics =>
-        {
-            // conversione dentro il flusso tracciato: un XLSX illeggibile viene registrato come import fallito
-            var (csvStream, csvFileName) = ConvertToCsvPayload(content, fileName, GetCsvDelimiter(source));
-            await using (csvStream)
-            {
-                return await importCsv(csvStream, csvFileName, userId, importAll, statistics);
-            }
-        });
+        var account = await _accountRepository.GetAccount(id, userId);
+        if (account is null)
+            return Result.Fail(DomainErrors.NotFound("Account", id));
+
+        if (account.AccountTypeNavigation?.ImportSource != source)
+            return Result.Fail(DomainErrors.BadRequest($"Account '{account.Name}' is not a {typeName} account."));
+
+        return Result.Ok(account);
     }
 
     public async Task<Result<int>> RunTrackedAsync(
@@ -110,7 +155,7 @@ public class BankFileImportService : IBankFileImportService
     public static char GetCsvDelimiter(BankFileSource source)
         => source == BankFileSource.SatisPay ? ';' : ',';
 
-    private delegate Task<Result<int>> CsvImporter(Stream stream, string fileName, int userId, bool importAll, ImportStatistics? statistics);
+    private delegate Task<Result<int>> CsvImporter(Stream stream, string fileName, Account account, bool importAll, ImportStatistics? statistics);
 
     private CsvImporter GetCsvImporter(BankFileSource source) => source switch
     {

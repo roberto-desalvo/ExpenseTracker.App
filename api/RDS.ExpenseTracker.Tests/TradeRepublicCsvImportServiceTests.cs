@@ -15,11 +15,13 @@ public class TradeRepublicCsvImportServiceTests
 {
     private const int TestUserId = 1;
 
+    private static readonly Account TradeRepublicAccount = TestAccounts.Create(1, "Trade Republic", TestUserId);
+
     private static readonly TransferMatchRule TradeRepublicRule = new()
     {
-        AccountName1 = "Trade Republic",
+        AccountType1 = "Trade Republic",
         DescriptionPattern1 = "Sepa Direct Debit transfer to Satispay Europe S.A.",
-        AccountName2 = "Satispay",
+        AccountType2 = "Satispay",
         DescriptionPattern2 = "Ricarica Satispay",
     };
 
@@ -37,7 +39,7 @@ public class TradeRepublicCsvImportServiceTests
             + "2026-06-10T08:00:00Z,CURRENT,PAYMENT_OUTBOUND,Supermarket,-12.50,Supermarket purchase,tr-1,\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-        var result = await service.ImportFromCsvAsync(stream, "traderepublic.csv", TestUserId);
+        var result = await service.ImportFromCsvAsync(stream, "traderepublic.csv", TradeRepublicAccount);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(1);
@@ -61,7 +63,7 @@ public class TradeRepublicCsvImportServiceTests
             + "2026-06-17T08:00:00Z,CURRENT,PAYMENT_OUTBOUND,Satispay Europe S.A.,-50.00,Sepa Direct Debit transfer to Satispay Europe S.A.,tr-2,\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-        var result = await service.ImportFromCsvAsync(stream, "traderepublic.csv", TestUserId);
+        var result = await service.ImportFromCsvAsync(stream, "traderepublic.csv", TradeRepublicAccount);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(1);
@@ -81,7 +83,7 @@ public class TradeRepublicCsvImportServiceTests
             out var transferRepository,
             out _,
             rules: [TradeRepublicRule],
-            accounts: [new Account(1, "Trade Republic", TestUserId), new Account(2, "Satispay", TestUserId)]);
+            accounts: [TestAccounts.Create(1, "Trade Republic", TestUserId), TestAccounts.Create(2, "Satispay", TestUserId)]);
 
         // Pre-existing unlinked Satispay recharge, dated one day before the TR debit.
         await transactionRepository.AddTransactions([
@@ -100,7 +102,7 @@ public class TradeRepublicCsvImportServiceTests
             + "2026-06-17T08:00:00Z,CURRENT,PAYMENT_OUTBOUND,Satispay Europe S.A.,-50.00,Sepa Direct Debit transfer to Satispay Europe S.A.,tr-3,\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-        var result = await service.ImportFromCsvAsync(stream, "traderepublic.csv", TestUserId);
+        var result = await service.ImportFromCsvAsync(stream, "traderepublic.csv", TradeRepublicAccount);
 
         result.IsSuccess.Should().BeTrue();
         transferRepository.AddedTransfers.Should().ContainSingle();
@@ -120,13 +122,13 @@ public class TradeRepublicCsvImportServiceTests
             out var transactionRepository,
             out var transferRepository,
             out _,
-            accounts: [new Account(1, "Trade Republic", TestUserId), new Account(2, "Sella", TestUserId) { Iban = "IT60X0542811101000000123456" }]);
+            accounts: [TestAccounts.Create(1, "Trade Republic", TestUserId), TestAccounts.Create(2, "Sella", TestUserId).WithIban("IT60X0542811101000000123456")]);
 
         const string csv = Header
             + "2026-06-10T08:00:00Z,CURRENT,TRANSFER_INSTANT_OUTBOUND,Sella,-100.00,Transfer to Sella,tr-iban-1,IT60X0542811101000000123456\n";
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-        var result = await service.ImportFromCsvAsync(stream, "traderepublic.csv", TestUserId);
+        var result = await service.ImportFromCsvAsync(stream, "traderepublic.csv", TradeRepublicAccount);
 
         result.IsSuccess.Should().BeTrue();
         transferRepository.AddedTransfers.Should().ContainSingle();
@@ -146,7 +148,7 @@ public class TradeRepublicCsvImportServiceTests
     {
         transactionRepository = new FakeTransactionRepository();
         transferRepository = new FakeTransferRepository();
-        accountRepository = new FakeAccountRepository(accounts ?? [new Account(1, "Trade Republic", TestUserId)]);
+        accountRepository = new FakeAccountRepository(accounts ?? [TestAccounts.Create(1, "Trade Republic", TestUserId)]);
 
         var categoryRepository = FakeCategoryRepository.WithDefaults(TestUserId);
         var transferMatchingOptions = new FakeTransferMatchingOptions { Rules = rules?.ToList() ?? [] };
@@ -164,7 +166,6 @@ public class TradeRepublicCsvImportServiceTests
 
     private sealed class FakeTradeRepublicCsvOptions : ITradeRepublicCsvOptions
     {
-        public string DefaultAccountName => "Trade Republic";
         public string? TradingAccountName => "Trade Republic Trading";
     }
 
@@ -282,5 +283,7 @@ public class TradeRepublicCsvImportServiceTests
         public Task<bool> UpdateAvailability(int accountId, decimal amount, bool saveChanges) => throw new NotImplementedException();
         public Task<decimal> GetAvailability(int accountId, int userId) => throw new NotImplementedException();
         public Task CalculateAvailabilities(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
+        public Task<Account?> GetAccountByImportSource(int userId, BankFileSource source)
+            => Task.FromResult(_accounts.FirstOrDefault(a => a.UserId == userId && a.AccountTypeNavigation?.ImportSource == source));
     }
 }

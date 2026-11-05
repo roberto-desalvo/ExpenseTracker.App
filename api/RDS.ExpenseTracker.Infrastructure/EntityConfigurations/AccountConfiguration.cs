@@ -17,6 +17,16 @@ public class AccountConfiguration : IEntityTypeConfiguration<Account>
                .IsUnique()
                .HasFilter("[Iban] IS NOT NULL");
 
+        // Un solo conto per tipo per utente: gli import risolvono il conto di destinazione dal tipo.
+        builder.HasIndex(a => new { a.UserId, a.AccountTypeId })
+               .IsUnique()
+               .HasFilter("[AccountTypeId] IS NOT NULL");
+
+        builder.HasOne(a => a.AccountTypeNavigation)
+               .WithMany()
+               .HasForeignKey(a => a.AccountTypeId)
+               .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasMany(a => a.Transactions)
                .WithOne(t => t.AccountNavigation)
                .HasForeignKey(t => t.AccountId)

@@ -90,6 +90,11 @@ export class TransactionsStore {
     }
   }
 
+  /** Movimenti cambiati fuori da questo store (es. un import da file concluso): ricarica le viste interessate. */
+  notifyExternalChange() {
+    void this.reloadAfterMutation();
+  }
+
   /**
    * Dopo una modifica: le viste aggregate si ricaricano tramite `dataVersion`;
    * mesi e lista dei movimenti solo se la pagina Movimenti è aperta (altrimenti li ricarica l'atterraggio sulla pagina).

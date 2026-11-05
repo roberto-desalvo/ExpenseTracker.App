@@ -13,6 +13,7 @@ erDiagram
     Category |o--o{ Transaction : classifica
     Transfer |o--o{ Transaction : "collega (2 leg)"
     Account |o--o{ ImportLog : riguarda
+    AccountType |o--o{ Account : "tipo di"
 
     User {
         int Id PK
@@ -24,8 +25,14 @@ erDiagram
     Account {
         int Id PK
         int UserId FK
+        int AccountTypeId FK "opzionale, univoco per utente"
         string Name
         string Iban "univoco per utente"
+    }
+    AccountType {
+        int Id PK "id fissi (seed)"
+        string Name "univoco"
+        int ImportSource "banca dell'import (BankFileSource), null se non importabile"
     }
     Category {
         int Id PK
@@ -59,6 +66,10 @@ erDiagram
         int UserId FK
         int AccountId FK "opzionale"
         datetime ImportedOn
+        int Status "Queued, Processing, Completed, Failed"
+        datetime StartedOn
+        datetime CompletedOn
+        string BlobName "file caricato dall'app"
         string Source
         string FileName
         datetime MinTransactionDate
@@ -81,11 +92,12 @@ erDiagram
 | Tabella | Ruolo |
 |---|---|
 | `Users` | Utente interno, creato al primo accesso; `IsDemo` abilita la rigenerazione dei dati demo |
-| `Accounts` | Conto finanziario; l'IBAN serve a riconoscere i trasferimenti negli import |
+| `Accounts` | Conto finanziario; l'IBAN serve a riconoscere i trasferimenti negli import, il tipo a scegliere il conto di destinazione |
+| `AccountTypes` | Catalogo fisso dei tipi di conto (BBVA, Satispay, Trade Republic, Sella, Revolut, Contanti, Hype, PayPal), creato dalla migration; i primi quattro hanno un import da file |
 | `Categories` | Categorie dell'utente; quelle con `Kind` valorizzato sono le 11 di sistema create con l'utente |
 | `Transactions` | Movimento; importo positivo = entrata, negativo = uscita |
 | `Transfers` | Collega le due metà di un trasferimento |
-| `ImportLogs` | Esito di ogni import di file |
+| `ImportLogs` | Stato ed esito di ogni import di file; per gli import dall'app anche il blob del file |
 | `OneDriveSyncStates` | Stato dell'import OneDrive: posizione della delta query, subscription Graph, lock |
 
 ## Vincoli principali
@@ -94,13 +106,14 @@ erDiagram
 |---|---|
 | Univoco filtrato `Transactions (AccountId, ExternalId)` | Impedisce di importare due volte lo stesso movimento sullo stesso conto |
 | Univoco filtrato `Accounts (UserId, Iban)` | Un IBAN identifica un solo conto per utente (utenti diversi possono condividerlo) |
+| Univoco filtrato `Accounts (UserId, AccountTypeId)` | Un conto per tipo per utente: gli import risolvono il conto dal tipo |
 | Univoco filtrato `Categories (UserId, Kind)` | Al più una categoria di sistema per tipo e per utente |
 | Univoci filtrati `Users.AzureOid`, `Users.AppOid` | Un utente per identità |
-| Indice `ImportLogs (UserId, ImportedOn)` | Consultazione cronologica degli import |
+| Indici `ImportLogs (UserId, ImportedOn)`, `(UserId, Status)` | Storico cronologico e import in corso |
 
 | Relazione | Alla cancellazione del padre |
 |---|---|
-| User → Account, User → Category, Account → Transaction | Bloccata (Restrict) |
+| User → Account, User → Category, Account → Transaction, AccountType → Account | Bloccata (Restrict) |
 | Category → Transaction, Transfer → Transaction | Il movimento resta, il riferimento diventa `NULL` |
 | User → ImportLog | I log vengono eliminati (Cascade) |
 | Account → ImportLog | Il log resta, `AccountId` diventa `NULL` |
@@ -110,7 +123,7 @@ erDiagram
 - **Saldo calcolato** — nessun saldo è memorizzato: si ottiene sommando i movimenti del conto.
 - **Categorie di sistema** — `CategoryEnum` (Default, MoneyTransfers, WorkIncomes, Housing, HealthAndFitness, FoodAndBeverage, Transportation, Entertainment, Clothes, SavingsAndInvestments, Gifts) definisce le categorie create per ogni utente. I valori non sono id: il codice risolve l'id dell'utente tramite `Category.Kind`.
 - **Giroconti esclusi dai flussi** — nei totali di entrate/uscite un movimento è un trasferimento se ha `TransferId` oppure è nella categoria `MoneyTransfers`. Saldi e patrimonio li includono sempre.
-- **Conti creati dagli import** — se un estratto conto riguarda un conto che l'utente non ha ancora, l'import lo crea.
+- **Conto degli import** — un estratto conto bancario va sul conto dell'utente del tipo di quella banca; se manca, l'import fallisce. Solo il formato Excel interno crea i conti che nomina e non trova.
 
 ## Migration
 

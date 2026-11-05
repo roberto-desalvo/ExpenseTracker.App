@@ -9,6 +9,11 @@ public class Account(int id, string name, int userId)
     // IBAN del conto (normalizzato: maiuscolo, senza spazi). Usato dagli import per riconoscere i trasferimenti.
     public string? Iban { get; set; }
 
+    // Tipo di conto (banca): determina quale import scrive su questo conto. Al massimo un conto per tipo per utente.
+    public int? AccountTypeId { get; set; }
+
+    public AccountType? AccountTypeNavigation { get; set; }
+
     public User? UserNavigation { get; set; }
     public ICollection<Transaction> Transactions { get; set; } = [];
 }

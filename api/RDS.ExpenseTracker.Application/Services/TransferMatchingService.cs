@@ -28,23 +28,23 @@ public class TransferMatchingService : ITransferMatchingService
         _options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
-    public bool IsTransferCandidate(string accountName, string description)
-        => FindMatchingRules(accountName, description).Any();
+    public bool IsTransferCandidate(Account account, string description)
+        => FindMatchingRules(account, description).Any();
 
-    public IReadOnlyList<TransferRuleCounterpart> GetCounterpartRules(string accountName, string description)
-        => FindMatchingRules(accountName, description)
-            .Select(m => new TransferRuleCounterpart(m.OtherAccountName, m.OtherDescriptionPattern, m.OtherMatchMode))
+    public IReadOnlyList<TransferRuleCounterpart> GetCounterpartRules(Account account, string description)
+        => FindMatchingRules(account, description)
+            .Select(m => new TransferRuleCounterpart(m.OtherAccountType, m.OtherDescriptionPattern, m.OtherMatchMode))
             .ToList();
 
     public async Task<TransferMatchResult> TryMatchAsync(
-        string accountName,
+        Account account,
         string description,
         decimal signedAmount,
         DateTime date,
         int userId,
         HashSet<int> consumedCandidateIds)
     {
-        var matches = FindMatchingRules(accountName, description).ToList();
+        var matches = FindMatchingRules(account, description).ToList();
         if (matches.Count == 0)
             return new TransferMatchResult(false, null);
 
@@ -57,7 +57,7 @@ public class TransferMatchingService : ITransferMatchingService
         foreach (var match in matches)
         {
             var candidate = await ClaimCandidateAsync(
-                match.OtherAccountName,
+                match.OtherAccountType,
                 expectedOppositeAmount,
                 expectedDate,
                 match.OtherDescriptionPattern,
@@ -73,7 +73,7 @@ public class TransferMatchingService : ITransferMatchingService
     }
 
     private async Task<Transaction?> ClaimCandidateAsync(
-        string otherAccountName,
+        string otherAccountType,
         decimal expectedOppositeAmount,
         DateTime expectedDate,
         string otherDescriptionPattern,
@@ -82,8 +82,7 @@ public class TransferMatchingService : ITransferMatchingService
         HashSet<int> consumedCandidateIds)
     {
         var accounts = await _accountRepository.GetAccounts(userId);
-        var otherAccount = accounts.FirstOrDefault(a =>
-            a.Name.Equals(otherAccountName, StringComparison.OrdinalIgnoreCase));
+        var otherAccount = accounts.FirstOrDefault(a => HasAccountType(a, otherAccountType));
 
         if (otherAccount == null)
             return null;
@@ -99,21 +98,28 @@ public class TransferMatchingService : ITransferMatchingService
             .FirstOrDefault();
     }
 
-    private IEnumerable<(TransferMatchRule Rule, string OtherAccountName, string OtherDescriptionPattern, DescriptionMatchMode OtherMatchMode)>
-        FindMatchingRules(string accountName, string description)
+    /// <summary>True se il conto è del tipo indicato (per nome del tipo, es. "Satispay").</summary>
+    public static bool HasAccountType(Account account, string accountTypeName)
+        => account.AccountTypeNavigation is { } type
+            && type.Name.Equals(accountTypeName, StringComparison.OrdinalIgnoreCase);
+
+    private IEnumerable<(TransferMatchRule Rule, string OtherAccountType, string OtherDescriptionPattern, DescriptionMatchMode OtherMatchMode)>
+        FindMatchingRules(Account account, string description)
     {
+        ArgumentNullException.ThrowIfNull(account);
+
         foreach (var rule in _options.Rules)
         {
-            if (rule.AccountName1.Equals(accountName, StringComparison.OrdinalIgnoreCase) &&
+            if (HasAccountType(account, rule.AccountType1) &&
                 MatchesDescription(description, rule.DescriptionPattern1, rule.DescriptionMatchMode1))
             {
-                yield return (rule, rule.AccountName2, rule.DescriptionPattern2, rule.DescriptionMatchMode2);
+                yield return (rule, rule.AccountType2, rule.DescriptionPattern2, rule.DescriptionMatchMode2);
             }
 
-            if (rule.AccountName2.Equals(accountName, StringComparison.OrdinalIgnoreCase) &&
+            if (HasAccountType(account, rule.AccountType2) &&
                 MatchesDescription(description, rule.DescriptionPattern2, rule.DescriptionMatchMode2))
             {
-                yield return (rule, rule.AccountName1, rule.DescriptionPattern1, rule.DescriptionMatchMode1);
+                yield return (rule, rule.AccountType1, rule.DescriptionPattern1, rule.DescriptionMatchMode1);
             }
         }
     }

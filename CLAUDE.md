@@ -95,7 +95,9 @@ SQL Server via EF Core Code-First. Core entities:
 
 ### Import Pipeline
 
-`ImportFunctions` accepts CSV or Excel uploads; both it and the automatic OneDrive import go through `IBankFileImportService` (routing per bank, XLSX→CSV conversion, `ImportLogs`). Each bank has a dedicated import service (`BbvaCsvImportService`, `SellaCsvImportService`, `SatisPayCsvImportService`, `TradeRepublicCsvImportService`). After parsing, `TransferMatchingService` auto-links transfer pairs using configurable matching rules. PowerShell helper scripts in `tools/scripts/` call these endpoints.
+`ImportFunctions` accepts CSV or Excel uploads; it, the automatic OneDrive import and the asynchronous in-app import all go through `IBankFileImportService` (target account resolved from the account's `AccountType`, routing per bank, XLSX→CSV conversion, `ImportLogs`). Each bank has a dedicated import service (`BbvaCsvImportService`, `SellaCsvImportService`, `SatisPayCsvImportService`, `TradeRepublicCsvImportService`) that receives the target account. After parsing, `TransferMatchingService` auto-links transfer pairs using configurable matching rules (by account type). PowerShell helper scripts in `tools/scripts/` call these endpoints.
+
+`ImportJobFunctions` handle the in-app import: `POST imports` stores the file in the `bank-imports` blob container, records a `Queued` `ImportLog` and enqueues it on `bank-file-import`; `ImportJob_Process` runs the pipeline via `ImportJobService` and sets the log to `Completed`/`Failed`.
 
 `OneDriveImportFunctions` replace the former Logic App: Microsoft Graph change notifications on the OneDrive folder (`/Transazioni/<Bank>/file`) → queue `onedrive-sync` → `OneDriveImportService` (delta query, import, move to `Importati`/`Errori`); a daily timer renews the Graph subscription. The drive is a personal OneDrive, so Graph is called with a delegated refresh token kept in Key Vault (`OneDriveTokenProvider`).
 

@@ -9,6 +9,7 @@ import { NavigationEnd, Router, RouterOutlet } from "@angular/router";
 import { filter, map } from "rxjs";
 import { AuthService } from "../core/auth/auth.service";
 import { NAV_ITEMS, isNavItemActive } from "../core/config/navigation";
+import { AccountTypesStore } from "../core/state/account-types.store";
 import { AccountsStore } from "../core/state/accounts.store";
 import { CategoriesStore } from "../core/state/categories.store";
 import { ThemeService } from "../core/theme/theme.service";
@@ -82,6 +83,7 @@ export class AppLayout {
     // anagrafiche condivise da tutte le pagine
     inject(AccountsStore).ensureLoaded();
     inject(CategoriesStore).ensureLoaded();
+    inject(AccountTypesStore).ensureLoaded();
 
     this.router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe(() => this.mobileOpen.set(false));
   }

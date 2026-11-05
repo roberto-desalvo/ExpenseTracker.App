@@ -28,6 +28,9 @@
           <span class="initials account-initials">{{ initialsOf(account.name) }}</span>
           <div class="col spacer">
             <span class="account-name nowrap">{{ account.name }}</span>
+            @if (typeName(account); as type) {
+              <span class="account-type nowrap">{{ type }}</span>
+            }
             @if (account.iban) {
               <span class="account-iban nowrap">{{ account.iban }}</span>
             }
@@ -92,7 +95,27 @@
       [disabled]="busy()"
       placeholder="Es. Conto corrente BBVA"
     />
-    <mat-hint>Usa lo stesso nome configurato per l'import, se il conto riceve movimenti da file.</mat-hint>
+  </mat-form-field>
+  <mat-form-field appearance="outline" class="field-block">
+    <mat-label>Tipo di conto</mat-label>
+    <mat-select [value]="accountTypeId()" (valueChange)="accountTypeId.set($event)" [disabled]="busy()">
+      <mat-option [value]="null">Nessuno</mat-option>
+      @for (type of accountTypes.all(); track type.id) {
+        <mat-option [value]="type.id" [disabled]="usedTypeIds().has(type.id)">
+          {{ type.name }}
+          @if (usedTypeIds().has(type.id)) {
+            <span class="option-note">· già assegnato</span>
+          }
+        </mat-option>
+      }
+    </mat-select>
+    <mat-hint>
+      @if (selectedTypeSupportsImport()) {
+        Gli estratti conto di questa banca si possono importare da Movimenti › Import.
+      } @else {
+        Facoltativo. La banca o lo strumento del conto; ogni tipo si assegna a un solo conto.
+      }
+    </mat-hint>
   </mat-form-field>
   <mat-form-field appearance="outline" class="field-block">
     <mat-label>IBAN</mat-label>

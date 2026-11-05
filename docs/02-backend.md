@@ -63,7 +63,8 @@ Prefisso `/api`. Tutti richiedono autenticazione salvo dove indicato. Una collec
 | | `POST auth/demo` *(anonimo)* | Token per la modalità demo |
 | Conti | `POST account/query`, `GET account/{id}` | Ricerca paginata, dettaglio |
 | | `GET account/{id}/availability` | Saldo (somma dei movimenti) |
-| | `POST account`, `PUT account` | Creazione (bulk), modifica (nome, IBAN) |
+| | `POST account`, `PUT account` | Creazione (bulk), modifica (nome, IBAN, tipo di conto) |
+| | `GET account-type` | Catalogo dei tipi di conto, con quelli importabili da file |
 | Categorie | `POST category/query`, `GET category/{id}`, `GET category/default` | Ricerca, dettaglio, categoria predefinita |
 | | `POST category`, `PUT category`, `DELETE category/{id}` | CRUD; l'eliminazione sposta i movimenti sulla predefinita |
 | | `POST category/sync` | Ricategorizza i movimenti di un periodo con le parole chiave |
@@ -75,6 +76,8 @@ Prefisso `/api`. Tutti richiedono autenticazione salvo dove indicato. Una collec
 | Trasferimenti | `GET transfer`, `GET transfer/{id}` | Elenco, dettaglio |
 | | `POST transfer`, `PUT transfer/{id}`, `DELETE transfer/{id}` | CRUD (ogni trasferimento sono due movimenti collegati) |
 | Demo | `POST demo/generate` | Rigenera i dati dell'utente demo (solo utenti con `IsDemo`) |
+| Import dall'app | `POST imports` | Multipart `file` (CSV/XLSX, max 10 MB) + `accountId`: salva il file e lo accoda, risponde 202 con l'import `Queued` (non per l'utente demo) |
+| | `POST imports/query` | Storico paginato degli import dell'utente (filtro opzionale per stato) |
 | Import *(ruolo `Files.Sender`)* | `POST import/{banca}-csv`, `…-csv/stream`, `…-xlsx` | Import di un estratto conto (banca: `bbva`, `sella`, `satispay`, `traderepublic`) |
 | | `POST import/excel`, `import/excel/base64`, `import/excel/stream` | Import del formato Excel storico |
 | | `POST import/transfers/reconcile` | Collega a posteriori i trasferimenti (`dryRun` opzionale) |
@@ -85,21 +88,29 @@ Prefisso `/api`. Tutti richiedono autenticazione salvo dove indicato. Una collec
 
 ```mermaid
 flowchart TD
+    app[ImportJob_Upload<br/>file caricato dall'app] --> blob[(Blob bank-imports)]
+    app --> queued[(ImportLogs: Queued)]
+    app --> queue[[Coda bank-file-import]]
+    queue --> job[ImportJob_Process<br/>Processing → Completed / Failed]
+    blob --> job
+    job --> bfi
     http[ImportFunctions<br/>upload HTTP] --> bfi
     od[OneDrive_Sync<br/>file da /Transazioni/&lt;Banca&gt;] --> bfi
-    bfi[IBankFileImportService<br/>sceglie l'importer, converte XLSX→CSV] --> imp
+    bfi[IBankFileImportService<br/>conto dal tipo, sceglie l'importer, converte XLSX→CSV] --> imp
     imp[Importer della banca<br/>parse delle righe] --> dedup[Deduplica per ExternalId]
-    dedup --> enrich[Conti creati se mancano,<br/>categoria da parole chiave]
+    dedup --> enrich[Categoria da parole chiave]
     enrich --> match[TransferMatchingService<br/>collega i giroconti]
     match --> save[(Salvataggio)]
     bfi --> log[(ImportLogs)]
 ```
 
+- **Conto di destinazione** — si risolve dal tipo di conto: è il conto dell'utente il cui `AccountType` è elaborato da quella banca (al massimo uno per tipo). Se l'utente non ce l'ha, l'import fallisce: i conti non vengono più creati in automatico. Il formato Excel interno resta multi-conto (nomi dei conti nel file). Il sotto-conto Trade Republic per le righe TRADING si riconosce per nome (`TradeRepublicCsv:TradingAccountName`); se manca, le righe vanno sul conto Trade Republic.
+- **Import asincrono dall'app** — `ImportJob_Upload` valida conto e file, salva il file nel container `bank-imports` dello storage dell'host, registra l'import come `Queued` e accoda l'id su `bank-file-import`. `ImportJob_Process` lo porta a `Processing`, esegue la stessa pipeline sul conto scelto e chiude il log come `Completed` o `Failed` (nessun retry sugli errori dell'import; un messaggio duplicato per un import già concluso è ignorato).
 - **Importer per banca** — ognuno conosce il formato del proprio estratto conto e da dove ricavare l'`ExternalId` (BBVA: impronta SHA-256 dei campi; le altre: id nativo della riga).
 - **Deduplica** — le righe con un `ExternalId` già presente tra i movimenti dell'utente sono scartate; un indice univoco sul database fa da rete di sicurezza.
 - **Categorie** — assegnate cercando le parole chiave delle categorie dell'utente nella descrizione (vince la priorità più bassa); senza corrispondenza si usa la categoria predefinita.
-- **Trasferimenti** — riconosciuti in tre modi: IBAN della controparte uguale all'IBAN di un altro conto dell'utente; regole configurate in `TransferMatching:Rules` (conto + testo della descrizione sui due lati); a posteriori, con la riconciliazione, anche per categoria di sistema `MoneyTransfers` con importo opposto entro 3 giorni.
-- **Tracciamento** — ogni import (riuscito o fallito) scrive una riga in `ImportLogs` con periodo coperto, movimenti nuovi, duplicati scartati ed eventuali errori.
+- **Trasferimenti** — riconosciuti in tre modi: IBAN della controparte uguale all'IBAN di un altro conto dell'utente; regole configurate in `TransferMatching:Rules` (tipo di conto + testo della descrizione sui due lati); a posteriori, con la riconciliazione, anche per categoria di sistema `MoneyTransfers` con importo opposto entro 3 giorni.
+- **Tracciamento** — ogni import (riuscito o fallito) scrive una riga in `ImportLogs` con stato, periodo coperto, movimenti nuovi, duplicati scartati ed eventuali errori; gli import sincroni (HTTP, OneDrive) nascono già conclusi.
 - **OneDrive** — un file importato viene spostato in `<Banca>/Importati`, uno fallito in `<Banca>/Errori`. Un lock sul database impedisce due sincronizzazioni contemporanee; la posizione della delta query è salvata in `OneDriveSyncStates`.
 
 Gli script PowerShell in `tools/scripts/` chiamano gli endpoint di import.

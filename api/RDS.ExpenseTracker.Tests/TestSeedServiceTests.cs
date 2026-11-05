@@ -257,6 +257,7 @@ public class TestSeedServiceTests
         public Task<bool> UpdateAvailability(int accountId, decimal amount, bool saveChanges) => throw new NotImplementedException();
         public Task<decimal> GetAvailability(int accountId, int userId) => throw new NotImplementedException();
         public Task CalculateAvailabilities(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
+        public Task<Account?> GetAccountByImportSource(int userId, BankFileSource source) => throw new NotImplementedException();
     }
 
     private sealed class FakeTransactionRepository : ITransactionRepository

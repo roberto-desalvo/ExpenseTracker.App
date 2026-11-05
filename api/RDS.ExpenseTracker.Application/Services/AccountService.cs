@@ -13,11 +13,13 @@ namespace RDS.ExpenseTracker.Application.Services;
 public class AccountService : IAccountService
 {
     private readonly IAccountRepository _repository;
+    private readonly IAccountTypeRepository _accountTypeRepository;
     private readonly IMapper _mapper;
 
-    public AccountService(IAccountRepository repository, IMapper mapper)
+    public AccountService(IAccountRepository repository, IAccountTypeRepository accountTypeRepository, IMapper mapper)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        _accountTypeRepository = accountTypeRepository ?? throw new ArgumentNullException(nameof(accountTypeRepository));
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
     }
 
@@ -73,6 +75,10 @@ public class AccountService : IAccountService
         if (ibanCheck.IsFailed)
             return ibanCheck;
 
+        var typeCheck = await ValidateAccountTypes(entities, userId);
+        if (typeCheck.IsFailed)
+            return typeCheck;
+
         await _repository.AddAccounts(entities);
         await _repository.SaveChangesAsync();
         return Result.Ok();
@@ -94,8 +100,42 @@ public class AccountService : IAccountService
         if (ibanCheck.IsFailed)
             return ibanCheck;
 
+        var typeCheck = await ValidateAccountTypes([entity], userId);
+        if (typeCheck.IsFailed)
+            return typeCheck;
+
         await _repository.UpdateAccount(entity);
         await _repository.SaveChangesAsync();
+        return Result.Ok();
+    }
+
+    // Il tipo è opzionale; se presente deve esistere e non essere già assegnato a un altro conto dell'utente,
+    // perché gli import risolvono il conto di destinazione dal tipo.
+    private async Task<Result> ValidateAccountTypes(IReadOnlyCollection<Account> accounts, int userId)
+    {
+        var typed = accounts.Where(a => a.AccountTypeId is not null).ToList();
+        if (typed.Count == 0)
+            return Result.Ok();
+
+        var types = (await _accountTypeRepository.GetAccountTypes()).ToDictionary(t => t.Id);
+        var unknown = typed.FirstOrDefault(a => !types.ContainsKey(a.AccountTypeId!.Value));
+        if (unknown is not null)
+            return Result.Fail(DomainErrors.BadRequest($"Account type {unknown.AccountTypeId} does not exist."));
+
+        var duplicateInRequest = typed.GroupBy(a => a.AccountTypeId).FirstOrDefault(g => g.Count() > 1);
+        if (duplicateInRequest is not null)
+            return Result.Fail(DomainErrors.Conflict(
+                $"Account type '{types[duplicateInRequest.Key!.Value].Name}' is assigned to more than one account."));
+
+        var existing = (await _repository.GetAccounts(userId)).ToList();
+        foreach (var account in typed)
+        {
+            var owner = existing.FirstOrDefault(e => e.AccountTypeId == account.AccountTypeId && e.Id != account.Id);
+            if (owner is not null)
+                return Result.Fail(DomainErrors.Conflict(
+                    $"Account type '{types[account.AccountTypeId!.Value].Name}' is already assigned to account '{owner.Name}'."));
+        }
+
         return Result.Ok();
     }
 

@@ -8,6 +8,7 @@ const accountBase = resource("account");
 const transactionBase = resource("transaction");
 const categoryBase = resource("category");
 const transferBase = resource("transfer");
+const importBase = resource("imports");
 
 export const apiConfig = {
   auth: {
@@ -34,5 +35,12 @@ export const apiConfig = {
   },
   transfers: {
     base: transferBase,
+  },
+  accountTypes: {
+    base: resource("account-type"),
+  },
+  imports: {
+    base: importBase,
+    query: `${importBase}/query`,
   },
 } as const;

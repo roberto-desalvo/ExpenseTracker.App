@@ -6,6 +6,10 @@ export const routes: Routes = [
     path: "movimenti",
     loadComponent: () => import("./features/transactions/transactions-page").then((m) => m.TransactionsPage),
   },
+  {
+    path: "movimenti/import",
+    loadComponent: () => import("./features/imports/imports-page").then((m) => m.ImportsPage),
+  },
   { path: "analisi", loadComponent: () => import("./features/analytics/analytics-page").then((m) => m.AnalyticsPage) },
   {
     path: "impostazioni",

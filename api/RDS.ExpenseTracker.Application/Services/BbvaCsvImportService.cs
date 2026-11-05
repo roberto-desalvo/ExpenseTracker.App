@@ -33,27 +33,23 @@ public class BbvaCsvImportService : IBbvaCsvImportService
 
     private readonly ITransactionRepository _transactionRepository;
     private readonly ICategoryRepository _categoryRepository;
-    private readonly IAccountRepository _accountRepository;
-    private readonly IBbvaCsvOptions _csvOptions;
     private readonly ILogger<BbvaCsvImportService> _logger;
 
     public BbvaCsvImportService(
         ITransactionRepository transactionRepository,
         ICategoryRepository categoryRepository,
-        IAccountRepository accountRepository,
-        IBbvaCsvOptions csvOptions,
         ILogger<BbvaCsvImportService> logger)
     {
         _transactionRepository = transactionRepository ?? throw new ArgumentNullException(nameof(transactionRepository));
         _categoryRepository = categoryRepository ?? throw new ArgumentNullException(nameof(categoryRepository));
-        _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
-        _csvOptions = csvOptions ?? throw new ArgumentNullException(nameof(csvOptions));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false, ImportStatistics? statistics = null)
+    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, Account account, bool importAll = false, ImportStatistics? statistics = null)
     {
+        ArgumentNullException.ThrowIfNull(account);
         statistics ??= new ImportStatistics();
+        var userId = account.UserId;
 
         try
         {
@@ -72,13 +68,6 @@ public class BbvaCsvImportService : IBbvaCsvImportService
             }
 
             statistics.TrackDates(rows.Select(r => r.Date ?? r.ValueDate));
-
-            var accounts = await EnsureAccountsExistAsync([_csvOptions.DefaultAccountName], userId);
-            var account = accounts.FirstOrDefault(a =>
-                a.Name.Equals(_csvOptions.DefaultAccountName, StringComparison.OrdinalIgnoreCase));
-
-            if (account == null)
-                return Result.Fail($"Account '{_csvOptions.DefaultAccountName}' not found");
 
             statistics.AccountId = account.Id;
 
@@ -325,26 +314,6 @@ public class BbvaCsvImportService : IBbvaCsvImportService
                 .Trim('"')
                 .Replace('\u00A0', ' ')
                 .Trim();
-
-    private async Task<List<Account>> EnsureAccountsExistAsync(IEnumerable<string> requiredAccountNames, int userId)
-    {
-        var accounts = (await _accountRepository.GetAccounts(userId)).ToList();
-
-        var missingNames = requiredAccountNames
-            .Where(name => !accounts.Any(a =>
-                a.Name != null && a.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
-            .ToList();
-
-        if (missingNames.Count > 0)
-        {
-            var newAccounts = missingNames.Select(name => new Account(0, name, userId)).ToList();
-            await _accountRepository.AddAccounts(newAccounts);
-            await _accountRepository.SaveChangesAsync();
-            accounts = (await _accountRepository.GetAccounts(userId)).ToList();
-        }
-
-        return accounts;
-    }
 
     private static DateTime? ParseDate(string? value)
     {

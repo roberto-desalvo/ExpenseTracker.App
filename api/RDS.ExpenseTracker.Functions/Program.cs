@@ -51,20 +51,19 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddInfrastructureServices(connectionString);
 builder.Services.AddApplicationServices();
 
+// File degli import asincroni: container blob nello storage dell'host (stessa connessione di AzureWebJobsStorage,
+// connection string in locale, identità gestita in Azure).
+var importStorageOptions = builder.Configuration.BindFromSectionName<ImportStorageOptions>();
+builder.Services.AddImportFileStorage(
+    builder.Configuration["AzureWebJobsStorage"],
+    builder.Configuration["AzureWebJobsStorage:accountName"],
+    importStorageOptions.ContainerName);
+
 builder.Services.AddScoped<IExpenseExcelFileOptions>(sp =>
     sp.GetRequiredService<IOptions<ExpenseExcelFileOptions>>().Value);
 
-builder.Services.AddScoped<IBbvaCsvOptions>(sp =>
-    sp.GetRequiredService<IOptions<BbvaCsvOptions>>().Value);
-
 builder.Services.AddScoped<ITradeRepublicCsvOptions>(sp =>
     sp.GetRequiredService<IOptions<TradeRepublicCsvOptions>>().Value);
-
-builder.Services.AddScoped<ISatisPayCsvOptions>(sp =>
-    sp.GetRequiredService<IOptions<SatisPayCsvOptions>>().Value);
-
-builder.Services.AddScoped<ISellaCsvOptions>(sp =>
-    sp.GetRequiredService<IOptions<SellaCsvOptions>>().Value);
 
 builder.Services.AddScoped<ITransferMatchingOptions>(sp =>
     sp.GetRequiredService<IOptions<TransferMatchingOptions>>().Value);

@@ -9,7 +9,7 @@ L'ambiente Azure è descritto interamente in Bicep (`infra/`) e distribuito da G
 | `main.bicep` | Entry point (scope resource group): naming, tag, moduli, output; referenzia SQL server e database già esistenti |
 | `modules/entra.bicep` | App registration API (scope `access_as_user` ed `execute_script`, ruolo `Files.Sender`), SPA, OneDrive import |
 | `modules/functionApp.bicep` | Piano Flex Consumption + Function App, managed identity, CORS, app settings, ruoli RBAC |
-| `modules/storage.bicep` | Storage dell'host Functions (coda `onedrive-sync`), senza shared key |
+| `modules/storage.bicep` | Storage dell'host Functions, senza shared key: code `onedrive-sync` e `bank-file-import`, container `bank-imports` per i file caricati dall'app (cancellati dopo 30 giorni da una lifecycle policy) |
 | `modules/keyVault.bicep` | Key Vault con RBAC |
 | `modules/monitoring.bicep` | Log Analytics + Application Insights |
 | `modules/staticWebApp.bicep` | Static Web App del frontend, dominio custom opzionale |
@@ -40,7 +40,7 @@ I workflow non eseguono i test: il deploy non ha un gate automatico.
 
 ## Configurazione
 
-**Backend** — `appsettings.json` (nomi dei conti di default per importer, regole `TransferMatching`), poi `appsettings.{ambiente}.json`, poi variabili d'ambiente / app settings. In Azure le app settings sono scritte da Bicep. In locale si copia `local.settings.example.json` in `local.settings.json`; la coda richiede Azurite.
+**Backend** — `appsettings.json` (sotto-conto trading di Trade Republic, regole `TransferMatching` per tipo di conto), poi `appsettings.{ambiente}.json`, poi variabili d'ambiente / app settings. In Azure le app settings sono scritte da Bicep. In locale si copia `local.settings.example.json` in `local.settings.json`; code e blob degli import richiedono Azurite.
 
 | Sezione | Uso |
 |---|---|
@@ -50,7 +50,8 @@ I workflow non eseguono i test: il deploy non ha un gate automatico.
 | `DemoAuth` | Login demo: `Enabled`, `SigningKey` (≥ 32 byte, in Key Vault) |
 | `OneDriveImport` | Import da OneDrive: `Enabled`, cartella, utente destinatario, Key Vault, `ClientState` |
 | `DemoResetSchedule`, `OneDriveSubscriptionRenewalSchedule` | Orari NCRONTAB (UTC) dei timer |
-| `BbvaCsv`, `SellaCsv`, `SatisPayCsv`, `TradeRepublicCsv`, `TransferMatching` | Opzioni degli importer |
+| `TradeRepublicCsv`, `TransferMatching` | Opzioni degli importer: nome del sotto-conto per le righe TRADING, regole per collegare i trasferimenti (`AccountType1/2` = nomi dei tipi di conto) |
+| `ImportStorage:ContainerName` | Container dei file caricati dall'app (default `bank-imports`), nello storage di `AzureWebJobsStorage` |
 
 **Frontend** — `web/.env.local` (modello `web/.env.example`); `scripts/write-env.mjs` le scrive in `src/environments/env.generated.ts` prima di start, build, test e lint. L'ambiente di processo ha la precedenza (così la CI usa i propri valori).
 

@@ -125,7 +125,7 @@ public class TransferReconciliationService : ITransferReconciliationService
         public const string CategoryMethod = "Category";
 
         private readonly Dictionary<int, Account> _accounts;
-        private readonly Dictionary<string, Account> _accountsByName;
+        private readonly Dictionary<string, Account> _accountsByType;
         private readonly List<Transaction> _transactions;
         private readonly ITransferMatchingService _matchingService;
         private readonly int? _moneyTransfersCategoryId;
@@ -144,9 +144,10 @@ public class TransferReconciliationService : ITransferReconciliationService
             _matchingService = matchingService;
             _moneyTransfersCategoryId = moneyTransfersCategoryId;
 
-            _accountsByName = new Dictionary<string, Account>(StringComparer.OrdinalIgnoreCase);
-            foreach (var account in accounts.Values.OrderBy(a => a.Id))
-                _accountsByName.TryAdd(account.Name, account);
+            // un solo conto per tipo per utente: le regole indicano la controparte per tipo di conto
+            _accountsByType = new Dictionary<string, Account>(StringComparer.OrdinalIgnoreCase);
+            foreach (var account in accounts.Values.Where(a => a.AccountTypeNavigation is not null).OrderBy(a => a.Id))
+                _accountsByType.TryAdd(account.AccountTypeNavigation!.Name, account);
 
             // le transazioni arrivano già ordinate per Date, Id: le liste dell'indice ereditano l'ordine
             _index = transactions
@@ -170,7 +171,7 @@ public class TransferReconciliationService : ITransferReconciliationService
                 if (_consumed.Contains(tx.Id))
                     continue;
 
-                var rules = _matchingService.GetCounterpartRules(_accounts[tx.AccountId].Name, tx.Description);
+                var rules = _matchingService.GetCounterpartRules(_accounts[tx.AccountId], tx.Description);
                 if (rules.Count == 0)
                     continue;
 
@@ -180,7 +181,7 @@ public class TransferReconciliationService : ITransferReconciliationService
 
                 foreach (var rule in rules)
                 {
-                    if (!_accountsByName.TryGetValue(rule.AccountName, out var otherAccount) || otherAccount.Id == tx.AccountId)
+                    if (!_accountsByType.TryGetValue(rule.AccountType, out var otherAccount) || otherAccount.Id == tx.AccountId)
                         continue;
 
                     var candidate = Bucket(otherAccount.Id, -tx.Amount).FirstOrDefault(c =>

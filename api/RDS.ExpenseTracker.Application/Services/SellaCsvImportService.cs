@@ -25,7 +25,6 @@ public class SellaCsvImportService : ISellaCsvImportService
     private readonly ITransferRepository _transferRepository;
     private readonly ICategoryRepository _categoryRepository;
     private readonly IAccountRepository _accountRepository;
-    private readonly ISellaCsvOptions _options;
     private readonly ITransferMatchingService _transferMatchingService;
     private readonly ILogger<SellaCsvImportService> _logger;
 
@@ -34,7 +33,6 @@ public class SellaCsvImportService : ISellaCsvImportService
         ITransferRepository transferRepository,
         ICategoryRepository categoryRepository,
         IAccountRepository accountRepository,
-        ISellaCsvOptions options,
         ITransferMatchingService transferMatchingService,
         ILogger<SellaCsvImportService> logger)
     {
@@ -42,14 +40,15 @@ public class SellaCsvImportService : ISellaCsvImportService
         _transferRepository = transferRepository ?? throw new ArgumentNullException(nameof(transferRepository));
         _categoryRepository = categoryRepository ?? throw new ArgumentNullException(nameof(categoryRepository));
         _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
-        _options = options ?? throw new ArgumentNullException(nameof(options));
         _transferMatchingService = transferMatchingService ?? throw new ArgumentNullException(nameof(transferMatchingService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false, ImportStatistics? statistics = null)
+    public async Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, Account sellaAccount, bool importAll = false, ImportStatistics? statistics = null)
     {
+        ArgumentNullException.ThrowIfNull(sellaAccount);
         statistics ??= new ImportStatistics();
+        var userId = sellaAccount.UserId;
 
         try
         {
@@ -62,12 +61,8 @@ public class SellaCsvImportService : ISellaCsvImportService
 
             statistics.TrackDates(rows.Select(r => (DateTime?)r.OperationDate));
 
-            var accounts = await EnsureAccountsExistAsync([_options.DefaultAccountName], userId);
-            var sellaAccount = accounts.FirstOrDefault(a =>
-                a.Name.Equals(_options.DefaultAccountName, StringComparison.OrdinalIgnoreCase));
-
-            if (sellaAccount == null)
-                return Result.Fail($"Account '{_options.DefaultAccountName}' not found");
+            // tutti i conti dell'utente: servono per riconoscere la controparte dei bonifici tramite IBAN
+            var accounts = (await _accountRepository.GetAccounts(userId)).ToList();
 
             statistics.AccountId = sellaAccount.Id;
 
@@ -117,7 +112,7 @@ public class SellaCsvImportService : ISellaCsvImportService
             foreach (var row in rows)
             {
                 var candidateDescription = BuildSafeDescription(row.Description, row.Identifier);
-                if (_transferMatchingService.IsTransferCandidate(_options.DefaultAccountName, candidateDescription))
+                if (_transferMatchingService.IsTransferCandidate(sellaAccount, candidateDescription))
                     candidateRows.Add(row);
                 else
                     remainingRows.Add(row);
@@ -298,24 +293,6 @@ public class SellaCsvImportService : ISellaCsvImportService
             && string.IsNullOrWhiteSpace(row.AmountRaw);
     }
 
-    private async Task<List<Account>> EnsureAccountsExistAsync(IEnumerable<string> requiredAccountNames, int userId)
-    {
-        var accounts = (await _accountRepository.GetAccounts(userId)).ToList();
-
-        var missing = requiredAccountNames
-            .Where(name => !accounts.Any(a => a.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
-            .ToList();
-
-        if (missing.Count > 0)
-        {
-            await _accountRepository.AddAccounts(missing.Select(name => new Account(0, name, userId)));
-            await _accountRepository.SaveChangesAsync();
-            accounts = (await _accountRepository.GetAccounts(userId)).ToList();
-        }
-
-        return accounts;
-    }
-
     private async Task ProcessTransferCandidateRow(
         SellaCsvRow row,
         Account sellaAccount,
@@ -329,7 +306,7 @@ public class SellaCsvImportService : ISellaCsvImportService
         var description = BuildSafeDescription(row.Description, row.Identifier);
 
         var matchResult = await _transferMatchingService.TryMatchAsync(
-            _options.DefaultAccountName, description, row.Amount, row.OperationDate, userId, consumedCandidateIds);
+            sellaAccount, description, row.Amount, row.OperationDate, userId, consumedCandidateIds);
 
         if (matchResult.Candidate != null)
         {

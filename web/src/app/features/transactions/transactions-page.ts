@@ -9,11 +9,13 @@ import { TransactionsTableStore } from "../../core/state/transactions-table.stor
 import { TransactionsStore } from "../../core/state/transactions.store";
 import { formatSignedCurrency } from "../../core/utils/format.utilities";
 import { NewEntryButton } from "../../layout/header-actions";
+import { ImportButton } from "../imports/import-button";
 import { ConfirmDeleteDialog } from "../../shared/ui/confirm-delete-dialog";
 import { DataTable } from "../../shared/ui/data-table";
 import { PageContainer } from "../../shared/ui/page-container";
 import { PageHeader } from "../../shared/ui/page-header";
 import { TransactionFilters } from "./transaction-filters";
+import { TransactionsTabs } from "./transactions-tabs";
 
 const dayFormatter = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "short", year: "numeric" });
 const weekdayFormatter = new Intl.DateTimeFormat("it-IT", { weekday: "long" });
@@ -26,6 +28,8 @@ const weekdayFormatter = new Intl.DateTimeFormat("it-IT", { weekday: "long" });
     PageContainer,
     PageHeader,
     NewEntryButton,
+    ImportButton,
+    TransactionsTabs,
     TransactionFilters,
     DataTable,
     ConfirmDeleteDialog,

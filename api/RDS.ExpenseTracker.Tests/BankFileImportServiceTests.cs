@@ -2,8 +2,11 @@ using FluentAssertions;
 using FluentResults;
 using Microsoft.Extensions.Logging.Abstractions;
 using RDS.ExpenseTracker.Application.Services;
+using RDS.ExpenseTracker.Domain.Dtos.Requests;
+using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
 using RDS.ExpenseTracker.Domain.Models.DataImport;
+using RDS.ExpenseTracker.Domain.Repositories;
 using RDS.ExpenseTracker.Domain.Services;
 using System.IO.Compression;
 using System.Text;
@@ -21,8 +24,18 @@ public class BankFileImportServiceTests
     private readonly FakeImporter _tradeRepublic = new();
     private readonly FakeImportLogService _importLog = new();
 
+    // un conto per ogni banca, più un conto senza tipo e uno di un tipo non importabile
+    private readonly FakeAccountRepository _accounts = new([
+        TestAccounts.Create(1, "BBVA", UserId),
+        TestAccounts.Create(2, "Sella", UserId),
+        TestAccounts.Create(3, "Satispay", UserId),
+        TestAccounts.Create(4, "Trade Republic", UserId),
+        TestAccounts.Create(5, "Conto senza tipo", UserId),
+        TestAccounts.Create(6, "Revolut", UserId),
+    ]);
+
     private BankFileImportService CreateService() => new(
-        _excel, _bbva, _tradeRepublic, _satisPay, _sella, _importLog, NullLogger<BankFileImportService>.Instance);
+        _excel, _bbva, _tradeRepublic, _satisPay, _sella, _importLog, _accounts, NullLogger<BankFileImportService>.Instance);
 
     [Theory]
     [InlineData(BankFileSource.Bbva)]
@@ -38,8 +51,71 @@ public class BankFileImportServiceTests
 
         result.IsSuccess.Should().BeTrue();
         var importer = ImporterFor(source);
-        importer.Calls.Should().ContainSingle().Which.Should().Be(("file.csv", "a,b\n1,2\n", UserId));
+        var call = importer.Calls.Should().ContainSingle().Subject;
+        call.FileName.Should().Be("file.csv");
+        call.Content.Should().Be("a,b\n1,2\n");
+        call.UserId.Should().Be(UserId);
+        call.AccountId.Should().Be(_accounts.Accounts.Single(a => a.AccountTypeNavigation?.ImportSource == source).Id);
         AllImporters().Except([importer]).Should().OnlyContain(i => i.Calls.Count == 0);
+    }
+
+    [Fact]
+    public async Task ImportAsync_FailsAndRecordsImportLog_WhenUserHasNoAccountOfTheBankType()
+    {
+        _accounts.Accounts.RemoveAll(a => a.AccountTypeId == AccountType.SellaId);
+        var service = CreateService();
+
+        var result = await service.ImportAsync(BankFileSource.Sella, BankFileFormat.Csv, new MemoryStream([1]), "sella.csv", UserId);
+
+        result.IsFailed.Should().BeTrue();
+        result.Errors.Should().ContainSingle(e => e.Message.Contains("Sella"));
+        _sella.Calls.Should().BeEmpty();
+        _importLog.Records.Should().ContainSingle().Which.Errors.Should().ContainSingle(e => e.Contains("Sella"));
+    }
+
+    [Fact]
+    public async Task ImportWithoutLogAsync_UsesTheGivenAccount_AndDoesNotRecordImportLog()
+    {
+        var service = CreateService();
+        var statistics = new ImportStatistics();
+
+        var result = await service.ImportWithoutLogAsync(
+            BankFileSource.Bbva, BankFileFormat.Csv, new MemoryStream(Encoding.UTF8.GetBytes("x")), "bbva.csv", UserId,
+            importAll: false, statistics, accountId: 1);
+
+        result.IsSuccess.Should().BeTrue();
+        _bbva.Calls.Should().ContainSingle().Which.AccountId.Should().Be(1);
+        statistics.AccountId.Should().Be(1);
+        _importLog.Records.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(5)] // conto senza tipo
+    [InlineData(6)] // tipo non importabile
+    [InlineData(2)] // conto Sella usato per un file BBVA
+    public async Task ImportWithoutLogAsync_Fails_WhenTheGivenAccountIsNotOfTheBankType(int accountId)
+    {
+        var service = CreateService();
+
+        var result = await service.ImportWithoutLogAsync(
+            BankFileSource.Bbva, BankFileFormat.Csv, new MemoryStream([1]), "bbva.csv", UserId,
+            importAll: false, new ImportStatistics(), accountId);
+
+        result.IsFailed.Should().BeTrue();
+        _bbva.Calls.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ImportWithoutLogAsync_Fails_WhenTheGivenAccountBelongsToAnotherUser()
+    {
+        var service = CreateService();
+
+        var result = await service.ImportWithoutLogAsync(
+            BankFileSource.Bbva, BankFileFormat.Csv, new MemoryStream([1]), "bbva.csv", UserId + 1,
+            importAll: false, new ImportStatistics(), accountId: 1);
+
+        result.IsFailed.Should().BeTrue();
+        _bbva.Calls.Should().BeEmpty();
     }
 
     [Fact]
@@ -188,28 +264,51 @@ public class BankFileImportServiceTests
     private sealed class FakeImporter :
         IExcelImportService, IBbvaCsvImportService, ISellaCsvImportService, ISatisPayCsvImportService, ITradeRepublicCsvImportService
     {
-        public List<(string FileName, string Content, int UserId)> Calls { get; } = [];
+        public List<(string FileName, string Content, int UserId, int? AccountId)> Calls { get; } = [];
         public Result<int> Result { get; set; } = FluentResults.Result.Ok(3);
         public Exception? Throw { get; set; }
 
-        public Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, int userId, bool importAll = false, ImportStatistics? statistics = null)
-            => Import(fileStream, fileName, userId);
+        public Task<Result<int>> ImportFromCsvAsync(Stream fileStream, string fileName, Account account, bool importAll = false, ImportStatistics? statistics = null)
+            => Import(fileStream, fileName, account.UserId, account.Id);
 
         public Task<Result<int>> ImportFromExcelAsync(Stream fileStream, string fileName, int userId, bool importAll = false, ImportStatistics? statistics = null)
-            => Import(fileStream, fileName, userId);
+            => Import(fileStream, fileName, userId, null);
 
         public Task<Result<int>> ImportFromExcelBase64Async(string base64Content, string fileName, int userId, bool importAll = false, ImportStatistics? statistics = null)
             => throw new NotSupportedException();
 
-        private Task<Result<int>> Import(Stream fileStream, string fileName, int userId)
+        private Task<Result<int>> Import(Stream fileStream, string fileName, int userId, int? accountId)
         {
             if (Throw is not null)
                 throw Throw;
 
             using var reader = new StreamReader(fileStream, leaveOpen: true);
-            Calls.Add((fileName, reader.ReadToEnd(), userId));
+            Calls.Add((fileName, reader.ReadToEnd(), userId, accountId));
             return Task.FromResult(Result);
         }
+    }
+
+    private sealed class FakeAccountRepository(IEnumerable<Account> seedAccounts) : IAccountRepository
+    {
+        public List<Account> Accounts { get; } = [.. seedAccounts];
+
+        public Task<Account?> GetAccount(int id, int userId)
+            => Task.FromResult(Accounts.FirstOrDefault(a => a.Id == id && a.UserId == userId));
+
+        public Task<IEnumerable<Account>> GetAccounts(int userId)
+            => Task.FromResult<IEnumerable<Account>>(Accounts.Where(a => a.UserId == userId));
+
+        public Task<Account?> GetAccountByImportSource(int userId, BankFileSource source)
+            => Task.FromResult(Accounts.FirstOrDefault(a => a.UserId == userId && a.AccountTypeNavigation?.ImportSource == source));
+
+        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
+        public Task AddAccounts(IEnumerable<Account> accounts) => throw new NotSupportedException();
+        public Task UpdateAccount(Account account) => throw new NotSupportedException();
+        public Task DeleteAccounts(IEnumerable<int> accountIds) => throw new NotSupportedException();
+        public Task<(IEnumerable<Account> Items, int TotalCount)> GetPagedAccounts(AccountQueryRequest request, int userId) => throw new NotSupportedException();
+        public Task<bool> UpdateAvailability(int accountId, decimal amount, bool saveChanges) => throw new NotSupportedException();
+        public Task<decimal> GetAvailability(int accountId, int userId) => throw new NotSupportedException();
+        public Task CalculateAvailabilities(IEnumerable<Transaction> transactions) => throw new NotSupportedException();
     }
 
     private sealed class FakeImportLogService : IImportLogService
