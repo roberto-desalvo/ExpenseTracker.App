@@ -1,7 +1,7 @@
 # Expense Tracker
 
 Web app personale per la gestione di entrate, uscite e trasferimenti tra conti.
-Demo disponibile https://thankful-island-04ae49a03.7.azurestaticapps.net/
+Demo disponibile www.expensetracker.lol
 
 ## Stack
 - **Backend**: Azure Functions (.NET 10, isolated worker), Clean Architecture, EF Core code-first su SQL Server.
@@ -18,7 +18,7 @@ Demo disponibile https://thankful-island-04ae49a03.7.azurestaticapps.net/
 - Seeding dei dati di test, eseguito ogni giorno da una timer function per ripristinare i dati demo.
 
 ## Demo 
-- https://thankful-island-04ae49a03.7.azurestaticapps.net/
+- www.expensetracker.lol
 
 ## Avvio rapido
 ```powershell
