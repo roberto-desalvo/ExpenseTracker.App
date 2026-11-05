@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using RDS.ExpenseTracker.Application.Mappings;
 using RDS.ExpenseTracker.Application.Services;
+using RDS.ExpenseTracker.Domain.Dtos;
 using RDS.ExpenseTracker.Domain.Dtos.Requests;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
@@ -219,6 +220,45 @@ public class TransactionServiceTests
         point.Invested.Should().Be(200m);
     }
 
+    [Fact]
+    public async Task UpdateTransaction_PreservesImportFields_WhenEditingDescriptionAndCategory()
+    {
+        var createdOn = new DateTime(2026, 1, 5, 10, 0, 0, DateTimeKind.Utc);
+        var transactionRepository = new FakeTransactionRepository(
+        [
+            new Transaction
+            {
+                Id = 42,
+                AccountId = AccountId,
+                Date = new DateTime(2026, 1, 5),
+                Amount = -12.5m,
+                Description = "SATISPAY*BAR",
+                ExternalId = "sat-123",
+                TransferId = 7,
+                CreatedOn = createdOn,
+            },
+        ]);
+        var service = CreateService(transactionRepository);
+
+        var result = await service.UpdateTransaction(new TransactionDto
+        {
+            Id = 42,
+            AccountId = AccountId,
+            Date = new DateTime(2026, 1, 5),
+            Amount = -12.5m,
+            Description = "Colazione",
+            CategoryId = 0,
+        }, UserId);
+
+        result.IsSuccess.Should().BeTrue();
+        var updated = transactionRepository.UpdatedTransactions.Single();
+        updated.Description.Should().Be("Colazione");
+        updated.ExternalId.Should().Be("sat-123");
+        updated.TransferId.Should().Be(7);
+        updated.CreatedOn.Should().Be(createdOn);
+        updated.UpdatedOn.Should().NotBeNull();
+    }
+
     private static Transaction Transaction(DateTime date, decimal amount, int categoryId) => new()
     {
         AccountId = AccountId,
@@ -281,8 +321,10 @@ public class TransactionServiceTests
         }
 
         public Task AddTransactions(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
-        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => throw new NotImplementedException();
-        public Task<Transaction?> GetTransaction(int id, int userId) => throw new NotImplementedException();
+        public List<Transaction> UpdatedTransactions { get; } = [];
+
+        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(UpdatedTransactions.Count);
+        public Task<Transaction?> GetTransaction(int id, int userId) => Task.FromResult(_transactions.FirstOrDefault(t => t.Id == id));
         public Task<IEnumerable<Transaction>> GetTransactions(int userId) => throw new NotImplementedException();
         public Task<(IEnumerable<Transaction> Items, int TotalCount)> GetPagedTransactions(TransactionQueryRequest request, int userId) => throw new NotImplementedException();
         public Task<IEnumerable<(int AccountId, decimal Balance)>> GetAccountBalances(DateTime asOfDate, int userId) => throw new NotImplementedException();
@@ -295,7 +337,11 @@ public class TransactionServiceTests
         public Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds, int userId) => throw new NotImplementedException();
         public Task<List<Transaction>> GetCategorizableTransactions(int userId, DateTime startDate, DateTime endDate) => throw new NotImplementedException();
         public Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains) => throw new NotImplementedException();
-        public Task UpdateTransaction(Transaction transaction) => throw new NotImplementedException();
+        public Task UpdateTransaction(Transaction transaction)
+        {
+            UpdatedTransactions.Add(transaction);
+            return Task.CompletedTask;
+        }
         public Task DeleteTransaction(int id) => throw new NotImplementedException();
         public Task DeleteAllTransactions(int userId) => throw new NotImplementedException();
         public Task<IEnumerable<int>> DeleteTransactionsByAccountIds(IEnumerable<int> accountIds) => throw new NotImplementedException();

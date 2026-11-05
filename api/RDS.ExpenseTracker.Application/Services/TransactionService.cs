@@ -135,8 +135,16 @@ public class TransactionService : ITransactionService
         if (categoryCheck.IsFailed)
             return categoryCheck;
 
-        var entity = _mapper.Map<Transaction>(dto);
-        await _repository.UpdateTransaction(entity);
+        // si aggiornano solo i campi modificabili dalla UI: ExternalId (deduplica degli import),
+        // TransferId e CreatedOn non sono nel DTO e non vanno sovrascritti
+        existing.Amount = dto.Amount;
+        existing.Description = dto.Description;
+        existing.Date = dto.Date;
+        existing.AccountId = dto.AccountId;
+        existing.CategoryId = dto.CategoryId > 0 ? dto.CategoryId : null;
+        existing.UpdatedOn = DateTime.UtcNow;
+
+        await _repository.UpdateTransaction(existing);
         await _repository.SaveChangesAsync();
         return Result.Ok();
     }
