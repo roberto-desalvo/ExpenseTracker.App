@@ -21,6 +21,7 @@ erDiagram
         string AppOid "oid app/managed identity, univoco"
         string Email
         bool IsDemo
+        bool IsAdmin
         string AnalyticsLayout "JSON, null = predefinito"
     }
     Account {
@@ -54,6 +55,7 @@ erDiagram
         string Description
         datetime Date
         string ExternalId "chiave di deduplica"
+        datetime LegacyMatchedAt "abbinato allo storico Excel"
         datetime CreatedOn
         datetime UpdatedOn
     }
@@ -92,11 +94,11 @@ erDiagram
 
 | Tabella | Ruolo |
 |---|---|
-| `Users` | Utente interno, creato al primo accesso; `IsDemo` abilita la rigenerazione dei dati demo; `AnalyticsLayout` è il layout della pagina Analisi in JSON (id e larghezza delle card, il catalogo è nel frontend) |
+| `Users` | Utente interno, creato al primo accesso; `IsDemo` abilita la rigenerazione dei dati demo; `IsAdmin` le funzioni di amministrazione (la migration lo assegna all'utente con id 1); `AnalyticsLayout` è il layout della pagina Analisi in JSON (id e larghezza delle card, il catalogo è nel frontend) |
 | `Accounts` | Conto finanziario; l'IBAN serve a riconoscere i trasferimenti negli import, il tipo a scegliere il conto di destinazione |
 | `AccountTypes` | Catalogo fisso dei tipi di conto (BBVA, Satispay, Trade Republic, Sella, Revolut, Contanti, Hype, PayPal), creato dalla migration; i primi quattro hanno un import da file |
 | `Categories` | Categorie dell'utente; quelle con `Kind` valorizzato sono le 11 di sistema create con l'utente |
-| `Transactions` | Movimento; importo positivo = entrata, negativo = uscita |
+| `Transactions` | Movimento; importo positivo = entrata, negativo = uscita; `LegacyMatchedAt` indica che è stato abbinato a una riga dello storico Excel |
 | `Transfers` | Collega le due metà di un trasferimento |
 | `ImportLogs` | Stato ed esito di ogni import di file; per gli import dall'app anche il blob del file |
 | `OneDriveSyncStates` | Stato dell'import OneDrive: posizione della delta query, subscription Graph, lock |

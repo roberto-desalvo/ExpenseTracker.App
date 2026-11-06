@@ -172,6 +172,8 @@ Data valuta;Data;Parola chiave;Movimento;Importo;Valuta;Disponibile;Valuta;Osser
             => Task.FromResult(Enumerable.Empty<string>());
 
         public Task<List<Transaction>> GetCategorizableTransactions(int userId, DateTime startDate, DateTime endDate) => throw new NotImplementedException();
+        public Task<List<Transaction>> GetTransactionsInRange(int userId, DateTime startDate, DateTime endDate) => throw new NotImplementedException();
+        public Task<List<Transaction>> GetTransactionsByIds(IEnumerable<int> ids, int userId) => throw new NotImplementedException();
         public Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains) => throw new NotImplementedException();
 
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

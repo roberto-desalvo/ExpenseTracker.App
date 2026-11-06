@@ -303,6 +303,9 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<DateTime?>("LegacyMatchedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<int?>("TransferId")
                         .HasColumnType("int");
 
@@ -370,6 +373,11 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
+
+                    b.Property<bool>("IsAdmin")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<bool>("IsDemo")
                         .ValueGeneratedOnAdd()

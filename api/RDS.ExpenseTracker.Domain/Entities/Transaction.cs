@@ -11,6 +11,9 @@ public class Transaction
     public int? TransferId { get; set; }
     public string? ExternalId { get; set; }
 
+    // Valorizzato quando il movimento è stato abbinato a una riga dello storico Excel (Spese.xlsx).
+    public DateTime? LegacyMatchedAt { get; set; }
+
     public DateTime CreatedOn { get; set; }
     public DateTime? UpdatedOn { get; set; }
 

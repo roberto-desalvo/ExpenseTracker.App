@@ -6,6 +6,11 @@
     @if (fromAnalytics()) {
       <button actions matButton (click)="backToAnalytics()"><mat-icon>arrow_back</mat-icon> Torna all'analisi</button>
     }
+    @if (currentUser.isAdmin()) {
+      <a actions matButton="outlined" [routerLink]="routes.legacyMatch" matTooltip="Abbina lo storico Spese.xlsx ai movimenti (admin)">
+        <mat-icon>join_inner</mat-icon> Abbina Excel
+      </a>
+    }
     <app-import-button actions />
     <app-new-entry-button actions />
   </app-page-header>

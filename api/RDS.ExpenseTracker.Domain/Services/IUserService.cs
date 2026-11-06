@@ -23,4 +23,9 @@ public interface IUserService : IService
     Task<Result<AnalyticsLayoutDto?>> GetAnalyticsLayoutAsync(int userId);
 
     Task<Result<AnalyticsLayoutDto>> SaveAnalyticsLayoutAsync(int userId, AnalyticsLayoutDto layout);
+
+    Task<Result<CurrentUserDto>> GetCurrentUserAsync(int userId);
+
+    // Fallisce con Forbidden se l'utente non è admin.
+    Task<Result> EnsureAdminAsync(int userId);
 }

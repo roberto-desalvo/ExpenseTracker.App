@@ -820,6 +820,24 @@
         "name": "UserSettings",
         "item": [
             {
+                "name": "UserSettings_GetMe",
+                "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                        "raw": "{{baseUrl}}/user/me",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "user",
+                            "me"
+                        ]
+                    },
+                    "description": "Profilo dell'utente corrente: `{ email, isDemo, isAdmin }`."
+                }
+            },
+            {
                 "name": "UserSettings_GetAnalyticsLayout",
                 "request": {
                     "method": "GET",
@@ -891,6 +909,100 @@
               ]
             },
             "description": "Rigenera da zero i dati demo dell'utente autenticato. 403 se l'utente non ha `IsDemo = true`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "LegacyMatch",
+      "description": "Abbinamento dello storico Excel (Spese.xlsx) ai movimenti. Solo utenti admin (`Users.IsAdmin`), altrimenti 403.",
+      "item": [
+        {
+          "name": "LegacyMatch_Sheets",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/legacy-match/sheets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "legacy-match",
+                "sheets"
+              ]
+            },
+            "description": "Fogli mensili del file (`[{ name, year, month }]`).",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "LegacyMatch_Month",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/legacy-match/month",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "legacy-match",
+                "month"
+              ]
+            },
+            "description": "Righe del foglio, movimenti a DB del mese ±7 giorni e coppie suggerite (stesso conto, importo ±0,02).",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "sheet",
+                  "value": "Ottobre2025",
+                  "type": "text"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "LegacyMatch_Apply",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/legacy-match/apply",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "legacy-match",
+                "apply"
+              ]
+            },
+            "description": "Salva descrizione e categoria sui movimenti abbinati e imposta `LegacyMatchedAt`. Risponde con il numero di movimenti aggiornati.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"transactionId\": 1,\n      \"description\": \"POS CONAD - spesa conad\",\n      \"categoryId\": null\n    }\n  ]\n}"
+            }
           }
         }
       ]

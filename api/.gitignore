@@ -403,3 +403,5 @@ FodyWeavers.xsd
 **/app.config.dev
 # Azure Functions local settings (secrets)
 **/local.settings.json
+
+Spese.xlsx

@@ -9,6 +9,7 @@ const transactionBase = resource("transaction");
 const categoryBase = resource("category");
 const transferBase = resource("transfer");
 const importBase = resource("imports");
+const legacyMatchBase = resource("legacy-match");
 
 export const apiConfig = {
   auth: {
@@ -44,6 +45,12 @@ export const apiConfig = {
     query: `${importBase}/query`,
   },
   userSettings: {
+    me: resource("user/me"),
     analyticsLayout: resource("user/analytics-layout"),
+  },
+  legacyMatch: {
+    sheets: `${legacyMatchBase}/sheets`,
+    month: `${legacyMatchBase}/month`,
+    apply: `${legacyMatchBase}/apply`,
   },
 } as const;

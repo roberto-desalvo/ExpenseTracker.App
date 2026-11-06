@@ -7,4 +7,5 @@ public class UserDto
     public string? AppOid { get; set; }
     public string Email { get; set; } = string.Empty;
     public bool IsDemo { get; set; }
+    public bool IsAdmin { get; set; }
 }

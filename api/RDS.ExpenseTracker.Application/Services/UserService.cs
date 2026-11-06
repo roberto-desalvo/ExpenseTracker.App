@@ -116,6 +116,26 @@ public class UserService : IUserService
         return Result.Ok(normalized);
     }
 
+    public async Task<Result<CurrentUserDto>> GetCurrentUserAsync(int userId)
+    {
+        var user = await _repository.GetById(userId);
+        if (user is null)
+            return Result.Fail(DomainErrors.NotFound("User", userId));
+
+        return Result.Ok(new CurrentUserDto { Email = user.Email, IsDemo = user.IsDemo, IsAdmin = user.IsAdmin });
+    }
+
+    public async Task<Result> EnsureAdminAsync(int userId)
+    {
+        var user = await _repository.GetById(userId);
+        if (user is null)
+            return Result.Fail(DomainErrors.NotFound("User", userId));
+
+        return user.IsAdmin
+            ? Result.Ok()
+            : Result.Fail(DomainErrors.Forbidden("This operation is reserved to administrators."));
+    }
+
     private static BadRequestResultError? ValidateAnalyticsLayout(AnalyticsLayoutDto? layout)
     {
         if (layout?.Cards is null)

@@ -1,0 +1,205 @@
+<app-page-container>
+  <app-page-header
+    title="Abbinamento storico Excel"
+    subtitle="Abbina le righe di un mese di Spese.xlsx ai movimenti registrati: il movimento prende la categoria del file e la descrizione «DB - Excel»."
+  >
+    <a actions matButton [routerLink]="routes.transactions"><mat-icon>arrow_back</mat-icon> Movimenti</a>
+    <button actions matButton="filled" (click)="fileInput.click()" [disabled]="store.loading() || store.saving()">
+      <mat-icon>upload_file</mat-icon> {{ store.file() ? "Cambia file" : "Carica Spese.xlsx" }}
+    </button>
+  </app-page-header>
+  <input #fileInput type="file" hidden accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" (change)="onFileSelected($event)" />
+
+  @if (!store.file()) {
+    <app-surface-card>
+      <app-empty-state
+        icon="table_view"
+        title="Nessun file caricato"
+        text="Carica il file Excel dello storico spese: viene letto un mese (foglio) alla volta e non viene salvato sul server."
+        [minHeight]="260"
+      >
+        <button matButton="filled" (click)="fileInput.click()" [disabled]="store.loading()">
+          <mat-icon>upload_file</mat-icon> Carica Spese.xlsx
+        </button>
+      </app-empty-state>
+    </app-surface-card>
+  } @else {
+    <app-surface-card class="toolbar">
+      <div class="toolbar-row">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="sheet-field">
+          <mat-label>Mese</mat-label>
+          <mat-select [value]="store.selectedSheet()" (selectionChange)="store.loadSheet($event.value)" [disabled]="store.saving()">
+            @for (sheet of store.sheets(); track sheet.name) {
+              <mat-option [value]="sheet.name">{{ sheetLabel(sheet) }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="account-field">
+          <mat-label>Conto</mat-label>
+          <mat-select [value]="accountFilter()" (selectionChange)="accountFilter.set($event.value)">
+            <mat-option [value]="null">Tutti i conti</mat-option>
+            @for (account of accountOptions(); track account.id) {
+              <mat-option [value]="account.id">{{ account.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-slide-toggle [checked]="showMatched()" (change)="showMatched.set($event.checked)">Mostra già abbinati</mat-slide-toggle>
+
+        <div class="stats">
+          <span><strong>{{ store.rows().length }}</strong> righe</span>
+          <span><strong>{{ store.pairList().length }}</strong> abbinate</span>
+          <span><strong>{{ store.toSave().length }}</strong> da salvare</span>
+        </div>
+      </div>
+      @if (unresolvedAccounts() > 0) {
+        <p class="hint">
+          <mat-icon class="icon-sm">info</mat-icon>
+          {{ unresolvedAccounts() }} righe senza conto riconosciuto: nessun suggerimento, ma puoi abbinarle a mano.
+        </p>
+      }
+      @if (store.loading()) {
+        <mat-progress-bar mode="indeterminate" />
+      }
+    </app-surface-card>
+
+    <p class="instructions">
+      Seleziona una riga Excel e poi il movimento da abbinare. Il numero indica la coppia su entrambi i lati.
+    </p>
+
+    <div class="panes">
+      <app-surface-card [title]="'Excel · ' + visibleRows().length + ' righe'" [flush]="true">
+        <ul class="list" role="listbox" aria-label="Righe Excel">
+          @for (row of visibleRows(); track row.rowNumber) {
+            @let index = store.pairIndexByRow().get(row.rowNumber);
+            <li>
+              <button
+                type="button"
+                class="item"
+                role="option"
+                [attr.aria-selected]="store.selectedRow() === row.rowNumber"
+                [class.selected]="store.selectedRow() === row.rowNumber"
+                [class.paired]="index !== undefined"
+                (click)="store.selectRow(row.rowNumber)"
+              >
+                <span class="badge" [class.empty]="index === undefined">{{ index ?? "" }}</span>
+                <span class="date">{{ day(row.date) }}</span>
+                <span class="main">
+                  <span class="description">{{ row.description }}</span>
+                  <span class="meta">
+                    {{ row.accountName ?? "Conto non indicato" }}
+                    @if (row.accountName && row.accountId === null) {
+                      <span class="warn">· non riconosciuto</span>
+                    }
+                    @if (row.excelCategory) {
+                      · {{ row.excelCategory }}
+                    }
+                  </span>
+                </span>
+                <span class="amount tabular" [class.income]="row.amount > 0">{{ formatSignedCurrency(row.amount) }}</span>
+              </button>
+            </li>
+          } @empty {
+            <li class="empty">Nessuna riga</li>
+          }
+        </ul>
+      </app-surface-card>
+
+      <app-surface-card [title]="'Database · ' + visibleTransactions().length + ' movimenti'" [flush]="true">
+        <ul class="list" role="listbox" aria-label="Movimenti a database">
+          @for (t of visibleTransactions(); track t.id) {
+            @let pairedRow = store.rowByTransaction().get(t.id);
+            @let index = pairedRow === undefined ? undefined : store.pairIndexByRow().get(pairedRow);
+            <li>
+              <button
+                type="button"
+                class="item"
+                role="option"
+                [attr.aria-selected]="selectedTransactionId() === t.id"
+                [class.selected]="selectedTransactionId() === t.id"
+                [class.paired]="index !== undefined"
+                [class.matched]="!!t.legacyMatchedAt"
+                [class.targetable]="store.selectedRow() !== null"
+                (click)="store.selectTransaction(t.id)"
+              >
+                <span class="badge" [class.empty]="index === undefined">{{ index ?? "" }}</span>
+                <span class="date">{{ day(t.date) }}</span>
+                <span class="main">
+                  <span class="description">{{ t.description || "—" }}</span>
+                  <span class="meta">
+                    {{ t.account }} · {{ t.category ?? "Senza categoria" }}
+                    @if (t.isTransfer) {
+                      · trasferimento
+                    }
+                    @if (t.legacyMatchedAt) {
+                      <span class="done">· già abbinato</span>
+                    }
+                  </span>
+                </span>
+                <span class="amount tabular" [class.income]="t.amount > 0">{{ formatSignedCurrency(t.amount) }}</span>
+              </button>
+            </li>
+          } @empty {
+            <li class="empty">Nessun movimento nel periodo</li>
+          }
+        </ul>
+      </app-surface-card>
+    </div>
+
+    <app-surface-card title="Abbinamenti" subtitle="Valori che verranno salvati sui movimenti: puoi modificarli prima di salvare." [hasAction]="true">
+      <button card-action matButton="filled" (click)="store.save()" [disabled]="store.saving() || store.loading() || store.toSave().length === 0">
+        <mat-icon>save</mat-icon> Salva {{ store.toSave().length }} abbinamenti
+      </button>
+
+      @if (store.pairList().length === 0) {
+        <app-empty-state icon="link_off" title="Nessun abbinamento" text="Nessun suggerimento per questo mese: abbina le righe a mano." [minHeight]="140" />
+      } @else {
+        <div class="pairs">
+          @for (pair of store.pairList(); track pair.rowNumber) {
+            @let row = store.row(pair.rowNumber);
+            @let t = store.transaction(pair.transactionId);
+            <div class="pair" [class.excluded]="!pair.included">
+              <mat-checkbox
+                [checked]="pair.included"
+                (change)="store.updatePair(pair.rowNumber, { included: $event.checked })"
+                aria-label="Includi nel salvataggio"
+              />
+              <span class="badge">{{ store.pairIndexByRow().get(pair.rowNumber) }}</span>
+              <div class="pair-source">
+                <span class="excel">{{ row?.description }}</span>
+                <span class="meta">
+                  {{ day(row?.date ?? null) }} · {{ formatSignedCurrency(row?.amount ?? 0) }} → {{ t?.description }}
+                  @if (!pair.suggested) {
+                    · manuale
+                  }
+                </span>
+              </div>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="description-field">
+                <mat-label>Descrizione</mat-label>
+                <input matInput [value]="pair.description" maxlength="500" (input)="onDescriptionInput(pair.rowNumber, $event)" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="category-field">
+                <mat-label>Categoria</mat-label>
+                <mat-select [value]="pair.categoryId" (selectionChange)="store.updatePair(pair.rowNumber, { categoryId: $event.value })">
+                  <mat-option [value]="null">Senza categoria</mat-option>
+                  @for (category of categories.all(); track category.id) {
+                    <mat-option [value]="category.id">{{ category.name }}</mat-option>
+                  }
+                </mat-select>
+                @if (row?.excelCategory && pair.categoryId === null) {
+                  <mat-hint>Excel: {{ row?.excelCategory }} (nessuna categoria omonima)</mat-hint>
+                } @else if (row?.excelCategory && categoryName(pair.categoryId) !== row?.excelCategory) {
+                  <mat-hint>Excel: {{ row?.excelCategory }}</mat-hint>
+                }
+              </mat-form-field>
+              <button matIconButton matTooltip="Rimuovi abbinamento" aria-label="Rimuovi abbinamento" (click)="store.unpair(pair.rowNumber)">
+                <mat-icon class="icon-sm">link_off</mat-icon>
+              </button>
+            </div>
+          }
+        </div>
+      }
+    </app-surface-card>
+  }
+</app-page-container>

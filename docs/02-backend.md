@@ -38,6 +38,8 @@ La registrazione DI è per convenzione: `AddApplicationServices()` e `AddInfrast
 
 **Utente interno.** Al primo accesso con Entra ID l'utente viene creato dall'oid del token (*JIT provisioning*), con le sue categorie di default. Gli accessi demo e sviluppo cercano un utente esistente per email e non lo creano mai. Gli endpoint di import accettano anche token app-only, risolti tramite `Users.AppOid`.
 
+**Admin.** `Users.IsAdmin` abilita le funzioni di amministrazione (oggi l'abbinamento dello storico Excel); il controllo è nel servizio, che risponde 403 agli altri utenti.
+
 **Isolamento.** Ogni servizio riceve lo `userId` e i repository filtrano sui conti dell'utente: una risorsa di un altro utente risponde 404. Le uniche operazioni trasversali a tutti gli utenti sono il reset dei dati demo e la riconciliazione dei trasferimenti.
 
 ### Errori
@@ -75,6 +77,7 @@ Prefisso `/api`. Tutti richiedono autenticazione salvo dove indicato. Una collec
 | | `POST transaction/series`, `POST transaction/stock` | Serie temporali: flussi per periodo, saldo medio per periodo |
 | Trasferimenti | `GET transfer`, `GET transfer/{id}` | Elenco, dettaglio |
 | | `POST transfer`, `PUT transfer/{id}`, `DELETE transfer/{id}` | CRUD (ogni trasferimento sono due movimenti collegati) |
+| Utente | `GET user/me` | Profilo dell'utente corrente (email, `isDemo`, `isAdmin`) |
 | Preferenze | `GET user/analytics-layout`, `PUT user/analytics-layout` | Layout della pagina Analisi (card visibili, ordine, larghezza); `null` se mai personalizzato |
 | Demo | `POST demo/generate` | Rigenera i dati dell'utente demo (solo utenti con `IsDemo`) |
 | Import dall'app | `POST imports` | Multipart `file` (CSV/XLSX, max 10 MB) + `accountId`: salva il file e lo accoda, risponde 202 con l'import `Queued` (non per l'utente demo) |
@@ -83,6 +86,9 @@ Prefisso `/api`. Tutti richiedono autenticazione salvo dove indicato. Una collec
 | | `POST import/excel`, `import/excel/base64`, `import/excel/stream` | Import del formato Excel storico |
 | | `POST import/transfers/reconcile` | Collega a posteriori i trasferimenti (`dryRun` opzionale) |
 | | `POST import/test-seed` | Rigenera l'utente di test con 5 anni di dati |
+| Storico Excel *(admin)* | `POST legacy-match/sheets` | Multipart `file` (Spese.xlsx): fogli mensili del file |
+| | `POST legacy-match/month` | Multipart `file` + `sheet`: righe del mese, movimenti a DB del mese ±7 giorni e coppie suggerite |
+| | `POST legacy-match/apply` | Salva descrizione e categoria sui movimenti abbinati e li marca (`LegacyMatchedAt`) |
 | OneDrive | `POST onedrive/notifications` *(anonimo)* | Notifiche Microsoft Graph |
 
 ## Pipeline di import
@@ -115,3 +121,12 @@ flowchart TD
 - **OneDrive** — un file importato viene spostato in `<Banca>/Importati`, uno fallito in `<Banca>/Errori`. Un lock sul database impedisce due sincronizzazioni contemporanee; la posizione della delta query è salvata in `OneDriveSyncStates`.
 
 Gli script PowerShell in `tools/scripts/` chiamano gli endpoint di import.
+
+## Abbinamento dello storico Excel
+
+Il vecchio file delle spese (`Spese.xlsx`, mai versionato) ha un foglio per mese (`Gennaio2026`, `Marzo 2022`…) con le righe in A–E (Data, Ragione, Uscite, Entrate, Fondo = conto) e, sotto la cella `Parametri importanti`, le categorie: il nome in colonna G e in colonna H una formula `SUMIF(B:B,"*parola*",C:C)+…`. `LegacySpreadsheetReader` legge valori e formule con OpenXml (ExcelDataReader non espone le formule); il file non viene salvato, il client lo rimanda a ogni richiesta.
+
+- **Righe** — escluse quelle senza data o importo e gli `aggiustamento`; i giroconti (colonne J–N) non sono letti. Importo = Entrate − Uscite.
+- **Categoria Excel** — la prima del foglio con una parola (termine sommato della formula) contenuta nella Ragione, preferendo le parole della colonna coerente con il segno. Suggerita la categoria dell'utente con lo stesso nome, altrimenti nessuna.
+- **Suggerimenti** (`LegacyMatchSuggester`) — conto risolto per nome del conto o del suo tipo; coppie 1:1 con stesso conto e importo entro ±0,02 €, preferendo la data più vicina; esclusi i movimenti già abbinati.
+- **Salvataggio** — il movimento prende descrizione e categoria scelte nella pagina (proposte "descrizione DB - descrizione Excel" e categoria suggerita) e `LegacyMatchedAt`.

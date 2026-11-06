@@ -6,7 +6,7 @@ using RDS.ExpenseTracker.Domain.Services;
 
 namespace RDS.ExpenseTracker.Functions.Functions;
 
-/// <summary>Preferenze dell'utente salvate a DB (layout della pagina Analisi).</summary>
+/// <summary>Profilo dell'utente corrente e preferenze salvate a DB (layout della pagina Analisi).</summary>
 public class UserSettingsFunctions : FunctionBase
 {
     private readonly IUserService _service;
@@ -16,6 +16,14 @@ public class UserSettingsFunctions : FunctionBase
     {
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _currentUserAccessor = currentUserAccessor ?? throw new ArgumentNullException(nameof(currentUserAccessor));
+    }
+
+    [Function("UserSettings_GetMe")]
+    public async Task<IActionResult> GetMe(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "user/me")] HttpRequest req)
+    {
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.GetCurrentUserAsync(userId));
     }
 
     [Function("UserSettings_GetAnalyticsLayout")]

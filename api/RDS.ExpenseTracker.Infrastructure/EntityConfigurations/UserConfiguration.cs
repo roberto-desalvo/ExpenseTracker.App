@@ -13,6 +13,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.AzureOid).HasMaxLength(64);
         builder.Property(u => u.AppOid).HasMaxLength(64);
         builder.Property(u => u.IsDemo).IsRequired().HasDefaultValue(false);
+        builder.Property(u => u.IsAdmin).IsRequired().HasDefaultValue(false);
         // JSON del layout della pagina Analisi (nvarchar(max)); null = predefinito.
         builder.Property(u => u.AnalyticsLayout);
 

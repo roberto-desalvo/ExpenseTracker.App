@@ -8,6 +8,9 @@ public class User(int id, string email, bool isDemo = false)
     public string Email { get; set; } = email ?? throw new ArgumentNullException(nameof(email));
     public bool IsDemo { get; set; } = isDemo;
 
+    // Abilita le funzioni di amministrazione (es. abbinamento dello storico Excel).
+    public bool IsAdmin { get; set; }
+
     // Layout della pagina Analisi in JSON (AnalyticsLayoutDto); null = layout predefinito.
     public string? AnalyticsLayout { get; set; }
 

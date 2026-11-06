@@ -92,7 +92,7 @@ public class UserServiceTests
         result.Value.Should().BeNull();
     }
 
-    private sealed class FakeUserRepository(params User[] users) : IUserRepository
+    internal sealed class FakeUserRepository(params User[] users) : IUserRepository
     {
         public int SaveCount { get; private set; }
 

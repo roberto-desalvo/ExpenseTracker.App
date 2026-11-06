@@ -2,6 +2,7 @@ export const ROUTES = {
   dashboard: "/",
   transactions: "/movimenti",
   imports: "/movimenti/import",
+  legacyMatch: "/movimenti/abbinamento-excel",
   analytics: "/analisi",
   settings: "/impostazioni",
 } as const;

@@ -21,6 +21,10 @@ public interface ITransactionRepository : IRepositoryBase
     Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds, int userId);
     // Movimenti tracciati (per modificarne la categoria) con data nel range, esclusi i trasferimenti.
     Task<List<Transaction>> GetCategorizableTransactions(int userId, DateTime startDate, DateTime endDate);
+    // Tutti i movimenti dell'utente con data nel range (estremi inclusi), con conto e categoria.
+    Task<List<Transaction>> GetTransactionsInRange(int userId, DateTime startDate, DateTime endDate);
+    // Movimenti dell'utente con gli id indicati (tracciati, per la modifica).
+    Task<List<Transaction>> GetTransactionsByIds(IEnumerable<int> ids, int userId);
     Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains);
     Task AddTransactions(IEnumerable<Transaction> transactions);
     Task UpdateTransaction(Transaction transaction);

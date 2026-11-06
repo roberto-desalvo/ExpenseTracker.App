@@ -1,7 +1,7 @@
 import { Location } from "@angular/common";
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
-import { ActivatedRoute, Router } from "@angular/router";
+import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import { ROUTES } from "../../core/config/routes";
 import { DRILL_DOWN_PARAMS, parseDrillDown } from "../../core/navigation/drill-down";
 import { MatButton, MatIconButton } from "@angular/material/button";
@@ -9,6 +9,7 @@ import { MatIconModule } from "@angular/material/icon";
 import { MatTooltip } from "@angular/material/tooltip";
 import Transaction from "../../core/models/Transaction";
 import { TransactionSortField } from "../../core/models/TransactionQueryRequest";
+import { CurrentUserStore } from "../../core/state/current-user.store";
 import { QuickActionsService } from "../../core/state/quick-actions.service";
 import { TransactionsTableStore } from "../../core/state/transactions-table.store";
 import { TransactionsStore } from "../../core/state/transactions.store";
@@ -42,6 +43,7 @@ const weekdayFormatter = new Intl.DateTimeFormat("it-IT", { weekday: "long" });
     MatIconButton,
     MatIconModule,
     MatTooltip,
+    RouterLink,
   ],
   templateUrl: "./transactions-page.html",
   styleUrl: "./transactions-page.scss",
@@ -50,6 +52,8 @@ export class TransactionsPage {
   protected readonly table = inject(TransactionsTableStore);
   protected readonly store = inject(TransactionsStore);
   protected readonly quickActions = inject(QuickActionsService);
+  protected readonly currentUser = inject(CurrentUserStore);
+  protected readonly routes = ROUTES;
 
   protected readonly toDelete = signal<Transaction | null>(null);
   protected readonly formatSignedCurrency = formatSignedCurrency;

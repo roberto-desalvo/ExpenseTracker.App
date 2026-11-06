@@ -313,6 +313,8 @@ public class TransferReconciliationServiceTests
         public Task<Transaction> GetLatestTransaction(int userId) => throw new NotImplementedException();
         public Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds, int userId) => throw new NotImplementedException();
         public Task<List<Transaction>> GetCategorizableTransactions(int userId, DateTime startDate, DateTime endDate) => throw new NotImplementedException();
+        public Task<List<Transaction>> GetTransactionsInRange(int userId, DateTime startDate, DateTime endDate) => throw new NotImplementedException();
+        public Task<List<Transaction>> GetTransactionsByIds(IEnumerable<int> ids, int userId) => throw new NotImplementedException();
         public Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains) => throw new NotImplementedException();
         public Task AddTransactions(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
         public Task UpdateTransaction(Transaction transaction) => throw new NotImplementedException();

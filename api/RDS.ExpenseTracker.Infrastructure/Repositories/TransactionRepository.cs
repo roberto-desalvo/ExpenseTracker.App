@@ -107,6 +107,27 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             .ToListAsync();
     }
 
+    public async Task<List<Transaction>> GetTransactionsInRange(int userId, DateTime startDate, DateTime endDate)
+    {
+        var from = startDate.Date;
+        var toExclusive = endDate.Date.AddDays(1);
+
+        return await ForUser(userId)
+            .AsNoTracking()
+            .Include(t => t.AccountNavigation)
+            .Include(t => t.CategoryNavigation)
+            .Where(t => t.Date != null && t.Date >= from && t.Date < toExclusive)
+            .OrderBy(t => t.Date)
+            .ThenBy(t => t.Id)
+            .ToListAsync();
+    }
+
+    public async Task<List<Transaction>> GetTransactionsByIds(IEnumerable<int> ids, int userId)
+    {
+        var idList = ids.Distinct().ToList();
+        return await ForUser(userId).Where(t => idList.Contains(t.Id)).ToListAsync();
+    }
+
     public async Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains)
     {
         var targetDate = date.Date;
