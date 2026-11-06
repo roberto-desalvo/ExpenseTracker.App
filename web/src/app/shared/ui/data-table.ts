@@ -154,7 +154,7 @@ export class DataTable<T, K = unknown> {
   readonly page = input.required<number>();
   readonly pageSize = input.required<number>();
   readonly totalCount = input.required<number>();
-  readonly pageSizeOptions = input([10, 25, 100]);
+  readonly pageSizeOptions = input([10, 20, 50]);
   readonly minTableWidth = input(700);
   /** "fixed" rispetta le larghezze delle colonne e manda a capo il contenuto invece di allargare la tabella */
   readonly tableLayout = input<"auto" | "fixed">("auto");
