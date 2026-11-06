@@ -73,7 +73,9 @@ export class LegacyMatchPage {
 
   protected readonly visibleRows = computed(() => {
     const account = this.accountFilter();
-    return this.store.rows().filter((r) => account === null || r.accountId === account);
+    // di default solo le righe ancora da gestire, così restano in vista quelle che mancano
+    const rows = this.showMatched() ? this.store.rows() : this.store.pendingRows();
+    return rows.filter((r) => account === null || r.accountId === account);
   });
 
   protected readonly visibleTransactions = computed(() => {
@@ -82,7 +84,7 @@ export class LegacyMatchPage {
     return this.store
       .dbTransactions()
       .filter((t) => account === null || t.accountId === account)
-      .filter((t) => this.showMatched() || !t.legacyMatchedAt || paired.has(t.id));
+      .filter((t) => this.showMatched() || (!t.legacyMatchedAt && !paired.has(t.id)));
   });
 
   /** Movimento abbinato alla riga selezionata, evidenziato a destra. */
@@ -94,6 +96,13 @@ export class LegacyMatchPage {
   protected readonly unresolvedAccounts = computed(
     () => this.store.rows().filter((r) => r.accountId === null).length,
   );
+
+  /** Stato di una riga gestita, mostrato quando si vedono anche le abbinate. */
+  protected rowStatus(rowNumber: number): "saved" | "dismissed" | null {
+    if (this.store.savedRows().has(rowNumber)) return "saved";
+    if (this.store.dismissedRows().has(rowNumber)) return "dismissed";
+    return null;
+  }
 
   protected sheetLabel(sheet: LegacySheet) {
     return formatPeriodLabel(`${sheet.year}-${String(sheet.month).padStart(2, "0")}`, true);

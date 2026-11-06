@@ -14,6 +14,32 @@ export interface LegacyPair {
   suggested: boolean;
 }
 
+/** Righe del foglio già gestite nella sessione: salvate oppure segnate a mano come abbinate. */
+interface HandledRows {
+  saved: number[];
+  dismissed: number[];
+}
+
+const storageKey = (fileName: string, sheet: string) => `legacy-match:${fileName}:${sheet}`;
+
+// sessionStorage può mancare o lanciare (navigazione privata, storage bloccato): si resta in memoria
+const readHandled = (key: string): HandledRows => {
+  try {
+    const parsed = JSON.parse(sessionStorage.getItem(key) ?? "null") as HandledRows | null;
+    return { saved: parsed?.saved ?? [], dismissed: parsed?.dismissed ?? [] };
+  } catch {
+    return { saved: [], dismissed: [] };
+  }
+};
+
+const writeHandled = (key: string, value: HandledRows) => {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // ignorato: lo stato resta valido finché la pagina è aperta
+  }
+};
+
 /** Descrizione proposta per il movimento abbinato: "descrizione DB - descrizione Excel". */
 export const defaultPairDescription = (row: LegacyExcelRow, transaction: LegacyDbTransaction) =>
   [transaction.description.trim(), row.description.trim()].filter((part) => part.length > 0).join(" - ");
@@ -37,6 +63,10 @@ export class LegacyMatchStore {
   readonly saving = signal(false);
   readonly selectedRow = signal<number | null>(null);
   readonly pairs = signal<ReadonlyMap<number, LegacyPair>>(new Map());
+  /** Righe salvate in questa sessione (anche nei caricamenti successivi dello stesso foglio). */
+  readonly savedRows = signal<ReadonlySet<number>>(new Set());
+  /** Righe segnate a mano come abbinate, senza un movimento. */
+  readonly dismissedRows = signal<ReadonlySet<number>>(new Set());
 
   readonly rows = computed(() => this.month()?.excelRows ?? []);
   readonly dbTransactions = computed(() => this.month()?.dbTransactions ?? []);
@@ -51,8 +81,15 @@ export class LegacyMatchStore {
 
   readonly toSave = computed(() => this.pairList().filter((p) => p.included));
 
+  /** Righe ancora da gestire: né abbinate, né salvate, né segnate come abbinate. */
+  readonly pendingRows = computed(() => this.rows().filter((r) => !this.isRowHandled(r.rowNumber)));
+
   private readonly rowsByNumber = computed(() => new Map(this.rows().map((r) => [r.rowNumber, r])));
   private readonly transactionsById = computed(() => new Map(this.dbTransactions().map((t) => [t.id, t])));
+
+  isRowHandled(rowNumber: number) {
+    return this.pairs().has(rowNumber) || this.savedRows().has(rowNumber) || this.dismissedRows().has(rowNumber);
+  }
 
   row(rowNumber: number) {
     return this.rowsByNumber().get(rowNumber);
@@ -93,6 +130,9 @@ export class LegacyMatchStore {
       const month = await this.api.getMonth(file, name);
       // un caricamento più recente (cambio rapido di mese) vince
       if (this.selectedSheet() !== name) return;
+      const handled = readHandled(storageKey(file.name, name));
+      this.savedRows.set(new Set(handled.saved));
+      this.dismissedRows.set(new Set(handled.dismissed));
       this.month.set(month);
       this.pairs.set(this.initialPairs(month));
     } catch {
@@ -138,6 +178,26 @@ export class LegacyMatchStore {
     this.selectedRow.set(null);
   }
 
+  /** Toglie la riga da quelle da gestire senza abbinarla a un movimento (es. già sistemata a mano). */
+  markAsMatched(rowNumber: number) {
+    this.unpair(rowNumber);
+    this.dismissedRows.update((current) => new Set(current).add(rowNumber));
+    if (this.selectedRow() === rowNumber) this.selectedRow.set(null);
+    this.persistHandled();
+  }
+
+  /** Riporta tra quelle da gestire una riga segnata come abbinata o salvata in questa sessione. */
+  restoreRow(rowNumber: number) {
+    const without = (current: ReadonlySet<number>) => {
+      const next = new Set(current);
+      next.delete(rowNumber);
+      return next;
+    };
+    this.dismissedRows.update(without);
+    this.savedRows.update(without);
+    this.persistHandled();
+  }
+
   unpair(rowNumber: number) {
     this.pairs.update((current) => {
       const next = new Map(current);
@@ -169,9 +229,12 @@ export class LegacyMatchStore {
       return;
     }
 
+    const savedRowNumbers = this.toSave().map((p) => p.rowNumber);
     this.saving.set(true);
     try {
       const saved = await this.api.apply(items);
+      this.savedRows.update((current) => new Set([...current, ...savedRowNumbers]));
+      this.persistHandled();
       this.notifications.showSuccess(`${saved} ${saved === 1 ? "movimento aggiornato" : "movimenti aggiornati"}`);
       this.transactions.notifyExternalChange();
     } catch {
@@ -184,11 +247,23 @@ export class LegacyMatchStore {
     if (sheet) await this.loadSheet(sheet);
   }
 
+  private persistHandled() {
+    const file = this.file();
+    const sheet = this.selectedSheet();
+    if (!file || !sheet) return;
+    writeHandled(storageKey(file.name, sheet), {
+      saved: [...this.savedRows()],
+      dismissed: [...this.dismissedRows()],
+    });
+  }
+
   private initialPairs(month: LegacyMonth) {
     const rows = new Map(month.excelRows.map((r) => [r.rowNumber, r]));
     const transactions = new Map(month.dbTransactions.map((t) => [t.id, t]));
     const pairs = new Map<number, LegacyPair>();
     for (const suggestion of month.suggestions) {
+      // le righe già gestite nella sessione non ricevono più suggerimenti
+      if (this.savedRows().has(suggestion.rowNumber) || this.dismissedRows().has(suggestion.rowNumber)) continue;
       const row = rows.get(suggestion.rowNumber);
       const transaction = transactions.get(suggestion.transactionId);
       if (!row || !transaction) continue;

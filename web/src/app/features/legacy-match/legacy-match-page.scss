@@ -69,6 +69,25 @@ mat-progress-bar {
   color: var(--app-text-muted);
 }
 
+.row-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+
+  .item {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &.handled .item {
+    opacity: 0.6;
+  }
+}
+
+.row-action {
+  flex-shrink: 0;
+}
+
 .item {
   display: flex;
   align-items: center;

@@ -31,6 +31,7 @@ describe("LegacyMatchStore", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    sessionStorage.clear();
     getSheets.mockResolvedValue([{ name: "Ottobre2025", year: 2025, month: 10 }]);
     getMonth.mockResolvedValue(structuredClone(MONTH));
     apply.mockResolvedValue(1);
@@ -91,6 +92,43 @@ describe("LegacyMatchStore", () => {
 
     expect(apply).not.toHaveBeenCalled();
     expect(showError).toHaveBeenCalled();
+  });
+
+  it("leaves only unhandled rows among the pending ones", () => {
+    expect(store.pendingRows().map((r) => r.rowNumber)).toEqual([3]);
+
+    store.unpair(2);
+
+    expect(store.pendingRows().map((r) => r.rowNumber)).toEqual([2, 3]);
+  });
+
+  it("marks a row as matched without a transaction, removing its pair", () => {
+    store.markAsMatched(2);
+    store.markAsMatched(3);
+
+    expect(store.pairs().size).toBe(0);
+    expect(store.pendingRows()).toEqual([]);
+
+    store.restoreRow(3);
+
+    expect(store.pendingRows().map((r) => r.rowNumber)).toEqual([3]);
+  });
+
+  it("keeps saved and dismissed rows handled when the sheet is reloaded in the same session", async () => {
+    store.markAsMatched(3);
+    await store.save();
+
+    expect(store.savedRows().has(2)).toBe(true);
+    expect(store.dismissedRows().has(3)).toBe(true);
+    // il mese ricaricato ripropone lo stesso suggerimento, ma la riga salvata non torna in abbinamento
+    expect(store.pairs().size).toBe(0);
+    expect(store.pendingRows()).toEqual([]);
+
+    // pagina riaperta: nuovo store, stato letto da sessionStorage
+    const reopened = TestBed.runInInjectionContext(() => new LegacyMatchStore());
+    await reopened.openFile(file);
+    expect(reopened.pairs().size).toBe(0);
+    expect(reopened.pendingRows()).toEqual([]);
   });
 
   it("builds the default description from the non-empty parts", () => {

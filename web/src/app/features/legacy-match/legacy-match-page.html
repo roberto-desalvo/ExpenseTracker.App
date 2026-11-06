@@ -45,11 +45,12 @@
           </mat-select>
         </mat-form-field>
 
-        <mat-slide-toggle [checked]="showMatched()" (change)="showMatched.set($event.checked)">Mostra già abbinati</mat-slide-toggle>
+        <mat-slide-toggle [checked]="showMatched()" (change)="showMatched.set($event.checked)">Mostra abbinati</mat-slide-toggle>
 
         <div class="stats">
           <span><strong>{{ store.rows().length }}</strong> righe</span>
-          <span><strong>{{ store.pairList().length }}</strong> abbinate</span>
+          <span><strong>{{ store.pendingRows().length }}</strong> da abbinare</span>
+          <span><strong>{{ store.pairList().length }}</strong> in abbinamento</span>
           <span><strong>{{ store.toSave().length }}</strong> da salvare</span>
         </div>
       </div>
@@ -65,15 +66,17 @@
     </app-surface-card>
 
     <p class="instructions">
-      Seleziona una riga Excel e poi il movimento da abbinare. Il numero indica la coppia su entrambi i lati.
+      Seleziona una riga Excel e poi il movimento da abbinare: le righe abbinate, salvate o segnate come abbinate escono dalle liste
+      (attiva «Mostra abbinati» per rivederle). Le coppie in corso sono nel riquadro Abbinamenti.
     </p>
 
     <div class="panes">
-      <app-surface-card [title]="'Excel · ' + visibleRows().length + ' righe'" [flush]="true">
+      <app-surface-card [title]="'Excel · ' + visibleRows().length + (showMatched() ? ' righe' : ' da abbinare')" [flush]="true">
         <ul class="list" role="listbox" aria-label="Righe Excel">
           @for (row of visibleRows(); track row.rowNumber) {
             @let index = store.pairIndexByRow().get(row.rowNumber);
-            <li>
+            @let status = rowStatus(row.rowNumber);
+            <li class="row-item" [class.handled]="status !== null">
               <button
                 type="button"
                 class="item"
@@ -95,13 +98,27 @@
                     @if (row.excelCategory) {
                       · {{ row.excelCategory }}
                     }
+                    @if (status === "saved") {
+                      <span class="done">· salvata</span>
+                    } @else if (status === "dismissed") {
+                      <span class="done">· segnata come abbinata</span>
+                    }
                   </span>
                 </span>
                 <span class="amount tabular" [class.income]="row.amount > 0">{{ formatSignedCurrency(row.amount) }}</span>
               </button>
+              @if (status !== null) {
+                <button matIconButton class="row-action" matTooltip="Riporta tra le righe da abbinare" aria-label="Riporta tra le righe da abbinare" (click)="store.restoreRow(row.rowNumber)">
+                  <mat-icon class="icon-sm">undo</mat-icon>
+                </button>
+              } @else {
+                <button matIconButton class="row-action" matTooltip="Segna come abbinata" aria-label="Segna come abbinata" (click)="store.markAsMatched(row.rowNumber)">
+                  <mat-icon class="icon-sm">done</mat-icon>
+                </button>
+              }
             </li>
           } @empty {
-            <li class="empty">Nessuna riga</li>
+            <li class="empty">{{ showMatched() ? "Nessuna riga" : "Tutte le righe sono abbinate" }}</li>
           }
         </ul>
       </app-surface-card>
