@@ -80,6 +80,8 @@ public class TransferFunctions : FunctionBase
     {
         var request = await ReadBodyAsync<TransferCounterpartRequest>(req);
         var userId = await _currentUserAccessor.GetUserIdAsync();
-        return await ExecuteAsync(() => _service.LinkCounterpart(id, request.CounterpartId, userId));
+        return request.NewCounterpart is { } newCounterpart
+            ? await ExecuteAsync(() => _service.CreateCounterpart(id, newCounterpart, userId))
+            : await ExecuteAsync(() => _service.LinkCounterpart(id, request.CounterpartId, userId));
     }
 }

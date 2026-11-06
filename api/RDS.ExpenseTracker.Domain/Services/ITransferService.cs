@@ -1,6 +1,7 @@
 using FluentResults;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Dtos;
+using RDS.ExpenseTracker.Domain.Dtos.Requests;
 
 namespace RDS.ExpenseTracker.Domain.Services;
 
@@ -18,4 +19,6 @@ public interface ITransferService : IService
     // conto diverso e nessun trasferimento completo; il collegamento porta la data del candidato a quella del movimento di partenza.
     Task<Result<IEnumerable<TransactionDto>>> GetCounterpartCandidates(int transactionId, int userId);
     Task<Result> LinkCounterpart(int transactionId, int counterpartId, int userId);
+    // Crea il ramo mancante su un altro conto dell'utente (importo opposto, stessa data, categoria Money transfers); restituisce il suo id.
+    Task<Result<int>> CreateCounterpart(int transactionId, NewTransferCounterpart counterpart, int userId);
 }

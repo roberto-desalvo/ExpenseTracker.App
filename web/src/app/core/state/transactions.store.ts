@@ -94,6 +94,11 @@ export class TransactionsStore {
     await this.reloadAfterMutation();
   }
 
+  async createTransferCounterpart(id: number, accountId: number, description: string) {
+    await this.api.createTransferCounterpart(id, { accountId, description });
+    await this.reloadAfterMutation();
+  }
+
   private async loadAvailableMonths() {
     this.availableMonthsLoading.set(true);
     try {

@@ -103,6 +103,16 @@ export class TransactionApi {
     );
   }
 
+  /** Crea il ramo mancante del trasferimento di `id` sul conto indicato (importo opposto, stessa data). */
+  createTransferCounterpart(id: number, newCounterpart: { accountId: number; description: string }): Promise<void> {
+    return this.api.write(
+      "POST",
+      apiConfig.transactions.transferCounterpart(id),
+      "Errore nella creazione del movimento corrispondente",
+      { newCounterpart },
+    );
+  }
+
   addTransfer(transfer: TransferPayload): Promise<void> {
     return this.api.write("POST", apiConfig.transfers.base, "Errore nel salvataggio del trasferimento", transfer);
   }

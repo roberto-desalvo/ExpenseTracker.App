@@ -2,6 +2,7 @@
 using FluentResults;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Dtos;
+using RDS.ExpenseTracker.Domain.Dtos.Requests;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
 using RDS.ExpenseTracker.Domain.Repositories;
@@ -252,6 +253,53 @@ public class TransferService : ITransferService
         }
 
         return Result.Ok();
+    }
+
+    public async Task<Result<int>> CreateCounterpart(int transactionId, NewTransferCounterpart counterpart, int userId)
+    {
+        var source = await LoadIncompleteLeg(transactionId, userId);
+        if (source.IsFailed)
+            return source.ToResult();
+
+        var (transaction, transfer) = source.Value;
+        if (counterpart is null || counterpart.AccountId <= 0)
+            return Result.Fail(DomainErrors.InvalidId("account", counterpart?.AccountId ?? 0));
+
+        if (counterpart.AccountId == transaction.AccountId)
+            return Result.Fail(DomainErrors.BadRequest("The counterpart must be on another account."));
+
+        if (await _accountRepository.GetAccount(counterpart.AccountId, userId) is null)
+            return Result.Fail(DomainErrors.NotFound("Account", counterpart.AccountId));
+
+        var now = DateTime.UtcNow;
+        var created = new Transaction
+        {
+            AccountId = counterpart.AccountId,
+            Amount = -transaction.Amount,
+            Date = transaction.Date,
+            Description = string.IsNullOrWhiteSpace(counterpart.Description) ? transaction.Description : counterpart.Description.Trim(),
+            CategoryId = await _categoryRepository.GetCategoryIdByKind(userId, CategoryEnum.MoneyTransfers),
+            Source = TransactionSource.UserCreated,
+            CreatedOn = now,
+        };
+
+        if (transfer is null)
+        {
+            // movimento "Money transfers" senza trasferimento: si crea il trasferimento per entrambi
+            var newTransfer = new Transfer { CreatedOn = now };
+            await _repository.AddTransfer(newTransfer);
+            transaction.TransferNavigation = newTransfer;
+            transaction.UpdatedOn = now;
+            created.TransferNavigation = newTransfer;
+        }
+        else
+        {
+            created.TransferId = transfer.Id;
+        }
+
+        await _transactionRepository.AddTransactions([created]);
+        await _repository.SaveChangesAsync();
+        return Result.Ok(created.Id);
     }
 
     // Movimento collegato a un trasferimento a cui manca il ramo di segno opposto, oppure nella categoria

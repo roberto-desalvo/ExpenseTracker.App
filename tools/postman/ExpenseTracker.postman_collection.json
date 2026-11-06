@@ -854,7 +854,7 @@
                 "transfer-counterpart"
               ]
             },
-            "description": "Collega `counterpartId` al trasferimento del movimento e ne porta la data a quella del movimento di partenza; il trasferimento da cui proviene, se resta vuoto, viene eliminato. Se il movimento non ha trasferimento si usa quello del corrispondente o se ne crea uno per entrambi.",
+            "description": "Collega `counterpartId` al trasferimento del movimento e ne porta la data a quella del movimento di partenza; il trasferimento da cui proviene, se resta vuoto, viene eliminato. Se il movimento non ha trasferimento si usa quello del corrispondente o se ne crea uno per entrambi. In alternativa, con `{ \"newCounterpart\": { \"accountId\": 1, \"description\": \"\" } }` crea il movimento mancante (altro conto, importo opposto, stessa data, Money transfers).",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"counterpartId\": 0\n}",

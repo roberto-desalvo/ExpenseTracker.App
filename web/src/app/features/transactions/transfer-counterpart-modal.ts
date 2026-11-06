@@ -1,23 +1,31 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal, untracked } from "@angular/core";
+import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatIconModule } from "@angular/material/icon";
+import { MatInputModule } from "@angular/material/input";
 import { MatRadioModule } from "@angular/material/radio";
+import { MatSelectModule } from "@angular/material/select";
 import { TransactionApi } from "../../core/api/transaction.api";
 import { NotificationService } from "../../core/api/notification.service";
 import Transaction from "../../core/models/Transaction";
+import { AccountsStore } from "../../core/state/accounts.store";
 import { TransactionsStore } from "../../core/state/transactions.store";
 import { formatCurrency, formatSignedCurrency } from "../../core/utils/format.utilities";
 import { AppModal } from "../../shared/ui/app-modal";
+
+/** Valore dell'opzione "nuovo movimento" (gli id dei movimenti sono > 0). */
+const NEW_COUNTERPART = 0;
 
 const dayFormatter = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "short", year: "numeric" });
 
 /**
  * Completa un trasferimento a cui manca un ramo (o crea quello di un movimento Money transfers che non ne ha): elenca i movimenti con importo opposto, data nello stesso mese
  * e conto diverso (dal BE) e collega quello scelto, che prende la data del movimento di partenza.
+ * L'ultima opzione crea un movimento nuovo (conto da scegliere): viene salvato solo alla conferma.
  */
 @Component({
   selector: "app-transfer-counterpart-modal",
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AppModal, MatIconModule, MatRadioModule],
+  imports: [AppModal, MatFormFieldModule, MatIconModule, MatInputModule, MatRadioModule, MatSelectModule],
   template: `
     <app-modal
       [open]="transaction() !== null"
@@ -25,8 +33,8 @@ const dayFormatter = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "
       title="Collega il movimento corrispondente"
       [subtitle]="subtitle()"
       [submitAction]="submit"
-      submitLabel="Collega"
-      [submitDisabled]="selected() === null"
+      [submitLabel]="creatingNew() ? 'Crea e collega' : 'Collega'"
+      [submitDisabled]="!canSubmit()"
       [maxWidth]="560"
     >
       @if (transaction(); as source) {
@@ -44,15 +52,16 @@ const dayFormatter = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "
 
         @if (loading()) {
           <p class="muted">Ricerca dei movimenti corrispondenti...</p>
-        } @else if (candidates().length === 0) {
-          <div class="alert alert-info" role="status">
-            <mat-icon class="icon-sm">info</mat-icon>
-            <span>
-              Nessun movimento di {{ formatSignedCurrency(-source.amount) }} nello stesso mese su un altro conto,
-              libero da altri trasferimenti.
-            </span>
-          </div>
         } @else {
+          @if (candidates().length === 0) {
+            <div class="alert alert-info" role="status">
+              <mat-icon class="icon-sm">info</mat-icon>
+              <span>
+                Nessun movimento di {{ formatSignedCurrency(-source.amount) }} nello stesso mese su un altro conto,
+                libero da altri trasferimenti: puoi crearlo.
+              </span>
+            </div>
+          }
           <mat-radio-group
             class="candidates"
             aria-label="Movimento corrispondente"
@@ -71,8 +80,44 @@ const dayFormatter = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "
                 </span>
               </mat-radio-button>
             }
+            <div class="new-option" [class.active]="creatingNew()">
+              <mat-radio-button class="candidate" [value]="NEW_COUNTERPART">
+                <span class="item">
+                  <span class="date">{{ day(source.date) }}</span>
+                  <span class="text">
+                    <span class="description">
+                      <span class="new-badge">Nuovo</span> {{ newDescription() || source.description || "Nuovo movimento" }}
+                    </span>
+                    <span class="account">{{ newAccountName() ?? "Conto da scegliere" }}</span>
+                  </span>
+                  <span class="amount tabular" [class.income]="-source.amount > 0">{{ formatSignedCurrency(-source.amount) }}</span>
+                </span>
+              </mat-radio-button>
+              @if (creatingNew()) {
+                <div class="new-fields">
+                  <mat-form-field appearance="outline" class="field-block" subscriptSizing="dynamic">
+                    <mat-label>Conto</mat-label>
+                    <mat-select [value]="newAccountId()" (valueChange)="newAccountId.set($event)" required>
+                      @for (account of otherAccounts(); track account.id) {
+                        <mat-option [value]="account.id">{{ account.name }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="field-block" subscriptSizing="dynamic">
+                    <mat-label>Descrizione</mat-label>
+                    <input matInput [value]="newDescription()" (input)="newDescription.set($any($event.target).value)" />
+                  </mat-form-field>
+                </div>
+              }
+            </div>
           </mat-radio-group>
-          <p class="muted">La data del movimento scelto diventerà {{ day(source.date) }}.</p>
+          <p class="muted">
+            @if (creatingNew()) {
+              Il movimento verrà creato solo confermando, in Money transfers e con data {{ day(source.date) }}.
+            } @else {
+              La data del movimento scelto diventerà {{ day(source.date) }}.
+            }
+          </p>
         }
       }
     </app-modal>
@@ -101,6 +146,15 @@ const dayFormatter = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "
     .candidate ::ng-deep .mdc-form-field { width: 100%; }
     .candidate ::ng-deep label { flex: 1; min-width: 0; cursor: pointer; }
     .muted { font-size: var(--app-text-sm); color: var(--app-text-muted); }
+    .new-option { display: flex; flex-direction: column; border: 1px dashed var(--app-primary); border-radius: var(--app-radius-control); }
+    .new-option.active { background-color: var(--app-primary-soft); }
+    .new-option .candidate { border: none; }
+    .new-badge {
+      display: inline-block; padding: 0 6px; margin-right: 4px; border-radius: 999px; vertical-align: 1px;
+      background-color: var(--app-primary); color: var(--app-primary-contrast);
+      font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .new-fields { display: flex; flex-direction: column; gap: 12px; padding: 4px 12px 12px; }
   `,
 })
 export class TransferCounterpartModal {
@@ -111,12 +165,28 @@ export class TransferCounterpartModal {
   private readonly api = inject(TransactionApi);
   private readonly store = inject(TransactionsStore);
   private readonly notifications = inject(NotificationService);
+  private readonly accounts = inject(AccountsStore);
 
   protected readonly candidates = signal<Transaction[]>([]);
   protected readonly loading = signal(false);
   protected readonly selectedId = signal<number | null>(null);
   protected readonly selected = computed(() => this.candidates().find((c) => c.id === this.selectedId()) ?? null);
   protected readonly formatSignedCurrency = formatSignedCurrency;
+  protected readonly NEW_COUNTERPART = NEW_COUNTERPART;
+
+  // opzione "nuovo movimento": conto (diverso da quello di partenza) e descrizione, salvati solo alla conferma
+  protected readonly newAccountId = signal<number | null>(null);
+  protected readonly newDescription = signal("");
+  protected readonly creatingNew = computed(() => this.selectedId() === NEW_COUNTERPART);
+  protected readonly otherAccounts = computed(() =>
+    this.accounts.all().filter((a) => a.id !== this.transaction()?.accountId),
+  );
+  protected readonly newAccountName = computed(
+    () => this.otherAccounts().find((a) => a.id === this.newAccountId())?.name ?? null,
+  );
+  protected readonly canSubmit = computed(() =>
+    this.creatingNew() ? this.newAccountName() !== null : this.selected() !== null,
+  );
   protected readonly subtitle = computed(() =>
     this.transaction()?.transferMissing
       ? "Il movimento è in Money transfers ma non ha un trasferimento: scegli il corrispondente, verrà creato il trasferimento tra i due."
@@ -141,6 +211,9 @@ export class TransferCounterpartModal {
     const id = ++this.loadId;
     this.candidates.set([]);
     this.selectedId.set(null);
+    this.newDescription.set(source?.description ?? "");
+    const others = this.accounts.all().filter((a) => a.id !== source?.accountId);
+    this.newAccountId.set(others.length === 1 ? others[0].id : null);
     if (!source) {
       this.loading.set(false);
       return;
@@ -159,6 +232,16 @@ export class TransferCounterpartModal {
 
   protected readonly submit = async (): Promise<string> => {
     const source = this.transaction();
+    if (source && this.creatingNew()) {
+      const accountId = this.newAccountId();
+      const accountName = this.newAccountName();
+      if (accountId === null || accountName === null) {
+        this.notifications.showError("Scegli il conto del nuovo movimento");
+        throw new Error("no account selected");
+      }
+      await this.store.createTransferCounterpart(source.id, accountId, this.newDescription().trim());
+      return `Movimento creato su ${accountName} e trasferimento completato`;
+    }
     const counterpart = this.selected();
     if (!source || !counterpart) {
       this.notifications.showError("Seleziona il movimento corrispondente");

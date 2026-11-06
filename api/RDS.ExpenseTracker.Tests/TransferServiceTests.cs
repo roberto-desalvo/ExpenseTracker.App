@@ -25,7 +25,7 @@ public class TransferServiceTests
         var transactionRepository = new FakeTransactionRepository(transactions);
         var transferRepository = new FakeTransferRepository(transactionRepository);
         var mapper = new MapperConfiguration(cfg => cfg.AddProfile<ExpenseTrackerProfile>(), NullLoggerFactory.Instance).CreateMapper();
-        var service = new TransferService(transferRepository, transactionRepository, new NoAccountRepository(), FakeCategoryRepository.WithDefaults(UserId), mapper);
+        var service = new TransferService(transferRepository, transactionRepository, new FakeAccountRepository([Checking, Savings, Foreign]), FakeCategoryRepository.WithDefaults(UserId), mapper);
         return (service, transactionRepository, transferRepository);
     }
 
@@ -211,6 +211,52 @@ public class TransferServiceTests
         transactions.Items.Single(t => t.Id == 2).Date.Should().Be(new DateTime(2026, 3, 10));
     }
 
+    [Fact]
+    public async Task CreateCounterpart_AddsTheOppositeLegToTheExistingTransfer()
+    {
+        var (service, transactions, transfers) = Create(
+            Tx(1, Checking, -100m, new DateTime(2026, 3, 10), transferId: 50));
+
+        var result = await service.CreateCounterpart(1, new NewTransferCounterpart { AccountId = Savings.Id, Description = " Giroconto " }, UserId);
+
+        result.IsSuccess.Should().BeTrue();
+        transfers.Added.Should().BeEmpty();
+        var created = transactions.Items.Should().ContainSingle(t => t.Id != 1).Subject;
+        created.AccountId.Should().Be(Savings.Id);
+        created.Amount.Should().Be(100m);
+        created.Date.Should().Be(new DateTime(2026, 3, 10));
+        created.Description.Should().Be("Giroconto");
+        created.CategoryId.Should().Be(MoneyTransfers);
+        created.TransferId.Should().Be(50);
+    }
+
+    [Fact]
+    public async Task CreateCounterpart_CreatesTheTransfer_ForAMoneyTransferWithoutOne()
+    {
+        var (service, transactions, transfers) = Create(
+            Tx(1, Checking, -100m, new DateTime(2026, 3, 10), categoryId: MoneyTransfers));
+
+        var result = await service.CreateCounterpart(1, new NewTransferCounterpart { AccountId = Savings.Id }, UserId);
+
+        result.IsSuccess.Should().BeTrue();
+        var transfer = transfers.Added.Should().ContainSingle().Subject;
+        transactions.Items.Should().HaveCount(2).And.OnlyContain(t => t.TransferNavigation == transfer);
+        transactions.Items.Single(t => t.Id != 1).Description.Should().Be("Movimento 1");
+    }
+
+    [Theory]
+    [InlineData(1)] // stesso conto del movimento di partenza
+    [InlineData(3)] // conto di un altro utente
+    public async Task CreateCounterpart_RejectsSameOrForeignAccount(int accountId)
+    {
+        var (service, transactions, _) = Create(Tx(1, Checking, -100m, new DateTime(2026, 3, 10), transferId: 50));
+
+        var result = await service.CreateCounterpart(1, new NewTransferCounterpart { AccountId = accountId }, UserId);
+
+        result.IsFailed.Should().BeTrue();
+        transactions.Items.Should().ContainSingle();
+    }
+
     private sealed class FakeTransactionRepository(IEnumerable<Transaction> seed) : ITransactionRepository
     {
         public List<Transaction> Items { get; } = [.. seed];
@@ -239,7 +285,11 @@ public class TransferServiceTests
         public Task<List<Transaction>> GetCategorizableTransactions(int userId, DateTime startDate, DateTime endDate) => throw new NotImplementedException();
         public Task<List<Transaction>> GetLegacyMatchedTransactions(int userId, DateTime startDate, DateTime endDate) => throw new NotImplementedException();
         public Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains) => throw new NotImplementedException();
-        public Task AddTransactions(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
+        public Task AddTransactions(IEnumerable<Transaction> transactions)
+        {
+            Items.AddRange(transactions);
+            return Task.CompletedTask;
+        }
         public Task UpdateTransaction(Transaction transaction) => throw new NotImplementedException();
         public Task DeleteTransaction(int id) => throw new NotImplementedException();
         public void RemoveTransactions(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
@@ -285,14 +335,13 @@ public class TransferServiceTests
         public Task DeleteTransfers(IEnumerable<int> transferIds) => throw new NotImplementedException();
     }
 
-    // Il collegamento della controparte non usa i conti: ogni chiamata Ã¨ un errore del test.
-    private sealed class NoAccountRepository : IAccountRepository
+    private sealed class FakeAccountRepository(IEnumerable<Account> accounts) : IAccountRepository
     {
+        public Task<Account?> GetAccount(int id, int userId) => Task.FromResult(accounts.FirstOrDefault(a => a.Id == id && a.UserId == userId));
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => throw new NotImplementedException();
         public Task AddAccounts(IEnumerable<Account> accounts) => throw new NotImplementedException();
         public Task UpdateAccount(Account account) => throw new NotImplementedException();
         public Task DeleteAccounts(IEnumerable<int> accountIds) => throw new NotImplementedException();
-        public Task<Account?> GetAccount(int id, int userId) => throw new NotImplementedException();
         public Task<IEnumerable<Account>> GetAccounts(int userId) => throw new NotImplementedException();
         public Task<Account?> GetAccountByImportSource(int userId, Domain.Enums.BankFileSource source) => throw new NotImplementedException();
         public Task<(IEnumerable<Account> Items, int TotalCount)> GetPagedAccounts(AccountQueryRequest request, int userId) => throw new NotImplementedException();
