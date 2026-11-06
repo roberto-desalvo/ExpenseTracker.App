@@ -30,7 +30,8 @@ interface AccountOption {
 
 /**
  * Movimenti → Abbinamento storico Excel (solo admin): a sinistra le righe di un mese del vecchio
- * Spese.xlsx, a destra i movimenti a DB dello stesso periodo. Le coppie suggerite (stesso conto,
+ * Spese.xlsx, a destra i movimenti a DB dello stesso mese (più 7 giorni
+ * prima e dopo). Le coppie suggerite (stesso conto,
  * importo ±0,02 €) si possono correggere; al salvataggio il movimento prende la categoria Excel e
  * la descrizione "DB - Excel", entrambe modificabili.
  */

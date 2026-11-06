@@ -25,8 +25,9 @@ export interface LegacyDraft {
 const normalizeText = (value: string) => value.trim().replace(/\s+/g, " ").toLocaleLowerCase("it-IT");
 
 /**
- * Movimento già a DB che sembra lo stesso della riga da creare: stesso conto, stesso mese (i movimenti
- * caricati sono già quelli del mese del foglio), stessa somma e stesso nome (quello modificato o quello Excel).
+ * Movimento già a DB che sembra lo stesso della riga da creare: stesso conto, stesso mese della riga (i
+ * movimenti caricati includono anche qualche giorno dei mesi adiacenti), stessa somma e stesso nome (quello
+ * modificato o quello Excel).
  */
 export const findDuplicate = (
   row: LegacyExcelRow,
@@ -35,9 +36,11 @@ export const findDuplicate = (
 ): LegacyDbTransaction | undefined => {
   if (row.accountId === null) return undefined;
   const names = new Set([normalizeText(description), normalizeText(row.description)]);
+  const month = row.date.slice(0, 7);
   return transactions.find(
     (t) =>
       t.accountId === row.accountId &&
+      t.date?.slice(0, 7) === month &&
       Math.round(t.amount * 100) === Math.round(row.amount * 100) &&
       names.has(normalizeText(t.description)),
   );
@@ -45,7 +48,7 @@ export const findDuplicate = (
 
 /**
  * Movimento già abbinato in una sessione precedente che sembra corrispondere alla riga Excel: stesso conto,
- * stesso mese (i movimenti caricati sono quelli del mese del foglio), stessa somma e descrizione che contiene
+ * stesso periodo (i movimenti caricati sono quelli del mese del foglio più 7 giorni prima e dopo), stessa somma e descrizione che contiene
  * quella Excel (es. "DB - Excel"). Solo i movimenti già abbinati: le descrizioni bancarie contengono spesso
  * per caso il testo Excel (es. "gtt" in "GTT TORINO").
  */

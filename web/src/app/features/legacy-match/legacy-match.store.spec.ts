@@ -4,7 +4,7 @@ import { LegacyMatchApi } from "../../core/api/legacy-match.api";
 import { NotificationService } from "../../core/api/notification.service";
 import { LegacyMonth } from "../../core/models/LegacyMatch";
 import { TransactionsStore } from "../../core/state/transactions.store";
-import { LegacyMatchStore, defaultPairDescription } from "./legacy-match.store";
+import { LegacyMatchStore, defaultPairDescription, findDuplicate } from "./legacy-match.store";
 
 const MONTH: LegacyMonth = {
   sheet: { name: "Ottobre2025", year: 2025, month: 10 },
@@ -209,6 +209,15 @@ describe("LegacyMatchStore", () => {
     expect(notifyExternalChange).toHaveBeenCalled();
     expect(getMonth).toHaveBeenCalledWith(file, "Ottobre2025");
     expect(message).toBe("2 movimenti ripristinati, 1 eliminato");
+  });
+
+  it("ignores duplicates of a different month, loaded from the days around the sheet month", () => {
+    const row = MONTH.excelRows[3];
+    const sameMonth = MONTH.dbTransactions[2];
+    const previousMonth = { ...sameMonth, id: 13, date: "2025-09-28" };
+
+    expect(findDuplicate(row, row.description, [previousMonth])).toBeUndefined();
+    expect(findDuplicate(row, row.description, [previousMonth, sameMonth])?.id).toBe(12);
   });
 
   it("builds the default description from the non-empty parts", () => {

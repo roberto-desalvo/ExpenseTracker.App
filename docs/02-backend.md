@@ -88,7 +88,7 @@ Prefisso `/api`. Tutti richiedono autenticazione salvo dove indicato. Una collec
 | | `POST import/transfers/reconcile` | Collega a posteriori i trasferimenti (`dryRun` opzionale) |
 | | `POST import/test-seed` | Rigenera l'utente di test con 5 anni di dati |
 | Storico Excel *(admin)* | `POST legacy-match/sheets` | Multipart `file` (Spese.xlsx): fogli mensili del file |
-| | `POST legacy-match/month` | Multipart `file` + `sheet`: righe del mese, movimenti a DB dello stesso mese e coppie suggerite |
+| | `POST legacy-match/month` | Multipart `file` + `sheet`: righe del mese, movimenti a DB dello stesso mese (più gli ultimi 7 giorni del precedente e i primi 7 del successivo) e coppie suggerite |
 | | `POST legacy-match/apply` | Salva descrizione e categoria sui movimenti abbinati e li marca (`LegacyMatchedAt`) |
 | | `POST legacy-match/create` | Crea come nuovi movimenti (già marcati) le righe di Contanti e Hype |
 | | `POST legacy-match/reset` | Body `{ year, month }`: annulla gli abbinamenti del mese (vedi sotto) |

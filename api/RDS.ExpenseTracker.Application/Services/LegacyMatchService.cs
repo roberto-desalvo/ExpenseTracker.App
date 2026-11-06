@@ -19,6 +19,9 @@ namespace RDS.ExpenseTracker.Application.Services;
 public class LegacyMatchService : ILegacyMatchService
 {
     private const int MaxDescriptionLength = 500;
+    // Giorni dei mesi adiacenti inclusi nella ricerca dei movimenti: una spesa di fine mese può essere
+    // contabilizzata dalla banca nel mese successivo (e viceversa).
+    private const int AdjacentMonthDays = 7;
 
     private readonly IUserService _userService;
     private readonly ITransactionRepository _transactionRepository;
@@ -75,12 +78,12 @@ public class LegacyMatchService : ILegacyMatchService
         var categories = (await _categoryRepository.GetCategories(userId)).ToList();
         var tagMatcher = new CategoryTagMatcher(categories);
 
-        // solo i movimenti dello stesso mese del foglio
+        // i movimenti del mese del foglio più gli ultimi/primi giorni dei mesi adiacenti
         var monthStart = new DateTime(sheet.Info.Year, sheet.Info.Month, 1);
         var transactions = await _transactionRepository.GetTransactionsInRange(
             userId,
-            monthStart,
-            monthStart.AddMonths(1).AddDays(-1));
+            monthStart.AddDays(-AdjacentMonthDays),
+            monthStart.AddMonths(1).AddDays(AdjacentMonthDays - 1));
 
         var rows = sheet.Rows.Select(r => new LegacyExcelRowDto
         {

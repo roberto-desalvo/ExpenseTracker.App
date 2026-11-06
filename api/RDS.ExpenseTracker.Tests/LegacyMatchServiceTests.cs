@@ -179,7 +179,7 @@ public class LegacyMatchServiceTests
     }
 
     [Fact]
-    public async Task GetMonth_ReturnsOnlyTransactionsOfTheSheetMonth()
+    public async Task GetMonth_ReturnsTransactionsOfTheSheetMonthPlusSevenDaysAround()
     {
         Transaction On(int id, DateTime date)
         {
@@ -189,16 +189,17 @@ public class LegacyMatchServiceTests
         }
 
         var (service, _) = Create(
-            On(1, new DateTime(2025, 9, 30)),
-            On(2, new DateTime(2025, 10, 1)),
-            On(3, new DateTime(2025, 10, 31)),
-            On(4, new DateTime(2025, 11, 1)));
+            On(1, new DateTime(2025, 9, 23)),
+            On(2, new DateTime(2025, 9, 24)),
+            On(3, new DateTime(2025, 10, 15)),
+            On(4, new DateTime(2025, 11, 7)),
+            On(5, new DateTime(2025, 11, 8)));
         using var file = LegacySpreadsheetReaderTests.Workbook(("Ottobre2025", [("A2", new DateTime(2025, 10, 5).ToOADate(), null), ("B2", "spesa", null), ("C2", 10d, null)]));
 
         var result = await service.GetMonthAsync(file, "Ottobre2025", AdminId);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.DbTransactions.Select(t => t.Id).Should().Equal(2, 3);
+        result.Value.DbTransactions.Select(t => t.Id).Should().Equal(2, 3, 4);
     }
 
     [Fact]
