@@ -2,6 +2,7 @@
 using RDS.ExpenseTracker.Application.Utilities;
 using RDS.ExpenseTracker.Domain.Dtos;
 using RDS.ExpenseTracker.Domain.Entities;
+using RDS.ExpenseTracker.Domain.Enums;
 
 namespace RDS.ExpenseTracker.Application.Mappings;
 
@@ -29,7 +30,11 @@ public class ExpenseTrackerProfile : Profile
             .ForMember(dest => dest.Account, opt => opt.MapFrom(src => src.AccountNavigation.Name))
             .ForMember(dest => dest.TransferIncomplete, opt => opt.MapFrom(src =>
                 src.TransferNavigation != null
-                && !src.TransferNavigation.Transactions.Any(t => src.Amount < 0m ? t.Amount > 0m : t.Amount < 0m)));
+                && !src.TransferNavigation.Transactions.Any(t => src.Amount < 0m ? t.Amount > 0m : t.Amount < 0m)))
+            .ForMember(dest => dest.TransferMissing, opt => opt.MapFrom(src =>
+                src.TransferId == null
+                && src.CategoryNavigation != null
+                && src.CategoryNavigation.Kind == CategoryEnum.MoneyTransfers));
 
         CreateMap<TransactionDto, Transaction>()
             .ForMember(dest => dest.CategoryId, opt => opt.MapFrom(src => src.CategoryId > 0 ? (int?)src.CategoryId : null))

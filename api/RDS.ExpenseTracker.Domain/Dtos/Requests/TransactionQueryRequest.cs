@@ -8,7 +8,7 @@ public class TransactionQueryRequest : PagedQueryRequest
     public int[]? IdCategories { get; set; }
     public bool? IsIncome { get; set; }
 
-    /// <summary>Solo i movimenti collegati a un trasferimento (TransferId valorizzato).</summary>
+    /// <summary>Solo i trasferimenti: movimenti collegati a un Transfer o nella categoria "Money transfers".</summary>
     public bool? OnlyTransfers { get; set; }
 
     /// <summary>Testo cercato nella descrizione (corrispondenza parziale, case insensitive).</summary>

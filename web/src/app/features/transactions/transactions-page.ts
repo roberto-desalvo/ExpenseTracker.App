@@ -31,7 +31,8 @@ const weekdayFormatter = new Intl.DateTimeFormat("it-IT", { weekday: "long" });
 /**
  * Movimenti: filtri del periodo e tabella paginata/ordinata lato server, con modifica ed eliminazione per riga
  * e selezione multipla (righe della pagina corrente) per eliminare o assegnare una categoria in blocco.
- * Con il filtro Trasferimenti le righe con un trasferimento incompleto sono segnalate e si può collegarne il corrispondente.
+ * Con il filtro Trasferimenti le righe con un trasferimento incompleto, o in Money transfers senza trasferimento,
+ * sono segnalate e si può collegarne il corrispondente.
  */
 @Component({
   selector: "app-transactions-page",
@@ -66,6 +67,13 @@ export class TransactionsPage {
   protected readonly toDelete = signal<Transaction | null>(null);
   /** Movimento di cui collegare il ramo mancante del trasferimento. */
   protected readonly toLink = signal<Transaction | null>(null);
+
+  /** Motivo del warning sul trasferimento di una riga, oppure null se non c'è nulla da collegare. */
+  protected transferWarning(t: Transaction): string | null {
+    if (t.transferMissing) return "Categoria Money transfers senza trasferimento collegato: collega il movimento corrispondente";
+    if (t.transferIncomplete) return "Trasferimento senza il ramo opposto: collega il movimento corrispondente";
+    return null;
+  }
   protected readonly formatSignedCurrency = formatSignedCurrency;
   protected readonly deleteMessage = computed(() => {
     const t = this.toDelete();

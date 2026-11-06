@@ -207,6 +207,31 @@ public class TransferService : ITransferService
         if (!await IsFreeForTransfer(counterpart, userId))
             return Result.Fail(DomainErrors.Conflict($"Transaction {counterpartId} already belongs to a complete transfer."));
 
+        var now = DateTime.UtcNow;
+        counterpart.Date = transaction.Date;
+        counterpart.UpdatedOn = now;
+
+        if (transfer is null)
+        {
+            // movimento "Money transfers" senza trasferimento: si entra in quello del corrispondente, se ne ha uno,
+            // altrimenti si crea il trasferimento e lo si assegna a entrambi
+            if (counterpart.TransferId is int counterpartTransferId)
+            {
+                transaction.TransferId = counterpartTransferId;
+            }
+            else
+            {
+                var created = new Transfer { CreatedOn = now };
+                await _repository.AddTransfer(created);
+                transaction.TransferNavigation = created;
+                counterpart.TransferNavigation = created;
+            }
+
+            transaction.UpdatedOn = now;
+            await _repository.SaveChangesAsync();
+            return Result.Ok();
+        }
+
         // il trasferimento da cui proviene il candidato, se conteneva solo lui, resterebbe vuoto: va eliminato
         int? emptiedTransferId = null;
         if (counterpart.TransferId is int previousId)
@@ -217,8 +242,6 @@ public class TransferService : ITransferService
         }
 
         counterpart.TransferId = transfer.Id;
-        counterpart.Date = transaction.Date;
-        counterpart.UpdatedOn = DateTime.UtcNow;
         await _repository.SaveChangesAsync();
 
         // eliminato dopo lo spostamento, così il SetNull sulla FK non tocca il movimento appena collegato
@@ -231,8 +254,9 @@ public class TransferService : ITransferService
         return Result.Ok();
     }
 
-    // Movimento collegato a un trasferimento a cui manca il ramo di segno opposto.
-    private async Task<Result<(Transaction Transaction, Transfer Transfer)>> LoadIncompleteLeg(int transactionId, int userId)
+    // Movimento collegato a un trasferimento a cui manca il ramo di segno opposto, oppure nella categoria
+    // "Money transfers" senza trasferimento (Transfer null).
+    private async Task<Result<(Transaction Transaction, Transfer? Transfer)>> LoadIncompleteLeg(int transactionId, int userId)
     {
         if (transactionId <= 0)
             return Result.Fail(DomainErrors.InvalidId("transaction", transactionId));
@@ -241,11 +265,18 @@ public class TransferService : ITransferService
         if (transaction is null)
             return Result.Fail(DomainErrors.NotFound("Transaction", transactionId));
 
-        if (transaction.TransferId is not int transferId)
-            return Result.Fail(DomainErrors.BadRequest($"Transaction {transactionId} is not linked to a transfer."));
-
         if (transaction.Date is null || transaction.Amount == 0m)
             return Result.Fail(DomainErrors.BadRequest($"Transaction {transactionId} needs a date and a non-zero amount."));
+
+        if (transaction.TransferId is not int transferId)
+        {
+            var moneyTransfersId = await _categoryRepository.GetCategoryIdByKind(userId, CategoryEnum.MoneyTransfers);
+            if (moneyTransfersId is null || transaction.CategoryId != moneyTransfersId)
+                return Result.Fail(DomainErrors.BadRequest(
+                    $"Transaction {transactionId} is neither linked to a transfer nor in the money transfers category."));
+
+            return Result.Ok<(Transaction, Transfer?)>((transaction, null));
+        }
 
         var transfer = await _repository.GetTransfer(transferId, userId);
         if (transfer is null)
@@ -254,7 +285,7 @@ public class TransferService : ITransferService
         if (HasOppositeLeg(transfer, transaction))
             return Result.Fail(DomainErrors.Conflict($"Transfer {transferId} already has both legs."));
 
-        return Result.Ok((transaction, transfer));
+        return Result.Ok<(Transaction, Transfer?)>((transaction, transfer));
     }
 
     private static bool IsCounterpartShape(Transaction source, Transaction candidate)
@@ -264,7 +295,7 @@ public class TransferService : ITransferService
            && candidate.Date is DateTime date
            && date.Year == source.Date!.Value.Year
            && date.Month == source.Date.Value.Month
-           && candidate.TransferId != source.TransferId;
+           && (source.TransferId is null || candidate.TransferId != source.TransferId);
 
     // Un candidato è libero se non è in un trasferimento, o se il suo trasferimento non ha ancora il ramo opposto al suo.
     private async Task<bool> IsFreeForTransfer(Transaction candidate, int userId)

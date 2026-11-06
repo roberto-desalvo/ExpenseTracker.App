@@ -16,4 +16,7 @@ public class TransactionDto
 
     /// <summary>True se il movimento è collegato a un trasferimento a cui manca il ramo di segno opposto.</summary>
     public bool TransferIncomplete { get; set; }
+
+    /// <summary>True se il movimento è nella categoria "Money transfers" ma non è collegato a un trasferimento.</summary>
+    public bool TransferMissing { get; set; }
 }

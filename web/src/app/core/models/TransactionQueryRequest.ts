@@ -7,7 +7,7 @@ export interface TransactionQueryRequest {
   idAccounts?: number[] | null;
   idCategories?: number[] | null;
   isIncome?: boolean | null;
-  /** Solo i movimenti collegati a un trasferimento. */
+  /** Solo i trasferimenti: movimenti collegati a un trasferimento o nella categoria "Money transfers". */
   onlyTransfers?: boolean | null;
   /** Testo cercato nella descrizione (parziale, case insensitive). */
   search?: string | null;

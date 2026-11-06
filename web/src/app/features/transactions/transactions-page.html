@@ -64,14 +64,8 @@
       </td>
       <td>
         <div class="description-cell">
-          @if (table.onlyTransfers() && t.transferIncomplete) {
-            <button
-              matIconButton
-              class="transfer-warning"
-              matTooltip="Trasferimento senza il ramo opposto: collega il movimento corrispondente"
-              aria-label="Trasferimento incompleto: collega il movimento corrispondente"
-              (click)="toLink.set(t)"
-            >
+          @if (table.onlyTransfers() && transferWarning(t); as warning) {
+            <button matIconButton class="transfer-warning" [matTooltip]="warning" [attr.aria-label]="warning" (click)="toLink.set(t)">
               <mat-icon class="icon-sm">warning</mat-icon>
             </button>
           }
@@ -89,7 +83,7 @@
       </td>
       <td class="align-right">
         <div class="row-actions">
-          @if (table.onlyTransfers() && t.transferIncomplete) {
+          @if (table.onlyTransfers() && transferWarning(t)) {
             <button matIconButton matTooltip="Collega il corrispondente" aria-label="Collega il movimento corrispondente" (click)="toLink.set(t)">
               <mat-icon class="icon-sm">link</mat-icon>
             </button>

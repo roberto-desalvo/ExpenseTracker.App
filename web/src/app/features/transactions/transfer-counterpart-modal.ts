@@ -11,7 +11,7 @@ import { AppModal } from "../../shared/ui/app-modal";
 const dayFormatter = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "short", year: "numeric" });
 
 /**
- * Completa un trasferimento a cui manca un ramo: elenca i movimenti con importo opposto, data nello stesso mese
+ * Completa un trasferimento a cui manca un ramo (o crea quello di un movimento Money transfers che non ne ha): elenca i movimenti con importo opposto, data nello stesso mese
  * e conto diverso (dal BE) e collega quello scelto, che prende la data del movimento di partenza.
  */
 @Component({
@@ -23,7 +23,7 @@ const dayFormatter = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "
       [open]="transaction() !== null"
       (closed)="closed.emit()"
       title="Collega il movimento corrispondente"
-      subtitle="Il trasferimento ha un solo ramo: scegli il movimento che lo completa."
+      [subtitle]="subtitle()"
       [submitAction]="submit"
       submitLabel="Collega"
       [maxWidth]="560"
@@ -116,6 +116,11 @@ export class TransferCounterpartModal {
   protected readonly selectedId = signal<number | null>(null);
   protected readonly selected = computed(() => this.candidates().find((c) => c.id === this.selectedId()) ?? null);
   protected readonly formatSignedCurrency = formatSignedCurrency;
+  protected readonly subtitle = computed(() =>
+    this.transaction()?.transferMissing
+      ? "Il movimento è in Money transfers ma non ha un trasferimento: scegli il corrispondente, verrà creato il trasferimento tra i due."
+      : "Il trasferimento ha un solo ramo: scegli il movimento che lo completa.",
+  );
 
   private loadId = 0;
 

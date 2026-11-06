@@ -11,6 +11,8 @@ class Transaction {
   public transferId?: number | null;
   /** true se il trasferimento collegato non ha il ramo di segno opposto. */
   public transferIncomplete?: boolean;
+  /** true se il movimento è nella categoria "Money transfers" ma non è collegato a un trasferimento. */
+  public transferMissing?: boolean;
 
   constructor(
     id: number,
