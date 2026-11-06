@@ -1,7 +1,7 @@
 <app-page-container>
   <app-page-header
     title="Movimenti"
-    subtitle="Le transazioni del periodo selezionato. Passa sopra una riga per modificarla o eliminarla, oppure selezionane più di una per agire in blocco."
+    subtitle="Le transazioni del periodo selezionato. Passa sopra una riga per modificarla, duplicarla o eliminarla, oppure selezionane più di una per agire in blocco."
   >
     @if (fromAnalytics()) {
       <button actions matButton (click)="backToAnalytics()"><mat-icon>arrow_back</mat-icon> Torna all'analisi</button>
@@ -82,18 +82,37 @@
         <span class="amount tabular" [class.income]="t.amount > 0">{{ formatSignedCurrency(t.amount) }}</span>
       </td>
       <td class="align-right">
-        <div class="row-actions">
-          @if (table.onlyTransfers() && transferWarning(t)) {
-            <button matIconButton matTooltip="Collega il corrispondente" aria-label="Collega il movimento corrispondente" (click)="toLink.set(t)">
-              <mat-icon class="icon-sm">link</mat-icon>
+        <div class="row-actions" [class.menu-open]="rowMenuTrigger.menuOpen">
+          <button
+            matIconButton
+            matTooltip="Azioni"
+            aria-label="Azioni sulla transazione"
+            [matMenuTriggerFor]="rowMenu"
+            #rowMenuTrigger="matMenuTrigger"
+          >
+            <mat-icon class="icon-sm">more_vert</mat-icon>
+          </button>
+          <mat-menu #rowMenu="matMenu" xPosition="before">
+            @if (table.onlyTransfers() && transferWarning(t)) {
+              <button mat-menu-item (click)="toLink.set(t)">
+                <mat-icon>link</mat-icon>
+                <span>Collega il corrispondente</span>
+              </button>
+            }
+            <button mat-menu-item (click)="quickActions.openTransactionModal(t)">
+              <mat-icon>edit</mat-icon>
+              <span>Modifica</span>
             </button>
-          }
-          <button matIconButton matTooltip="Modifica" aria-label="Modifica transazione" (click)="quickActions.openTransactionModal(t)">
-            <mat-icon class="icon-sm">edit</mat-icon>
-          </button>
-          <button matIconButton class="danger-hover" matTooltip="Elimina" aria-label="Elimina transazione" (click)="toDelete.set(t)">
-            <mat-icon class="icon-sm">delete</mat-icon>
-          </button>
+            <button mat-menu-item (click)="quickActions.openDuplicateTransaction(t)">
+              <mat-icon>content_copy</mat-icon>
+              <span>Duplica</span>
+            </button>
+            <mat-divider />
+            <button mat-menu-item class="mat-mdc-menu-item-danger" (click)="toDelete.set(t)">
+              <mat-icon>delete</mat-icon>
+              <span>Elimina</span>
+            </button>
+          </mat-menu>
         </div>
       </td>
     </ng-template>

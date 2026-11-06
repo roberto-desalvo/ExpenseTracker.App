@@ -670,7 +670,8 @@ p {
     }
   }
   .data-row:hover .row-actions,
-  .data-row:focus-within .row-actions {
+  .data-row:focus-within .row-actions,
+  .row-actions.menu-open {
     opacity: 1;
   }
   .row-actions .mat-mdc-icon-button {

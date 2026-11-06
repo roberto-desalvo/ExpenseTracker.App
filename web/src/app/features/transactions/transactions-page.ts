@@ -5,7 +5,9 @@ import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import { ROUTES } from "../../core/config/routes";
 import { DRILL_DOWN_PARAMS, parseDrillDown } from "../../core/navigation/drill-down";
 import { MatButton, MatIconButton } from "@angular/material/button";
+import { MatDividerModule } from "@angular/material/divider";
 import { MatIconModule } from "@angular/material/icon";
+import { MatMenuModule } from "@angular/material/menu";
 import { MatTooltip } from "@angular/material/tooltip";
 import Transaction from "../../core/models/Transaction";
 import { TransactionSortField } from "../../core/models/TransactionQueryRequest";
@@ -29,7 +31,7 @@ const dayFormatter = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "
 const weekdayFormatter = new Intl.DateTimeFormat("it-IT", { weekday: "long" });
 
 /**
- * Movimenti: filtri del periodo e tabella paginata/ordinata lato server, con modifica ed eliminazione per riga
+ * Movimenti: filtri del periodo e tabella paginata/ordinata lato server, con menu per riga (modifica, duplica, elimina)
  * e selezione multipla (righe della pagina corrente) per eliminare o assegnare una categoria in blocco.
  * Con il filtro Trasferimenti le righe con un trasferimento incompleto, o in Money transfers senza trasferimento,
  * sono segnalate e si può collegarne il corrispondente.
@@ -51,6 +53,8 @@ const weekdayFormatter = new Intl.DateTimeFormat("it-IT", { weekday: "long" });
     MatButton,
     MatIconButton,
     MatIconModule,
+    MatMenuModule,
+    MatDividerModule,
     MatTooltip,
     RouterLink,
   ],

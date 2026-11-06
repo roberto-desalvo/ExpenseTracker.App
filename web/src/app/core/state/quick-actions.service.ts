@@ -31,6 +31,12 @@ export class QuickActionsService {
     this.transactionModalOpen.set(true);
   }
 
+  /** Apre l'inserimento di una nuova transazione prepopolata con i dati di quella indicata. */
+  openDuplicateTransaction(transaction: Transaction) {
+    this.currentTransaction.set(Object.assign(cloneTransaction(transaction), { id: 0 }));
+    this.transactionModalOpen.set(true);
+  }
+
   closeTransactionModal() {
     this.transactionModalOpen.set(false);
   }
