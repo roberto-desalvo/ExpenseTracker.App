@@ -26,6 +26,7 @@ const dayFormatter = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "
       [subtitle]="subtitle()"
       [submitAction]="submit"
       submitLabel="Collega"
+      [submitDisabled]="selected() === null"
       [maxWidth]="560"
     >
       @if (transaction(); as source) {
@@ -125,7 +126,7 @@ export class TransferCounterpartModal {
   private loadId = 0;
 
   constructor() {
-    // a ogni apertura si ricaricano i candidati; il più vicino per data è preselezionato
+    // a ogni apertura si ricaricano i candidati; nessuno è preselezionato, "Collega" si abilita dopo la scelta
     effect(() => {
       const source = this.transaction();
       untracked(() => void this.load(source));
@@ -149,7 +150,6 @@ export class TransferCounterpartModal {
       const candidates = await this.api.getTransferCandidates(source.id);
       if (id !== this.loadId) return;
       this.candidates.set(candidates);
-      this.selectedId.set(candidates[0]?.id ?? null);
     } catch {
       // l'errore è già notificato dal layer API
     } finally {

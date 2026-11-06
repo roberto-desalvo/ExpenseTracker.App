@@ -1,5 +1,16 @@
 import { NgTemplateOutlet } from "@angular/common";
-import { ChangeDetectionStrategy, Component, TemplateRef, computed, contentChild, input, output } from "@angular/core";
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  TemplateRef,
+  computed,
+  contentChild,
+  inject,
+  input,
+  output,
+  viewChild,
+} from "@angular/core";
 import { MatCheckbox } from "@angular/material/checkbox";
 import { MatIconModule } from "@angular/material/icon";
 import { MatPaginatorModule, PageEvent } from "@angular/material/paginator";
@@ -37,7 +48,7 @@ export interface DataTableRowContext<T> {
         <ng-content select="[empty-action]" />
       </app-empty-state>
     } @else {
-      <div class="viewport" [style.max-height.px]="viewportHeight()">
+      <div #viewport class="viewport" [style.max-height.px]="viewportHeight()">
         <table class="data-table" [style.min-width.px]="minTableWidth()" [style.table-layout]="tableLayout()">
           <thead>
             <tr>
@@ -172,7 +183,10 @@ export class DataTable<T, K = unknown> {
   readonly sortChange = output<string>();
   readonly selectionChange = output<ReadonlySet<K>>();
 
-  protected readonly rowTemplate = contentChild.required<TemplateRef<DataTableRowContext<T>>>(TemplateRef);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly viewport = viewChild<ElementRef<HTMLElement>>("viewport");
+
+  protected readonly rowTemplate =contentChild.required<TemplateRef<DataTableRowContext<T>>>(TemplateRef);
   protected readonly skeletonRows = computed(() => Array.from({ length: Math.min(this.pageSize(), 10) }));
 
   protected readonly selectable = computed(() => this.rowKey() !== undefined);
@@ -217,5 +231,17 @@ export class DataTable<T, K = unknown> {
     } else {
       this.pageChange.emit(event.pageIndex);
     }
+    this.scrollToTop();
+  }
+
+  // al cambio pagina si torna all'inizio della tabella, ma solo se la pagina è scrollata oltre la sua intestazione
+  private scrollToTop() {
+    this.viewport()?.nativeElement.scrollTo({ top: 0 });
+    const el = this.host.nativeElement;
+    const offset = (document.querySelector(".app-header")?.getBoundingClientRect().bottom ?? 0) + 16;
+    if (el.getBoundingClientRect().top >= offset) return;
+    el.style.scrollMarginTop = `${offset}px`;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
   }
 }

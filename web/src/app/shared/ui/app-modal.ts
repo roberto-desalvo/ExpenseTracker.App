@@ -37,7 +37,7 @@ export type ModalSubmitAction = () => string | void | Promise<string | void>;
             type="submit"
             class="submit"
             [class.btn-danger]="submitVariant() === 'error'"
-            [disabled]="busy()"
+            [disabled]="busy() || submitDisabled()"
           >
             {{ busy() ? "Attendere..." : submitLabel() }}
           </button>
@@ -81,6 +81,7 @@ export class AppModal extends TemplateDialogHost {
   readonly cancelLabel = input("Annulla");
   readonly submitVariant = input<"primary" | "error">("primary");
   readonly maxWidth = input(480);
+  readonly submitDisabled = input(false);
   readonly submitAction = input.required<ModalSubmitAction>();
 
   private readonly notifications = inject(NotificationService);
