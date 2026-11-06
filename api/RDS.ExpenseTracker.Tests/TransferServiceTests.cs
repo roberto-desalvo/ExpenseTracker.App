@@ -50,7 +50,7 @@ public class TransferServiceTests
             Tx(1, Checking, -100m, new DateTime(2026, 3, 10), transferId: 50),
             Tx(2, Savings, 100m, new DateTime(2026, 3, 28)),
             Tx(3, Savings, 100m, new DateTime(2026, 3, 11)),
-            Tx(4, Savings, 100m, new DateTime(2026, 4, 16)),  // oltre la tolleranza sul mese successivo
+            Tx(4, Savings, 100m, new DateTime(2026, 5, 1)),   // oltre la tolleranza sul mese successivo
             Tx(5, Savings, -100m, new DateTime(2026, 3, 10)), // stesso segno
             Tx(6, Savings, 90m, new DateTime(2026, 3, 10)),   // importo diverso
             Tx(7, Checking, 100m, new DateTime(2026, 3, 10)), // stesso conto
@@ -63,14 +63,14 @@ public class TransferServiceTests
     }
 
     [Fact]
-    public async Task GetCounterpartCandidates_IncludesFifteenDaysOfThePreviousAndNextMonth()
+    public async Task GetCounterpartCandidates_IncludesThePreviousAndNextMonth()
     {
         var (service, _, _) = Create(
             Tx(1, Checking, -100m, new DateTime(2026, 3, 10), transferId: 50),
-            Tx(2, Savings, 100m, new DateTime(2026, 2, 13)),
-            Tx(3, Savings, 100m, new DateTime(2026, 2, 14, 9, 30, 0)),
-            Tx(4, Savings, 100m, new DateTime(2026, 4, 15, 23, 0, 0)),
-            Tx(5, Savings, 100m, new DateTime(2026, 4, 16)));
+            Tx(2, Savings, 100m, new DateTime(2026, 1, 31, 23, 0, 0)),
+            Tx(3, Savings, 100m, new DateTime(2026, 2, 1, 9, 30, 0)),
+            Tx(4, Savings, 100m, new DateTime(2026, 4, 30, 23, 0, 0)),
+            Tx(5, Savings, 100m, new DateTime(2026, 5, 1)));
 
         var result = await service.GetCounterpartCandidates(1, UserId);
 

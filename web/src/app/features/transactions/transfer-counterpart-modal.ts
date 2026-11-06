@@ -18,7 +18,7 @@ const NEW_COUNTERPART = 0;
 const dayFormatter = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "short", year: "numeric" });
 
 /**
- * Completa un trasferimento a cui manca un ramo (o crea quello di un movimento Money transfers che non ne ha): elenca i movimenti con importo opposto, data nello stesso mese (±15 giorni)
+ * Completa un trasferimento a cui manca un ramo (o crea quello di un movimento Money transfers che non ne ha): elenca i movimenti con importo opposto, data nello stesso mese (±1 mese)
  * e conto diverso (dal BE) e collega quello scelto, che prende la data del movimento di partenza.
  * L'ultima opzione crea un movimento nuovo (conto da scegliere): viene salvato solo alla conferma.
  */
@@ -57,7 +57,7 @@ const dayFormatter = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "
             <div class="alert alert-info" role="status">
               <mat-icon class="icon-sm">info</mat-icon>
               <span>
-                Nessun movimento di {{ formatSignedCurrency(-source.amount) }} nello stesso mese (±15 giorni) su un altro conto,
+                Nessun movimento di {{ formatSignedCurrency(-source.amount) }} nello stesso mese (±1 mese) su un altro conto,
                 libero da altri trasferimenti: puoi crearlo.
               </span>
             </div>

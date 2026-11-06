@@ -203,7 +203,7 @@ public class TransferService : ITransferService
 
         if (!IsCounterpartShape(transaction, counterpart))
             return Result.Fail(DomainErrors.BadRequest(
-                $"The counterpart must be on another account, with the same absolute amount, opposite sign and a date in the same month (±{CandidateToleranceDays} days)."));
+                $"The counterpart must be on another account, with the same absolute amount, opposite sign and a date in the same month (±{CandidateToleranceMonths} month)."));
 
         if (!await IsFreeForTransfer(counterpart, userId))
             return Result.Fail(DomainErrors.Conflict($"Transaction {counterpartId} already belongs to a complete transfer."));
@@ -336,15 +336,15 @@ public class TransferService : ITransferService
         return Result.Ok<(Transaction, Transfer?)>((transaction, transfer));
     }
 
-    // Tolleranza sui candidati: oltre al mese del movimento, gli ultimi giorni del precedente e i primi del successivo.
-    private const int CandidateToleranceDays = 15;
+    // Tolleranza sui candidati, in mesi interi prima e dopo il mese del movimento.
+    private const int CandidateToleranceMonths = 1;
 
-    // Giorni (estremi inclusi) in cui cercare il corrispondente: dal 15° giorno prima dell'inizio del mese
-    // al 15° giorno del mese successivo.
+    // Giorni (estremi inclusi) in cui cercare il corrispondente: dal primo giorno del mese precedente
+    // all'ultimo del mese successivo.
     private static (DateTime From, DateTime To) CandidateWindow(DateTime date)
     {
         var monthStart = new DateTime(date.Year, date.Month, 1);
-        return (monthStart.AddDays(-CandidateToleranceDays), monthStart.AddMonths(1).AddDays(CandidateToleranceDays - 1));
+        return (monthStart.AddMonths(-CandidateToleranceMonths), monthStart.AddMonths(CandidateToleranceMonths + 1).AddDays(-1));
     }
 
     private static bool IsCounterpartShape(Transaction source, Transaction candidate)
