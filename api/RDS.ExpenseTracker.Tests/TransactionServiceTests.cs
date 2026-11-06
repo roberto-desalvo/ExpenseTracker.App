@@ -360,6 +360,87 @@ public class TransactionServiceTests
         transactionRepository.SaveChangesCalls.Should().Be(0);
     }
 
+    [Theory]
+    [InlineData(-10.00, -5.00, -5.00)]
+    [InlineData(-10.01, -5.01, -5.00)]
+    [InlineData(33.33, 16.67, 16.66)]
+    public async Task SplitTransaction_HalvesAmount_KeepingTotalAndData(decimal amount, decimal expectedOriginal, decimal expectedCopy)
+    {
+        var date = new DateTime(2026, 3, 10);
+        var original = new Transaction
+        {
+            Id = 1, AccountId = AccountId, Amount = amount, Date = date, Description = "Cena", CategoryId = 7,
+            ExternalId = "ext-1", Source = TransactionSource.FileImport,
+        };
+        var transactionRepository = new FakeTransactionRepository([original]);
+        var service = CreateService(transactionRepository);
+
+        var result = await service.SplitTransaction(1, UserId);
+
+        result.IsSuccess.Should().BeTrue();
+        original.Amount.Should().Be(expectedOriginal);
+        original.ExternalId.Should().Be("ext-1");
+        var copy = transactionRepository.AddedTransactions.Should().ContainSingle().Subject;
+        copy.Amount.Should().Be(expectedCopy);
+        (copy.Amount + original.Amount).Should().Be(amount);
+        copy.Description.Should().Be("Cena");
+        copy.Date.Should().Be(date);
+        copy.AccountId.Should().Be(AccountId);
+        copy.CategoryId.Should().Be(7);
+        copy.ExternalId.Should().BeNull();
+        copy.TransferId.Should().BeNull();
+        copy.Source.Should().Be(TransactionSource.UserCreated);
+        transactionRepository.SaveChangesCalls.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task SplitTransaction_FailsForCompleteTransferLeg()
+    {
+        var transactionRepository = new FakeTransactionRepository(
+        [
+            new Transaction { Id = 1, AccountId = AccountId, Amount = -100m, TransferId = 5 },
+            new Transaction { Id = 2, AccountId = 2, Amount = 100m, TransferId = 5 },
+        ]);
+        var service = CreateService(transactionRepository);
+
+        var result = await service.SplitTransaction(1, UserId);
+
+        result.IsFailed.Should().BeTrue();
+        transactionRepository.AddedTransactions.Should().BeEmpty();
+        transactionRepository.SaveChangesCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task SplitTransaction_AllowsIncompleteTransferLeg_KeepingCopyOutOfTransfer()
+    {
+        var original = new Transaction { Id = 1, AccountId = AccountId, Amount = -100m, TransferId = 5 };
+        var transactionRepository = new FakeTransactionRepository([original]);
+        var service = CreateService(transactionRepository);
+
+        var result = await service.SplitTransaction(1, UserId);
+
+        result.IsSuccess.Should().BeTrue();
+        original.Amount.Should().Be(-50m);
+        original.TransferId.Should().Be(5);
+        var copy = transactionRepository.AddedTransactions.Should().ContainSingle().Subject;
+        copy.Amount.Should().Be(-50m);
+        copy.TransferId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SplitTransaction_FailsWhenNotFoundOrTooSmall()
+    {
+        var transactionRepository = new FakeTransactionRepository(
+        [
+            new Transaction { Id = 1, AccountId = AccountId, Amount = -0.01m },
+        ]);
+        var service = CreateService(transactionRepository);
+
+        (await service.SplitTransaction(1, UserId)).IsFailed.Should().BeTrue();
+        (await service.SplitTransaction(99, UserId)).IsFailed.Should().BeTrue();
+        transactionRepository.SaveChangesCalls.Should().Be(0);
+    }
+
     private static Transaction Transaction(DateTime date, decimal amount, int categoryId) => new()
     {
         AccountId = AccountId,
@@ -421,7 +502,12 @@ public class TransactionServiceTests
             return Task.FromResult<IEnumerable<(DateTime Date, decimal Amount, int AccountId, int? CategoryId)>>(result);
         }
 
-        public Task AddTransactions(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
+        public List<Transaction> AddedTransactions { get; } = [];
+        public Task AddTransactions(IEnumerable<Transaction> transactions)
+        {
+            AddedTransactions.AddRange(transactions);
+            return Task.CompletedTask;
+        }
         public List<Transaction> UpdatedTransactions { get; } = [];
 
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -437,7 +523,8 @@ public class TransactionServiceTests
         public Task<IEnumerable<(int CategoryId, decimal Spent, decimal Earned)>> GetCategoryMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers, int userId) => throw new NotImplementedException();
         public Task<(decimal Spent, decimal Earned)> GetMonthTotals(DateTime monthStart, DateTime asOfDate, bool excludeTransfers, int userId) => throw new NotImplementedException();
         public Task<IEnumerable<(DateTime StartDate, DateTime EndDate)>> GetAvailableMonthRanges(int userId) => throw new NotImplementedException();
-        public Task<IEnumerable<Transaction>> GetTransactionsByTransferId(int transferId) => throw new NotImplementedException();
+        public Task<IEnumerable<Transaction>> GetTransactionsByTransferId(int transferId)
+            => Task.FromResult<IEnumerable<Transaction>>(_transactions.Where(t => t.TransferId == transferId).ToList());
         public Task<Transaction> GetLatestTransaction(int userId) => throw new NotImplementedException();
         public Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds, int userId) => throw new NotImplementedException();
         public Task<List<Transaction>> GetCategorizableTransactions(int userId, DateTime startDate, DateTime endDate) => throw new NotImplementedException();

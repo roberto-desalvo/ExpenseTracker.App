@@ -76,6 +76,11 @@ export class TransactionApi {
     return this.api.write("POST", apiConfig.transactions.bulkDelete, "Errore nell'eliminazione delle transazioni", { ids });
   }
 
+  /** Divide il movimento in due movimenti uguali con metà importo ciascuno. */
+  split(id: number): Promise<void> {
+    return this.api.write("POST", apiConfig.transactions.split(id), "Errore nella divisione della transazione");
+  }
+
   /** categoryId 0 = nessuna categoria */
   assignCategory(ids: number[], categoryId: number): Promise<void> {
     return this.api.write("POST", apiConfig.transactions.bulkCategory, "Errore nell'assegnazione della categoria", {

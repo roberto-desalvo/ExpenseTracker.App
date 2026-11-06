@@ -16,6 +16,8 @@ public interface ITransactionService : IService
     Task<Result<int>> AddTransaction(TransactionDto transaction, int userId);
     Task<Result> UpdateTransaction(TransactionDto transaction, int userId);
     Task<Result> DeleteTransaction(int id, int userId);
+    // Divide il movimento in due con metà importo ciascuno (stessi dati); restituisce l'id del nuovo movimento.
+    Task<Result<int>> SplitTransaction(int id, int userId);
     Task<Result> DeleteAllTransactions(int userId);
     // Operazioni massive: falliscono senza modificare nulla se anche un solo id non è dell'utente. Restituiscono i movimenti coinvolti.
     Task<Result<int>> DeleteTransactions(TransactionBulkRequest request, int userId);

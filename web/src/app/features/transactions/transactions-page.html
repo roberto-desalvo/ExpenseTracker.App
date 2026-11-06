@@ -107,6 +107,12 @@
               <mat-icon>content_copy</mat-icon>
               <span>Duplica</span>
             </button>
+            @if (!t.transferId || t.transferIncomplete) {
+              <button mat-menu-item (click)="split(t)">
+                <mat-icon>call_split</mat-icon>
+                <span>Dividi a metà</span>
+              </button>
+            }
             <mat-divider />
             <button mat-menu-item class="mat-mdc-menu-item-danger" (click)="toDelete.set(t)">
               <mat-icon>delete</mat-icon>

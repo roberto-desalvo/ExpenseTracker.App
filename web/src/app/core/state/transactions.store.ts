@@ -64,6 +64,12 @@ export class TransactionsStore {
     await this.reloadAfterMutation();
   }
 
+  /** Divide il movimento in due con metà importo ciascuno; in caso di errore rilancia. */
+  async splitTransaction(id: number) {
+    await this.api.split(id);
+    await this.reloadAfterMutation();
+  }
+
   async addTransfer(transfer: TransferPayload) {
     await this.api.addTransfer(transfer);
     await this.reloadAfterMutation();

@@ -88,6 +88,15 @@ public class TransactionFunctions : FunctionBase
         return await ExecuteAsync(() => _service.DeleteTransaction(id, userId));
     }
 
+    [Function("Transaction_Split")]
+    public async Task<IActionResult> Split(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "transaction/{id:int}/split")] HttpRequest req,
+        int id)
+    {
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.SplitTransaction(id, userId));
+    }
+
     [Function("Transaction_BulkDelete")]
     public async Task<IActionResult> BulkDelete(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "transaction/bulk-delete")] HttpRequest req)

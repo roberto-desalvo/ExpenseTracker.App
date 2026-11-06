@@ -177,6 +177,49 @@ public class TransactionService : ITransactionService
         return Result.Ok();
     }
 
+    public async Task<Result<int>> SplitTransaction(int id, int userId)
+    {
+        if (id <= 0)
+            return Result.Fail(DomainErrors.InvalidId("transaction", id));
+
+        var existing = await _repository.GetTransaction(id, userId);
+        if (existing is null)
+            return Result.Fail(DomainErrors.NotFound("Transaction", id));
+
+        // un ramo di trasferimento con il ramo opposto non si divide (non corrisponderebbe più all'importo);
+        // se il trasferimento è incompleto sì: la metà nuova resta fuori dal trasferimento e si collega a parte
+        if (existing.TransferId is int transferId)
+        {
+            var legs = await _repository.GetTransactionsByTransferId(transferId);
+            if (legs.Any(t => existing.Amount < 0m ? t.Amount > 0m : t.Amount < 0m))
+                return Result.Fail(DomainErrors.BadRequest("A transaction linked to a complete transfer cannot be split"));
+        }
+
+        if (Math.Abs(existing.Amount) < 0.02m)
+            return Result.Fail(DomainErrors.BadRequest("Amount too small to be split"));
+
+        // l'eventuale centesimo dispari resta sul movimento originale, così la somma non cambia
+        var half = Math.Round(existing.Amount / 2, 2, MidpointRounding.ToZero);
+        var now = DateTime.UtcNow;
+        var copy = new Transaction
+        {
+            Amount = half,
+            Description = existing.Description,
+            Date = existing.Date,
+            AccountId = existing.AccountId,
+            CategoryId = existing.CategoryId,
+            Source = TransactionSource.UserCreated,
+            CreatedOn = now,
+        };
+        existing.Amount -= half;
+        existing.UpdatedOn = now;
+
+        await _repository.UpdateTransaction(existing);
+        await _repository.AddTransactions([copy]);
+        await _repository.SaveChangesAsync();
+        return Result.Ok(copy.Id);
+    }
+
     private const int MaxBulkTransactions = 1000;
 
     public async Task<Result<int>> DeleteTransactions(TransactionBulkRequest request, int userId)

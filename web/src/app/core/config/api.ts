@@ -31,6 +31,7 @@ export const apiConfig = {
     byId: (id: number) => `${transactionBase}/${id}`,
     transferCandidates: (id: number) => `${transactionBase}/${id}/transfer-candidates`,
     transferCounterpart: (id: number) => `${transactionBase}/${id}/transfer-counterpart`,
+    split: (id: number) => `${transactionBase}/${id}/split`,
   },
   categories: {
     base: categoryBase,
