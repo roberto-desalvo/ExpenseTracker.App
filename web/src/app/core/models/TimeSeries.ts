@@ -15,6 +15,9 @@ export interface TimeSeriesPoint {
 export interface TimeSeries {
   dimensions: TimeSeriesDimension[];
   values: TimeSeriesPoint[];
+  /** solo serie di saldo: saldo puntuale prima dell'inizio e alla fine dell'intervallo */
+  openingBalance?: number | null;
+  closingBalance?: number | null;
 }
 
 export interface TimeSeriesList {

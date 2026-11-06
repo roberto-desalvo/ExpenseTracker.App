@@ -76,7 +76,7 @@ Prefisso `/api`. Tutti richiedono autenticazione salvo dove indicato. Una collec
 | | `POST transaction/bulk-delete`, `POST transaction/bulk-category` | Eliminazione e assegnazione della categoria su più movimenti (`ids`, `categoryId`; tutto o niente, max 1000) |
 | | `POST transaction/{id}/split` | Scompone il movimento in più voci (`amounts`, da 2 a 50) con gli stessi dati: importi con il segno dell'originale, non nulli, a 2 decimali e con somma pari all'importo originale; la prima voce resta sull'originale, che mantiene l'`ExternalId`. Non ammesso per i movimenti di un trasferimento con il ramo opposto; se il trasferimento è incompleto le nuove voci non vi sono collegate |
 | | `GET transaction/landing` | Aggregati della dashboard |
-| | `POST transaction/series`, `POST transaction/stock` | Serie temporali: flussi per periodo, saldo medio per periodo |
+| | `POST transaction/series`, `POST transaction/stock` | Serie temporali: flussi per periodo, saldo medio per periodo (più saldo puntuale a inizio e fine intervallo) |
 | Trasferimenti | `GET transfer`, `GET transfer/{id}` | Elenco, dettaglio |
 | | `POST transfer`, `PUT transfer/{id}`, `DELETE transfer/{id}` | CRUD (ogni trasferimento sono due movimenti collegati) |
 | | `GET transaction/{id}/transfer-candidates` | Movimenti che completano il trasferimento incompleto di `{id}` (o di un movimento Money transfers senza trasferimento): altro conto, importo opposto, data nel mese di `{id}`, nel precedente o nel successivo, non già in un trasferimento completo |

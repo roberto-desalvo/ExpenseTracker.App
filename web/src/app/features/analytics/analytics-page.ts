@@ -337,12 +337,13 @@ export class AnalyticsPage {
 
   protected readonly summary = computed(() => {
     const cashFlow = this.cashFlow();
-    const netWorth = this.netWorth();
+    const total = this.total()?.series[0];
     const earned = cashFlow.reduce((s, p) => s + p.earned, 0);
     const spent = cashFlow.reduce((s, p) => s + p.spent, 0);
     const invested = cashFlow.reduce((s, p) => s + p.invested, 0);
-    const startValue = netWorth[0]?.amount ?? 0;
-    const endValue = netWorth[netWorth.length - 1]?.amount ?? 0;
+    // saldi puntuali (non le medie del primo/ultimo periodo del grafico): la variazione è la somma dei movimenti
+    const startValue = total?.openingBalance ?? 0;
+    const endValue = total?.closingBalance ?? 0;
     return {
       earned,
       spent,

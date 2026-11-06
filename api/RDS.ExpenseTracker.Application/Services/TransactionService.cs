@@ -429,6 +429,17 @@ public class TransactionService : ITransactionService
 
         var filtered = (await _repository.GetTimeSeriesTransactionsUntilDate(balanceRequest, userId)).ToList();
 
+        // Oltre ai saldi medi per periodo (grafico), ogni serie riporta i saldi puntuali di inizio e
+        // fine intervallo: la loro differenza è esattamente la somma dei movimenti nel periodo.
+        TimeSeriesDto BuildSeries(IEnumerable<TimeSeriesDimensionDto> dimensions, List<(DateTime Date, decimal Amount)> transactions)
+            => new()
+            {
+                Dimensions = dimensions,
+                Values = BuildAveragePoints(transactions, request.StartDate, request.EndDate, granularity),
+                OpeningBalance = transactions.Where(t => t.Date < request.StartDate).Sum(t => t.Amount),
+                ClosingBalance = transactions.Sum(t => t.Amount)
+            };
+
         var series = new List<TimeSeriesDto>();
 
         if (request.IdAccounts.Any())
@@ -440,11 +451,9 @@ public class TransactionService : ITransactionService
                     .Select(t => (t.Date, t.Amount))
                     .ToList();
 
-                series.Add(new TimeSeriesDto
-                {
-                    Dimensions = [new TimeSeriesDimensionDto { Key = "AccountId", Value = accountId.ToString() }],
-                    Values = BuildAveragePoints(accountTransactions, request.StartDate, request.EndDate, granularity)
-                });
+                series.Add(BuildSeries(
+                    [new TimeSeriesDimensionDto { Key = "AccountId", Value = accountId.ToString() }],
+                    accountTransactions));
             }
         }
         else if (request.IdCategories.Any())
@@ -456,24 +465,14 @@ public class TransactionService : ITransactionService
                     .Select(t => (t.Date, t.Amount))
                     .ToList();
 
-                series.Add(new TimeSeriesDto
-                {
-                    Dimensions = [new TimeSeriesDimensionDto { Key = "CategoryId", Value = categoryId.ToString() }],
-                    Values = BuildAveragePoints(categoryTransactions, request.StartDate, request.EndDate, granularity)
-                });
+                series.Add(BuildSeries(
+                    [new TimeSeriesDimensionDto { Key = "CategoryId", Value = categoryId.ToString() }],
+                    categoryTransactions));
             }
         }
         else
         {
-            var totalTransactions = filtered
-                .Select(t => (t.Date, t.Amount))
-                .ToList();
-
-            series.Add(new TimeSeriesDto
-            {
-                Dimensions = [],
-                Values = BuildAveragePoints(totalTransactions, request.StartDate, request.EndDate, granularity)
-            });
+            series.Add(BuildSeries([], filtered.Select(t => (t.Date, t.Amount)).ToList()));
         }
 
         return Result.Ok(new TimeSeriesListDto

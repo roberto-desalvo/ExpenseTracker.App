@@ -106,6 +106,34 @@ public class TransactionServiceTests
     }
 
     [Fact]
+    public async Task GetStock_ReturnsPointBalances_AtStartAndEndOfRange()
+    {
+        // Saldo prima del range = 200; nel range +100 e -30: saldo finale 270, non la media mensile.
+        var transactionRepository = new FakeTransactionRepository(
+        [
+            Transaction(new DateTime(2025, 12, 15), 200m),
+            Transaction(new DateTime(2026, 1, 5), 100m),
+            Transaction(new DateTime(2026, 2, 20), -30m),
+        ]);
+
+        var service = CreateService(transactionRepository);
+
+        var result = await service.GetStock(new TimeSeriesRequestDto
+        {
+            StartDate = new DateTime(2026, 1, 1),
+            EndDate = new DateTime(2026, 2, 28),
+            Granularity = (int)TimeGranularityEnum.Monthly,
+            IdAccounts = [],
+            IdCategories = [],
+        }, UserId);
+
+        result.IsSuccess.Should().BeTrue();
+        var series = result.Value.Series.Single();
+        series.OpeningBalance.Should().Be(200m);
+        series.ClosingBalance.Should().Be(270m);
+    }
+
+    [Fact]
     public async Task GetStock_ReturnsFlatZeroSeries_WhenAccountHasNoTransactions()
     {
         var transactionRepository = new FakeTransactionRepository([]);
