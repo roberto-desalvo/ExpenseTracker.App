@@ -53,6 +53,7 @@ public class TestSeedService : ITestSeedService
         try
         {
             var (user, userCreated) = await GetOrCreateTestUserAsync();
+            await ResetPreferencesAsync(user);
             await ResetExistingDataAsync(user.Id);
             var categories = await ResetCategoriesAsync(user.Id);
 
@@ -111,6 +112,17 @@ public class TestSeedService : ITestSeedService
         await _userRepository.AddUser(user);
         await _userRepository.SaveChangesAsync();
         return (user, true);
+    }
+
+    // Anche le preferenze salvate a DB (aspetto, layout di Analisi) tornano a quelle predefinite.
+    private async Task ResetPreferencesAsync(User user)
+    {
+        if (user.Appearance is null && user.AnalyticsLayout is null)
+            return;
+
+        user.Appearance = null;
+        user.AnalyticsLayout = null;
+        await _userRepository.SaveChangesAsync();
     }
 
     private async Task ResetExistingDataAsync(int userId)

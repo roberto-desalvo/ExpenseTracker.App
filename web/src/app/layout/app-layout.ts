@@ -10,6 +10,7 @@ import { filter, map } from "rxjs";
 import { AuthService } from "../core/auth/auth.service";
 import { NAV_ITEMS, isNavItemActive } from "../core/config/navigation";
 import { AccountTypesStore } from "../core/state/account-types.store";
+import { AppearanceStore } from "../core/state/appearance.store";
 import { CurrentUserStore } from "../core/state/current-user.store";
 import { AccountsStore } from "../core/state/accounts.store";
 import { CategoriesStore } from "../core/state/categories.store";
@@ -86,6 +87,7 @@ export class AppLayout {
     inject(CategoriesStore).ensureLoaded();
     inject(AccountTypesStore).ensureLoaded();
     void inject(CurrentUserStore).ensureLoaded();
+    void inject(AppearanceStore).ensureLoaded();
 
     this.router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe(() => this.mobileOpen.set(false));
   }

@@ -34,30 +34,25 @@ export interface AppTokens extends ModeTokens {
 
 const STORAGE_KEY = "expense-tracker:appearance";
 
-const DEFAULT_PREFERENCES: AppearancePreferences = {
+export const DEFAULT_APPEARANCE: AppearancePreferences = {
   preset: "aurora",
   mode: "system",
   nav: "sidebar",
 };
 
+/** Preferenze valide a partire da un valore letto da storage o dal BE (i campi non validi tornano ai predefiniti). */
+export const normalizeAppearance = (raw: Partial<AppearancePreferences> | null | undefined): AppearancePreferences => ({
+  preset: raw?.preset && raw.preset in STYLE_PRESETS ? raw.preset : DEFAULT_APPEARANCE.preset,
+  mode: raw?.mode === "light" || raw?.mode === "dark" || raw?.mode === "system" ? raw.mode : DEFAULT_APPEARANCE.mode,
+  nav: raw?.nav === "topbar" ? "topbar" : "sidebar",
+});
+
 const readPreferences = (): AppearancePreferences => {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return DEFAULT_PREFERENCES;
-    }
-
-    const parsed = JSON.parse(raw) as Partial<AppearancePreferences>;
-    return {
-      preset: parsed.preset && parsed.preset in STYLE_PRESETS ? parsed.preset : DEFAULT_PREFERENCES.preset,
-      mode:
-        parsed.mode === "light" || parsed.mode === "dark" || parsed.mode === "system"
-          ? parsed.mode
-          : DEFAULT_PREFERENCES.mode,
-      nav: parsed.nav === "topbar" ? "topbar" : "sidebar",
-    };
+    return raw ? normalizeAppearance(JSON.parse(raw) as Partial<AppearancePreferences>) : DEFAULT_APPEARANCE;
   } catch {
-    return DEFAULT_PREFERENCES;
+    return DEFAULT_APPEARANCE;
   }
 };
 
@@ -168,7 +163,8 @@ const toCssVariables = (a: AppTokens): Record<string, string> => {
 
 /**
  * Aspetto dell'app (Impostazioni → Aspetto): stile, modalità chiara/scura/di sistema e layout di navigazione.
- * Le preferenze sono salvate in localStorage; i token dello stile attivo vengono applicati come variabili CSS su `:root`.
+ * Le preferenze sono salvate a DB (`AppearanceStore`) e in localStorage come cache per il primo render;
+ * i token dello stile attivo vengono applicati come variabili CSS su `:root`.
  */
 @Injectable({ providedIn: "root" })
 export class ThemeService {
@@ -220,6 +216,11 @@ export class ThemeService {
 
   setNavLayout(nav: NavLayout) {
     this.preferences.update((p) => ({ ...p, nav }));
+  }
+
+  /** Sostituisce tutte le preferenze (es. quelle salvate a DB); `null` = predefinite. */
+  replacePreferences(preferences: Partial<AppearancePreferences> | null) {
+    this.preferences.set(normalizeAppearance(preferences));
   }
 
   private applyTokens(tokens: AppTokens) {

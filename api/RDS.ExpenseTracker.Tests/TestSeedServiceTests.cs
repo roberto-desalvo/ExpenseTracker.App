@@ -43,6 +43,26 @@ public class TestSeedServiceTests
     }
 
     [Fact]
+    public async Task ResetTestUserDataAsync_RestoresDefaultPreferences()
+    {
+        var testUser = new User(TestUserId, TestSeedService.TestUserEmail)
+        {
+            Appearance = "{\"preset\":\"ledger\",\"mode\":\"dark\",\"nav\":\"topbar\"}",
+            AnalyticsLayout = "{\"cards\":[]}",
+        };
+        var otherUser = new User(OtherUserId, "someone@test.com") { Appearance = "{\"preset\":\"graphite\"}" };
+        var service = CreateService(
+            new FakeUserRepository([testUser, otherUser]), new FakeAccountRepository([]), new FakeTransactionRepository(), new FakeTransferRepository());
+
+        var result = await service.ResetTestUserDataAsync();
+
+        result.IsSuccess.Should().BeTrue();
+        testUser.Appearance.Should().BeNull();
+        testUser.AnalyticsLayout.Should().BeNull();
+        otherUser.Appearance.Should().NotBeNull();
+    }
+
+    [Fact]
     public async Task ResetTestUserDataAsync_ReplacesOnlyTestUserData_WhenUserExists()
     {
         var userRepository = new FakeUserRepository(

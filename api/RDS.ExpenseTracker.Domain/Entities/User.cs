@@ -14,6 +14,9 @@ public class User(int id, string email, bool isDemo = false)
     // Layout della pagina Analisi in JSON (AnalyticsLayoutDto); null = layout predefinito.
     public string? AnalyticsLayout { get; set; }
 
+    // Preferenze di aspetto (stile, modalità, navigazione) in JSON (AppearancePreferencesDto); null = predefinite.
+    public string? Appearance { get; set; }
+
     public ICollection<Account> Accounts { get; set; } = [];
     public ICollection<Category> Categories { get; set; } = [];
 }

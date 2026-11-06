@@ -53,7 +53,7 @@ flowchart LR
 | `OneDrive_Sync` | Coda `onedrive-sync` | Importa i file nuovi della cartella OneDrive |
 | `OneDrive_SubscriptionRenewal` | Timer giornaliero | Crea o rinnova la subscription Graph |
 | `ImportJob_Process` | Coda `bank-file-import` | Importa un file caricato dall'app e aggiorna lo stato in `ImportLogs` |
-| `Scheduled_DemoDataReset` | Timer giornaliero | Rigenera i dati dell'utente demo e riconcilia i trasferimenti |
+| `Scheduled_DemoDataReset` | Timer giornaliero | Rigenera i dati dell'utente demo (preferenze di aspetto e layout di Analisi compresi) e riconcilia i trasferimenti |
 
 ## Scelte tecniche principali
 

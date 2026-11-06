@@ -23,6 +23,7 @@ erDiagram
         bool IsDemo
         bool IsAdmin
         string AnalyticsLayout "JSON, null = predefinito"
+        string Appearance "JSON, null = predefinito"
     }
     Account {
         int Id PK
@@ -94,7 +95,7 @@ erDiagram
 
 | Tabella | Ruolo |
 |---|---|
-| `Users` | Utente interno, creato al primo accesso; `IsDemo` abilita la rigenerazione dei dati demo; `IsAdmin` le funzioni di amministrazione (la migration lo assegna all'utente con id 1); `AnalyticsLayout` è il layout della pagina Analisi in JSON (id e larghezza delle card, il catalogo è nel frontend) |
+| `Users` | Utente interno, creato al primo accesso; `IsDemo` abilita la rigenerazione dei dati demo; `IsAdmin` le funzioni di amministrazione (la migration lo assegna all'utente con id 1); `AnalyticsLayout` è il layout della pagina Analisi in JSON (id e larghezza delle card, il catalogo è nel frontend); `Appearance` le preferenze di aspetto in JSON (stile, modalità, navigazione). Il reset schedulato dell'utente demo le riporta entrambe a `NULL` |
 | `Accounts` | Conto finanziario; l'IBAN serve a riconoscere i trasferimenti negli import, il tipo a scegliere il conto di destinazione |
 | `AccountTypes` | Catalogo fisso dei tipi di conto (BBVA, Satispay, Trade Republic, Sella, Revolut, Contanti, Hype, PayPal), creato dalla migration; i primi quattro hanno un import da file |
 | `Categories` | Categorie dell'utente; quelle con `Kind` valorizzato sono le 11 di sistema create con l'utente |

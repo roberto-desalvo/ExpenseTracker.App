@@ -46,13 +46,17 @@ export type ModalSubmitAction = () => string | void | Promise<string | void>;
     </ng-template>
   `,
   styles: `
-    .modal { display: flex; flex-direction: column; max-height: 100%; }
+    /* altezza limitata alla finestra: scorre solo il contenuto, intestazione e azioni restano visibili */
+    .modal { display: flex; flex-direction: column; max-height: calc(100dvh - 48px); }
+    @media (max-width: 599.98px) {
+      .modal { max-height: 100dvh; }
+    }
     .head { display: flex; align-items: flex-start; gap: 16px; padding: 24px 24px 8px; }
     .titles { flex: 1; }
     h2 { font-weight: 700; font-size: var(--app-text-lg); letter-spacing: -0.01em; color: var(--app-text); }
     p { font-size: var(--app-text-md); color: var(--app-text-secondary); margin-top: 2px; }
     .close { color: var(--app-text-muted); margin: -4px -8px 0 0; }
-    .content { padding: 12px 24px 8px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; flex: 1; }
+    .content { padding: 12px 24px 8px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; flex: 1; min-height: 0; }
     .actions {
       display: flex; justify-content: flex-end; gap: 8px; padding: 16px 24px;
       border-top: 1px solid var(--app-border); margin-top: 8px;

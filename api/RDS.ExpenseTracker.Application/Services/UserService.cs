@@ -116,6 +116,47 @@ public class UserService : IUserService
         return Result.Ok(normalized);
     }
 
+    public async Task<Result<AppearancePreferencesDto?>> GetAppearanceAsync(int userId)
+    {
+        var user = await _repository.GetById(userId);
+        if (user is null)
+            return Result.Fail(DomainErrors.NotFound("User", userId));
+
+        if (string.IsNullOrWhiteSpace(user.Appearance))
+            return Result.Ok<AppearancePreferencesDto?>(null);
+
+        try
+        {
+            return Result.Ok(JsonSerializer.Deserialize<AppearancePreferencesDto>(user.Appearance, JsonOptions));
+        }
+        catch (JsonException)
+        {
+            // JSON corrotto: il frontend torna alle preferenze predefinite.
+            return Result.Ok<AppearancePreferencesDto?>(null);
+        }
+    }
+
+    public async Task<Result<AppearancePreferencesDto>> SaveAppearanceAsync(int userId, AppearancePreferencesDto appearance)
+    {
+        var validation = ValidateAppearance(appearance);
+        if (validation is not null)
+            return Result.Fail(validation);
+
+        var user = await _repository.GetById(userId);
+        if (user is null)
+            return Result.Fail(DomainErrors.NotFound("User", userId));
+
+        var normalized = new AppearancePreferencesDto
+        {
+            Preset = appearance.Preset.Trim(),
+            Mode = appearance.Mode,
+            Nav = appearance.Nav,
+        };
+        user.Appearance = JsonSerializer.Serialize(normalized, JsonOptions);
+        await _repository.SaveChangesAsync();
+        return Result.Ok(normalized);
+    }
+
     public async Task<Result<CurrentUserDto>> GetCurrentUserAsync(int userId)
     {
         var user = await _repository.GetById(userId);
@@ -161,6 +202,27 @@ public class UserService : IUserService
         return null;
     }
 
+    // Il catalogo degli stili è nel frontend: qui si controlla solo la forma dell'id.
+    private static BadRequestResultError? ValidateAppearance(AppearancePreferencesDto? appearance)
+    {
+        if (appearance is null)
+            return DomainErrors.BadRequest("Appearance preferences are required.");
+
+        if (string.IsNullOrWhiteSpace(appearance.Preset) || appearance.Preset.Trim().Length > MaxPresetIdLength)
+            return DomainErrors.BadRequest($"preset is required (at most {MaxPresetIdLength} characters).");
+
+        if (!AppearanceModes.Contains(appearance.Mode))
+            return DomainErrors.BadRequest($"Invalid mode '{appearance.Mode}' (allowed: {string.Join(", ", AppearanceModes)}).");
+
+        if (!NavLayouts.Contains(appearance.Nav))
+            return DomainErrors.BadRequest($"Invalid nav '{appearance.Nav}' (allowed: {string.Join(", ", NavLayouts)}).");
+
+        return null;
+    }
+
+    private const int MaxPresetIdLength = 50;
+    private static readonly string[] AppearanceModes = ["light", "dark", "system"];
+    private static readonly string[] NavLayouts = ["sidebar", "topbar"];
     private const int MaxAnalyticsCards = 20;
     private const int MaxAnalyticsCardIdLength = 50;
     private static readonly string[] AnalyticsCardWidths = ["third", "half", "twoThirds", "full"];

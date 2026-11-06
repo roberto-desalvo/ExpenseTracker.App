@@ -79,6 +79,7 @@ Prefisso `/api`. Tutti richiedono autenticazione salvo dove indicato. Una collec
 | | `POST transfer`, `PUT transfer/{id}`, `DELETE transfer/{id}` | CRUD (ogni trasferimento sono due movimenti collegati) |
 | Utente | `GET user/me` | Profilo dell'utente corrente (email, `isDemo`, `isAdmin`) |
 | Preferenze | `GET user/analytics-layout`, `PUT user/analytics-layout` | Layout della pagina Analisi (card visibili, ordine, larghezza); `null` se mai personalizzato |
+| | `GET user/appearance`, `PUT user/appearance` | Preferenze di aspetto (`preset`, `mode`: light/dark/system, `nav`: sidebar/topbar); `null` se mai salvate |
 | Demo | `POST demo/generate` | Rigenera i dati dell'utente demo (solo utenti con `IsDemo`) |
 | Import dall'app | `POST imports` | Multipart `file` (CSV/XLSX, max 10 MB) + `accountId`: salva il file e lo accoda, risponde 202 con l'import `Queued` (non per l'utente demo) |
 | | `POST imports/query` | Storico paginato degli import dell'utente (filtro opzionale per stato) |

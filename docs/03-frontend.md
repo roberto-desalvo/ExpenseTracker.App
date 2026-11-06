@@ -55,7 +55,7 @@ Le pagine sono caricate in lazy (`app.routes.ts`); anche ECharts viene scaricato
 
 ## Stato e dati
 
-- **Store** (`core/state/`) — servizi `providedIn: "root"` con signal: `AccountsStore`, `CategoriesStore` e `AccountTypesStore` (anagrafiche caricate una volta dalla shell), `TransactionsStore`, `ImportsStore` (conti importabili, upload, storico; finché ci sono import in corso li ricontrolla ogni pochi secondi e ne notifica l'esito), `TransactionsTableStore` (filtri, ordinamento, paginazione della tabella), `AnalyticsLayoutStore` (layout della pagina Analisi; il catalogo delle card è in `core/config/analytics-cards.ts`), `QuickActionsService` (modali). Nessuna libreria di state management.
+- **Store** (`core/state/`) — servizi `providedIn: "root"` con signal: `AccountsStore`, `CategoriesStore` e `AccountTypesStore` (anagrafiche caricate una volta dalla shell), `TransactionsStore`, `ImportsStore` (conti importabili, upload, storico; finché ci sono import in corso li ricontrolla ogni pochi secondi e ne notifica l'esito), `TransactionsTableStore` (filtri, ordinamento, paginazione della tabella), `AnalyticsLayoutStore` (layout della pagina Analisi; il catalogo delle card è in `core/config/analytics-cards.ts`), `AppearanceStore` (preferenze di aspetto: caricate dalla shell, poi salvate a ogni modifica), `QuickActionsService` (modali). Nessuna libreria di state management.
 - **Aggiornamento** — dopo ogni modifica `TransactionsStore` incrementa `dataVersion`; dashboard, analisi e conti lo osservano e ricaricano i propri aggregati. Lo fa anche quando un import da file si conclude con nuovi movimenti.
 - **API** — tutte le chiamate passano da `ApiClient`, che condivide le richieste identiche in volo. L'interceptor di autenticazione aggiunge l'header; quello degli errori estrae il messaggio dai problem details, lo mostra in una snackbar e rilancia l'errore.
 
@@ -77,7 +77,7 @@ Il service worker mette in cache solo la shell (JS, CSS, icone, Google Fonts): l
 
 ## Temi
 
-Tre preset di stile in `core/theme/stylePresets.ts` (`aurora` di default, `ledger`, `graphite`), ognuno in versione chiara e scura. `ThemeService` scrive i token del preset attivo come variabili CSS su `:root` (`--app-*` per l'app, `--mat-sys-*` per Angular Material); i componenti li usano con `var(--app-…)` e i grafici con `ThemeService.tokens()`. Le preferenze di aspetto sono salvate in `localStorage`.
+Tre preset di stile in `core/theme/stylePresets.ts` (`aurora` di default, `ledger`, `graphite`), ognuno in versione chiara e scura. `ThemeService` scrive i token del preset attivo come variabili CSS su `:root` (`--app-*` per l'app, `--mat-sys-*` per Angular Material); i componenti li usano con `var(--app-…)` e i grafici con `ThemeService.tokens()`. Le preferenze di aspetto sono salvate a DB per utente (`AppearanceStore`, assenti = predefinite); `localStorage` ne tiene una copia usata solo fino al caricamento, per evitare il cambio di stile al primo render.
 
 La palette dei grafici (`chartColors.ts`) ha 8 colori in ordine fisso, verificati per il daltonismo; ogni conto o categoria ha sempre lo stesso colore, mentre entrate e uscite usano i colori semantici del preset.
 

@@ -365,6 +365,10 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
+                    b.Property<string>("Appearance")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<string>("AzureOid")
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");

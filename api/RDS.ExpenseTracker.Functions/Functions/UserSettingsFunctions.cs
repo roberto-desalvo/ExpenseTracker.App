@@ -6,7 +6,7 @@ using RDS.ExpenseTracker.Domain.Services;
 
 namespace RDS.ExpenseTracker.Functions.Functions;
 
-/// <summary>Profilo dell'utente corrente e preferenze salvate a DB (layout della pagina Analisi).</summary>
+/// <summary>Profilo dell'utente corrente e preferenze salvate a DB (layout della pagina Analisi, aspetto).</summary>
 public class UserSettingsFunctions : FunctionBase
 {
     private readonly IUserService _service;
@@ -41,5 +41,22 @@ public class UserSettingsFunctions : FunctionBase
         var layout = await ReadBodyAsync<AnalyticsLayoutDto>(req);
         var userId = await _currentUserAccessor.GetUserIdAsync();
         return await ExecuteAsync(() => _service.SaveAnalyticsLayoutAsync(userId, layout));
+    }
+
+    [Function("UserSettings_GetAppearance")]
+    public async Task<IActionResult> GetAppearance(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "user/appearance")] HttpRequest req)
+    {
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.GetAppearanceAsync(userId));
+    }
+
+    [Function("UserSettings_PutAppearance")]
+    public async Task<IActionResult> PutAppearance(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "user/appearance")] HttpRequest req)
+    {
+        var appearance = await ReadBodyAsync<AppearancePreferencesDto>(req);
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.SaveAppearanceAsync(userId, appearance));
     }
 }

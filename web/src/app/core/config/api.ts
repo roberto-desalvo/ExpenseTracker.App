@@ -47,6 +47,7 @@ export const apiConfig = {
   userSettings: {
     me: resource("user/me"),
     analyticsLayout: resource("user/analytics-layout"),
+    appearance: resource("user/appearance"),
   },
   legacyMatch: {
     sheets: `${legacyMatchBase}/sheets`,

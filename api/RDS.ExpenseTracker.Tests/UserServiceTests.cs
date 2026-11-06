@@ -92,6 +92,56 @@ public class UserServiceTests
         result.Value.Should().BeNull();
     }
 
+    [Fact]
+    public async Task GetAppearance_ReturnsNull_WhenNeverSaved()
+    {
+        var service = CreateService(new FakeUserRepository(new User(UserId, "a@b.c")));
+
+        var result = await service.GetAppearanceAsync(UserId);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SaveAppearance_ThenGet_RoundTrips()
+    {
+        var repository = new FakeUserRepository(new User(UserId, "a@b.c"));
+        var service = CreateService(repository);
+
+        var saved = await service.SaveAppearanceAsync(UserId, new AppearancePreferencesDto { Preset = " ledger ", Mode = "dark", Nav = "topbar" });
+        var loaded = await service.GetAppearanceAsync(UserId);
+
+        saved.IsSuccess.Should().BeTrue();
+        repository.SaveCount.Should().Be(1);
+        loaded.Value.Should().BeEquivalentTo(new AppearancePreferencesDto { Preset = "ledger", Mode = "dark", Nav = "topbar" });
+    }
+
+    [Theory]
+    [InlineData("", "dark", "sidebar")]
+    [InlineData("aurora", "night", "sidebar")]
+    [InlineData("aurora", "system", "bottom")]
+    public async Task SaveAppearance_RejectsInvalidValues(string preset, string mode, string nav)
+    {
+        var repository = new FakeUserRepository(new User(UserId, "a@b.c"));
+
+        var result = await CreateService(repository).SaveAppearanceAsync(UserId, new AppearancePreferencesDto { Preset = preset, Mode = mode, Nav = nav });
+
+        result.IsFailed.Should().BeTrue();
+        repository.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetAppearance_ReturnsNull_WhenStoredJsonIsCorrupted()
+    {
+        var service = CreateService(new FakeUserRepository(new User(UserId, "a@b.c") { Appearance = "{not json" }));
+
+        var result = await service.GetAppearanceAsync(UserId);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeNull();
+    }
+
     internal sealed class FakeUserRepository(params User[] users) : IUserRepository
     {
         public int SaveCount { get; private set; }

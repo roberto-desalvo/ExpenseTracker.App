@@ -16,6 +16,8 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.IsAdmin).IsRequired().HasDefaultValue(false);
         // JSON del layout della pagina Analisi (nvarchar(max)); null = predefinito.
         builder.Property(u => u.AnalyticsLayout);
+        // JSON delle preferenze di aspetto (stile, modalità, navigazione); null = predefinite.
+        builder.Property(u => u.Appearance).HasMaxLength(500);
 
         // Filtrato: permette più utenti demo con AzureOid = NULL, ma garantisce
         // unicità per gli utenti reali provisionati via oid Azure AD.

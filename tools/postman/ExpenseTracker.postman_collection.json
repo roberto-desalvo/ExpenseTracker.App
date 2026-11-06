@@ -886,6 +886,56 @@
                         }
                     }
                 }
+            },
+            {
+                "name": "UserSettings_GetAppearance",
+                "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                        "raw": "{{baseUrl}}/user/appearance",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "user",
+                            "appearance"
+                        ]
+                    },
+                    "description": "Preferenze di aspetto dell'utente (`{ preset, mode, nav }`), null se mai salvate."
+                }
+            },
+            {
+                "name": "UserSettings_PutAppearance",
+                "request": {
+                    "method": "PUT",
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "url": {
+                        "raw": "{{baseUrl}}/user/appearance",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "user",
+                            "appearance"
+                        ]
+                    },
+                    "description": "Salva le preferenze di aspetto. `mode`: light, dark, system; `nav`: sidebar, topbar; `preset`: id dello stile (catalogo nel frontend).",
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n  \"preset\": \"aurora\",\n  \"mode\": \"system\",\n  \"nav\": \"sidebar\"\n}",
+                        "options": {
+                            "raw": {
+                                "language": "json"
+                            }
+                        }
+                    }
+                }
             }
         ]
     },

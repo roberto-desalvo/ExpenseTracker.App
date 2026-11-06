@@ -24,6 +24,11 @@ public interface IUserService : IService
 
     Task<Result<AnalyticsLayoutDto>> SaveAnalyticsLayoutAsync(int userId, AnalyticsLayoutDto layout);
 
+    // Preferenze di aspetto: null se l'utente non le ha mai salvate (il frontend usa le predefinite).
+    Task<Result<AppearancePreferencesDto?>> GetAppearanceAsync(int userId);
+
+    Task<Result<AppearancePreferencesDto>> SaveAppearanceAsync(int userId, AppearancePreferencesDto appearance);
+
     Task<Result<CurrentUserDto>> GetCurrentUserAsync(int userId);
 
     // Fallisce con Forbidden se l'utente non è admin.
