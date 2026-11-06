@@ -14,4 +14,6 @@ public enum TransactionSource
     FileImport,
     // Creato dall'abbinamento dello storico Excel (Spese.xlsx), per i conti senza import automatico.
     LegacyImport,
+    // Inserito o modificato direttamente sul DB tramite script SQL (non dall'applicazione).
+    DbScript,
 }

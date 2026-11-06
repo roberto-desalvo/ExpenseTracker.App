@@ -56,7 +56,7 @@ erDiagram
         string Description
         datetime Date
         string ExternalId "chiave di deduplica"
-        string Source "UserCreated | FileImport | LegacyImport"
+        string Source "UserCreated | FileImport | LegacyImport | DbScript"
         datetime LegacyMatchedAt "abbinato allo storico Excel"
         string LegacyOriginalDescription "descrizione prima dell'abbinamento"
         datetime CreatedOn
@@ -101,7 +101,7 @@ erDiagram
 | `Accounts` | Conto finanziario; l'IBAN serve a riconoscere i trasferimenti negli import, il tipo a scegliere il conto di destinazione |
 | `AccountTypes` | Catalogo fisso dei tipi di conto (BBVA, Satispay, Trade Republic, Sella, Revolut, Contanti, Hype, PayPal), creato dalla migration; i primi quattro hanno un import da file |
 | `Categories` | Categorie dell'utente; quelle con `Kind` valorizzato sono le 11 di sistema create con l'utente |
-| `Transactions` | Movimento; importo positivo = entrata, negativo = uscita; `Source` ne indica l'origine (inserito dall'utente, import da file, creato dallo storico Excel); `LegacyMatchedAt` indica che è stato abbinato a una riga dello storico Excel e `LegacyOriginalDescription` conserva la descrizione precedente al primo abbinamento |
+| `Transactions` | Movimento; importo positivo = entrata, negativo = uscita; `Source` ne indica l'origine (inserito dall'utente, import da file, creato dallo storico Excel, scritto da script SQL diretto sul DB); `LegacyMatchedAt` indica che è stato abbinato a una riga dello storico Excel e `LegacyOriginalDescription` conserva la descrizione precedente al primo abbinamento |
 | `Transfers` | Collega le due metà di un trasferimento |
 | `ImportLogs` | Stato ed esito di ogni import di file; per gli import dall'app anche il blob del file |
 | `OneDriveSyncStates` | Stato dell'import OneDrive: posizione della delta query, subscription Graph, lock |
