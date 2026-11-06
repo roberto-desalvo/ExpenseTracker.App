@@ -76,9 +76,9 @@ export class TransactionApi {
     return this.api.write("POST", apiConfig.transactions.bulkDelete, "Errore nell'eliminazione delle transazioni", { ids });
   }
 
-  /** Divide il movimento in due movimenti uguali con metà importo ciascuno. */
-  split(id: number): Promise<void> {
-    return this.api.write("POST", apiConfig.transactions.split(id), "Errore nella divisione della transazione");
+  /** Scompone il movimento in più voci con gli importi indicati (somma = importo originale; il primo resta sull'originale). */
+  split(id: number, amounts: number[]): Promise<void> {
+    return this.api.write("POST", apiConfig.transactions.split(id), "Errore nella scomposizione della transazione", { amounts });
   }
 
   /** categoryId 0 = nessuna categoria */

@@ -177,17 +177,31 @@ public class TransactionService : ITransactionService
         return Result.Ok();
     }
 
-    public async Task<Result<int>> SplitTransaction(int id, int userId)
+    private const int MaxSplitParts = 50;
+
+    public async Task<Result<List<int>>> SplitTransaction(int id, TransactionSplitRequest request, int userId)
     {
         if (id <= 0)
             return Result.Fail(DomainErrors.InvalidId("transaction", id));
+
+        var amounts = request?.Amounts ?? [];
+        if (amounts.Count < 2 || amounts.Count > MaxSplitParts)
+            return Result.Fail(DomainErrors.BadRequest($"A transaction can be split into 2 to {MaxSplitParts} parts"));
+        if (amounts.Any(a => a != Math.Round(a, 2)))
+            return Result.Fail(DomainErrors.BadRequest("Split amounts must have at most 2 decimal places"));
 
         var existing = await _repository.GetTransaction(id, userId);
         if (existing is null)
             return Result.Fail(DomainErrors.NotFound("Transaction", id));
 
-        // un ramo di trasferimento con il ramo opposto non si divide (non corrisponderebbe più all'importo);
-        // se il trasferimento è incompleto sì: la metà nuova resta fuori dal trasferimento e si collega a parte
+        // ogni voce ha il segno dell'originale (nessuna voce a zero) e la somma non cambia
+        if (amounts.Any(a => existing.Amount < 0m ? a >= 0m : a <= 0m))
+            return Result.Fail(DomainErrors.BadRequest("Every split amount must be non-zero and have the same sign as the original"));
+        if (amounts.Sum() != existing.Amount)
+            return Result.Fail(DomainErrors.BadRequest("The split amounts must add up to the original amount"));
+
+        // un ramo di trasferimento con il ramo opposto non si scompone (non corrisponderebbe più all'importo);
+        // se il trasferimento è incompleto sì: le voci nuove restano fuori dal trasferimento e si collegano a parte
         if (existing.TransferId is int transferId)
         {
             var legs = await _repository.GetTransactionsByTransferId(transferId);
@@ -195,29 +209,25 @@ public class TransactionService : ITransactionService
                 return Result.Fail(DomainErrors.BadRequest("A transaction linked to a complete transfer cannot be split"));
         }
 
-        if (Math.Abs(existing.Amount) < 0.02m)
-            return Result.Fail(DomainErrors.BadRequest("Amount too small to be split"));
-
-        // l'eventuale centesimo dispari resta sul movimento originale, così la somma non cambia
-        var half = Math.Round(existing.Amount / 2, 2, MidpointRounding.ToZero);
+        // la prima voce resta sul movimento originale (che mantiene ExternalId e trasferimento), le altre sono nuove
         var now = DateTime.UtcNow;
-        var copy = new Transaction
+        var copies = amounts.Skip(1).Select(amount => new Transaction
         {
-            Amount = half,
+            Amount = amount,
             Description = existing.Description,
             Date = existing.Date,
             AccountId = existing.AccountId,
             CategoryId = existing.CategoryId,
             Source = TransactionSource.UserCreated,
             CreatedOn = now,
-        };
-        existing.Amount -= half;
+        }).ToList();
+        existing.Amount = amounts[0];
         existing.UpdatedOn = now;
 
         await _repository.UpdateTransaction(existing);
-        await _repository.AddTransactions([copy]);
+        await _repository.AddTransactions(copies);
         await _repository.SaveChangesAsync();
-        return Result.Ok(copy.Id);
+        return Result.Ok(copies.Select(c => c.Id).ToList());
     }
 
     private const int MaxBulkTransactions = 1000;

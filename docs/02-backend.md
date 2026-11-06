@@ -74,7 +74,7 @@ Prefisso `/api`. Tutti richiedono autenticazione salvo dove indicato. Una collec
 | | `GET transaction/{id}`, `GET transaction/latest`, `GET transaction/month-options` | Dettaglio, ultimo movimento, mesi disponibili |
 | | `POST transaction`, `PUT transaction`, `DELETE transaction/{id}` | CRUD |
 | | `POST transaction/bulk-delete`, `POST transaction/bulk-category` | Eliminazione e assegnazione della categoria su più movimenti (`ids`, `categoryId`; tutto o niente, max 1000) |
-| | `POST transaction/{id}/split` | Divide il movimento in due con metà importo ciascuno e gli stessi dati (il centesimo dispari resta sull'originale, che mantiene l'`ExternalId`); non ammesso per i movimenti di un trasferimento con il ramo opposto; se il trasferimento è incompleto la nuova metà non vi è collegata |
+| | `POST transaction/{id}/split` | Scompone il movimento in più voci (`amounts`, da 2 a 50) con gli stessi dati: importi con il segno dell'originale, non nulli, a 2 decimali e con somma pari all'importo originale; la prima voce resta sull'originale, che mantiene l'`ExternalId`. Non ammesso per i movimenti di un trasferimento con il ramo opposto; se il trasferimento è incompleto le nuove voci non vi sono collegate |
 | | `GET transaction/landing` | Aggregati della dashboard |
 | | `POST transaction/series`, `POST transaction/stock` | Serie temporali: flussi per periodo, saldo medio per periodo |
 | Trasferimenti | `GET transfer`, `GET transfer/{id}` | Elenco, dettaglio |

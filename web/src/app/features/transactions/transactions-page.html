@@ -108,9 +108,9 @@
               <span>Duplica</span>
             </button>
             @if (!t.transferId || t.transferIncomplete) {
-              <button mat-menu-item (click)="split(t)">
+              <button mat-menu-item (click)="toSplit.set(t)">
                 <mat-icon>call_split</mat-icon>
-                <span>Dividi a metà</span>
+                <span>Scomponi</span>
               </button>
             }
             <mat-divider />
@@ -140,6 +140,8 @@
 />
 
 <app-transfer-counterpart-modal [transaction]="toLink()" (closed)="toLink.set(null)" />
+
+<app-split-transaction-modal [transaction]="toSplit()" (closed)="toSplit.set(null)" />
 
 <app-bulk-category-modal
   [open]="bulkCategoryOpen()"

@@ -2,7 +2,6 @@ import { Location } from "@angular/common";
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
-import { NotificationService } from "../../core/api/notification.service";
 import { ROUTES } from "../../core/config/routes";
 import { DRILL_DOWN_PARAMS, parseDrillDown } from "../../core/navigation/drill-down";
 import { MatButton, MatIconButton } from "@angular/material/button";
@@ -25,6 +24,7 @@ import { PageContainer } from "../../shared/ui/page-container";
 import { PageHeader } from "../../shared/ui/page-header";
 import { BulkCategoryModal } from "./bulk-category-modal";
 import { TransactionFilters } from "./transaction-filters";
+import { SplitTransactionModal } from "./split-transaction-modal";
 import { TransferCounterpartModal } from "./transfer-counterpart-modal";
 import { TransactionsTabs } from "./transactions-tabs";
 
@@ -32,7 +32,7 @@ const dayFormatter = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "
 const weekdayFormatter = new Intl.DateTimeFormat("it-IT", { weekday: "long" });
 
 /**
- * Movimenti: filtri del periodo e tabella paginata/ordinata lato server, con menu per riga (modifica, duplica, dividi a metà, elimina)
+ * Movimenti: filtri del periodo e tabella paginata/ordinata lato server, con menu per riga (modifica, duplica, scomponi, elimina)
  * e selezione multipla (righe della pagina corrente) per eliminare o assegnare una categoria in blocco.
  * Con il filtro Trasferimenti le righe con un trasferimento incompleto, o in Money transfers senza trasferimento,
  * sono segnalate e si può collegarne il corrispondente.
@@ -51,6 +51,7 @@ const weekdayFormatter = new Intl.DateTimeFormat("it-IT", { weekday: "long" });
     ConfirmDeleteDialog,
     BulkCategoryModal,
     TransferCounterpartModal,
+    SplitTransactionModal,
     MatButton,
     MatIconButton,
     MatIconModule,
@@ -67,12 +68,13 @@ export class TransactionsPage {
   protected readonly store = inject(TransactionsStore);
   protected readonly quickActions = inject(QuickActionsService);
   protected readonly currentUser = inject(CurrentUserStore);
-  private readonly notifications = inject(NotificationService);
   protected readonly routes = ROUTES;
 
   protected readonly toDelete = signal<Transaction | null>(null);
   /** Movimento di cui collegare il ramo mancante del trasferimento. */
   protected readonly toLink = signal<Transaction | null>(null);
+  /** Movimento da scomporre in più voci. */
+  protected readonly toSplit = signal<Transaction | null>(null);
 
   /** Motivo del warning sul trasferimento di una riga, oppure null se non c'è nulla da collegare. */
   protected transferWarning(t: Transaction): string | null {
@@ -156,17 +158,7 @@ export class TransactionsPage {
     this.selectedIds.set(new Set());
   }
 
-  /** Divide il movimento in due con metà importo ciascuno (l'errore è già notificato dall'interceptor). */
-  protected async split(t: Transaction) {
-    try {
-      await this.store.splitTransaction(t.id);
-      this.notifications.showSuccess("Transazione divisa in due");
-    } catch {
-      // notificato dall'interceptor
-    }
-  }
-
-  protected readonly confirmBulkDelete =async (): Promise<string> => {
+  protected readonly confirmBulkDelete = async (): Promise<string> => {
     const ids = this.selectedList();
     await this.store.deleteTransactions(ids);
     this.clearSelection();

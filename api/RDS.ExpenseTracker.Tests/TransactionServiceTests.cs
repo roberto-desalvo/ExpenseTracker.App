@@ -360,37 +360,64 @@ public class TransactionServiceTests
         transactionRepository.SaveChangesCalls.Should().Be(0);
     }
 
-    [Theory]
-    [InlineData(-10.00, -5.00, -5.00)]
-    [InlineData(-10.01, -5.01, -5.00)]
-    [InlineData(33.33, 16.67, 16.66)]
-    public async Task SplitTransaction_HalvesAmount_KeepingTotalAndData(decimal amount, decimal expectedOriginal, decimal expectedCopy)
+    private static TransactionSplitRequest Split(params decimal[] amounts) => new() { Amounts = [.. amounts] };
+
+    [Fact]
+    public async Task SplitTransaction_CreatesPartsWithSameData_KeepingFirstOnOriginal()
     {
         var date = new DateTime(2026, 3, 10);
         var original = new Transaction
         {
-            Id = 1, AccountId = AccountId, Amount = amount, Date = date, Description = "Cena", CategoryId = 7,
+            Id = 1, AccountId = AccountId, Amount = -100m, Date = date, Description = "Cena", CategoryId = 7,
             ExternalId = "ext-1", Source = TransactionSource.FileImport,
         };
         var transactionRepository = new FakeTransactionRepository([original]);
         var service = CreateService(transactionRepository);
 
-        var result = await service.SplitTransaction(1, UserId);
+        var result = await service.SplitTransaction(1, Split(-50.50m, -30m, -19.50m), UserId);
 
         result.IsSuccess.Should().BeTrue();
-        original.Amount.Should().Be(expectedOriginal);
+        result.Value.Should().HaveCount(2);
+        original.Amount.Should().Be(-50.50m);
         original.ExternalId.Should().Be("ext-1");
-        var copy = transactionRepository.AddedTransactions.Should().ContainSingle().Subject;
-        copy.Amount.Should().Be(expectedCopy);
-        (copy.Amount + original.Amount).Should().Be(amount);
-        copy.Description.Should().Be("Cena");
-        copy.Date.Should().Be(date);
-        copy.AccountId.Should().Be(AccountId);
-        copy.CategoryId.Should().Be(7);
-        copy.ExternalId.Should().BeNull();
-        copy.TransferId.Should().BeNull();
-        copy.Source.Should().Be(TransactionSource.UserCreated);
+        var copies = transactionRepository.AddedTransactions;
+        copies.Select(c => c.Amount).Should().Equal(-30m, -19.50m);
+        copies.Should().AllSatisfy(copy =>
+        {
+            copy.Description.Should().Be("Cena");
+            copy.Date.Should().Be(date);
+            copy.AccountId.Should().Be(AccountId);
+            copy.CategoryId.Should().Be(7);
+            copy.ExternalId.Should().BeNull();
+            copy.TransferId.Should().BeNull();
+            copy.Source.Should().Be(TransactionSource.UserCreated);
+        });
         transactionRepository.SaveChangesCalls.Should().Be(1);
+    }
+
+    public static TheoryData<decimal[]> InvalidSplits => new()
+    {
+        new[] { -100m },                 // una sola voce
+        new[] { -60m, -30m },            // somma diversa
+        new[] { -110m, 10m },            // segno diverso
+        new[] { -100m, 0m },             // voce a zero
+        new[] { -50.005m, -49.995m },    // più di 2 decimali
+    };
+
+    [Theory]
+    [MemberData(nameof(InvalidSplits))]
+    public async Task SplitTransaction_FailsForInvalidAmounts(decimal[] amounts)
+    {
+        var original = new Transaction { Id = 1, AccountId = AccountId, Amount = -100m };
+        var transactionRepository = new FakeTransactionRepository([original]);
+        var service = CreateService(transactionRepository);
+
+        var result = await service.SplitTransaction(1, Split(amounts), UserId);
+
+        result.IsFailed.Should().BeTrue();
+        original.Amount.Should().Be(-100m);
+        transactionRepository.AddedTransactions.Should().BeEmpty();
+        transactionRepository.SaveChangesCalls.Should().Be(0);
     }
 
     [Fact]
@@ -403,7 +430,7 @@ public class TransactionServiceTests
         ]);
         var service = CreateService(transactionRepository);
 
-        var result = await service.SplitTransaction(1, UserId);
+        var result = await service.SplitTransaction(1, Split(-50m, -50m), UserId);
 
         result.IsFailed.Should().BeTrue();
         transactionRepository.AddedTransactions.Should().BeEmpty();
@@ -411,33 +438,27 @@ public class TransactionServiceTests
     }
 
     [Fact]
-    public async Task SplitTransaction_AllowsIncompleteTransferLeg_KeepingCopyOutOfTransfer()
+    public async Task SplitTransaction_AllowsIncompleteTransferLeg_KeepingCopiesOutOfTransfer()
     {
         var original = new Transaction { Id = 1, AccountId = AccountId, Amount = -100m, TransferId = 5 };
         var transactionRepository = new FakeTransactionRepository([original]);
         var service = CreateService(transactionRepository);
 
-        var result = await service.SplitTransaction(1, UserId);
+        var result = await service.SplitTransaction(1, Split(-70m, -20m, -10m), UserId);
 
         result.IsSuccess.Should().BeTrue();
-        original.Amount.Should().Be(-50m);
+        original.Amount.Should().Be(-70m);
         original.TransferId.Should().Be(5);
-        var copy = transactionRepository.AddedTransactions.Should().ContainSingle().Subject;
-        copy.Amount.Should().Be(-50m);
-        copy.TransferId.Should().BeNull();
+        transactionRepository.AddedTransactions.Should().HaveCount(2).And.OnlyContain(c => c.TransferId == null);
     }
 
     [Fact]
-    public async Task SplitTransaction_FailsWhenNotFoundOrTooSmall()
+    public async Task SplitTransaction_FailsWhenNotFound()
     {
-        var transactionRepository = new FakeTransactionRepository(
-        [
-            new Transaction { Id = 1, AccountId = AccountId, Amount = -0.01m },
-        ]);
+        var transactionRepository = new FakeTransactionRepository([]);
         var service = CreateService(transactionRepository);
 
-        (await service.SplitTransaction(1, UserId)).IsFailed.Should().BeTrue();
-        (await service.SplitTransaction(99, UserId)).IsFailed.Should().BeTrue();
+        (await service.SplitTransaction(99, Split(-50m, -50m), UserId)).IsFailed.Should().BeTrue();
         transactionRepository.SaveChangesCalls.Should().Be(0);
     }
 

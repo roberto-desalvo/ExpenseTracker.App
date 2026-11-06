@@ -93,8 +93,9 @@ public class TransactionFunctions : FunctionBase
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "transaction/{id:int}/split")] HttpRequest req,
         int id)
     {
+        var request = await ReadBodyAsync<TransactionSplitRequest>(req);
         var userId = await _currentUserAccessor.GetUserIdAsync();
-        return await ExecuteAsync(() => _service.SplitTransaction(id, userId));
+        return await ExecuteAsync(() => _service.SplitTransaction(id, request, userId));
     }
 
     [Function("Transaction_BulkDelete")]
