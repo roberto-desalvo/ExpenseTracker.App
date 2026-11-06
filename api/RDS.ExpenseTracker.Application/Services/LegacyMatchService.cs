@@ -73,6 +73,7 @@ public class LegacyMatchService : ILegacyMatchService
 
         var accounts = (await _accountRepository.GetAccounts(userId)).ToList();
         var categories = (await _categoryRepository.GetCategories(userId)).ToList();
+        var tagMatcher = new CategoryTagMatcher(categories);
 
         // solo i movimenti dello stesso mese del foglio
         var monthStart = new DateTime(sheet.Info.Year, sheet.Info.Month, 1);
@@ -90,7 +91,8 @@ public class LegacyMatchService : ILegacyMatchService
             AccountName = r.AccountName,
             AccountId = LegacyMatchSuggester.ResolveAccount(r.AccountName, accounts),
             ExcelCategory = r.Category,
-            SuggestedCategoryId = LegacyMatchSuggester.ResolveCategory(r.Category, categories),
+            // categoria Excel per nome; in mancanza i tag sulla descrizione della riga, altrimenti da determinare
+            SuggestedCategoryId = LegacyMatchSuggester.ResolveCategory(r.Category, categories) ?? tagMatcher.Match(r.Description),
         }).ToList();
         foreach (var row in rows)
             row.ToCreate = LegacyMatchSuggester.IsManualAccount(row.AccountName, accounts.FirstOrDefault(a => a.Id == row.AccountId));

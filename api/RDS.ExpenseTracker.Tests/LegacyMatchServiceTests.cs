@@ -37,6 +37,7 @@ public class LegacyMatchServiceTests
         [
             new Category { Id = 100, Name = "Spesa", UserId = AdminId },
             new Category { Id = 101, Name = "Altro", UserId = AdminId, IsDefault = true },
+            new Category { Id = 102, Name = "Trasporti", UserId = AdminId, Tags = "biglietto;gtt" },
             new Category { Id = 200, Name = "Spesa", UserId = UserId },
         ]);
         var repository = new FakeTransactionRepository(transactions);
@@ -218,6 +219,22 @@ public class LegacyMatchServiceTests
 
         result.Value.ExcelRows.Select(r => (r.RowNumber, r.ToCreate)).Should().Equal((2, true), (3, true), (4, false));
         result.Value.Suggestions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetMonth_FallsBackToTagsWhenTheExcelCategoryIsNotFound_AndLeavesTheRestUndetermined()
+    {
+        var (service, _) = Create();
+        var date = new DateTime(2025, 10, 5).ToOADate();
+        using var file = LegacySpreadsheetReaderTests.Workbook(("Ottobre2025",
+        [
+            ("A2", date, null), ("B2", "biglietto GTT", null), ("C2", 2d, null), ("E2", "BBVA", null),
+            ("A3", date, null), ("B3", "regalo", null), ("C3", 5d, null), ("E3", "BBVA", null),
+        ]));
+
+        var result = await service.GetMonthAsync(file, "Ottobre2025", AdminId);
+
+        result.Value.ExcelRows.Select(r => (r.RowNumber, r.SuggestedCategoryId)).Should().Equal((2, 102), (3, (int?)null));
     }
 
     [Fact]
