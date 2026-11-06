@@ -72,6 +72,18 @@ export class TransactionApi {
     return this.api.write("DELETE", apiConfig.transactions.byId(id), "Errore nell'eliminazione della transazione");
   }
 
+  deleteMany(ids: number[]): Promise<void> {
+    return this.api.write("POST", apiConfig.transactions.bulkDelete, "Errore nell'eliminazione delle transazioni", { ids });
+  }
+
+  /** categoryId 0 = nessuna categoria */
+  assignCategory(ids: number[], categoryId: number): Promise<void> {
+    return this.api.write("POST", apiConfig.transactions.bulkCategory, "Errore nell'assegnazione della categoria", {
+      ids,
+      categoryId,
+    });
+  }
+
   addTransfer(transfer: TransferPayload): Promise<void> {
     return this.api.write("POST", apiConfig.transfers.base, "Errore nel salvataggio del trasferimento", transfer);
   }

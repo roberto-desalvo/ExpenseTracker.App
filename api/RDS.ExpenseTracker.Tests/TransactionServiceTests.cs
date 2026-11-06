@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using RDS.ExpenseTracker.Application.Mappings;
@@ -259,6 +259,107 @@ public class TransactionServiceTests
         updated.UpdatedOn.Should().NotBeNull();
     }
 
+    [Fact]
+    public async Task DeleteTransactions_RemovesAllRequested_WhenTheyBelongToUser()
+    {
+        var transactionRepository = new FakeTransactionRepository(
+        [
+            new Transaction { Id = 1, AccountId = AccountId, Amount = -10m },
+            new Transaction { Id = 2, AccountId = AccountId, Amount = -20m },
+            new Transaction { Id = 3, AccountId = AccountId, Amount = -30m },
+        ]);
+        var service = CreateService(transactionRepository);
+
+        var result = await service.DeleteTransactions(new TransactionBulkRequest { Ids = [1, 3, 3] }, UserId);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(2);
+        transactionRepository.RemovedTransactions.Select(t => t.Id).Should().BeEquivalentTo([1, 3]);
+        transactionRepository.SaveChangesCalls.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task DeleteTransactions_FailsWithoutChanges_WhenAnIdIsNotFound()
+    {
+        var transactionRepository = new FakeTransactionRepository(
+        [
+            new Transaction { Id = 1, AccountId = AccountId, Amount = -10m },
+        ]);
+        var service = CreateService(transactionRepository);
+
+        var result = await service.DeleteTransactions(new TransactionBulkRequest { Ids = [1, 99] }, UserId);
+
+        result.IsFailed.Should().BeTrue();
+        transactionRepository.RemovedTransactions.Should().BeEmpty();
+        transactionRepository.SaveChangesCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task DeleteTransactions_Fails_WhenNoIds()
+    {
+        var service = CreateService(new FakeTransactionRepository([]));
+
+        var result = await service.DeleteTransactions(new TransactionBulkRequest(), UserId);
+
+        result.IsFailed.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task AssignCategory_SetsCategoryOnAllRequested()
+    {
+        var categoryId = (await FakeCategoryRepository.WithDefaults(UserId).GetCategories(UserId)).First().Id;
+        var transactionRepository = new FakeTransactionRepository(
+        [
+            new Transaction { Id = 1, AccountId = AccountId, Amount = -10m },
+            new Transaction { Id = 2, AccountId = AccountId, Amount = -20m, CategoryId = null },
+            new Transaction { Id = 3, AccountId = AccountId, Amount = -30m },
+        ]);
+        var service = CreateService(transactionRepository);
+
+        var result = await service.AssignCategory(new TransactionBulkCategoryRequest { Ids = [1, 2], CategoryId = categoryId }, UserId);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(2);
+        var byId = (await transactionRepository.GetTransactionsByIds([1, 2, 3], UserId)).ToDictionary(t => t.Id);
+        byId[1].CategoryId.Should().Be(categoryId);
+        byId[2].CategoryId.Should().Be(categoryId);
+        byId[1].UpdatedOn.Should().NotBeNull();
+        byId[3].CategoryId.Should().NotBe(categoryId);
+        transactionRepository.SaveChangesCalls.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task AssignCategory_ClearsCategory_WhenCategoryIdIsZero()
+    {
+        var categoryId = (await FakeCategoryRepository.WithDefaults(UserId).GetCategories(UserId)).First().Id;
+        var transactionRepository = new FakeTransactionRepository(
+        [
+            new Transaction { Id = 1, AccountId = AccountId, Amount = -10m, CategoryId = categoryId },
+        ]);
+        var service = CreateService(transactionRepository);
+
+        var result = await service.AssignCategory(new TransactionBulkCategoryRequest { Ids = [1], CategoryId = 0 }, UserId);
+
+        result.IsSuccess.Should().BeTrue();
+        (await transactionRepository.GetTransaction(1, UserId))!.CategoryId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task AssignCategory_FailsWithoutChanges_WhenCategoryIsNotOfUser()
+    {
+        var transactionRepository = new FakeTransactionRepository(
+        [
+            new Transaction { Id = 1, AccountId = AccountId, Amount = -10m },
+        ]);
+        var service = CreateService(transactionRepository);
+
+        var result = await service.AssignCategory(new TransactionBulkCategoryRequest { Ids = [1], CategoryId = 987654 }, UserId);
+
+        result.IsFailed.Should().BeTrue();
+        (await transactionRepository.GetTransaction(1, UserId))!.CategoryId.Should().BeNull();
+        transactionRepository.SaveChangesCalls.Should().Be(0);
+    }
+
     private static Transaction Transaction(DateTime date, decimal amount, int categoryId) => new()
     {
         AccountId = AccountId,
@@ -323,7 +424,11 @@ public class TransactionServiceTests
         public Task AddTransactions(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
         public List<Transaction> UpdatedTransactions { get; } = [];
 
-        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(UpdatedTransactions.Count);
+        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            SaveChangesCalls++;
+            return Task.FromResult(UpdatedTransactions.Count);
+        }
         public Task<Transaction?> GetTransaction(int id, int userId) => Task.FromResult(_transactions.FirstOrDefault(t => t.Id == id));
         public Task<IEnumerable<Transaction>> GetTransactions(int userId) => throw new NotImplementedException();
         public Task<(IEnumerable<Transaction> Items, int TotalCount)> GetPagedTransactions(TransactionQueryRequest request, int userId) => throw new NotImplementedException();
@@ -337,7 +442,8 @@ public class TransactionServiceTests
         public Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds, int userId) => throw new NotImplementedException();
         public Task<List<Transaction>> GetCategorizableTransactions(int userId, DateTime startDate, DateTime endDate) => throw new NotImplementedException();
         public Task<List<Transaction>> GetTransactionsInRange(int userId, DateTime startDate, DateTime endDate) => throw new NotImplementedException();
-        public Task<List<Transaction>> GetTransactionsByIds(IEnumerable<int> ids, int userId) => throw new NotImplementedException();
+        public Task<List<Transaction>> GetTransactionsByIds(IEnumerable<int> ids, int userId)
+            => Task.FromResult(_transactions.Where(t => ids.Contains(t.Id)).ToList());
         public Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains) => throw new NotImplementedException();
         public Task UpdateTransaction(Transaction transaction)
         {
@@ -346,7 +452,9 @@ public class TransactionServiceTests
         }
         public Task DeleteTransaction(int id) => throw new NotImplementedException();
         public Task<List<Transaction>> GetLegacyMatchedTransactions(int userId, DateTime startDate, DateTime endDate) => throw new NotImplementedException();
-        public void RemoveTransactions(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
+        public List<Transaction> RemovedTransactions { get; } = [];
+        public int SaveChangesCalls { get; private set; }
+        public void RemoveTransactions(IEnumerable<Transaction> transactions) => RemovedTransactions.AddRange(transactions);
         public Task DeleteAllTransactions(int userId) => throw new NotImplementedException();
         public Task<IEnumerable<int>> DeleteTransactionsByAccountIds(IEnumerable<int> accountIds) => throw new NotImplementedException();
         public Task<int> AddTransaction(Transaction transaction) => throw new NotImplementedException();

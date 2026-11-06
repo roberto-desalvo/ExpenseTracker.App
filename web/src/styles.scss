@@ -647,6 +647,10 @@ p {
   .data-row:hover {
     background-color: var(--app-surface-alt);
   }
+  .data-row.selected,
+  .data-row.selected:hover {
+    background-color: var(--app-primary-soft);
+  }
   .data-row.clickable {
     cursor: pointer;
   }

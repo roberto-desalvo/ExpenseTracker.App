@@ -177,6 +177,63 @@ public class TransactionService : ITransactionService
         return Result.Ok();
     }
 
+    private const int MaxBulkTransactions = 1000;
+
+    public async Task<Result<int>> DeleteTransactions(TransactionBulkRequest request, int userId)
+    {
+        var loaded = await LoadBulkTransactions(request, userId);
+        if (loaded.IsFailed)
+            return loaded.ToResult();
+
+        _repository.RemoveTransactions(loaded.Value);
+        await _repository.SaveChangesAsync();
+        return Result.Ok(loaded.Value.Count);
+    }
+
+    public async Task<Result<int>> AssignCategory(TransactionBulkCategoryRequest request, int userId)
+    {
+        var loaded = await LoadBulkTransactions(request, userId);
+        if (loaded.IsFailed)
+            return loaded.ToResult();
+
+        var categoryCheck = await EnsureCategoriesBelongToUser([request.CategoryId], userId);
+        if (categoryCheck.IsFailed)
+            return categoryCheck;
+
+        var categoryId = request.CategoryId > 0 ? request.CategoryId : (int?)null;
+        var now = DateTime.UtcNow;
+        foreach (var transaction in loaded.Value)
+        {
+            transaction.CategoryId = categoryId;
+            transaction.UpdatedOn = now;
+        }
+
+        await _repository.SaveChangesAsync();
+        return Result.Ok(loaded.Value.Count);
+    }
+
+    // Movimenti (tracciati) di un'operazione massiva; tutti gli id devono appartenere all'utente.
+    private async Task<Result<List<Transaction>>> LoadBulkTransactions(TransactionBulkRequest? request, int userId)
+    {
+        var ids = request?.Ids?.Distinct().ToList() ?? [];
+        if (ids.Count == 0)
+            return Result.Fail(DomainErrors.Required("ids"));
+        if (ids.Count > MaxBulkTransactions)
+            return Result.Fail(DomainErrors.BadRequest($"At most {MaxBulkTransactions} transactions per request"));
+
+        var invalidId = ids.FirstOrDefault(id => id <= 0, 1);
+        if (invalidId <= 0)
+            return Result.Fail(DomainErrors.InvalidId("transaction", invalidId));
+
+        var transactions = await _repository.GetTransactionsByIds(ids, userId);
+        var foundIds = transactions.Select(t => t.Id).ToHashSet();
+        var missingId = ids.FirstOrDefault(id => !foundIds.Contains(id));
+        if (missingId != 0)
+            return Result.Fail(DomainErrors.NotFound("Transaction", missingId));
+
+        return Result.Ok(transactions);
+    }
+
     public async Task<Result> DeleteAllTransactions(int userId)
     {
         await _repository.DeleteAllTransactions(userId);

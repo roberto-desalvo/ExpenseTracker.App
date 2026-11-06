@@ -20,13 +20,17 @@ import { ConfirmDeleteDialog } from "../../shared/ui/confirm-delete-dialog";
 import { DataTable } from "../../shared/ui/data-table";
 import { PageContainer } from "../../shared/ui/page-container";
 import { PageHeader } from "../../shared/ui/page-header";
+import { BulkCategoryModal } from "./bulk-category-modal";
 import { TransactionFilters } from "./transaction-filters";
 import { TransactionsTabs } from "./transactions-tabs";
 
 const dayFormatter = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "short", year: "numeric" });
 const weekdayFormatter = new Intl.DateTimeFormat("it-IT", { weekday: "long" });
 
-/** Movimenti: filtri del periodo e tabella paginata/ordinata lato server, con modifica ed eliminazione per riga. */
+/**
+ * Movimenti: filtri del periodo e tabella paginata/ordinata lato server, con modifica ed eliminazione per riga
+ * e selezione multipla (righe della pagina corrente) per eliminare o assegnare una categoria in blocco.
+ */
 @Component({
   selector: "app-transactions-page",
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -39,6 +43,7 @@ const weekdayFormatter = new Intl.DateTimeFormat("it-IT", { weekday: "long" });
     TransactionFilters,
     DataTable,
     ConfirmDeleteDialog,
+    BulkCategoryModal,
     MatButton,
     MatIconButton,
     MatIconModule,
@@ -63,6 +68,18 @@ export class TransactionsPage {
     return `Vuoi eliminare “${t.description || "questa transazione"}” (${formatSignedCurrency(t.amount)})? L'operazione non può essere annullata.`;
   });
 
+  protected readonly rowKey = (t: Transaction) => t.id;
+  protected readonly selectedIds = signal<ReadonlySet<number>>(new Set());
+  protected readonly selectedCount = computed(() => this.selectedIds().size);
+  protected readonly selectedList = computed(() => [...this.selectedIds()]);
+  protected readonly bulkDeleteOpen = signal(false);
+  protected readonly bulkCategoryOpen = signal(false);
+  protected readonly bulkDeleteMessage = computed(() => {
+    const count = this.selectedCount();
+    const what = count === 1 ? "il movimento selezionato" : `i ${count} movimenti selezionati`;
+    return `Vuoi eliminare ${what}? L'operazione non può essere annullata.`;
+  });
+
   private readonly router = inject(Router);
   private readonly location = inject(Location);
   private readonly query = toSignal(inject(ActivatedRoute).queryParamMap);
@@ -78,6 +95,17 @@ export class TransactionsPage {
     inject(DestroyRef).onDestroy(() => {
       deactivateTable();
       deactivateStore();
+    });
+
+    // la selezione riguarda solo le righe visibili: a ogni nuova lista restano selezionate quelle ancora presenti
+    effect(() => {
+      const visible = new Set(this.store.transactions().map((t) => t.id));
+      untracked(() =>
+        this.selectedIds.update((prev) => {
+          const next = new Set([...prev].filter((id) => visible.has(id)));
+          return next.size === prev.size ? prev : next;
+        }),
+      );
     });
 
     // drill-down (es. da Analisi): i filtri arrivano dai query param e restano nell'URL, così la cronologia li ripristina
@@ -104,6 +132,17 @@ export class TransactionsPage {
   protected sort(columnId: string) {
     this.table.modifySort(columnId as TransactionSortField);
   }
+
+  protected clearSelection() {
+    this.selectedIds.set(new Set());
+  }
+
+  protected readonly confirmBulkDelete = async (): Promise<string> => {
+    const ids = this.selectedList();
+    await this.store.deleteTransactions(ids);
+    this.clearSelection();
+    return ids.length === 1 ? "1 movimento eliminato" : `${ids.length} movimenti eliminati`;
+  };
 
   protected readonly confirmDelete = (): string => {
     const transaction = this.toDelete();

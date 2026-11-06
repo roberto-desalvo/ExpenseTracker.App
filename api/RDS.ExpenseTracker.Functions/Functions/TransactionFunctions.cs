@@ -88,6 +88,24 @@ public class TransactionFunctions : FunctionBase
         return await ExecuteAsync(() => _service.DeleteTransaction(id, userId));
     }
 
+    [Function("Transaction_BulkDelete")]
+    public async Task<IActionResult> BulkDelete(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "transaction/bulk-delete")] HttpRequest req)
+    {
+        var request = await ReadBodyAsync<TransactionBulkRequest>(req);
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.DeleteTransactions(request, userId));
+    }
+
+    [Function("Transaction_BulkCategory")]
+    public async Task<IActionResult> BulkCategory(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "transaction/bulk-category")] HttpRequest req)
+    {
+        var request = await ReadBodyAsync<TransactionBulkCategoryRequest>(req);
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.AssignCategory(request, userId));
+    }
+
     [Function("Transaction_GetTimeSeries")]
     public async Task<IActionResult> GetTimeSeries(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "transaction/series")] HttpRequest req)

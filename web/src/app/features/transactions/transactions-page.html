@@ -1,7 +1,7 @@
 <app-page-container>
   <app-page-header
     title="Movimenti"
-    subtitle="Le transazioni del periodo selezionato. Passa sopra una riga per modificarla o eliminarla."
+    subtitle="Le transazioni del periodo selezionato. Passa sopra una riga per modificarla o eliminarla, oppure selezionane più di una per agire in blocco."
   >
     @if (fromAnalytics()) {
       <button actions matButton (click)="backToAnalytics()"><mat-icon>arrow_back</mat-icon> Torna all'analisi</button>
@@ -18,6 +18,19 @@
   <app-transactions-tabs active="movimenti" />
 
   <app-transaction-filters />
+
+  @if (selectedCount() > 0) {
+    <div class="bulk-bar surface" role="toolbar" aria-label="Azioni sui movimenti selezionati">
+      <span class="bulk-count">{{ selectedCount() === 1 ? "1 selezionato" : selectedCount() + " selezionati" }}</span>
+      <div class="bulk-actions">
+        <button matButton="outlined" (click)="bulkCategoryOpen.set(true)"><mat-icon>sell</mat-icon> Assegna categoria</button>
+        <button matButton="outlined" class="danger" (click)="bulkDeleteOpen.set(true)"><mat-icon>delete</mat-icon> Elimina</button>
+        <button matIconButton matTooltip="Annulla selezione" aria-label="Annulla selezione" (click)="clearSelection()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+  }
 
   <app-data-table
     [columns]="table.columns"
@@ -37,6 +50,9 @@
     (sortChange)="sort($event)"
     [pageSizeOptions]="[10, 20, 50]"
     [minTableWidth]="760"
+    [rowKey]="rowKey"
+    [selection]="selectedIds()"
+    (selectionChange)="selectedIds.set($event)"
   >
     <button empty-action matButton="filled" (click)="quickActions.openNewTransaction()">
       <mat-icon>add</mat-icon> Nuova transazione
@@ -78,4 +94,18 @@
   (closed)="toDelete.set(null)"
   [confirmAction]="confirmDelete"
   [message]="deleteMessage()"
+/>
+
+<app-confirm-delete-dialog
+  [open]="bulkDeleteOpen()"
+  (closed)="bulkDeleteOpen.set(false)"
+  [confirmAction]="confirmBulkDelete"
+  [message]="bulkDeleteMessage()"
+/>
+
+<app-bulk-category-modal
+  [open]="bulkCategoryOpen()"
+  [ids]="selectedList()"
+  (closed)="bulkCategoryOpen.set(false)"
+  (assigned)="clearSelection()"
 />

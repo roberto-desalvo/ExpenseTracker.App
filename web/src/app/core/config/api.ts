@@ -26,6 +26,8 @@ export const apiConfig = {
     landing: `${transactionBase}/landing`,
     series: `${transactionBase}/series`,
     stock: `${transactionBase}/stock`,
+    bulkDelete: `${transactionBase}/bulk-delete`,
+    bulkCategory: `${transactionBase}/bulk-category`,
     byId: (id: number) => `${transactionBase}/${id}`,
   },
   categories: {

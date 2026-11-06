@@ -17,6 +17,9 @@ public interface ITransactionService : IService
     Task<Result> UpdateTransaction(TransactionDto transaction, int userId);
     Task<Result> DeleteTransaction(int id, int userId);
     Task<Result> DeleteAllTransactions(int userId);
+    // Operazioni massive: falliscono senza modificare nulla se anche un solo id non è dell'utente. Restituiscono i movimenti coinvolti.
+    Task<Result<int>> DeleteTransactions(TransactionBulkRequest request, int userId);
+    Task<Result<int>> AssignCategory(TransactionBulkCategoryRequest request, int userId);
     Task<Result<TimeSeriesListDto>> GetTimeSeries(TimeSeriesRequestDto request, int userId);
     Task<Result<TimeSeriesListDto>> GetStock(TimeSeriesRequestDto request, int userId);
     Task<Result<LandingDashboardDto>> GetLanding(int userId, bool excludeTransfers = true);

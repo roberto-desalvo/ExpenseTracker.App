@@ -78,6 +78,17 @@ export class TransactionsStore {
     }
   }
 
+  /** Operazioni massive: in caso di errore rilanciano, così la modale di conferma resta aperta. */
+  async deleteTransactions(ids: number[]) {
+    await this.api.deleteMany(ids);
+    await this.reloadAfterMutation();
+  }
+
+  async assignCategory(ids: number[], categoryId: number | null) {
+    await this.api.assignCategory(ids, categoryId ?? 0);
+    await this.reloadAfterMutation();
+  }
+
   private async loadAvailableMonths() {
     this.availableMonthsLoading.set(true);
     try {

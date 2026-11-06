@@ -1,5 +1,6 @@
 import { NgTemplateOutlet } from "@angular/common";
 import { ChangeDetectionStrategy, Component, TemplateRef, computed, contentChild, input, output } from "@angular/core";
+import { MatCheckbox } from "@angular/material/checkbox";
 import { MatIconModule } from "@angular/material/icon";
 import { MatPaginatorModule, PageEvent } from "@angular/material/paginator";
 import { EmptyState } from "./empty-state";
@@ -23,11 +24,12 @@ export interface DataTableRowContext<T> {
  * Tabella paginata condivisa (movimenti, categorie): righe a filo con separatori sottili.
  * Le celle di ogni riga arrivano da un `<ng-template let-row>` proiettato che contiene i `<td>`;
  * l'azione con l'attributo `empty-action` viene mostrata nello stato vuoto.
+ * Con `rowKey` compare una colonna di checkbox per la selezione multipla delle righe visibili (`selection`/`selectionChange`).
  */
 @Component({
   selector: "app-data-table",
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgTemplateOutlet, MatPaginatorModule, MatIconModule, EmptyState],
+  imports: [NgTemplateOutlet, MatPaginatorModule, MatIconModule, MatCheckbox, EmptyState],
   host: { class: "surface" },
   template: `
     @if (isEmpty() && !isLoading()) {
@@ -39,6 +41,17 @@ export interface DataTableRowContext<T> {
         <table class="data-table" [style.min-width.px]="minTableWidth()" [style.table-layout]="tableLayout()">
           <thead>
             <tr>
+              @if (selectable()) {
+                <th class="select-cell">
+                  <mat-checkbox
+                    [checked]="allSelected()"
+                    [indeterminate]="someSelected()"
+                    [disabled]="isLoading() || rows().length === 0"
+                    (change)="toggleAll()"
+                    aria-label="Seleziona tutte le righe della pagina"
+                  />
+                </th>
+              }
               @for (column of columns(); track column.id) {
                 <th
                   [style.width]="column.minWidth"
@@ -68,6 +81,9 @@ export interface DataTableRowContext<T> {
             @if (isLoading()) {
               @for (placeholder of skeletonRows(); track $index) {
                 <tr>
+                  @if (selectable()) {
+                    <td class="select-cell"></td>
+                  }
                   @for (column of columns(); track column.id) {
                     <td [style.text-align]="column.align ?? 'left'">
                       <span
@@ -81,7 +97,17 @@ export interface DataTableRowContext<T> {
               }
             } @else {
               @for (row of rows(); track $index) {
-                <tr class="data-row" [class.clickable]="clickableRows()">
+                <tr class="data-row" [class.clickable]="clickableRows()" [class.selected]="selectable() && isSelected(row)">
+                  @if (selectable()) {
+                    <td class="select-cell">
+                      <mat-checkbox
+                        [checked]="isSelected(row)"
+                        (change)="toggleRow(row)"
+                        (click)="$event.stopPropagation()"
+                        aria-label="Seleziona la riga"
+                      />
+                    </td>
+                  }
                   <ng-container *ngTemplateOutlet="rowTemplate(); context: { $implicit: row, index: $index }" />
                 </tr>
               }
@@ -105,6 +131,8 @@ export interface DataTableRowContext<T> {
   styles: `
     :host { width: 100%; overflow: hidden; display: flex; flex-direction: column; }
     .viewport { overflow-x: auto; }
+    .data-table .select-cell { width: 52px; padding-right: 0; }
+    .data-table .select-cell .mat-mdc-checkbox { margin: -10px 0 -10px -10px; }
     .paginator { border-top: 1px solid var(--app-border); }
     .sort-label {
       display: inline-flex; align-items: center; gap: 4px; border: none; background: none; padding: 0; cursor: pointer;
@@ -116,7 +144,7 @@ export interface DataTableRowContext<T> {
     .sort-label.active .sort-icon { opacity: 1; }
   `,
 })
-export class DataTable<T> {
+export class DataTable<T, K = unknown> {
   readonly columns = input.required<DataTableColumn[]>();
   readonly rows = input.required<T[]>();
   readonly isLoading = input(false);
@@ -135,13 +163,53 @@ export class DataTable<T> {
   readonly sortDirection = input<"asc" | "desc">("asc");
   readonly sortable = input(false);
   readonly clickableRows = input(false);
+  /** chiave di riga per la selezione multipla; se assente la colonna di selezione non compare */
+  readonly rowKey = input<(row: T) => K>();
+  readonly selection = input<ReadonlySet<K>>(new Set<K>());
 
   readonly pageChange = output<number>();
   readonly pageSizeChange = output<number>();
   readonly sortChange = output<string>();
+  readonly selectionChange = output<ReadonlySet<K>>();
 
   protected readonly rowTemplate = contentChild.required<TemplateRef<DataTableRowContext<T>>>(TemplateRef);
   protected readonly skeletonRows = computed(() => Array.from({ length: Math.min(this.pageSize(), 10) }));
+
+  protected readonly selectable = computed(() => this.rowKey() !== undefined);
+  private readonly rowKeys = computed(() => {
+    const key = this.rowKey();
+    return key ? this.rows().map(key) : [];
+  });
+  protected readonly allSelected = computed(() => {
+    const keys = this.rowKeys();
+    const selection = this.selection();
+    return keys.length > 0 && keys.every((k) => selection.has(k));
+  });
+  protected readonly someSelected = computed(() => !this.allSelected() && this.rowKeys().some((k) => this.selection().has(k)));
+
+  protected isSelected(row: T) {
+    const key = this.rowKey();
+    return key ? this.selection().has(key(row)) : false;
+  }
+
+  protected toggleRow(row: T) {
+    const key = this.rowKey();
+    if (!key) return;
+    const next = new Set(this.selection());
+    const k = key(row);
+    if (next.has(k)) next.delete(k);
+    else next.add(k);
+    this.selectionChange.emit(next);
+  }
+
+  // tutte selezionate: deseleziona le righe visibili; altrimenti le aggiunge alla selezione
+  protected toggleAll() {
+    const next = new Set(this.selection());
+    const keys = this.rowKeys();
+    if (this.allSelected()) keys.forEach((k) => next.delete(k));
+    else keys.forEach((k) => next.add(k));
+    this.selectionChange.emit(next);
+  }
 
   protected onPage(event: PageEvent) {
     if (event.pageSize !== this.pageSize()) {
