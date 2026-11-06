@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from "@angular/core";
 import { LegacyMatchApi } from "../../core/api/legacy-match.api";
 import { NotificationService } from "../../core/api/notification.service";
-import { LegacyDbTransaction, LegacyExcelRow, LegacyMonth, LegacySheet } from "../../core/models/LegacyMatch";
+import { LegacyCreateItem, LegacyDbTransaction, LegacyExcelRow, LegacyMonth, LegacySheet } from "../../core/models/LegacyMatch";
 import { TransactionsStore } from "../../core/state/transactions.store";
 
 /** Coppia riga Excel ↔ movimento a DB, con i valori (modificabili) che verranno salvati sul movimento. */
@@ -13,6 +13,35 @@ export interface LegacyPair {
   included: boolean;
   suggested: boolean;
 }
+
+/** Riga di Contanti/Hype da creare come nuovo movimento, con i valori modificabili. */
+export interface LegacyDraft {
+  rowNumber: number;
+  description: string;
+  categoryId: number | null;
+  included: boolean;
+}
+
+const normalizeText = (value: string) => value.trim().replace(/\s+/g, " ").toLocaleLowerCase("it-IT");
+
+/**
+ * Movimento già a DB che sembra lo stesso della riga da creare: stesso conto, stesso mese (i movimenti
+ * caricati sono già quelli del mese del foglio), stessa somma e stesso nome (quello modificato o quello Excel).
+ */
+export const findDuplicate = (
+  row: LegacyExcelRow,
+  description: string,
+  transactions: readonly LegacyDbTransaction[],
+): LegacyDbTransaction | undefined => {
+  if (row.accountId === null) return undefined;
+  const names = new Set([normalizeText(description), normalizeText(row.description)]);
+  return transactions.find(
+    (t) =>
+      t.accountId === row.accountId &&
+      Math.round(t.amount * 100) === Math.round(row.amount * 100) &&
+      names.has(normalizeText(t.description)),
+  );
+};
 
 /** Righe del foglio già gestite nella sessione: salvate oppure segnate a mano come abbinate. */
 interface HandledRows {
@@ -69,6 +98,27 @@ export class LegacyMatchStore {
   readonly dismissedRows = signal<ReadonlySet<number>>(new Set());
 
   readonly rows = computed(() => this.month()?.excelRows ?? []);
+  /** Righe da abbinare a movimenti esistenti (escluse Contanti e Hype, che vanno create). */
+  readonly matchRows = computed(() => this.rows().filter((r) => !r.toCreate));
+
+  /** Righe di Contanti/Hype ancora da creare, con i valori modificabili. */
+  readonly drafts = signal<ReadonlyMap<number, LegacyDraft>>(new Map());
+  readonly createDialogOpen = signal(false);
+  readonly creating = signal(false);
+  readonly createRows = computed(() => this.rows().filter((r) => r.toCreate && this.drafts().has(r.rowNumber)));
+  /** Movimento già esistente per ogni riga da creare che sembra un duplicato. */
+  readonly duplicates = computed(() => {
+    const result = new Map<number, LegacyDbTransaction>();
+    for (const row of this.createRows()) {
+      const draft = this.drafts().get(row.rowNumber);
+      const duplicate = draft && findDuplicate(row, draft.description, this.dbTransactions());
+      if (duplicate) result.set(row.rowNumber, duplicate);
+    }
+    return result;
+  });
+  readonly draftsToCreate = computed(() =>
+    this.createRows().filter((r) => r.accountId !== null && this.drafts().get(r.rowNumber)?.included),
+  );
   readonly dbTransactions = computed(() => this.month()?.dbTransactions ?? []);
 
   /** Coppie in ordine di riga Excel. */
@@ -82,7 +132,7 @@ export class LegacyMatchStore {
   readonly toSave = computed(() => this.pairList().filter((p) => p.included));
 
   /** Righe ancora da gestire: né abbinate, né salvate, né segnate come abbinate. */
-  readonly pendingRows = computed(() => this.rows().filter((r) => !this.isRowHandled(r.rowNumber)));
+  readonly pendingRows = computed(() => this.matchRows().filter((r) => !this.isRowHandled(r.rowNumber)));
 
   private readonly rowsByNumber = computed(() => new Map(this.rows().map((r) => [r.rowNumber, r])));
   private readonly transactionsById = computed(() => new Map(this.dbTransactions().map((t) => [t.id, t])));
@@ -119,7 +169,8 @@ export class LegacyMatchStore {
     if (first) await this.loadSheet(first.name);
   }
 
-  async loadSheet(name: string) {
+  /** `openCreateDialog`: false per i ricaricamenti dopo un salvataggio, che non devono riaprire la finestra. */
+  async loadSheet(name: string, openCreateDialog = true) {
     const file = this.file();
     if (!file) return;
 
@@ -135,6 +186,9 @@ export class LegacyMatchStore {
       this.dismissedRows.set(new Set(handled.dismissed));
       this.month.set(month);
       this.pairs.set(this.initialPairs(month));
+      this.drafts.set(this.initialDrafts(month));
+      // Contanti e Hype non arrivano dagli import: se ce ne sono da creare si apre la finestra dedicata
+      if (openCreateDialog) this.createDialogOpen.set(this.drafts().size > 0);
     } catch {
       // errore notificato dall'interceptor
     } finally {
@@ -181,6 +235,11 @@ export class LegacyMatchStore {
   /** Toglie la riga da quelle da gestire senza abbinarla a un movimento (es. già sistemata a mano). */
   markAsMatched(rowNumber: number) {
     this.unpair(rowNumber);
+    this.drafts.update((current) => {
+      const next = new Map(current);
+      next.delete(rowNumber);
+      return next;
+    });
     this.dismissedRows.update((current) => new Set(current).add(rowNumber));
     if (this.selectedRow() === rowNumber) this.selectedRow.set(null);
     this.persistHandled();
@@ -196,6 +255,18 @@ export class LegacyMatchStore {
     this.dismissedRows.update(without);
     this.savedRows.update(without);
     this.persistHandled();
+
+    const row = this.row(rowNumber);
+    if (row?.toCreate && !this.drafts().has(rowNumber)) {
+      this.drafts.update((current) =>
+        new Map(current).set(rowNumber, {
+          rowNumber,
+          description: row.description,
+          categoryId: row.suggestedCategoryId,
+          included: row.accountId !== null && !findDuplicate(row, row.description, this.dbTransactions()),
+        }),
+      );
+    }
   }
 
   unpair(rowNumber: number) {
@@ -244,7 +315,53 @@ export class LegacyMatchStore {
     }
 
     const sheet = this.selectedSheet();
-    if (sheet) await this.loadSheet(sheet);
+    if (sheet) await this.loadSheet(sheet, false);
+  }
+
+  updateDraft(rowNumber: number, patch: Partial<Omit<LegacyDraft, "rowNumber">>) {
+    this.drafts.update((current) => {
+      const draft = current.get(rowNumber);
+      if (!draft) return current;
+      const next = new Map(current);
+      next.set(rowNumber, { ...draft, ...patch });
+      return next;
+    });
+  }
+
+  /**
+   * Crea i movimenti delle righe incluse e ricarica il mese. Rilancia l'errore (già notificato) così la
+   * finestra resta aperta.
+   */
+  async createDrafts(): Promise<string | void> {
+    const rows = this.draftsToCreate();
+    const items: LegacyCreateItem[] = rows.map((row) => {
+      const draft = this.drafts().get(row.rowNumber)!;
+      return {
+        accountId: row.accountId!,
+        date: row.date,
+        amount: row.amount,
+        description: draft.description.trim(),
+        categoryId: draft.categoryId,
+      };
+    });
+    if (items.length === 0) return;
+    if (items.some((i) => i.description.length === 0)) {
+      this.notifications.showError("Ogni movimento deve avere una descrizione");
+      throw new Error("empty description");
+    }
+
+    this.creating.set(true);
+    try {
+      const created = await this.api.create(items);
+      this.savedRows.update((current) => new Set([...current, ...rows.map((r) => r.rowNumber)]));
+      this.persistHandled();
+      this.transactions.notifyExternalChange();
+      const sheet = this.selectedSheet();
+      if (sheet) void this.loadSheet(sheet, false);
+      return `${created} ${created === 1 ? "movimento creato" : "movimenti creati"}`;
+    } finally {
+      this.creating.set(false);
+    }
   }
 
   private persistHandled() {
@@ -255,6 +372,21 @@ export class LegacyMatchStore {
       saved: [...this.savedRows()],
       dismissed: [...this.dismissedRows()],
     });
+  }
+
+  private initialDrafts(month: LegacyMonth) {
+    const drafts = new Map<number, LegacyDraft>();
+    for (const row of month.excelRows) {
+      if (!row.toCreate || this.savedRows().has(row.rowNumber) || this.dismissedRows().has(row.rowNumber)) continue;
+      drafts.set(row.rowNumber, {
+        rowNumber: row.rowNumber,
+        description: row.description,
+        categoryId: row.suggestedCategoryId,
+        // un probabile duplicato parte escluso: va incluso consapevolmente
+        included: row.accountId !== null && !findDuplicate(row, row.description, month.dbTransactions),
+      });
+    }
+    return drafts;
   }
 
   private initialPairs(month: LegacyMonth) {

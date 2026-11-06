@@ -33,6 +33,18 @@ public static class LegacyMatchSuggester
         return partial.Count == 1 ? partial[0].Id : null;
     }
 
+    /// <summary>
+    /// Conti senza import automatico (Contanti, Hype): le loro righe Excel vanno create come nuovi movimenti.
+    /// Si guarda il tipo del conto risolto, altrimenti il nome del "Fondo" Excel.
+    /// </summary>
+    public static bool IsManualAccount(string? excelAccount, Account? account)
+    {
+        if (account?.AccountTypeId is AccountType.ContantiId or AccountType.HypeId)
+            return true;
+
+        return Normalize(excelAccount) is "contanti" or "hype";
+    }
+
     /// <summary>Categoria dell'utente con lo stesso nome della categoria Excel (ignorando maiuscole e spazi).</summary>
     public static int? ResolveCategory(string? excelCategory, IEnumerable<Category> categories)
     {

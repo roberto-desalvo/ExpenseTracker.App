@@ -5,6 +5,7 @@ using RDS.ExpenseTracker.Application.Utilities;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Dtos;
 using RDS.ExpenseTracker.Domain.Dtos.Requests;
+using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
 using RDS.ExpenseTracker.Domain.Repositories;
 using RDS.ExpenseTracker.Domain.Services;
@@ -91,6 +92,8 @@ public class LegacyMatchService : ILegacyMatchService
             ExcelCategory = r.Category,
             SuggestedCategoryId = LegacyMatchSuggester.ResolveCategory(r.Category, categories),
         }).ToList();
+        foreach (var row in rows)
+            row.ToCreate = LegacyMatchSuggester.IsManualAccount(row.AccountName, accounts.FirstOrDefault(a => a.Id == row.AccountId));
 
         var dbTransactions = transactions.Select(t => new LegacyDbTransactionDto
         {
@@ -111,7 +114,8 @@ public class LegacyMatchService : ILegacyMatchService
             Sheet = new LegacySheetDto { Name = sheet.Info.Name, Year = sheet.Info.Year, Month = sheet.Info.Month },
             ExcelRows = rows,
             DbTransactions = dbTransactions,
-            Suggestions = LegacyMatchSuggester.Suggest(rows, dbTransactions),
+            // le righe da creare non vanno abbinate a movimenti esistenti
+            Suggestions = LegacyMatchSuggester.Suggest(rows.Where(r => !r.ToCreate), dbTransactions),
         });
     }
 
@@ -139,14 +143,9 @@ public class LegacyMatchService : ILegacyMatchService
                     $"The description of transaction {item.TransactionId} must be between 1 and {MaxDescriptionLength} characters."));
         }
 
-        var categoryIds = items.Where(i => i.CategoryId is not null).Select(i => i.CategoryId!.Value).ToHashSet();
-        if (categoryIds.Count > 0)
-        {
-            var ownCategoryIds = (await _categoryRepository.GetCategories(userId)).Select(c => c.Id).ToHashSet();
-            var foreign = categoryIds.FirstOrDefault(id => !ownCategoryIds.Contains(id));
-            if (foreign != 0)
-                return Result.Fail(DomainErrors.NotFound("Category", foreign));
-        }
+        var categoryCheck = await EnsureCategoriesBelongToUser(items.Select(i => i.CategoryId), userId);
+        if (categoryCheck.IsFailed)
+            return Result.Fail(categoryCheck.Errors);
 
         var transactions = (await _transactionRepository.GetTransactionsByIds(items.Select(i => i.TransactionId), userId))
             .ToDictionary(t => t.Id);
@@ -165,6 +164,65 @@ public class LegacyMatchService : ILegacyMatchService
 
         await _transactionRepository.SaveChangesAsync();
         return Result.Ok(items.Count);
+    }
+
+    public async Task<Result<int>> CreateAsync(LegacyCreateRequest request, int userId)
+    {
+        var admin = await _userService.EnsureAdminAsync(userId);
+        if (admin.IsFailed)
+            return Result.Fail(admin.Errors);
+
+        var items = request?.Items ?? [];
+        if (items.Count == 0)
+            return Result.Fail(DomainErrors.BadRequest("No transaction to create."));
+
+        foreach (var item in items)
+        {
+            var description = item.Description?.Trim() ?? string.Empty;
+            if (description.Length == 0 || description.Length > MaxDescriptionLength)
+                return Result.Fail(DomainErrors.BadRequest(
+                    $"Every description must be between 1 and {MaxDescriptionLength} characters."));
+            if (item.Amount == 0m)
+                return Result.Fail(DomainErrors.BadRequest("The amount cannot be zero."));
+            if (item.Date == default)
+                return Result.Fail(DomainErrors.Required("date"));
+        }
+
+        var ownAccountIds = (await _accountRepository.GetAccounts(userId)).Select(a => a.Id).ToHashSet();
+        var foreignAccount = items.Select(i => i.AccountId).FirstOrDefault(id => !ownAccountIds.Contains(id), -1);
+        if (foreignAccount != -1)
+            return Result.Fail(DomainErrors.NotFound("Account", foreignAccount));
+
+        var categoryCheck = await EnsureCategoriesBelongToUser(items.Select(i => i.CategoryId), userId);
+        if (categoryCheck.IsFailed)
+            return Result.Fail(categoryCheck.Errors);
+
+        var now = DateTime.UtcNow;
+        var transactions = items.Select(i => new Transaction
+        {
+            AccountId = i.AccountId,
+            Date = i.Date.Date,
+            Amount = Math.Round(i.Amount, 2, MidpointRounding.AwayFromZero),
+            Description = i.Description.Trim(),
+            CategoryId = i.CategoryId,
+            CreatedOn = now,
+            LegacyMatchedAt = now,
+        }).ToList();
+
+        await _transactionRepository.AddTransactions(transactions);
+        await _transactionRepository.SaveChangesAsync();
+        return Result.Ok(transactions.Count);
+    }
+
+    private async Task<Result> EnsureCategoriesBelongToUser(IEnumerable<int?> categoryIds, int userId)
+    {
+        var ids = categoryIds.Where(id => id is not null).Select(id => id!.Value).ToHashSet();
+        if (ids.Count == 0)
+            return Result.Ok();
+
+        var ownCategoryIds = (await _categoryRepository.GetCategories(userId)).Select(c => c.Id).ToHashSet();
+        var foreign = ids.FirstOrDefault(id => !ownCategoryIds.Contains(id));
+        return foreign == 0 ? Result.Ok() : Result.Fail(DomainErrors.NotFound("Category", foreign));
     }
 
     // SpreadsheetDocument richiede uno stream con seek: il file viene copiato in memoria (~400 KB).

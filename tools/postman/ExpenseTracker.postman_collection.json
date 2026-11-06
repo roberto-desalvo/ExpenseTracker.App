@@ -979,6 +979,33 @@
           }
         },
         {
+          "name": "LegacyMatch_Create",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/legacy-match/create",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "legacy-match",
+                "create"
+              ]
+            },
+            "description": "Crea come nuovi movimenti (con `LegacyMatchedAt`) le righe Excel di Contanti e Hype. Risponde con il numero di movimenti creati.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"accountId\": 1,\n      \"date\": \"2025-10-04\",\n      \"amount\": -1.2,\n      \"description\": \"caffè\",\n      \"categoryId\": null\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
           "name": "LegacyMatch_Apply",
           "request": {
             "method": "POST",

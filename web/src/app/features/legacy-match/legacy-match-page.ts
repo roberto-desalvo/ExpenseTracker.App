@@ -17,6 +17,7 @@ import { EmptyState } from "../../shared/ui/empty-state";
 import { PageContainer } from "../../shared/ui/page-container";
 import { PageHeader } from "../../shared/ui/page-header";
 import { SurfaceCard } from "../../shared/ui/surface-card";
+import { LegacyCreateDialog } from "./legacy-create-dialog";
 import { LegacyMatchStore } from "./legacy-match.store";
 
 const dayFormatter = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "short" });
@@ -52,6 +53,7 @@ interface AccountOption {
     MatCheckbox,
     MatSlideToggle,
     MatProgressBar,
+    LegacyCreateDialog,
   ],
   templateUrl: "./legacy-match-page.html",
   styleUrl: "./legacy-match-page.scss",
@@ -74,7 +76,7 @@ export class LegacyMatchPage {
   protected readonly visibleRows = computed(() => {
     const account = this.accountFilter();
     // di default solo le righe ancora da gestire, così restano in vista quelle che mancano
-    const rows = this.showMatched() ? this.store.rows() : this.store.pendingRows();
+    const rows = this.showMatched() ? this.store.matchRows() : this.store.pendingRows();
     return rows.filter((r) => account === null || r.accountId === account);
   });
 
@@ -94,7 +96,7 @@ export class LegacyMatchPage {
   });
 
   protected readonly unresolvedAccounts = computed(
-    () => this.store.rows().filter((r) => r.accountId === null).length,
+    () => this.store.matchRows().filter((r) => r.accountId === null).length,
   );
 
   /** Stato di una riga gestita, mostrato quando si vedono anche le abbinate. */

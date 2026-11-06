@@ -15,6 +15,8 @@ export interface LegacyExcelRow {
   accountId: number | null;
   excelCategory: string | null;
   suggestedCategoryId: number | null;
+  /** Conto senza import automatico (Contanti, Hype): la riga va creata come nuovo movimento. */
+  toCreate: boolean;
 }
 
 export interface LegacyDbTransaction {
@@ -40,6 +42,14 @@ export interface LegacyMonth {
   excelRows: LegacyExcelRow[];
   dbTransactions: LegacyDbTransaction[];
   suggestions: LegacyMatchSuggestion[];
+}
+
+export interface LegacyCreateItem {
+  accountId: number;
+  date: string;
+  amount: number;
+  description: string;
+  categoryId: number | null;
 }
 
 export interface LegacyMatchApplyItem {

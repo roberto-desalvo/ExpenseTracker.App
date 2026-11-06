@@ -21,6 +21,8 @@ public class LegacyExcelRowDto
     public int? AccountId { get; set; }
     public string? ExcelCategory { get; set; }
     public int? SuggestedCategoryId { get; set; }
+    // Riga di un conto senza import automatico (Contanti, Hype): va creata come nuovo movimento, non abbinata.
+    public bool ToCreate { get; set; }
 }
 
 public class LegacyDbTransactionDto

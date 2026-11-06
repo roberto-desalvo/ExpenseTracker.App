@@ -39,7 +39,7 @@ public class LegacyMatchServiceTests
             new Category { Id = 200, Name = "Spesa", UserId = UserId },
         ]);
         var repository = new FakeTransactionRepository(transactions);
-        return (new LegacyMatchService(new UserService(users, mapper), repository, new FakeAccountRepository(), categories), repository);
+        return (new LegacyMatchService(new UserService(users, mapper), repository, new FakeAccountRepository([TestAccounts.Create(AdminId * 10, "Contanti", AdminId), TestAccounts.Create(UserId * 10, "Hype", UserId)]), categories), repository);
     }
 
     private static LegacyMatchApplyRequest Request(params (int Id, string Description, int? CategoryId)[] items)
@@ -143,6 +143,72 @@ public class LegacyMatchServiceTests
     }
 
     [Fact]
+    public async Task GetMonth_FlagsCashAndHypeRowsToCreate_WithoutSuggestingThem()
+    {
+        var existing = Tx(1, AdminId);
+        existing.AccountId = AdminId * 10;
+        var (service, _) = Create(existing);
+        var date = new DateTime(2025, 10, 5).ToOADate();
+        using var file = LegacySpreadsheetReaderTests.Workbook(("Ottobre2025",
+        [
+            ("A2", date, null), ("B2", "caffe", null), ("C2", 10d, null), ("E2", "Contanti", null),
+            ("A3", date, null), ("B3", "biglietto", null), ("C3", 2d, null), ("E3", "Hype", null),
+            ("A4", date, null), ("B4", "spesa", null), ("C4", 5d, null), ("E4", "BBVA", null),
+        ]));
+
+        var result = await service.GetMonthAsync(file, "Ottobre2025", AdminId);
+
+        result.Value.ExcelRows.Select(r => (r.RowNumber, r.ToCreate)).Should().Equal((2, true), (3, true), (4, false));
+        result.Value.Suggestions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Create_AddsTransactionsMarkedAsMatched()
+    {
+        var (service, repository) = Create();
+        var request = new LegacyCreateRequest
+        {
+            Items = [new LegacyCreateItem { AccountId = AdminId * 10, Date = new DateTime(2025, 10, 5, 13, 0, 0), Amount = -2.5m, Description = " caffe ", CategoryId = 100 }],
+        };
+
+        var result = await service.CreateAsync(request, AdminId);
+
+        result.Value.Should().Be(1);
+        repository.SaveCount.Should().Be(1);
+        var created = repository.Added.Should().ContainSingle().Subject;
+        created.Description.Should().Be("caffe");
+        created.Date.Should().Be(new DateTime(2025, 10, 5));
+        created.Amount.Should().Be(-2.5m);
+        created.CategoryId.Should().Be(100);
+        created.LegacyMatchedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task Create_Fails_ForAccountOfAnotherUser()
+    {
+        var (service, repository) = Create();
+        var request = new LegacyCreateRequest
+        {
+            Items = [new LegacyCreateItem { AccountId = UserId * 10, Date = new DateTime(2025, 10, 5), Amount = -1m, Description = "x" }],
+        };
+
+        var result = await service.CreateAsync(request, AdminId);
+
+        result.Errors.Should().ContainSingle().Which.Should().BeOfType<NotFoundResultError>();
+        repository.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Create_FailsWithForbidden_ForNonAdmin()
+    {
+        var (service, _) = Create();
+
+        var result = await service.CreateAsync(new LegacyCreateRequest(), UserId);
+
+        result.Errors.Should().ContainSingle().Which.Should().BeOfType<ForbiddenResultError>();
+    }
+
+    [Fact]
     public async Task GetSheets_FailsWithBadRequest_ForInvalidFile()
     {
         var (service, _) = Create();
@@ -184,7 +250,13 @@ public class LegacyMatchServiceTests
         public Task<IEnumerable<string>> GetExistingExternalIds(IEnumerable<string> externalIds, int userId) => throw new NotImplementedException();
         public Task<List<Transaction>> GetCategorizableTransactions(int userId, DateTime startDate, DateTime endDate) => throw new NotImplementedException();
         public Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains) => throw new NotImplementedException();
-        public Task AddTransactions(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
+        public List<Transaction> Added { get; } = [];
+
+        public Task AddTransactions(IEnumerable<Transaction> transactions)
+        {
+            Added.AddRange(transactions);
+            return Task.CompletedTask;
+        }
         public Task UpdateTransaction(Transaction transaction) => throw new NotImplementedException();
         public Task DeleteTransaction(int id) => throw new NotImplementedException();
         public Task DeleteAllTransactions(int userId) => throw new NotImplementedException();
@@ -194,9 +266,10 @@ public class LegacyMatchServiceTests
         public Task ResetTransactions(IEnumerable<Transaction> transactions, int userId) => throw new NotImplementedException();
     }
 
-    private sealed class FakeAccountRepository : IAccountRepository
+    private sealed class FakeAccountRepository(IEnumerable<Account> accounts) : IAccountRepository
     {
-        public Task<IEnumerable<Account>> GetAccounts(int userId) => Task.FromResult<IEnumerable<Account>>([]);
+        public Task<IEnumerable<Account>> GetAccounts(int userId)
+            => Task.FromResult<IEnumerable<Account>>(accounts.Where(a => a.UserId == userId).ToList());
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => throw new NotImplementedException();
         public Task AddAccounts(IEnumerable<Account> accounts) => throw new NotImplementedException();
         public Task UpdateAccount(Account account) => throw new NotImplementedException();

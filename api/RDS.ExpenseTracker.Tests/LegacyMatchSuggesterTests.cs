@@ -75,6 +75,19 @@ public class LegacyMatchSuggesterTests
         LegacyMatchSuggester.ResolveAccount(excel, accounts).Should().Be(expected);
     }
 
+    [Theory]
+    [InlineData("Contanti", null, true)]
+    [InlineData(" hype", null, true)]
+    [InlineData("Portafoglio", AccountType.ContantiId, true)]
+    [InlineData("BBVA", AccountType.BbvaId, false)]
+    [InlineData(null, null, false)]
+    public void IsManualAccount_RecognizesCashAndHype(string? excel, int? accountTypeId, bool expected)
+    {
+        var account = accountTypeId is null ? null : new Account(1, "x", 1) { AccountTypeId = accountTypeId };
+
+        LegacyMatchSuggester.IsManualAccount(excel, account).Should().Be(expected);
+    }
+
     [Fact]
     public void ResolveCategory_MatchesByNameIgnoringCaseAndSpaces()
     {

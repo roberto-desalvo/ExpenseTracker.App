@@ -89,6 +89,7 @@ Prefisso `/api`. Tutti richiedono autenticazione salvo dove indicato. Una collec
 | Storico Excel *(admin)* | `POST legacy-match/sheets` | Multipart `file` (Spese.xlsx): fogli mensili del file |
 | | `POST legacy-match/month` | Multipart `file` + `sheet`: righe del mese, movimenti a DB dello stesso mese e coppie suggerite |
 | | `POST legacy-match/apply` | Salva descrizione e categoria sui movimenti abbinati e li marca (`LegacyMatchedAt`) |
+| | `POST legacy-match/create` | Crea come nuovi movimenti (già marcati) le righe di Contanti e Hype |
 | OneDrive | `POST onedrive/notifications` *(anonimo)* | Notifiche Microsoft Graph |
 
 ## Pipeline di import
@@ -128,5 +129,6 @@ Il vecchio file delle spese (`Spese.xlsx`, mai versionato) ha un foglio per mese
 
 - **Righe** — escluse quelle senza data o importo e gli `aggiustamento`; i giroconti (colonne J–N) non sono letti. Importo = Entrate − Uscite.
 - **Categoria Excel** — la prima del foglio con una parola (termine sommato della formula) contenuta nella Ragione, preferendo le parole della colonna coerente con il segno. Suggerita la categoria dell'utente con lo stesso nome, altrimenti nessuna.
+- **Contanti e Hype** — conti senza import automatico (riconosciuti dal tipo del conto o dal nome del Fondo): le loro righe non vengono abbinate ma create come nuovi movimenti (`legacy-match/create`).
 - **Suggerimenti** (`LegacyMatchSuggester`) — conto risolto per nome del conto o del suo tipo; coppie 1:1 con stesso conto e importo entro ±0,02 €, preferendo la data più vicina; esclusi i movimenti già abbinati.
 - **Salvataggio** — il movimento prende descrizione e categoria scelte nella pagina (proposte "descrizione DB - descrizione Excel" e categoria suggerita) e `LegacyMatchedAt`.

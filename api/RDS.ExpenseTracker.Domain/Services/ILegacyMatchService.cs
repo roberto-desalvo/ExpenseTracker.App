@@ -11,4 +11,7 @@ public interface ILegacyMatchService : IService
     Task<Result<IReadOnlyList<LegacySheetDto>>> GetSheetsAsync(Stream file, int userId);
     Task<Result<LegacyMonthDto>> GetMonthAsync(Stream file, string sheetName, int userId);
     Task<Result<int>> ApplyAsync(LegacyMatchApplyRequest request, int userId);
+
+    // Crea i movimenti delle righe dei conti senza import automatico (Contanti, Hype), già marcati come abbinati.
+    Task<Result<int>> CreateAsync(LegacyCreateRequest request, int userId);
 }

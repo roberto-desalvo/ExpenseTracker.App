@@ -57,6 +57,15 @@ public class LegacyMatchFunctions : FunctionBase
         return await ExecuteAsync(() => _service.ApplyAsync(request, userId));
     }
 
+    [Function("LegacyMatch_Create")]
+    public async Task<IActionResult> Create(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "legacy-match/create")] HttpRequest req)
+    {
+        var request = await ReadBodyAsync<LegacyCreateRequest>(req);
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.CreateAsync(request, userId));
+    }
+
     private static async Task<(IFormFile File, IFormCollection Form)> ReadFormAsync(HttpRequest req)
     {
         if (!req.HasFormContentType)

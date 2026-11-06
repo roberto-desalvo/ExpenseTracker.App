@@ -47,8 +47,12 @@
 
         <mat-slide-toggle [checked]="showMatched()" (change)="showMatched.set($event.checked)">Mostra abbinati</mat-slide-toggle>
 
+        <button matButton="outlined" (click)="store.createDialogOpen.set(true)" [disabled]="store.loading()">
+          <mat-icon>payments</mat-icon> Contanti e Hype ({{ store.createRows().length }})
+        </button>
+
         <div class="stats">
-          <span><strong>{{ store.rows().length }}</strong> righe</span>
+          <span><strong>{{ store.matchRows().length }}</strong> righe</span>
           <span><strong>{{ store.pendingRows().length }}</strong> da abbinare</span>
           <span><strong>{{ store.pairList().length }}</strong> in abbinamento</span>
           <span><strong>{{ store.toSave().length }}</strong> da salvare</span>
@@ -220,3 +224,5 @@
     </app-surface-card>
   }
 </app-page-container>
+
+<app-legacy-create-dialog />
