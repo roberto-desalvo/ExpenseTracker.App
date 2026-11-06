@@ -43,6 +43,27 @@ export const findDuplicate = (
   );
 };
 
+/**
+ * Movimento già abbinato in una sessione precedente che sembra corrispondere alla riga Excel: stesso conto,
+ * stesso mese (i movimenti caricati sono quelli del mese del foglio), stessa somma e descrizione che contiene
+ * quella Excel (es. "DB - Excel"). Solo i movimenti già abbinati: le descrizioni bancarie contengono spesso
+ * per caso il testo Excel (es. "gtt" in "GTT TORINO").
+ */
+export const findExistingMatch = (
+  row: LegacyExcelRow,
+  transactions: readonly LegacyDbTransaction[],
+): LegacyDbTransaction | undefined => {
+  const text = normalizeText(row.description);
+  if (row.accountId === null || text.length === 0) return undefined;
+  return transactions.find(
+    (t) =>
+      t.accountId === row.accountId &&
+      Math.round(t.amount * 100) === Math.round(row.amount * 100) &&
+      t.legacyMatchedAt !== null &&
+      normalizeText(t.description).includes(text),
+  );
+};
+
 /** Righe del foglio già gestite nella sessione: salvate oppure segnate a mano come abbinate. */
 interface HandledRows {
   saved: number[];
@@ -116,6 +137,16 @@ export class LegacyMatchStore {
     }
     return result;
   });
+  /** Per ogni riga da abbinare, il movimento che risulta già abbinato a lei (warning sulla coppia e sulla riga). */
+  readonly existingMatches = computed(() => {
+    const result = new Map<number, LegacyDbTransaction>();
+    for (const row of this.matchRows()) {
+      const existing = findExistingMatch(row, this.dbTransactions());
+      if (existing) result.set(row.rowNumber, existing);
+    }
+    return result;
+  });
+
   readonly draftsToCreate = computed(() =>
     this.createRows().filter((r) => r.accountId !== null && this.drafts().get(r.rowNumber)?.included),
   );

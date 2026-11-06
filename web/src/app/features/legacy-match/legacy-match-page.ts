@@ -10,7 +10,7 @@ import { MatSlideToggle } from "@angular/material/slide-toggle";
 import { MatTooltip } from "@angular/material/tooltip";
 import { RouterLink } from "@angular/router";
 import { ROUTES } from "../../core/config/routes";
-import { LegacySheet } from "../../core/models/LegacyMatch";
+import { LegacyDbTransaction, LegacySheet } from "../../core/models/LegacyMatch";
 import { CategoriesStore } from "../../core/state/categories.store";
 import { formatPeriodLabel, formatSignedCurrency } from "../../core/utils/format.utilities";
 import { EmptyState } from "../../shared/ui/empty-state";
@@ -108,6 +108,10 @@ export class LegacyMatchPage {
 
   protected sheetLabel(sheet: LegacySheet) {
     return formatPeriodLabel(`${sheet.year}-${String(sheet.month).padStart(2, "0")}`, true);
+  }
+
+  protected existingMatchLabel(t: LegacyDbTransaction) {
+    return `Risulta già abbinata: «${t.description}» del ${this.day(t.date)} su ${t.account}, ${formatSignedCurrency(t.amount)}`;
   }
 
   protected day(date: string | null) {

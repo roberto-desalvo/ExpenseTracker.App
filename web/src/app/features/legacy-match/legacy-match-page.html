@@ -80,6 +80,7 @@
           @for (row of visibleRows(); track row.rowNumber) {
             @let index = store.pairIndexByRow().get(row.rowNumber);
             @let status = rowStatus(row.rowNumber);
+            @let existing = store.existingMatches().get(row.rowNumber);
             <li class="row-item" [class.handled]="status !== null">
               <button
                 type="button"
@@ -91,6 +92,11 @@
                 (click)="store.selectRow(row.rowNumber)"
               >
                 <span class="badge" [class.empty]="index === undefined">{{ index ?? "" }}</span>
+                <span class="warning-slot">
+                  @if (existing) {
+                    <mat-icon class="icon-sm warning" [matTooltip]="existingMatchLabel(existing)" [attr.aria-label]="existingMatchLabel(existing)">warning</mat-icon>
+                  }
+                </span>
                 <span class="date">{{ day(row.date) }}</span>
                 <span class="main">
                   <span class="description">{{ row.description }}</span>
@@ -187,6 +193,12 @@
                 aria-label="Includi nel salvataggio"
               />
               <span class="badge">{{ store.pairIndexByRow().get(pair.rowNumber) }}</span>
+              @let existing = store.existingMatches().get(pair.rowNumber);
+              <span class="warning-slot">
+                @if (existing) {
+                  <mat-icon class="icon-sm warning" tabindex="0" [matTooltip]="existingMatchLabel(existing)" [attr.aria-label]="existingMatchLabel(existing)">warning</mat-icon>
+                }
+              </span>
               <div class="pair-source">
                 <span class="excel">{{ row?.description }}</span>
                 <span class="meta">

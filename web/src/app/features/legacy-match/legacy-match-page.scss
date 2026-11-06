@@ -149,6 +149,18 @@ mat-progress-bar {
   }
 }
 
+.warning-slot {
+  flex-shrink: 0;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+}
+
+.warning {
+  color: var(--app-expense);
+  cursor: help;
+}
+
 .date {
   flex-shrink: 0;
   width: 52px;
@@ -210,11 +222,11 @@ mat-progress-bar {
 
 .pair {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  grid-template-columns: auto auto 20px minmax(0, 1fr) auto;
   grid-template-areas:
-    "check badge source remove"
-    "description description description description"
-    "category category category category";
+    "check badge warn source remove"
+    "description description description description description"
+    "category category category category category";
   align-items: center;
   gap: 8px 10px;
   padding: 10px 0;
@@ -236,13 +248,17 @@ mat-progress-bar {
     grid-area: badge;
   }
 
+  .warning-slot {
+    grid-area: warn;
+  }
+
   button {
     grid-area: remove;
   }
 
   @media (min-width: 900px) {
-    grid-template-columns: auto auto minmax(0, 1fr) minmax(0, 1.4fr) 220px auto;
-    grid-template-areas: "check badge source description category remove";
+    grid-template-columns: auto auto 20px minmax(0, 1fr) minmax(0, 1.4fr) 220px auto;
+    grid-template-areas: "check badge warn source description category remove";
   }
 }
 

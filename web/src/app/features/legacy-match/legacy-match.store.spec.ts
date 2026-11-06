@@ -172,6 +172,29 @@ describe("LegacyMatchStore", () => {
     expect(store.createDialogOpen()).toBe(true); // resta com'era: la chiude la modale
   });
 
+  it("warns when a transaction of the same month, account and amount already contains the Excel description", () => {
+    expect(store.existingMatches().size).toBe(0);
+
+    // movimento salvato in una sessione precedente come "DB - Excel"
+    const previous = { ...MONTH.dbTransactions[1], id: 20, description: "GTT TORINO - gtt", legacyMatchedAt: "2026-11-01T10:00:00Z" };
+    store.month.update((m) => m && { ...m, dbTransactions: [...m.dbTransactions, previous] });
+
+    expect(store.existingMatches().get(3)?.id).toBe(20);
+  });
+
+  it("ignores transactions never matched, even if their description contains the Excel text", () => {
+    store.month.update(
+      (m) => m && { ...m, dbTransactions: m.dbTransactions.map((t) => (t.id === 10 ? { ...t, description: "SPESA CONAD CORSO" } : t)) },
+    );
+    expect(store.existingMatches().has(2)).toBe(false);
+    expect(store.existingMatches().has(3)).toBe(false); // "GTT TORINO" contiene "gtt" ma non è mai stato abbinato
+
+    store.month.update(
+      (m) => m && { ...m, dbTransactions: m.dbTransactions.map((t) => (t.id === 10 ? { ...t, legacyMatchedAt: "2026-11-01T10:00:00Z" } : t)) },
+    );
+    expect(store.existingMatches().get(2)?.id).toBe(10);
+  });
+
   it("builds the default description from the non-empty parts", () => {
     expect(defaultPairDescription(MONTH.excelRows[0], { ...MONTH.dbTransactions[0], description: " " })).toBe("spesa conad");
   });
