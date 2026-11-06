@@ -24,7 +24,7 @@ const createInitialRange = () => {
       [open]="open()"
       (closed)="closed.emit()"
       title="Sincronizza categorie"
-      subtitle="Riassegna la categoria ai movimenti del periodo in base alle parole chiave"
+      subtitle="Classifica i movimenti del periodo ancora nella categoria predefinita in base alle parole chiave"
       [submitAction]="submit"
       [busy]="busy()"
       submitLabel="Sincronizza"
@@ -46,9 +46,10 @@ const createInitialRange = () => {
         </div>
       }
       <p class="explain">
-        Un movimento la cui descrizione contiene una parola chiave passa alla categoria corrispondente; se ne contiene di più
-        categorie vince quella con priorità più bassa. I trasferimenti tra conti non vengono modificati e i movimenti senza
-        corrispondenze mantengono la categoria attuale.
+        Solo i movimenti nella categoria predefinita vengono considerati: quelli con una categoria già assegnata non vengono
+        modificati. Un movimento la cui descrizione contiene una parola chiave passa alla categoria corrispondente; se ne
+        contiene di più categorie vince quella con priorità più bassa. I trasferimenti tra conti non vengono modificati e i
+        movimenti senza corrispondenze restano nella categoria predefinita.
       </p>
     </app-modal>
   `,

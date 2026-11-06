@@ -1,8 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from "@angular/core";
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, linkedSignal } from "@angular/core";
 import { MatButton, MatIconButton } from "@angular/material/button";
 import { MatButtonToggleModule } from "@angular/material/button-toggle";
 import { MatDatepickerModule } from "@angular/material/datepicker";
+import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatIconModule } from "@angular/material/icon";
+import { MatInputModule } from "@angular/material/input";
 import { MatSelectModule } from "@angular/material/select";
 import { MatTooltip } from "@angular/material/tooltip";
 import { format, isValid, parseISO } from "date-fns";
@@ -13,11 +15,13 @@ import { TransactionsStore } from "../../core/state/transactions.store";
 import { MultiSelectFilter } from "./multi-select-filter";
 
 const toDate = (value: string | null) => (value ? parseISO(value) : null);
+const SEARCH_DEBOUNCE_MS = 300;
+
 const toKey = (value: Date | null) => (value && isValid(value) ? format(value, "yyyy-MM-dd") : null);
 
 /**
  * Barra filtri dei movimenti: periodo (mese intero con frecce oppure intervallo di date personalizzato),
- * tipo di movimento, conti e categorie.
+ * tipo di movimento, ricerca per descrizione, conti e categorie.
  */
 @Component({
   selector: "app-transaction-filters",
@@ -27,7 +31,9 @@ const toKey = (value: Date | null) => (value && isValid(value) ? format(value, "
     MatIconButton,
     MatButtonToggleModule,
     MatDatepickerModule,
+    MatFormFieldModule,
     MatIconModule,
+    MatInputModule,
     MatSelectModule,
     MatTooltip,
     MultiSelectFilter,
@@ -52,12 +58,22 @@ export class TransactionFilters {
   protected readonly fromValue = computed(() => toDate(this.table.customRange().from));
   protected readonly toValue = computed(() => toDate(this.table.customRange().to));
 
+  // testo nel campo, aggiornato a ogni tasto; lo store (e quindi la richiesta) riceve il valore con un debounce
+  protected readonly searchText = linkedSignal(() => this.table.search());
+  private searchTimer: ReturnType<typeof setTimeout> | undefined;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.searchTimer));
+  }
+
   protected readonly anyFilter = computed(() => {
     const accountIds = this.table.selectedAccountIds();
     const categoryIds = this.table.selectedCategoryIds();
     const accountFilterOn = accountIds.length > 0 && accountIds.length < this.accounts.all().length;
     const categoryFilterOn = categoryIds.length > 0 && categoryIds.length < this.categories.all().length;
-    return accountFilterOn || categoryFilterOn || this.table.movementType() !== "all";
+    return (
+      accountFilterOn || categoryFilterOn || this.table.movementType() !== "all" || this.table.search().trim() !== ""
+    );
   });
 
   // i mesi arrivano dal più recente: "precedente" = indice successivo
@@ -86,7 +102,20 @@ export class TransactionFilters {
     this.table.modifyCustomRange({ from: this.table.customRange().from, to: toKey(value) });
   }
 
+  protected changeSearch(value: string) {
+    this.searchText.set(value);
+    clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => this.table.modifySearch(value), SEARCH_DEBOUNCE_MS);
+  }
+
+  protected clearSearch() {
+    clearTimeout(this.searchTimer);
+    this.searchText.set("");
+    this.table.modifySearch("");
+  }
+
   protected resetFilters() {
+    this.clearSearch();
     this.table.modifySelectedAccountIds([]);
     this.table.modifySelectedCategoryIds([]);
     this.table.modifyMovementType("all");

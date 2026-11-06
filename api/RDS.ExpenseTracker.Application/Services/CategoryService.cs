@@ -115,7 +115,8 @@ public class CategoryService : ICategoryService
         return Result.Ok();
     }
 
-    // Riapplica i tag delle categorie ai movimenti già salvati, con la stessa regola dell'import.
+    // Riapplica i tag delle categorie ai movimenti già salvati, con la stessa regola dell'import, ma solo a
+    // quelli ancora nella categoria predefinita (o senza categoria): una categoria già assegnata non viene toccata.
     // I trasferimenti restano intatti e i movimenti senza tag corrispondente mantengono la categoria attuale.
     public async Task<Result<CategorySyncResultDto>> SyncTransactionCategories(CategorySyncRequest request, int userId)
     {
@@ -126,15 +127,17 @@ public class CategoryService : ICategoryService
         if (request.StartDate.Value.Date > request.EndDate.Value.Date)
             return Result.Fail(DomainErrors.BadRequest("startDate must not be after endDate."));
 
-        var matcher = new CategoryTagMatcher(await _repository.GetCategories(userId));
-        var transactions = await _transactionRepository.GetCategorizableTransactions(userId, request.StartDate.Value, request.EndDate.Value);
+        var categories = new UserCategories(await _repository.GetCategories(userId));
+        var transactions = (await _transactionRepository.GetCategorizableTransactions(userId, request.StartDate.Value, request.EndDate.Value))
+            .Where(t => t.CategoryId is null || t.CategoryId == categories.DefaultId)
+            .ToList();
 
         var result = new CategorySyncResultDto { ExaminedTransactions = transactions.Count };
         var now = DateTime.UtcNow;
 
         foreach (var transaction in transactions)
         {
-            var categoryId = matcher.Match(transaction.Description);
+            var categoryId = categories.Matcher.Match(transaction.Description);
             if (categoryId is null)
             {
                 result.UnmatchedTransactions++;

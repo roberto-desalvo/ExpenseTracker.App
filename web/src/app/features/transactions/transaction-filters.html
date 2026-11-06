@@ -86,6 +86,24 @@
 </div>
 
 <div class="filters-row second">
+  <mat-form-field class="field-block field-compact search">
+    <mat-icon matPrefix class="icon-sm prefix">search</mat-icon>
+    <input
+      matInput
+      type="search"
+      placeholder="Cerca descrizione"
+      aria-label="Cerca per descrizione"
+      autocomplete="off"
+      [value]="searchText()"
+      (input)="changeSearch($any($event.target).value)"
+      (keydown.escape)="clearSearch()"
+    />
+    @if (searchText()) {
+      <button matIconButton matSuffix class="clear" aria-label="Cancella ricerca" (click)="clearSearch()">
+        <mat-icon class="icon-sm">close</mat-icon>
+      </button>
+    }
+  </mat-form-field>
   <app-multi-select-filter
     icon="account_balance_wallet"
     allLabel="Tutti i conti"

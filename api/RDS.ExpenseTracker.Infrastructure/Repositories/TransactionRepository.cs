@@ -194,6 +194,11 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             query = request.IsIncome.Value
                 ? query.Where(t => t.Amount > 0m)
                 : query.Where(t => t.Amount < 0m);
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var search = request.Search.Trim().ToLower();
+            query = query.Where(t => t.Description.ToLower().Contains(search));
+        }
 
         var totalCount = await query.CountAsync();
 

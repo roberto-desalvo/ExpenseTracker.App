@@ -7,6 +7,8 @@ export interface TransactionQueryRequest {
   idAccounts?: number[] | null;
   idCategories?: number[] | null;
   isIncome?: boolean | null;
+  /** Testo cercato nella descrizione (parziale, case insensitive). */
+  search?: string | null;
   sortBy?: TransactionSortField;
   sortDirection?: SortDirection;
   page: number;

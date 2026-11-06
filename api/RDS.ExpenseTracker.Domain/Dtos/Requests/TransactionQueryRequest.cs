@@ -8,6 +8,9 @@ public class TransactionQueryRequest : PagedQueryRequest
     public int[]? IdCategories { get; set; }
     public bool? IsIncome { get; set; }
 
+    /// <summary>Testo cercato nella descrizione (corrispondenza parziale, case insensitive).</summary>
+    public string? Search { get; set; }
+
     /// <summary>Campo di ordinamento: date (default), description, category, account, amount.</summary>
     public string? SortBy { get; set; }
 

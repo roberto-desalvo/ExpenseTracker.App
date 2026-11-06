@@ -58,16 +58,32 @@ public class CategoryServiceTests
     [Fact]
     public async Task SyncTransactionCategories_LeavesUnmatchedTransactionsUntouched()
     {
-        var manuale = Transaction(1, "Bonifico affitto", new DateTime(2026, 3, 2), (int)CategoryEnum.Housing);
-        var repository = new FakeTransactionRepository([manuale]);
+        var senzaMatch = Transaction(1, "Bonifico affitto", new DateTime(2026, 3, 2), DefaultId);
+        var repository = new FakeTransactionRepository([senzaMatch]);
 
         var result = await CreateService(repository).SyncTransactionCategories(Range(new DateTime(2026, 3, 1), new DateTime(2026, 3, 31)), UserId);
 
-        manuale.CategoryId.Should().Be((int)CategoryEnum.Housing);
-        manuale.UpdatedOn.Should().BeNull();
+        senzaMatch.CategoryId.Should().Be(DefaultId);
+        senzaMatch.UpdatedOn.Should().BeNull();
         result.Value.UnmatchedTransactions.Should().Be(1);
         result.Value.UpdatedTransactions.Should().Be(0);
         repository.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task SyncTransactionCategories_DoesNotChangeAlreadyAssignedCategories()
+    {
+        var giaAssegnato = Transaction(1, "Netflix.com", new DateTime(2026, 3, 2), (int)CategoryEnum.Housing);
+        var predefinito = Transaction(2, "Netflix.com", new DateTime(2026, 3, 3), DefaultId);
+        var repository = new FakeTransactionRepository([giaAssegnato, predefinito]);
+
+        var result = await CreateService(repository).SyncTransactionCategories(Range(new DateTime(2026, 3, 1), new DateTime(2026, 3, 31)), UserId);
+
+        giaAssegnato.CategoryId.Should().Be((int)CategoryEnum.Housing);
+        giaAssegnato.UpdatedOn.Should().BeNull();
+        predefinito.CategoryId.Should().Be(EntertainmentId);
+        result.Value.ExaminedTransactions.Should().Be(1);
+        result.Value.UpdatedTransactions.Should().Be(1);
     }
 
     [Fact]

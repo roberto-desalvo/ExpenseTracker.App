@@ -104,6 +104,33 @@
   background-color: var(--app-border-strong);
 }
 
+.search {
+  display: block;
+  min-width: 0;
+  flex: 1 1 100%;
+
+  @media (min-width: 600px) {
+    flex: 1 1 0;
+  }
+
+  .prefix {
+    margin-inline: 12px 8px;
+    color: var(--app-text-muted);
+  }
+
+  .clear {
+    --mat-icon-button-state-layer-size: 32px;
+    padding: 4px;
+    margin-right: 4px;
+    color: var(--app-text-muted);
+  }
+
+  // il pulsante di cancellazione nativo dei campi search si sovrappone a quello Material
+  input::-webkit-search-cancel-button {
+    display: none;
+  }
+}
+
 .desktop-only {
   display: none;
   @media (min-width: 900px) {
