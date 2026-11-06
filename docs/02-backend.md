@@ -87,7 +87,7 @@ Prefisso `/api`. Tutti richiedono autenticazione salvo dove indicato. Una collec
 | | `POST import/transfers/reconcile` | Collega a posteriori i trasferimenti (`dryRun` opzionale) |
 | | `POST import/test-seed` | Rigenera l'utente di test con 5 anni di dati |
 | Storico Excel *(admin)* | `POST legacy-match/sheets` | Multipart `file` (Spese.xlsx): fogli mensili del file |
-| | `POST legacy-match/month` | Multipart `file` + `sheet`: righe del mese, movimenti a DB del mese ±7 giorni e coppie suggerite |
+| | `POST legacy-match/month` | Multipart `file` + `sheet`: righe del mese, movimenti a DB dello stesso mese e coppie suggerite |
 | | `POST legacy-match/apply` | Salva descrizione e categoria sui movimenti abbinati e li marca (`LegacyMatchedAt`) |
 | OneDrive | `POST onedrive/notifications` *(anonimo)* | Notifiche Microsoft Graph |
 

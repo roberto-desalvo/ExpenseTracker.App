@@ -120,6 +120,29 @@ public class LegacyMatchServiceTests
     }
 
     [Fact]
+    public async Task GetMonth_ReturnsOnlyTransactionsOfTheSheetMonth()
+    {
+        Transaction On(int id, DateTime date)
+        {
+            var t = Tx(id, AdminId);
+            t.Date = date;
+            return t;
+        }
+
+        var (service, _) = Create(
+            On(1, new DateTime(2025, 9, 30)),
+            On(2, new DateTime(2025, 10, 1)),
+            On(3, new DateTime(2025, 10, 31)),
+            On(4, new DateTime(2025, 11, 1)));
+        using var file = LegacySpreadsheetReaderTests.Workbook(("Ottobre2025", [("A2", new DateTime(2025, 10, 5).ToOADate(), null), ("B2", "spesa", null), ("C2", 10d, null)]));
+
+        var result = await service.GetMonthAsync(file, "Ottobre2025", AdminId);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.DbTransactions.Select(t => t.Id).Should().Equal(2, 3);
+    }
+
+    [Fact]
     public async Task GetSheets_FailsWithBadRequest_ForInvalidFile()
     {
         var (service, _) = Create();

@@ -17,8 +17,6 @@ namespace RDS.ExpenseTracker.Application.Services;
 /// </summary>
 public class LegacyMatchService : ILegacyMatchService
 {
-    // Le date bancarie possono slittare rispetto a quelle annotate a mano sul file.
-    public const int MonthMarginDays = 7;
     private const int MaxDescriptionLength = 500;
 
     private readonly IUserService _userService;
@@ -75,11 +73,12 @@ public class LegacyMatchService : ILegacyMatchService
         var accounts = (await _accountRepository.GetAccounts(userId)).ToList();
         var categories = (await _categoryRepository.GetCategories(userId)).ToList();
 
+        // solo i movimenti dello stesso mese del foglio
         var monthStart = new DateTime(sheet.Info.Year, sheet.Info.Month, 1);
         var transactions = await _transactionRepository.GetTransactionsInRange(
             userId,
-            monthStart.AddDays(-MonthMarginDays),
-            monthStart.AddMonths(1).AddDays(-1 + MonthMarginDays));
+            monthStart,
+            monthStart.AddMonths(1).AddDays(-1));
 
         var rows = sheet.Rows.Select(r => new LegacyExcelRowDto
         {

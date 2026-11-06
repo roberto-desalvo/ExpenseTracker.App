@@ -125,7 +125,7 @@ public class LegacySpreadsheetReaderTests
         ];
     }
 
-    private static MemoryStream Workbook(params (string Name, (string Ref, object Value, string? Formula)[] Cells)[] sheets)
+    internal static MemoryStream Workbook(params (string Name, (string Ref, object Value, string? Formula)[] Cells)[] sheets)
     {
         var stream = new MemoryStream();
         using (var document = SpreadsheetDocument.Create(stream, SpreadsheetDocumentType.Workbook))

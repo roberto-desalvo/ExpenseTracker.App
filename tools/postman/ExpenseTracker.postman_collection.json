@@ -960,7 +960,7 @@
                 "month"
               ]
             },
-            "description": "Righe del foglio, movimenti a DB del mese ±7 giorni e coppie suggerite (stesso conto, importo ±0,02).",
+            "description": "Righe del foglio, movimenti a DB dello stesso mese e coppie suggerite (stesso conto, importo ±0,02).",
             "body": {
               "mode": "formdata",
               "formdata": [
