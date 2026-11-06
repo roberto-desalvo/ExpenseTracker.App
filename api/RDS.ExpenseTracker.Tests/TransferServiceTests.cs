@@ -50,7 +50,7 @@ public class TransferServiceTests
             Tx(1, Checking, -100m, new DateTime(2026, 3, 10), transferId: 50),
             Tx(2, Savings, 100m, new DateTime(2026, 3, 28)),
             Tx(3, Savings, 100m, new DateTime(2026, 3, 11)),
-            Tx(4, Savings, 100m, new DateTime(2026, 4, 1)),   // altro mese
+            Tx(4, Savings, 100m, new DateTime(2026, 4, 16)),  // oltre la tolleranza sul mese successivo
             Tx(5, Savings, -100m, new DateTime(2026, 3, 10)), // stesso segno
             Tx(6, Savings, 90m, new DateTime(2026, 3, 10)),   // importo diverso
             Tx(7, Checking, 100m, new DateTime(2026, 3, 10)), // stesso conto
@@ -60,6 +60,34 @@ public class TransferServiceTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Select(t => t.Id).Should().Equal(3, 2);
+    }
+
+    [Fact]
+    public async Task GetCounterpartCandidates_IncludesFifteenDaysOfThePreviousAndNextMonth()
+    {
+        var (service, _, _) = Create(
+            Tx(1, Checking, -100m, new DateTime(2026, 3, 10), transferId: 50),
+            Tx(2, Savings, 100m, new DateTime(2026, 2, 13)),
+            Tx(3, Savings, 100m, new DateTime(2026, 2, 14, 9, 30, 0)),
+            Tx(4, Savings, 100m, new DateTime(2026, 4, 15, 23, 0, 0)),
+            Tx(5, Savings, 100m, new DateTime(2026, 4, 16)));
+
+        var result = await service.GetCounterpartCandidates(1, UserId);
+
+        result.Value.Select(t => t.Id).Should().BeEquivalentTo([3, 4]);
+    }
+
+    [Fact]
+    public async Task LinkCounterpart_AcceptsACounterpartInTheToleranceOfTheNextMonth()
+    {
+        var (service, transactions, _) = Create(
+            Tx(1, Checking, -100m, new DateTime(2026, 3, 30), transferId: 50),
+            Tx(2, Savings, 100m, new DateTime(2026, 4, 2)));
+
+        var result = await service.LinkCounterpart(1, 2, UserId);
+
+        result.IsSuccess.Should().BeTrue();
+        transactions.Items.Single(t => t.Id == 2).Date.Should().Be(new DateTime(2026, 3, 30));
     }
 
     [Fact]

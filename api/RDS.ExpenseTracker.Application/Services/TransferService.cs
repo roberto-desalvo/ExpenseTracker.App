@@ -170,11 +170,11 @@ public class TransferService : ITransferService
 
         var (transaction, _) = source.Value;
         var date = transaction.Date!.Value;
-        var monthStart = new DateTime(date.Year, date.Month, 1);
-        var inMonth = await _transactionRepository.GetTransactionsInRange(userId, monthStart, monthStart.AddMonths(1).AddDays(-1));
+        var (from, to) = CandidateWindow(date);
+        var inWindow = await _transactionRepository.GetTransactionsInRange(userId, from, to);
 
         var candidates = new List<Transaction>();
-        foreach (var candidate in inMonth.Where(t => IsCounterpartShape(transaction, t)))
+        foreach (var candidate in inWindow.Where(t => IsCounterpartShape(transaction, t)))
         {
             if (await IsFreeForTransfer(candidate, userId))
                 candidates.Add(candidate);
@@ -203,7 +203,7 @@ public class TransferService : ITransferService
 
         if (!IsCounterpartShape(transaction, counterpart))
             return Result.Fail(DomainErrors.BadRequest(
-                "The counterpart must be on another account, with the same absolute amount, opposite sign and a date in the same month."));
+                $"The counterpart must be on another account, with the same absolute amount, opposite sign and a date in the same month (±{CandidateToleranceDays} days)."));
 
         if (!await IsFreeForTransfer(counterpart, userId))
             return Result.Fail(DomainErrors.Conflict($"Transaction {counterpartId} already belongs to a complete transfer."));
@@ -336,14 +336,27 @@ public class TransferService : ITransferService
         return Result.Ok<(Transaction, Transfer?)>((transaction, transfer));
     }
 
+    // Tolleranza sui candidati: oltre al mese del movimento, gli ultimi giorni del precedente e i primi del successivo.
+    private const int CandidateToleranceDays = 15;
+
+    // Giorni (estremi inclusi) in cui cercare il corrispondente: dal 15° giorno prima dell'inizio del mese
+    // al 15° giorno del mese successivo.
+    private static (DateTime From, DateTime To) CandidateWindow(DateTime date)
+    {
+        var monthStart = new DateTime(date.Year, date.Month, 1);
+        return (monthStart.AddDays(-CandidateToleranceDays), monthStart.AddMonths(1).AddDays(CandidateToleranceDays - 1));
+    }
+
     private static bool IsCounterpartShape(Transaction source, Transaction candidate)
-        => candidate.Id != source.Id
-           && candidate.AccountId != source.AccountId
-           && candidate.Amount == -source.Amount
-           && candidate.Date is DateTime date
-           && date.Year == source.Date!.Value.Year
-           && date.Month == source.Date.Value.Month
-           && (source.TransferId is null || candidate.TransferId != source.TransferId);
+    {
+        var (from, to) = CandidateWindow(source.Date!.Value);
+        return candidate.Id != source.Id
+               && candidate.AccountId != source.AccountId
+               && candidate.Amount == -source.Amount
+               && candidate.Date is DateTime date
+               && date.Date >= from && date.Date <= to
+               && (source.TransferId is null || candidate.TransferId != source.TransferId);
+    }
 
     // Un candidato è libero se non è in un trasferimento, o se il suo trasferimento non ha ancora il ramo opposto al suo.
     private async Task<bool> IsFreeForTransfer(Transaction candidate, int userId)

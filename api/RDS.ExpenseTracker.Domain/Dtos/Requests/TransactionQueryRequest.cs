@@ -11,6 +11,9 @@ public class TransactionQueryRequest : PagedQueryRequest
     /// <summary>Solo i trasferimenti: movimenti collegati a un Transfer o nella categoria "Money transfers".</summary>
     public bool? OnlyTransfers { get; set; }
 
+    /// <summary>Solo i trasferimenti incompleti: senza il ramo di segno opposto, o in "Money transfers" senza trasferimento.</summary>
+    public bool? OnlyIncompleteTransfers { get; set; }
+
     /// <summary>Testo cercato nella descrizione (corrispondenza parziale, case insensitive).</summary>
     public string? Search { get; set; }
 

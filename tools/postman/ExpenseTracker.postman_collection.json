@@ -830,7 +830,7 @@
                 "transfer-candidates"
               ]
             },
-            "description": "Movimenti che possono completare il trasferimento incompleto del movimento (o di un movimento Money transfers senza trasferimento): conto diverso, importo opposto, data nello stesso mese, non in un trasferimento già completo; prima i più vicini per data. 400 se il movimento non è in un trasferimento né in Money transfers, 409 se il trasferimento ha già entrambi i rami."
+            "description": "Movimenti che possono completare il trasferimento incompleto del movimento (o di un movimento Money transfers senza trasferimento): conto diverso, importo opposto, data nello stesso mese (\u00b115 giorni sui mesi adiacenti), non in un trasferimento già completo; prima i più vicini per data. 400 se il movimento non è in un trasferimento né in Money transfers, 409 se il trasferimento ha già entrambi i rami."
           }
         },
         {

@@ -70,7 +70,7 @@ Prefisso `/api`. Tutti richiedono autenticazione salvo dove indicato. Una collec
 | Categorie | `POST category/query`, `GET category/{id}`, `GET category/default` | Ricerca, dettaglio, categoria predefinita |
 | | `POST category`, `PUT category`, `DELETE category/{id}` | CRUD; l'eliminazione sposta i movimenti sulla predefinita |
 | | `POST category/sync` | Ricategorizza i movimenti di un periodo con le parole chiave |
-| Movimenti | `POST transaction/query` | Elenco paginato con filtri (anche `onlyTransfers`: collegati a un trasferimento o in Money transfers) e ordinamento; ogni movimento riporta `transferId`, `transferIncomplete` (trasferimento senza il ramo di segno opposto) e `transferMissing` (Money transfers senza trasferimento) |
+| Movimenti | `POST transaction/query` | Elenco paginato con filtri (anche `onlyTransfers`: collegati a un trasferimento o in Money transfers; `onlyIncompleteTransfers`: solo quelli con `transferIncomplete` o `transferMissing`) e ordinamento; ogni movimento riporta `transferId`, `transferIncomplete` (trasferimento senza il ramo di segno opposto) e `transferMissing` (Money transfers senza trasferimento) |
 | | `GET transaction/{id}`, `GET transaction/latest`, `GET transaction/month-options` | Dettaglio, ultimo movimento, mesi disponibili |
 | | `POST transaction`, `PUT transaction`, `DELETE transaction/{id}` | CRUD |
 | | `POST transaction/bulk-delete`, `POST transaction/bulk-category` | Eliminazione e assegnazione della categoria su più movimenti (`ids`, `categoryId`; tutto o niente, max 1000) |
@@ -78,7 +78,7 @@ Prefisso `/api`. Tutti richiedono autenticazione salvo dove indicato. Una collec
 | | `POST transaction/series`, `POST transaction/stock` | Serie temporali: flussi per periodo, saldo medio per periodo |
 | Trasferimenti | `GET transfer`, `GET transfer/{id}` | Elenco, dettaglio |
 | | `POST transfer`, `PUT transfer/{id}`, `DELETE transfer/{id}` | CRUD (ogni trasferimento sono due movimenti collegati) |
-| | `GET transaction/{id}/transfer-candidates` | Movimenti che completano il trasferimento incompleto di `{id}` (o di un movimento Money transfers senza trasferimento): altro conto, importo opposto, stesso mese, non già in un trasferimento completo |
+| | `GET transaction/{id}/transfer-candidates` | Movimenti che completano il trasferimento incompleto di `{id}` (o di un movimento Money transfers senza trasferimento): altro conto, importo opposto, data nel mese di `{id}` o negli ultimi/primi 15 giorni del mese precedente/successivo, non già in un trasferimento completo |
 | | `POST transaction/{id}/transfer-counterpart` | Body `{ counterpartId }`: collega il movimento al trasferimento di `{id}` e gli assegna la data di `{id}`; il suo trasferimento precedente, se resta vuoto, è eliminato. Se `{id}` non ha trasferimento si usa quello del corrispondente o se ne crea uno per entrambi. Con `{ newCounterpart: { accountId, description } }` crea invece il movimento mancante (altro conto, importo opposto, stessa data, categoria Money transfers; descrizione vuota = quella di `{id}`) |
 | Utente | `GET user/me` | Profilo dell'utente corrente (email, `isDemo`, `isAdmin`) |
 | Preferenze | `GET user/analytics-layout`, `PUT user/analytics-layout` | Layout della pagina Analisi (card visibili, ordine, larghezza); `null` se mai personalizzato |

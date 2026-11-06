@@ -9,6 +9,8 @@ export interface TransactionQueryRequest {
   isIncome?: boolean | null;
   /** Solo i trasferimenti: movimenti collegati a un trasferimento o nella categoria "Money transfers". */
   onlyTransfers?: boolean | null;
+  /** Solo i trasferimenti incompleti (quelli segnalati con il warning). */
+  onlyIncompleteTransfers?: boolean | null;
   /** Testo cercato nella descrizione (parziale, case insensitive). */
   search?: string | null;
   sortBy?: TransactionSortField;

@@ -15,7 +15,7 @@ public interface ITransferService : IService
     Task<Result> DeleteTransfer(int id, int userId);
 
     // Ramo mancante di un trasferimento incompleto, o di un movimento "Money transfers" senza trasferimento
-    // (al collegamento si usa il trasferimento del candidato o se ne crea uno): i candidati hanno importo opposto, data nello stesso mese,
+    // (al collegamento si usa il trasferimento del candidato o se ne crea uno): i candidati hanno importo opposto, data nello stesso mese (±15 giorni),
     // conto diverso e nessun trasferimento completo; il collegamento porta la data del candidato a quella del movimento di partenza.
     Task<Result<IEnumerable<TransactionDto>>> GetCounterpartCandidates(int transactionId, int userId);
     Task<Result> LinkCounterpart(int transactionId, int counterpartId, int userId);

@@ -80,6 +80,16 @@ export class TransactionFilters {
     );
   });
 
+  protected readonly transferFilterValue = computed(() => [
+    ...(this.table.onlyTransfers() ? ["transfers"] : []),
+    ...(this.table.onlyIncompleteTransfers() ? ["incomplete"] : []),
+  ]);
+
+  protected changeTransferFilter(value: string, checked: boolean) {
+    if (value === "incomplete") this.table.modifyOnlyIncompleteTransfers(checked);
+    else this.table.modifyOnlyTransfers(checked);
+  }
+
   // i mesi arrivano dal più recente: "precedente" = indice successivo
   protected goTo(index: number) {
     const month = this.months()[index];

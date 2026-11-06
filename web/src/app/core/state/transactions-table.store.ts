@@ -68,6 +68,8 @@ export class TransactionsTableStore {
   readonly movementType = signal<MovementType>("all");
   /** Solo i movimenti collegati a un trasferimento; attiva anche la segnalazione dei trasferimenti incompleti. */
   readonly onlyTransfers = signal(false);
+  /** Con il filtro Trasferimenti, solo quelli incompleti (con il warning). */
+  readonly onlyIncompleteTransfers = signal(false);
   readonly search = signal("");
   readonly page = signal(0);
   readonly pageSize = signal(10);
@@ -112,6 +114,7 @@ export class TransactionsTableStore {
       idCategories: categoryIds.length === 0 || categoryIds.length === categoriesCount ? null : categoryIds,
       isIncome: movementType === "all" ? null : movementType === "incomes",
       onlyTransfers: this.onlyTransfers() || null,
+      onlyIncompleteTransfers: (this.onlyTransfers() && this.onlyIncompleteTransfers()) || null,
       search: search || null,
       sortBy: this.sortBy(),
       sortDirection: this.sortDirection(),
@@ -167,6 +170,17 @@ export class TransactionsTableStore {
       });
     });
 
+    // dopo una modifica la pagina corrente può restare oltre l'ultima (es. con "Incompleti" la riga collegata sparisce):
+    // si torna all'ultima pagina con movimenti invece di mostrare una pagina vuota
+    effect(() => {
+      const total = this.transactionsStore.totalCount();
+      if (this.transactionsStore.isLoading()) return;
+      untracked(() => {
+        const lastPage = Math.max(0, Math.ceil(total / this.pageSize()) - 1);
+        if (this.active() && this.page() > lastPage) this.page.set(lastPage);
+      });
+    });
+
     effect(() => {
       const key = this.requestKey();
       if (!this.active() || !key) return;
@@ -192,6 +206,7 @@ export class TransactionsTableStore {
     this.selectedCategoryIds.set(filter.categoryIds);
     this.movementType.set(filter.movementType);
     this.onlyTransfers.set(false);
+    this.onlyIncompleteTransfers.set(false);
     this.search.set("");
     this.page.set(0);
     if (/^\d{4}-\d{2}$/.test(filter.period)) {
@@ -249,8 +264,16 @@ export class TransactionsTableStore {
     this.page.set(0);
   }
 
+  // spegnendo i trasferimenti si spegne anche "solo incompleti"; accendendo "solo incompleti" si accendono i trasferimenti
   modifyOnlyTransfers(onlyTransfers: boolean) {
     this.onlyTransfers.set(onlyTransfers);
+    if (!onlyTransfers) this.onlyIncompleteTransfers.set(false);
+    this.page.set(0);
+  }
+
+  modifyOnlyIncompleteTransfers(onlyIncomplete: boolean) {
+    this.onlyIncompleteTransfers.set(onlyIncomplete);
+    if (onlyIncomplete) this.onlyTransfers.set(true);
     this.page.set(0);
   }
 

@@ -79,13 +79,16 @@
   <mat-button-toggle-group
     class="segmented toggle transfers"
     multiple
-    [value]="table.onlyTransfers() ? ['transfers'] : []"
-    (change)="table.modifyOnlyTransfers($event.source.checked)"
-    aria-label="Solo trasferimenti"
+    [value]="transferFilterValue()"
+    (change)="changeTransferFilter($event.source.value, $event.source.checked)"
+    aria-label="Filtro trasferimenti"
     hideMultipleSelectionIndicator
   >
     <mat-button-toggle value="transfers" matTooltip="Solo i movimenti collegati a un trasferimento o nella categoria Money transfers">
       <mat-icon class="icon-sm">swap_horiz</mat-icon> Trasferimenti
+    </mat-button-toggle>
+    <mat-button-toggle value="incomplete" matTooltip="Solo i trasferimenti incompleti, segnalati dal warning">
+      <mat-icon class="icon-sm">warning</mat-icon> Incompleti
     </mat-button-toggle>
   </mat-button-toggle-group>
 </div>

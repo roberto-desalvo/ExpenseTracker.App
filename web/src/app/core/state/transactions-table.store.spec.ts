@@ -14,16 +14,24 @@ const MONTHS = [
 describe("TransactionsTableStore", () => {
   let store: TransactionsTableStore;
   const refreshTransactions = vi.fn();
+  const totalCount = signal(100);
 
   beforeEach(() => {
     refreshTransactions.mockReset();
+    totalCount.set(100);
     TestBed.configureTestingModule({
       providers: [
         { provide: AccountsStore, useValue: { all: signal([{ id: 1, name: "A" }, { id: 2, name: "B" }]) } },
         { provide: CategoriesStore, useValue: { all: signal([{ id: 10, name: "C" }]) } },
         {
           provide: TransactionsStore,
-          useValue: { availableMonths: signal(MONTHS), availableMonthsLoading: signal(false), refreshTransactions },
+          useValue: {
+            availableMonths: signal(MONTHS),
+            availableMonthsLoading: signal(false),
+            refreshTransactions,
+            totalCount,
+            isLoading: signal(false),
+          },
         },
       ],
     });
@@ -59,6 +67,25 @@ describe("TransactionsTableStore", () => {
     expect(store.request()).toMatchObject({ onlyTransfers: true, page: 0 });
     store.modifyOnlyTransfers(false);
     expect(store.request()?.onlyTransfers).toBeNull();
+  });
+
+  it("se la pagina corrente supera l'ultima dopo un ricaricamento torna all'ultima con movimenti", () => {
+    const deactivate = store.activate();
+    store.modifyPage(4);
+    TestBed.tick();
+    expect(store.page()).toBe(4);
+    totalCount.set(40); // 10 per pagina: ultima pagina = 3
+    TestBed.tick();
+    expect(store.page()).toBe(3);
+    deactivate();
+  });
+
+  it("solo incompleti accende i trasferimenti e si spegne con loro", () => {
+    store.modifyOnlyIncompleteTransfers(true);
+    expect(store.request()).toMatchObject({ onlyTransfers: true, onlyIncompleteTransfers: true, page: 0 });
+    store.modifyOnlyTransfers(false);
+    expect(store.onlyIncompleteTransfers()).toBe(false);
+    expect(store.request()).toMatchObject({ onlyTransfers: null, onlyIncompleteTransfers: null });
   });
 
   it("l'ordinamento sulla stessa colonna inverte la direzione e riparte dalla prima pagina", () => {

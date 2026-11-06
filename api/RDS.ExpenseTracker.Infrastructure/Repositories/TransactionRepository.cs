@@ -198,6 +198,11 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
                 : query.Where(t => t.Amount < 0m);
         if (request.OnlyTransfers == true)
             query = query.Where(t => t.TransferId != null || t.CategoryNavigation!.Kind == CategoryEnum.MoneyTransfers);
+        if (request.OnlyIncompleteTransfers == true)
+            query = query.Where(t =>
+                (t.TransferId == null && t.CategoryNavigation!.Kind == CategoryEnum.MoneyTransfers)
+                || (t.TransferId != null && t.Amount < 0m && !t.TransferNavigation!.Transactions.Any(o => o.Amount > 0m))
+                || (t.TransferId != null && t.Amount > 0m && !t.TransferNavigation!.Transactions.Any(o => o.Amount < 0m)));
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var search = request.Search.Trim().ToLower();
