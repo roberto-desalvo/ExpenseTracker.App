@@ -15,28 +15,6 @@ public class BbvaCsvImportServiceTests
     private static readonly Account BbvaAccount = TestAccounts.Create(1, "BBVA", TestUserId);
 
     [Fact]
-    public async Task ImportFromCsvAsync_ImportsRowsFromRepositoryBbvaCsvFile()
-    {
-        var transactionRepository = new FakeTransactionRepository();
-        var categoryRepository = FakeCategoryRepository.WithDefaults(TestUserId);
-        var service = new BbvaCsvImportService(
-            transactionRepository,
-            categoryRepository,
-            NullLogger<BbvaCsvImportService>.Instance);
-
-        var filePath = FindFileUpwards("transazioni-bbva.csv");
-        filePath.Should().NotBeNull("the repository sample file should exist for this regression test");
-
-        using var stream = File.OpenRead(filePath!);
-
-        var result = await service.ImportFromCsvAsync(stream, "transazioni-bbva.csv", BbvaAccount);
-
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Should().BeGreaterThan(0);
-        transactionRepository.AddedTransactions.Should().NotBeEmpty();
-    }
-
-    [Fact]
     public async Task ImportFromCsvAsync_ImportsRowsFromBbvaSampleCsv()
     {
         var transactionRepository = new FakeTransactionRepository();
@@ -143,21 +121,6 @@ Data valuta;Data;Parola chiave;Movimento;Importo;Valuta;Disponibile;Valuta;Osser
             .OnlyContain(id => id != null && id.StartsWith("BBVA:v3:", StringComparison.Ordinal));
     }
 
-    private static string? FindFileUpwards(string fileName)
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            var candidate = Path.Combine(directory.FullName, fileName);
-            if (File.Exists(candidate))
-                return candidate;
-
-            directory = directory.Parent;
-        }
-
-        return null;
-    }
-
     private sealed class FakeTransactionRepository : ITransactionRepository
     {
         public List<Transaction> AddedTransactions { get; } = [];
@@ -193,6 +156,8 @@ Data valuta;Data;Parola chiave;Movimento;Importo;Valuta;Disponibile;Valuta;Osser
         public Task<Transaction> GetLatestTransaction(int userId) => throw new NotImplementedException();
         public Task UpdateTransaction(Transaction transaction) => throw new NotImplementedException();
         public Task DeleteTransaction(int id) => throw new NotImplementedException();
+        public Task<List<Transaction>> GetLegacyMatchedTransactions(int userId, DateTime startDate, DateTime endDate) => throw new NotImplementedException();
+        public void RemoveTransactions(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
         public Task DeleteAllTransactions(int userId) => throw new NotImplementedException();
         public Task<IEnumerable<int>> DeleteTransactionsByAccountIds(IEnumerable<int> accountIds) => throw new NotImplementedException();
         public Task<int> AddTransaction(Transaction transaction) => throw new NotImplementedException();

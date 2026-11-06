@@ -1,4 +1,6 @@
-﻿namespace RDS.ExpenseTracker.Domain.Entities;
+﻿using RDS.ExpenseTracker.Domain.Enums;
+
+namespace RDS.ExpenseTracker.Domain.Entities;
 
 public class Transaction
 {
@@ -13,6 +15,11 @@ public class Transaction
 
     // Valorizzato quando il movimento è stato abbinato a una riga dello storico Excel (Spese.xlsx).
     public DateTime? LegacyMatchedAt { get; set; }
+
+    // Descrizione del movimento prima del primo abbinamento allo storico Excel: ripristinata dal reset del foglio.
+    public string? LegacyOriginalDescription { get; set; }
+
+    public TransactionSource Source { get; set; } = TransactionSource.UserCreated;
 
     public DateTime CreatedOn { get; set; }
     public DateTime? UpdatedOn { get; set; }

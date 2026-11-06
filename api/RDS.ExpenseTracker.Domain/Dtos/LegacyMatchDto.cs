@@ -1,4 +1,4 @@
-namespace RDS.ExpenseTracker.Domain.Dtos;
+﻿namespace RDS.ExpenseTracker.Domain.Dtos;
 
 // Abbinamento dello storico Excel (Spese.xlsx): un foglio = un mese.
 
@@ -51,4 +51,11 @@ public class LegacyMonthDto
     public List<LegacyExcelRowDto> ExcelRows { get; set; } = [];
     public List<LegacyDbTransactionDto> DbTransactions { get; set; } = [];
     public List<LegacyMatchSuggestionDto> Suggestions { get; set; } = [];
+}
+
+// Esito del ripristino di un foglio: movimenti riportati allo stato di import e movimenti creati eliminati.
+public class LegacyResetResultDto
+{
+    public int Restored { get; set; }
+    public int Deleted { get; set; }
 }

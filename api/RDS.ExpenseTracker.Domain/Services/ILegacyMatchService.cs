@@ -1,4 +1,4 @@
-using FluentResults;
+﻿using FluentResults;
 using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Dtos;
 using RDS.ExpenseTracker.Domain.Dtos.Requests;
@@ -14,4 +14,8 @@ public interface ILegacyMatchService : IService
 
     // Crea i movimenti delle righe dei conti senza import automatico (Contanti, Hype), già marcati come abbinati.
     Task<Result<int>> CreateAsync(LegacyCreateRequest request, int userId);
+
+    // Annulla l'abbinamento dei movimenti del mese: elimina quelli creati dallo storico, agli altri toglie
+    // l'abbinamento e ripristina descrizione originale e categoria di default.
+    Task<Result<LegacyResetResultDto>> ResetAsync(LegacyResetRequest request, int userId);
 }

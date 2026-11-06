@@ -234,6 +234,8 @@ public class TradeRepublicCsvImportServiceTests
         public Task<Transaction> GetLatestTransaction(int userId) => throw new NotImplementedException();
         public Task UpdateTransaction(Transaction transaction) => throw new NotImplementedException();
         public Task DeleteTransaction(int id) => throw new NotImplementedException();
+        public Task<List<Transaction>> GetLegacyMatchedTransactions(int userId, DateTime startDate, DateTime endDate) => throw new NotImplementedException();
+        public void RemoveTransactions(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
         public Task DeleteAllTransactions(int userId) => throw new NotImplementedException();
         public Task<IEnumerable<int>> DeleteTransactionsByAccountIds(IEnumerable<int> accountIds) => throw new NotImplementedException();
         public Task<int> AddTransaction(Transaction transaction) => throw new NotImplementedException();

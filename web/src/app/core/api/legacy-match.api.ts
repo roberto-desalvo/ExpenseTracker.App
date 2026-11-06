@@ -1,6 +1,6 @@
 import { Injectable, inject } from "@angular/core";
 import { apiConfig } from "../config/api";
-import { LegacyCreateItem, LegacyMatchApplyItem, LegacyMonth, LegacySheet } from "../models/LegacyMatch";
+import { LegacyCreateItem, LegacyMatchApplyItem, LegacyMonth, LegacyResetResult, LegacySheet } from "../models/LegacyMatch";
 import { ApiClient } from "./api-client";
 
 /** Abbinamento storico Excel (solo admin): il file non viene salvato dal BE, va rimandato a ogni richiesta. */
@@ -28,5 +28,10 @@ export class LegacyMatchApi {
   /** Crea i movimenti dei conti senza import automatico (Contanti, Hype). */
   create(items: LegacyCreateItem[]): Promise<number> {
     return this.api.read("POST", apiConfig.legacyMatch.create, "Errore nella creazione dei movimenti", { items });
+  }
+
+  /** Annulla gli abbinamenti del mese: elimina i movimenti creati dallo storico, ripristina gli altri. */
+  reset(year: number, month: number): Promise<LegacyResetResult> {
+    return this.api.read("POST", apiConfig.legacyMatch.reset, "Errore nel ripristino del mese", { year, month });
   }
 }

@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using RDS.ExpenseTracker.Application.Mappings;
@@ -36,6 +36,7 @@ public class LegacyMatchServiceTests
         var categories = new FakeCategoryRepository(
         [
             new Category { Id = 100, Name = "Spesa", UserId = AdminId },
+            new Category { Id = 101, Name = "Altro", UserId = AdminId, IsDefault = true },
             new Category { Id = 200, Name = "Spesa", UserId = UserId },
         ]);
         var repository = new FakeTransactionRepository(transactions);
@@ -73,6 +74,63 @@ public class LegacyMatchServiceTests
         transaction.LegacyMatchedAt.Should().NotBeNull();
         transaction.UpdatedOn.Should().Be(transaction.LegacyMatchedAt);
         repository.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Apply_KeepsTheOriginalDescriptionOfTheFirstMatch()
+    {
+        var transaction = Tx(1, AdminId);
+        var (service, _) = Create(transaction);
+
+        await service.ApplyAsync(Request((1, "BONIFICO - spesa", 100)), AdminId);
+        await service.ApplyAsync(Request((1, "BONIFICO - spesa conad", 100)), AdminId);
+
+        transaction.LegacyOriginalDescription.Should().Be("BONIFICO");
+        transaction.Description.Should().Be("BONIFICO - spesa conad");
+    }
+
+    [Fact]
+    public async Task Reset_DeletesCreatedAndRestoresMatchedTransactions()
+    {
+        var matched = Tx(1, AdminId, "BONIFICO - spesa");
+        matched.Source = TransactionSource.FileImport;
+        matched.LegacyOriginalDescription = "BONIFICO";
+        matched.CategoryId = 100;
+        matched.LegacyMatchedAt = DateTime.UtcNow;
+        var created = Tx(2, AdminId, "caffè");
+        created.Source = TransactionSource.LegacyImport;
+        created.LegacyMatchedAt = DateTime.UtcNow;
+        var otherMonth = Tx(3, AdminId);
+        otherMonth.Date = new DateTime(2025, 11, 5);
+        otherMonth.LegacyMatchedAt = DateTime.UtcNow;
+        var notMatched = Tx(4, AdminId);
+        notMatched.CategoryId = 100;
+        var (service, repository) = Create(matched, created, otherMonth, notMatched);
+
+        var result = await service.ResetAsync(new LegacyResetRequest { Year = 2025, Month = 10 }, AdminId);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Restored.Should().Be(1);
+        result.Value.Deleted.Should().Be(1);
+        repository.Removed.Should().ContainSingle().Which.Should().BeSameAs(created);
+        matched.Description.Should().Be("BONIFICO");
+        matched.LegacyOriginalDescription.Should().BeNull();
+        matched.LegacyMatchedAt.Should().BeNull();
+        matched.CategoryId.Should().Be(101);
+        otherMonth.LegacyMatchedAt.Should().NotBeNull();
+        notMatched.CategoryId.Should().Be(100);
+        repository.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Reset_FailsWithForbidden_ForNonAdmin()
+    {
+        var (service, repository) = Create(Tx(1, UserId));
+
+        var result = await service.ResetAsync(new LegacyResetRequest { Year = 2025, Month = 10 }, UserId);
+
+        result.Errors.Should().ContainSingle().Which.Should().BeOfType<ForbiddenResultError>();
+        repository.SaveCount.Should().Be(0);
     }
 
     [Fact]
@@ -181,6 +239,7 @@ public class LegacyMatchServiceTests
         created.Amount.Should().Be(-2.5m);
         created.CategoryId.Should().Be(100);
         created.LegacyMatchedAt.Should().NotBeNull();
+        created.Source.Should().Be(TransactionSource.LegacyImport);
     }
 
     [Fact]
@@ -259,6 +318,13 @@ public class LegacyMatchServiceTests
         }
         public Task UpdateTransaction(Transaction transaction) => throw new NotImplementedException();
         public Task DeleteTransaction(int id) => throw new NotImplementedException();
+
+        public List<Transaction> Removed { get; } = [];
+
+        public Task<List<Transaction>> GetLegacyMatchedTransactions(int userId, DateTime startDate, DateTime endDate)
+            => Task.FromResult(_transactions.Where(t => t.AccountNavigation.UserId == userId && t.LegacyMatchedAt != null && t.Date >= startDate && t.Date <= endDate).ToList());
+
+        public void RemoveTransactions(IEnumerable<Transaction> transactions) => Removed.AddRange(transactions);
         public Task DeleteAllTransactions(int userId) => throw new NotImplementedException();
         public Task<IEnumerable<int>> DeleteTransactionsByAccountIds(IEnumerable<int> accountIds) => throw new NotImplementedException();
         public Task<int> AddTransaction(Transaction transaction) => throw new NotImplementedException();

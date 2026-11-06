@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using RDS.ExpenseTracker.Domain.Entities;
+using RDS.ExpenseTracker.Domain.Enums;
 
 namespace RDS.ExpenseTracker.Infrastructure.EntityConfigurations;
 
@@ -13,6 +14,9 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
         builder.Property(t => t.Description).IsRequired().HasMaxLength(500);
         builder.Property(t => t.CreatedOn).IsRequired();
         builder.Property(t => t.ExternalId).HasMaxLength(100);
+        builder.Property(t => t.LegacyOriginalDescription).HasMaxLength(500);
+        builder.Property(t => t.Source).IsRequired().HasConversion<string>().HasMaxLength(20)
+               .HasDefaultValue(TransactionSource.UserCreated).HasSentinel((TransactionSource)(-1));
         // indice dedicato alla FK: quello composito sotto è filtrato e non copre i movimenti senza ExternalId
         builder.HasIndex(t => t.AccountId);
         // univoco per conto (quindi per utente): lo stesso movimento può essere importato da utenti diversi

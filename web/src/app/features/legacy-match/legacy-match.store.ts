@@ -111,6 +111,8 @@ export class LegacyMatchStore {
   readonly month = signal<LegacyMonth | null>(null);
   readonly loading = signal(false);
   readonly saving = signal(false);
+  readonly resetDialogOpen = signal(false);
+  readonly resetting = signal(false);
   readonly selectedRow = signal<number | null>(null);
   readonly pairs = signal<ReadonlyMap<number, LegacyPair>>(new Map());
   /** Righe salvate in questa sessione (anche nei caricamenti successivi dello stesso foglio). */
@@ -392,6 +394,28 @@ export class LegacyMatchStore {
       return `${created} ${created === 1 ? "movimento creato" : "movimenti creati"}`;
     } finally {
       this.creating.set(false);
+    }
+  }
+
+  /**
+   * Ripristina il mese del foglio corrente (movimenti creati eliminati, abbinamenti annullati), azzera le righe
+   * gestite nella sessione e ricarica il foglio. Rilancia l'errore (già notificato) così la conferma resta aperta.
+   */
+  async resetSheet(): Promise<string | void> {
+    const sheet = this.month()?.sheet;
+    if (!sheet) return;
+
+    this.resetting.set(true);
+    try {
+      const result = await this.api.reset(sheet.year, sheet.month);
+      this.savedRows.set(new Set());
+      this.dismissedRows.set(new Set());
+      this.persistHandled();
+      this.transactions.notifyExternalChange();
+      void this.loadSheet(sheet.name, false);
+      return `${result.restored} ${result.restored === 1 ? "movimento ripristinato" : "movimenti ripristinati"}, ${result.deleted} ${result.deleted === 1 ? "eliminato" : "eliminati"}`;
+    } finally {
+      this.resetting.set(false);
     }
   }
 

@@ -29,6 +29,7 @@ describe("LegacyMatchStore", () => {
   const getMonth = vi.fn();
   const apply = vi.fn();
   const create = vi.fn();
+  const reset = vi.fn();
   const showSuccess = vi.fn();
   const showError = vi.fn();
   const notifyExternalChange = vi.fn();
@@ -41,11 +42,12 @@ describe("LegacyMatchStore", () => {
     getMonth.mockResolvedValue(structuredClone(MONTH));
     apply.mockResolvedValue(1);
     create.mockResolvedValue(1);
+    reset.mockResolvedValue({ restored: 2, deleted: 1 });
 
     TestBed.configureTestingModule({
       providers: [
         LegacyMatchStore,
-        { provide: LegacyMatchApi, useValue: { getSheets, getMonth, apply, create } },
+        { provide: LegacyMatchApi, useValue: { getSheets, getMonth, apply, create, reset } },
         { provide: NotificationService, useValue: { showSuccess, showError } },
         { provide: TransactionsStore, useValue: { notifyExternalChange } },
       ],
@@ -193,6 +195,20 @@ describe("LegacyMatchStore", () => {
       (m) => m && { ...m, dbTransactions: m.dbTransactions.map((t) => (t.id === 10 ? { ...t, legacyMatchedAt: "2026-11-01T10:00:00Z" } : t)) },
     );
     expect(store.existingMatches().get(2)?.id).toBe(10);
+  });
+
+  it("resets the sheet month, forgets the handled rows and reloads the sheet", async () => {
+    store.markAsMatched(3);
+    getMonth.mockClear();
+
+    const message = await store.resetSheet();
+
+    expect(reset).toHaveBeenCalledWith(2025, 10);
+    expect(store.dismissedRows().size).toBe(0);
+    expect(store.savedRows().size).toBe(0);
+    expect(notifyExternalChange).toHaveBeenCalled();
+    expect(getMonth).toHaveBeenCalledWith(file, "Ottobre2025");
+    expect(message).toBe("2 movimenti ripristinati, 1 eliminato");
   });
 
   it("builds the default description from the non-empty parts", () => {

@@ -366,6 +366,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             Amount = -amount,
             Description = description,
             Date = date ?? DateTime.UtcNow,
+            Source = TransactionSource.FileImport,
             CreatedOn = DateTime.UtcNow,
             ExternalId = null, // No ID on bank leg to avoid accidental dedup with bank CSV imports
             TransferNavigation = transferEntity,
@@ -379,6 +380,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             Amount = amount,
             Description = description,
             Date = date ?? DateTime.UtcNow,
+            Source = TransactionSource.FileImport,
             CreatedOn = DateTime.UtcNow,
             ExternalId = row.TransactionId, // Mark receive side for dedup
             TransferNavigation = transferEntity,
@@ -435,6 +437,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
                 Amount = amount.Value,
                 Description = description,
                 Date = date,
+                Source = TransactionSource.FileImport,
                 CreatedOn = DateTime.UtcNow,
                 ExternalId = row.TransactionId,
                 TransferNavigation = transfer,
@@ -449,6 +452,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
                 Amount = amount.Value,
                 Description = description,
                 Date = date,
+                Source = TransactionSource.FileImport,
                 CreatedOn = DateTime.UtcNow,
                 ExternalId = row.TransactionId,
             });
@@ -487,6 +491,7 @@ public class SatisPayCsvImportService : ISatisPayCsvImportService
             Amount = amount.Value,
             Description = description,
             Date = date,
+            Source = TransactionSource.FileImport,
             CreatedOn = DateTime.UtcNow,
             ExternalId = row.TransactionId,
         };

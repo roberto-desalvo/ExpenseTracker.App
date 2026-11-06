@@ -44,6 +44,12 @@ export interface LegacyMonth {
   suggestions: LegacyMatchSuggestion[];
 }
 
+/** Esito del ripristino di un foglio: movimenti riportati allo stato di import e movimenti creati eliminati. */
+export interface LegacyResetResult {
+  restored: number;
+  deleted: number;
+}
+
 export interface LegacyCreateItem {
   accountId: number;
   date: string;

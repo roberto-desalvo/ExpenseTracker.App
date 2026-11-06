@@ -124,6 +124,7 @@ public class BbvaCsvImportService : IBbvaCsvImportService
                     Description = description,
                     CategoryId = categories.MatchOrDefault(description),
                     ExternalId = BuildExternalId(row),
+                    Source = TransactionSource.FileImport,
                     CreatedOn = DateTime.UtcNow,
                 });
             }

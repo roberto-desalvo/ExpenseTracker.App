@@ -128,6 +128,19 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
         return await ForUser(userId).Where(t => idList.Contains(t.Id)).ToListAsync();
     }
 
+    public async Task<List<Transaction>> GetLegacyMatchedTransactions(int userId, DateTime startDate, DateTime endDate)
+    {
+        var from = startDate.Date;
+        var toExclusive = endDate.Date.AddDays(1);
+
+        return await ForUser(userId)
+            .Where(t => t.LegacyMatchedAt != null && t.Date != null && t.Date >= from && t.Date < toExclusive)
+            .ToListAsync();
+    }
+
+    public void RemoveTransactions(IEnumerable<Transaction> transactions)
+        => Context.Transactions.RemoveRange(transactions);
+
     public async Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains)
     {
         var targetDate = date.Date;

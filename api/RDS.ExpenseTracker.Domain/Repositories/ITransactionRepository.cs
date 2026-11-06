@@ -25,10 +25,13 @@ public interface ITransactionRepository : IRepositoryBase
     Task<List<Transaction>> GetTransactionsInRange(int userId, DateTime startDate, DateTime endDate);
     // Movimenti dell'utente con gli id indicati (tracciati, per la modifica).
     Task<List<Transaction>> GetTransactionsByIds(IEnumerable<int> ids, int userId);
+    // Movimenti dell'utente abbinati allo storico Excel con data nel range (estremi inclusi), tracciati.
+    Task<List<Transaction>> GetLegacyMatchedTransactions(int userId, DateTime startDate, DateTime endDate);
     Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains);
     Task AddTransactions(IEnumerable<Transaction> transactions);
     Task UpdateTransaction(Transaction transaction);
     Task DeleteTransaction(int id);
+    void RemoveTransactions(IEnumerable<Transaction> transactions);
     Task DeleteAllTransactions(int userId);
     Task<IEnumerable<int>> DeleteTransactionsByAccountIds(IEnumerable<int> accountIds);
     Task<int> AddTransaction(Transaction transaction);

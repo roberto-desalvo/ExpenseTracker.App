@@ -13,6 +13,7 @@ import { ROUTES } from "../../core/config/routes";
 import { LegacyDbTransaction, LegacySheet } from "../../core/models/LegacyMatch";
 import { CategoriesStore } from "../../core/state/categories.store";
 import { formatPeriodLabel, formatSignedCurrency } from "../../core/utils/format.utilities";
+import { ConfirmDeleteDialog } from "../../shared/ui/confirm-delete-dialog";
 import { EmptyState } from "../../shared/ui/empty-state";
 import { PageContainer } from "../../shared/ui/page-container";
 import { PageHeader } from "../../shared/ui/page-header";
@@ -54,6 +55,7 @@ interface AccountOption {
     MatSlideToggle,
     MatProgressBar,
     LegacyCreateDialog,
+    ConfirmDeleteDialog,
   ],
   templateUrl: "./legacy-match-page.html",
   styleUrl: "./legacy-match-page.scss",
@@ -105,6 +107,14 @@ export class LegacyMatchPage {
     if (this.store.dismissedRows().has(rowNumber)) return "dismissed";
     return null;
   }
+
+  protected readonly confirmReset = () => this.store.resetSheet();
+
+  protected readonly resetMessage = computed(() => {
+    const sheet = this.store.month()?.sheet;
+    const label = sheet ? this.sheetLabel(sheet) : "del mese";
+    return `Per ${label} i movimenti creati dallo storico (Contanti, Hype) vengono eliminati; agli altri movimenti abbinati si tolgono l'abbinamento, la descrizione modificata e la categoria Excel, ripristinando la categoria di default.`;
+  });
 
   protected sheetLabel(sheet: LegacySheet) {
     return formatPeriodLabel(`${sheet.year}-${String(sheet.month).padStart(2, "0")}`, true);

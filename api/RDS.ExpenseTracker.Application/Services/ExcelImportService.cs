@@ -438,6 +438,7 @@ public class ExcelImportService : IExcelImportService
                         Amount = -Math.Abs(transfer.Amount),
                         Description = transfer.Description,
                         Date = transferDate,
+                        Source = TransactionSource.FileImport,
                         CreatedOn = DateTime.UtcNow,
                         TransferNavigation = transferEntity
                     },
@@ -448,6 +449,7 @@ public class ExcelImportService : IExcelImportService
                         Amount = Math.Abs(transfer.Amount),
                         Description = transfer.Description,
                         Date = transferDate,
+                        Source = TransactionSource.FileImport,
                         CreatedOn = DateTime.UtcNow,
                         TransferNavigation = transferEntity
                     }
@@ -481,6 +483,7 @@ public class ExcelImportService : IExcelImportService
             Description = importTx.Description,
             AccountId = importTx.AccountId,
             CategoryId = importTx.CategoryId > 0 ? importTx.CategoryId : null,
+            Source = TransactionSource.FileImport,
             CreatedOn = DateTime.UtcNow
         }).ToList();
 

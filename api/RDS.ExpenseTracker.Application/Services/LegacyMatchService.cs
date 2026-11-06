@@ -1,4 +1,4 @@
-using DocumentFormat.OpenXml.Packaging;
+﻿using DocumentFormat.OpenXml.Packaging;
 using FluentResults;
 using RDS.ExpenseTracker.Application.Services.LegacyExcel;
 using RDS.ExpenseTracker.Application.Utilities;
@@ -156,6 +156,9 @@ public class LegacyMatchService : ILegacyMatchService
             if (!transactions.TryGetValue(item.TransactionId, out var transaction))
                 return Result.Fail(DomainErrors.NotFound("Transaction", item.TransactionId));
 
+            // la descrizione bancaria si conserva solo al primo abbinamento: è quella da ripristinare col reset
+            if (transaction.LegacyMatchedAt is null)
+                transaction.LegacyOriginalDescription ??= transaction.Description;
             transaction.Description = item.Description.Trim();
             transaction.CategoryId = item.CategoryId;
             transaction.LegacyMatchedAt = now;
@@ -207,11 +210,54 @@ public class LegacyMatchService : ILegacyMatchService
             CategoryId = i.CategoryId,
             CreatedOn = now,
             LegacyMatchedAt = now,
+            Source = TransactionSource.LegacyImport,
         }).ToList();
 
         await _transactionRepository.AddTransactions(transactions);
         await _transactionRepository.SaveChangesAsync();
         return Result.Ok(transactions.Count);
+    }
+
+    public async Task<Result<LegacyResetResultDto>> ResetAsync(LegacyResetRequest request, int userId)
+    {
+        var admin = await _userService.EnsureAdminAsync(userId);
+        if (admin.IsFailed)
+            return Result.Fail(admin.Errors);
+
+        if (request is null)
+            return Result.Fail(DomainErrors.Required("request"));
+        if (request.Month is < 1 or > 12 || request.Year is < 1900 or > 9999)
+            return Result.Fail(DomainErrors.BadRequest("Invalid sheet month."));
+
+        var monthStart = new DateTime(request.Year, request.Month, 1);
+        var transactions = await _transactionRepository.GetLegacyMatchedTransactions(
+            userId,
+            monthStart,
+            monthStart.AddMonths(1).AddDays(-1));
+
+        var toDelete = transactions.Where(t => t.Source == TransactionSource.LegacyImport).ToList();
+        var toRestore = transactions.Where(t => t.Source != TransactionSource.LegacyImport).ToList();
+
+        var categories = new UserCategories(await _categoryRepository.GetCategories(userId));
+        var now = DateTime.UtcNow;
+        foreach (var transaction in toRestore)
+        {
+            if (!string.IsNullOrEmpty(transaction.LegacyOriginalDescription))
+                transaction.Description = transaction.LegacyOriginalDescription;
+            transaction.LegacyOriginalDescription = null;
+            transaction.LegacyMatchedAt = null;
+            // stessa regola degli import: i trasferimenti collegati restano in "Trasferimenti", gli altri
+            // prendono la categoria dalle regole sulla descrizione o quella di default
+            transaction.CategoryId = transaction.TransferId is not null && categories.MoneyTransfersId is not null
+                ? categories.MoneyTransfersId
+                : categories.MatchOrDefault(transaction.Description);
+            transaction.UpdatedOn = now;
+        }
+
+        _transactionRepository.RemoveTransactions(toDelete);
+        await _transactionRepository.SaveChangesAsync();
+
+        return Result.Ok(new LegacyResetResultDto { Restored = toRestore.Count, Deleted = toDelete.Count });
     }
 
     private async Task<Result> EnsureCategoriesBelongToUser(IEnumerable<int?> categoryIds, int userId)

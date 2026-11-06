@@ -328,6 +328,8 @@ public class TestSeedServiceTests
         public Task<List<Transaction>> GetUnlinkedTransferCandidates(int accountId, decimal amount, DateTime date, string descriptionContains) => throw new NotImplementedException();
         public Task UpdateTransaction(Transaction transaction) => throw new NotImplementedException();
         public Task DeleteTransaction(int id) => throw new NotImplementedException();
+        public Task<List<Transaction>> GetLegacyMatchedTransactions(int userId, DateTime startDate, DateTime endDate) => throw new NotImplementedException();
+        public void RemoveTransactions(IEnumerable<Transaction> transactions) => throw new NotImplementedException();
         public Task DeleteAllTransactions(int userId) => throw new NotImplementedException();
         public Task<int> AddTransaction(Transaction transaction) => throw new NotImplementedException();
         public Task<int> AddTransaction(Transaction transaction, bool saveChanges) => throw new NotImplementedException();

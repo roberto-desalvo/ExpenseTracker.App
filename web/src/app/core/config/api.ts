@@ -54,5 +54,6 @@ export const apiConfig = {
     month: `${legacyMatchBase}/month`,
     apply: `${legacyMatchBase}/apply`,
     create: `${legacyMatchBase}/create`,
+    reset: `${legacyMatchBase}/reset`,
   },
 } as const;

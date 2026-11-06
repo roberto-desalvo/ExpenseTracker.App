@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using RDS.ExpenseTracker.Domain.Dtos.Requests;
@@ -64,6 +64,15 @@ public class LegacyMatchFunctions : FunctionBase
         var request = await ReadBodyAsync<LegacyCreateRequest>(req);
         var userId = await _currentUserAccessor.GetUserIdAsync();
         return await ExecuteAsync(() => _service.CreateAsync(request, userId));
+    }
+
+    [Function("LegacyMatch_Reset")]
+    public async Task<IActionResult> Reset(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "legacy-match/reset")] HttpRequest req)
+    {
+        var request = await ReadBodyAsync<LegacyResetRequest>(req);
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.ResetAsync(request, userId));
     }
 
     private static async Task<(IFormFile File, IFormCollection Form)> ReadFormAsync(HttpRequest req)

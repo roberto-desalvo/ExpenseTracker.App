@@ -306,6 +306,17 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                     b.Property<DateTime?>("LegacyMatchedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("LegacyOriginalDescription")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("UserCreated");
+
                     b.Property<int?>("TransferId")
                         .HasColumnType("int");
 

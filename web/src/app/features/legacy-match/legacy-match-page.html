@@ -51,6 +51,14 @@
           <mat-icon>payments</mat-icon> Contanti e Hype ({{ store.createRows().length }})
         </button>
 
+        <button
+          matButton="outlined"
+          (click)="store.resetDialogOpen.set(true)"
+          [disabled]="store.loading() || store.saving() || store.resetting() || !store.month()"
+        >
+          <mat-icon>restart_alt</mat-icon> Ripristina mese
+        </button>
+
         <div class="stats">
           <span><strong>{{ store.matchRows().length }}</strong> righe</span>
           <span><strong>{{ store.pendingRows().length }}</strong> da abbinare</span>
@@ -238,3 +246,13 @@
 </app-page-container>
 
 <app-legacy-create-dialog />
+
+<app-confirm-delete-dialog
+  [open]="store.resetDialogOpen()"
+  (closed)="store.resetDialogOpen.set(false)"
+  [confirmAction]="confirmReset"
+  [busy]="store.resetting()"
+  title="Ripristinare il mese?"
+  [message]="resetMessage()"
+  confirmLabel="Ripristina"
+/>
