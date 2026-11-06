@@ -22,20 +22,12 @@
           <mat-icon>chevron_left</mat-icon>
         </button>
       </span>
-      <mat-select
-        class="month-select"
-        aria-label="Mese"
-        [value]="table.selectedMonth()?.startDate ?? ''"
-        (selectionChange)="selectMonth($event.value)"
+      <app-month-picker
+        [value]="table.selectedMonth()"
+        [months]="months()"
         [disabled]="table.availableMonthsLoading() || months().length === 0"
-        panelClass="month-panel"
-        [panelWidth]="null"
-      >
-        <mat-select-trigger>{{ table.selectedMonth()?.description ?? "Nessun mese" }}</mat-select-trigger>
-        @for (m of months(); track m.startDate) {
-          <mat-option [value]="m.startDate">{{ m.description }}</mat-option>
-        }
-      </mat-select>
+        (monthChange)="selectMonth($event)"
+      />
       <span matTooltip="Mese successivo">
         <button matIconButton aria-label="Mese successivo" [disabled]="monthIndex() <= 0" (click)="goTo(monthIndex() - 1)">
           <mat-icon>chevron_right</mat-icon>

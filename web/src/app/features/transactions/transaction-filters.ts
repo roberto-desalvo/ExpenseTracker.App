@@ -5,13 +5,13 @@ import { MatDatepickerModule } from "@angular/material/datepicker";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatIconModule } from "@angular/material/icon";
 import { MatInputModule } from "@angular/material/input";
-import { MatSelectModule } from "@angular/material/select";
 import { MatTooltip } from "@angular/material/tooltip";
 import { format, isValid, parseISO } from "date-fns";
 import { AccountsStore } from "../../core/state/accounts.store";
 import { CategoriesStore } from "../../core/state/categories.store";
 import { MovementType, PeriodMode, TransactionsTableStore } from "../../core/state/transactions-table.store";
 import { TransactionsStore } from "../../core/state/transactions.store";
+import { MonthPicker } from "./month-picker";
 import { MultiSelectFilter } from "./multi-select-filter";
 
 const toDate = (value: string | null) => (value ? parseISO(value) : null);
@@ -20,7 +20,7 @@ const SEARCH_DEBOUNCE_MS = 300;
 const toKey = (value: Date | null) => (value && isValid(value) ? format(value, "yyyy-MM-dd") : null);
 
 /**
- * Barra filtri dei movimenti: periodo (mese intero con frecce oppure intervallo di date personalizzato),
+ * Barra filtri dei movimenti: periodo (mese intero con frecce e calendario anno/mese oppure intervallo di date personalizzato),
  * tipo di movimento, ricerca per descrizione, conti e categorie.
  */
 @Component({
@@ -34,8 +34,8 @@ const toKey = (value: Date | null) => (value && isValid(value) ? format(value, "
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatSelectModule,
     MatTooltip,
+    MonthPicker,
     MultiSelectFilter,
   ],
   templateUrl: "./transaction-filters.html",
