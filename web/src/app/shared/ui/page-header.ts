@@ -26,6 +26,7 @@ import { ChangeDetectionStrategy, Component, input } from "@angular/core";
     .actions:empty { display: none; }
     @media (min-width: 900px) {
       :host { flex-direction: row; align-items: flex-end; justify-content: space-between; }
+      .actions { flex-wrap: nowrap; flex-shrink: 0; white-space: nowrap; }
       h1 { font-size: var(--app-text-xl); }
     }
   `,
