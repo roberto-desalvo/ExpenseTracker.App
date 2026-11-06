@@ -813,6 +813,58 @@
             },
             "description": "Elimina trasferimento e leg."
           }
+        },
+        {
+          "name": "Transfer_GetCounterpartCandidates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/transaction/{{transactionId}}/transfer-candidates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transaction",
+                "{{transactionId}}",
+                "transfer-candidates"
+              ]
+            },
+            "description": "Movimenti che possono completare il trasferimento incompleto del movimento: conto diverso, importo opposto, data nello stesso mese, non in un trasferimento già completo; prima i più vicini per data. 400 se il movimento non è in un trasferimento, 409 se il trasferimento ha già entrambi i rami."
+          }
+        },
+        {
+          "name": "Transfer_LinkCounterpart",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transaction/{{transactionId}}/transfer-counterpart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transaction",
+                "{{transactionId}}",
+                "transfer-counterpart"
+              ]
+            },
+            "description": "Collega `counterpartId` al trasferimento del movimento e ne porta la data a quella del movimento di partenza; il trasferimento da cui proviene, se resta vuoto, viene eliminato.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"counterpartId\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
         }
       ]
     },

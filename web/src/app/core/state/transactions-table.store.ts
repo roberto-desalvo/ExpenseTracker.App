@@ -66,6 +66,8 @@ export class TransactionsTableStore {
   readonly periodMode = signal<PeriodMode>("month");
   readonly customRange = signal<DateRange>({ from: null, to: null });
   readonly movementType = signal<MovementType>("all");
+  /** Solo i movimenti collegati a un trasferimento; attiva anche la segnalazione dei trasferimenti incompleti. */
+  readonly onlyTransfers = signal(false);
   readonly search = signal("");
   readonly page = signal(0);
   readonly pageSize = signal(10);
@@ -109,6 +111,7 @@ export class TransactionsTableStore {
       idAccounts: accountIds.length === 0 || accountIds.length === accountsCount ? null : accountIds,
       idCategories: categoryIds.length === 0 || categoryIds.length === categoriesCount ? null : categoryIds,
       isIncome: movementType === "all" ? null : movementType === "incomes",
+      onlyTransfers: this.onlyTransfers() || null,
       search: search || null,
       sortBy: this.sortBy(),
       sortDirection: this.sortDirection(),
@@ -179,7 +182,7 @@ export class TransactionsTableStore {
   }
 
   /**
-   * Filtri impostati arrivando da un altro grafico (es. Analisi): periodo, categorie e tipo; conti e ricerca vengono azzerati.
+   * Filtri impostati arrivando da un altro grafico (es. Analisi): periodo, categorie e tipo; conti, ricerca e filtro trasferimenti vengono azzerati.
    * Un mese (yyyy-MM) apre la vista per mese, le altre chiavi di periodo un intervallo personalizzato.
    */
   applyDrillDown(filter: DrillDownFilter) {
@@ -188,6 +191,7 @@ export class TransactionsTableStore {
     this.selectedAccountIds.set([]);
     this.selectedCategoryIds.set(filter.categoryIds);
     this.movementType.set(filter.movementType);
+    this.onlyTransfers.set(false);
     this.search.set("");
     this.page.set(0);
     if (/^\d{4}-\d{2}$/.test(filter.period)) {
@@ -242,6 +246,11 @@ export class TransactionsTableStore {
 
   modifyMovementType(movementType: MovementType) {
     this.movementType.set(movementType);
+    this.page.set(0);
+  }
+
+  modifyOnlyTransfers(onlyTransfers: boolean) {
+    this.onlyTransfers.set(onlyTransfers);
     this.page.set(0);
   }
 

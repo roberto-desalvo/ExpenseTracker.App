@@ -180,6 +180,8 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
         var query = ForUser(userId)
             .Include(t => t.AccountNavigation)
             .Include(t => t.CategoryNavigation)
+            // i movimenti del trasferimento servono a segnalare quelli senza il ramo opposto (TransferIncomplete)
+            .Include(t => t.TransferNavigation!).ThenInclude(tr => tr.Transactions)
             .AsQueryable();
 
         if (request.FromDate.HasValue)
@@ -194,6 +196,8 @@ public class TransactionRepository : RepositoryBase, ITransactionRepository
             query = request.IsIncome.Value
                 ? query.Where(t => t.Amount > 0m)
                 : query.Where(t => t.Amount < 0m);
+        if (request.OnlyTransfers == true)
+            query = query.Where(t => t.TransferId != null);
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var search = request.Search.Trim().ToLower();

@@ -8,6 +8,9 @@ public class TransactionQueryRequest : PagedQueryRequest
     public int[]? IdCategories { get; set; }
     public bool? IsIncome { get; set; }
 
+    /// <summary>Solo i movimenti collegati a un trasferimento (TransferId valorizzato).</summary>
+    public bool? OnlyTransfers { get; set; }
+
     /// <summary>Testo cercato nella descrizione (corrispondenza parziale, case insensitive).</summary>
     public string? Search { get; set; }
 

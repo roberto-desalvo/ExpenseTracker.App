@@ -161,6 +161,124 @@ public class TransferService : ITransferService
         return Result.Ok();
     }
 
+    public async Task<Result<IEnumerable<TransactionDto>>> GetCounterpartCandidates(int transactionId, int userId)
+    {
+        var source = await LoadIncompleteLeg(transactionId, userId);
+        if (source.IsFailed)
+            return source.ToResult();
+
+        var (transaction, _) = source.Value;
+        var date = transaction.Date!.Value;
+        var monthStart = new DateTime(date.Year, date.Month, 1);
+        var inMonth = await _transactionRepository.GetTransactionsInRange(userId, monthStart, monthStart.AddMonths(1).AddDays(-1));
+
+        var candidates = new List<Transaction>();
+        foreach (var candidate in inMonth.Where(t => IsCounterpartShape(transaction, t)))
+        {
+            if (await IsFreeForTransfer(candidate, userId))
+                candidates.Add(candidate);
+        }
+
+        // prima i movimenti con la data più vicina a quella di partenza
+        var ordered = candidates
+            .OrderBy(t => Math.Abs((t.Date!.Value - date).Ticks))
+            .ThenBy(t => t.Id);
+        return Result.Ok(_mapper.Map<IEnumerable<TransactionDto>>(ordered));
+    }
+
+    public async Task<Result> LinkCounterpart(int transactionId, int counterpartId, int userId)
+    {
+        var source = await LoadIncompleteLeg(transactionId, userId);
+        if (source.IsFailed)
+            return source.ToResult();
+
+        if (counterpartId <= 0)
+            return Result.Fail(DomainErrors.InvalidId("counterpart", counterpartId));
+
+        var (transaction, transfer) = source.Value;
+        var counterpart = (await _transactionRepository.GetTransactionsByIds([counterpartId], userId)).FirstOrDefault();
+        if (counterpart is null)
+            return Result.Fail(DomainErrors.NotFound("Transaction", counterpartId));
+
+        if (!IsCounterpartShape(transaction, counterpart))
+            return Result.Fail(DomainErrors.BadRequest(
+                "The counterpart must be on another account, with the same absolute amount, opposite sign and a date in the same month."));
+
+        if (!await IsFreeForTransfer(counterpart, userId))
+            return Result.Fail(DomainErrors.Conflict($"Transaction {counterpartId} already belongs to a complete transfer."));
+
+        // il trasferimento da cui proviene il candidato, se conteneva solo lui, resterebbe vuoto: va eliminato
+        int? emptiedTransferId = null;
+        if (counterpart.TransferId is int previousId)
+        {
+            var previous = await _repository.GetTransfer(previousId, userId);
+            if (previous is not null && previous.Transactions.All(t => t.Id == counterpart.Id))
+                emptiedTransferId = previousId;
+        }
+
+        counterpart.TransferId = transfer.Id;
+        counterpart.Date = transaction.Date;
+        counterpart.UpdatedOn = DateTime.UtcNow;
+        await _repository.SaveChangesAsync();
+
+        // eliminato dopo lo spostamento, così il SetNull sulla FK non tocca il movimento appena collegato
+        if (emptiedTransferId is int emptiedId)
+        {
+            await _repository.DeleteTransfer(emptiedId);
+            await _repository.SaveChangesAsync();
+        }
+
+        return Result.Ok();
+    }
+
+    // Movimento collegato a un trasferimento a cui manca il ramo di segno opposto.
+    private async Task<Result<(Transaction Transaction, Transfer Transfer)>> LoadIncompleteLeg(int transactionId, int userId)
+    {
+        if (transactionId <= 0)
+            return Result.Fail(DomainErrors.InvalidId("transaction", transactionId));
+
+        var transaction = await _transactionRepository.GetTransaction(transactionId, userId);
+        if (transaction is null)
+            return Result.Fail(DomainErrors.NotFound("Transaction", transactionId));
+
+        if (transaction.TransferId is not int transferId)
+            return Result.Fail(DomainErrors.BadRequest($"Transaction {transactionId} is not linked to a transfer."));
+
+        if (transaction.Date is null || transaction.Amount == 0m)
+            return Result.Fail(DomainErrors.BadRequest($"Transaction {transactionId} needs a date and a non-zero amount."));
+
+        var transfer = await _repository.GetTransfer(transferId, userId);
+        if (transfer is null)
+            return Result.Fail(DomainErrors.NotFound("Transfer", transferId));
+
+        if (HasOppositeLeg(transfer, transaction))
+            return Result.Fail(DomainErrors.Conflict($"Transfer {transferId} already has both legs."));
+
+        return Result.Ok((transaction, transfer));
+    }
+
+    private static bool IsCounterpartShape(Transaction source, Transaction candidate)
+        => candidate.Id != source.Id
+           && candidate.AccountId != source.AccountId
+           && candidate.Amount == -source.Amount
+           && candidate.Date is DateTime date
+           && date.Year == source.Date!.Value.Year
+           && date.Month == source.Date.Value.Month
+           && candidate.TransferId != source.TransferId;
+
+    // Un candidato è libero se non è in un trasferimento, o se il suo trasferimento non ha ancora il ramo opposto al suo.
+    private async Task<bool> IsFreeForTransfer(Transaction candidate, int userId)
+    {
+        if (candidate.TransferId is not int transferId)
+            return true;
+
+        var transfer = await _repository.GetTransfer(transferId, userId);
+        return transfer is null || !HasOppositeLeg(transfer, candidate);
+    }
+
+    private static bool HasOppositeLeg(Transfer transfer, Transaction leg)
+        => transfer.Transactions.Any(t => t.Id != leg.Id && Math.Sign(t.Amount) == -Math.Sign(leg.Amount));
+
     private async Task<Result> ValidateTransferRequest(TransferDto dto, int userId)
     {
         if (dto.FromAccountId <= 0)

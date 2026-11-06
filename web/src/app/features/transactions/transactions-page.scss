@@ -16,6 +16,20 @@
   color: var(--app-text);
 }
 
+.description-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.transfer-warning {
+  --mat-icon-button-state-layer-size: 28px;
+  padding: 2px;
+  flex-shrink: 0;
+  margin-left: -6px;
+  color: #ed6c02;
+}
+
 .category-pill {
   display: inline-flex;
   align-items: center;

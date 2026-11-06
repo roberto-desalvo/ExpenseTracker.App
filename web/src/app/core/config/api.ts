@@ -29,6 +29,8 @@ export const apiConfig = {
     bulkDelete: `${transactionBase}/bulk-delete`,
     bulkCategory: `${transactionBase}/bulk-category`,
     byId: (id: number) => `${transactionBase}/${id}`,
+    transferCandidates: (id: number) => `${transactionBase}/${id}/transfer-candidates`,
+    transferCounterpart: (id: number) => `${transactionBase}/${id}/transfer-counterpart`,
   },
   categories: {
     base: categoryBase,

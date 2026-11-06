@@ -7,6 +7,10 @@ class Transaction {
   public category: string;
   public accountId: number;
   public account: string; 
+  /** Trasferimento a cui il movimento è collegato (sola lettura, dal BE). */
+  public transferId?: number | null;
+  /** true se il trasferimento collegato non ha il ramo di segno opposto. */
+  public transferIncomplete?: boolean;
 
   constructor(
     id: number,

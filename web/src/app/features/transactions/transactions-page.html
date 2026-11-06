@@ -63,7 +63,20 @@
         <div class="weekday">{{ weekday(t.date) }}</div>
       </td>
       <td>
-        <span class="description">{{ t.description || "—" }}</span>
+        <div class="description-cell">
+          @if (table.onlyTransfers() && t.transferIncomplete) {
+            <button
+              matIconButton
+              class="transfer-warning"
+              matTooltip="Trasferimento senza il ramo opposto: collega il movimento corrispondente"
+              aria-label="Trasferimento incompleto: collega il movimento corrispondente"
+              (click)="toLink.set(t)"
+            >
+              <mat-icon class="icon-sm">warning</mat-icon>
+            </button>
+          }
+          <span class="description">{{ t.description || "—" }}</span>
+        </div>
       </td>
       <td>
         <span class="category-pill">{{ t.category || "Senza categoria" }}</span>
@@ -76,6 +89,11 @@
       </td>
       <td class="align-right">
         <div class="row-actions">
+          @if (table.onlyTransfers() && t.transferIncomplete) {
+            <button matIconButton matTooltip="Collega il corrispondente" aria-label="Collega il movimento corrispondente" (click)="toLink.set(t)">
+              <mat-icon class="icon-sm">link</mat-icon>
+            </button>
+          }
           <button matIconButton matTooltip="Modifica" aria-label="Modifica transazione" (click)="quickActions.openTransactionModal(t)">
             <mat-icon class="icon-sm">edit</mat-icon>
           </button>
@@ -101,6 +119,8 @@
   [confirmAction]="confirmBulkDelete"
   [message]="bulkDeleteMessage()"
 />
+
+<app-transfer-counterpart-modal [transaction]="toLink()" (closed)="toLink.set(null)" />
 
 <app-bulk-category-modal
   [open]="bulkCategoryOpen()"

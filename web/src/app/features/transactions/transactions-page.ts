@@ -22,6 +22,7 @@ import { PageContainer } from "../../shared/ui/page-container";
 import { PageHeader } from "../../shared/ui/page-header";
 import { BulkCategoryModal } from "./bulk-category-modal";
 import { TransactionFilters } from "./transaction-filters";
+import { TransferCounterpartModal } from "./transfer-counterpart-modal";
 import { TransactionsTabs } from "./transactions-tabs";
 
 const dayFormatter = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "short", year: "numeric" });
@@ -30,6 +31,7 @@ const weekdayFormatter = new Intl.DateTimeFormat("it-IT", { weekday: "long" });
 /**
  * Movimenti: filtri del periodo e tabella paginata/ordinata lato server, con modifica ed eliminazione per riga
  * e selezione multipla (righe della pagina corrente) per eliminare o assegnare una categoria in blocco.
+ * Con il filtro Trasferimenti le righe con un trasferimento incompleto sono segnalate e si può collegarne il corrispondente.
  */
 @Component({
   selector: "app-transactions-page",
@@ -44,6 +46,7 @@ const weekdayFormatter = new Intl.DateTimeFormat("it-IT", { weekday: "long" });
     DataTable,
     ConfirmDeleteDialog,
     BulkCategoryModal,
+    TransferCounterpartModal,
     MatButton,
     MatIconButton,
     MatIconModule,
@@ -61,6 +64,8 @@ export class TransactionsPage {
   protected readonly routes = ROUTES;
 
   protected readonly toDelete = signal<Transaction | null>(null);
+  /** Movimento di cui collegare il ramo mancante del trasferimento. */
+  protected readonly toLink = signal<Transaction | null>(null);
   protected readonly formatSignedCurrency = formatSignedCurrency;
   protected readonly deleteMessage = computed(() => {
     const t = this.toDelete();

@@ -26,10 +26,14 @@ public class ExpenseTrackerProfile : Profile
             .ForMember(dest => dest.CategoryId, opt => opt.MapFrom(src => src.CategoryId ?? 0))
             .ForMember(dest => dest.Category, opt => opt.MapFrom(src => src.CategoryNavigation == null ? string.Empty : src.CategoryNavigation.Name))
             .ForMember(dest => dest.AccountId, opt => opt.MapFrom(src => src.AccountId))
-            .ForMember(dest => dest.Account, opt => opt.MapFrom(src => src.AccountNavigation.Name));
+            .ForMember(dest => dest.Account, opt => opt.MapFrom(src => src.AccountNavigation.Name))
+            .ForMember(dest => dest.TransferIncomplete, opt => opt.MapFrom(src =>
+                src.TransferNavigation != null
+                && !src.TransferNavigation.Transactions.Any(t => src.Amount < 0m ? t.Amount > 0m : t.Amount < 0m)));
 
         CreateMap<TransactionDto, Transaction>()
             .ForMember(dest => dest.CategoryId, opt => opt.MapFrom(src => src.CategoryId > 0 ? (int?)src.CategoryId : null))
+            .ForMember(dest => dest.TransferId, opt => opt.Ignore())
             .ForMember(dest => dest.AccountNavigation, opt => opt.Ignore())
             .ForMember(dest => dest.CategoryNavigation, opt => opt.Ignore())
             .ForMember(dest => dest.TransferNavigation, opt => opt.Ignore());

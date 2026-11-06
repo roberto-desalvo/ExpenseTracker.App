@@ -89,6 +89,11 @@ export class TransactionsStore {
     await this.reloadAfterMutation();
   }
 
+  async linkTransferCounterpart(id: number, counterpartId: number) {
+    await this.api.linkTransferCounterpart(id, counterpartId);
+    await this.reloadAfterMutation();
+  }
+
   private async loadAvailableMonths() {
     this.availableMonthsLoading.set(true);
     try {

@@ -70,7 +70,7 @@ Prefisso `/api`. Tutti richiedono autenticazione salvo dove indicato. Una collec
 | Categorie | `POST category/query`, `GET category/{id}`, `GET category/default` | Ricerca, dettaglio, categoria predefinita |
 | | `POST category`, `PUT category`, `DELETE category/{id}` | CRUD; l'eliminazione sposta i movimenti sulla predefinita |
 | | `POST category/sync` | Ricategorizza i movimenti di un periodo con le parole chiave |
-| Movimenti | `POST transaction/query` | Elenco paginato con filtri e ordinamento |
+| Movimenti | `POST transaction/query` | Elenco paginato con filtri (anche `onlyTransfers`) e ordinamento; ogni movimento riporta `transferId` e `transferIncomplete` (trasferimento senza il ramo di segno opposto) |
 | | `GET transaction/{id}`, `GET transaction/latest`, `GET transaction/month-options` | Dettaglio, ultimo movimento, mesi disponibili |
 | | `POST transaction`, `PUT transaction`, `DELETE transaction/{id}` | CRUD |
 | | `POST transaction/bulk-delete`, `POST transaction/bulk-category` | Eliminazione e assegnazione della categoria su più movimenti (`ids`, `categoryId`; tutto o niente, max 1000) |
@@ -78,6 +78,8 @@ Prefisso `/api`. Tutti richiedono autenticazione salvo dove indicato. Una collec
 | | `POST transaction/series`, `POST transaction/stock` | Serie temporali: flussi per periodo, saldo medio per periodo |
 | Trasferimenti | `GET transfer`, `GET transfer/{id}` | Elenco, dettaglio |
 | | `POST transfer`, `PUT transfer/{id}`, `DELETE transfer/{id}` | CRUD (ogni trasferimento sono due movimenti collegati) |
+| | `GET transaction/{id}/transfer-candidates` | Movimenti che completano il trasferimento incompleto di `{id}`: altro conto, importo opposto, stesso mese, non già in un trasferimento completo |
+| | `POST transaction/{id}/transfer-counterpart` | Body `{ counterpartId }`: collega il movimento al trasferimento di `{id}` e gli assegna la data di `{id}`; il suo trasferimento precedente, se resta vuoto, è eliminato |
 | Utente | `GET user/me` | Profilo dell'utente corrente (email, `isDemo`, `isAdmin`) |
 | Preferenze | `GET user/analytics-layout`, `PUT user/analytics-layout` | Layout della pagina Analisi (card visibili, ordine, larghezza); `null` se mai personalizzato |
 | | `GET user/appearance`, `PUT user/appearance` | Preferenze di aspetto (`preset`, `mode`: light/dark/system, `nav`: sidebar/topbar); `null` se mai salvate |

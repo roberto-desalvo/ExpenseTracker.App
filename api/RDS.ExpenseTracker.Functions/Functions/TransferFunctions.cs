@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using RDS.ExpenseTracker.Domain.Dtos;
+using RDS.ExpenseTracker.Domain.Dtos.Requests;
 using RDS.ExpenseTracker.Domain.Services;
 
 namespace RDS.ExpenseTracker.Functions.Functions;
@@ -61,5 +62,24 @@ public class TransferFunctions : FunctionBase
     {
         var userId = await _currentUserAccessor.GetUserIdAsync();
         return await ExecuteAsync(() => _service.DeleteTransfer(id, userId));
+    }
+
+    [Function("Transfer_GetCounterpartCandidates")]
+    public async Task<IActionResult> GetCounterpartCandidates(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "transaction/{id:int}/transfer-candidates")] HttpRequest req,
+        int id)
+    {
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.GetCounterpartCandidates(id, userId));
+    }
+
+    [Function("Transfer_LinkCounterpart")]
+    public async Task<IActionResult> LinkCounterpart(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "transaction/{id:int}/transfer-counterpart")] HttpRequest req,
+        int id)
+    {
+        var request = await ReadBodyAsync<TransferCounterpartRequest>(req);
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.LinkCounterpart(id, request.CounterpartId, userId));
     }
 }

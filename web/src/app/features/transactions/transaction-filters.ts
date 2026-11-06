@@ -21,7 +21,7 @@ const toKey = (value: Date | null) => (value && isValid(value) ? format(value, "
 
 /**
  * Barra filtri dei movimenti: periodo (mese intero con frecce e calendario anno/mese oppure intervallo di date personalizzato),
- * tipo di movimento, ricerca per descrizione, conti e categorie.
+ * tipo di movimento, solo trasferimenti, ricerca per descrizione, conti e categorie.
  */
 @Component({
   selector: "app-transaction-filters",
@@ -72,7 +72,11 @@ export class TransactionFilters {
     const accountFilterOn = accountIds.length > 0 && accountIds.length < this.accounts.all().length;
     const categoryFilterOn = categoryIds.length > 0 && categoryIds.length < this.categories.all().length;
     return (
-      accountFilterOn || categoryFilterOn || this.table.movementType() !== "all" || this.table.search().trim() !== ""
+      accountFilterOn ||
+      categoryFilterOn ||
+      this.table.movementType() !== "all" ||
+      this.table.onlyTransfers() ||
+      this.table.search().trim() !== ""
     );
   });
 
@@ -119,5 +123,6 @@ export class TransactionFilters {
     this.table.modifySelectedAccountIds([]);
     this.table.modifySelectedCategoryIds([]);
     this.table.modifyMovementType("all");
+    this.table.modifyOnlyTransfers(false);
   }
 }

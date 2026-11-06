@@ -75,6 +75,19 @@
     <mat-button-toggle value="incomes">Entrate</mat-button-toggle>
     <mat-button-toggle value="outcomes">Uscite</mat-button-toggle>
   </mat-button-toggle-group>
+
+  <mat-button-toggle-group
+    class="segmented toggle transfers"
+    multiple
+    [value]="table.onlyTransfers() ? ['transfers'] : []"
+    (change)="table.modifyOnlyTransfers($event.source.checked)"
+    aria-label="Solo trasferimenti"
+    hideMultipleSelectionIndicator
+  >
+    <mat-button-toggle value="transfers" matTooltip="Solo i movimenti collegati a un trasferimento">
+      <mat-icon class="icon-sm">swap_horiz</mat-icon> Trasferimenti
+    </mat-button-toggle>
+  </mat-button-toggle-group>
 </div>
 
 <div class="filters-row second">

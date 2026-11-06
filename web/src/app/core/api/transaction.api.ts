@@ -84,6 +84,25 @@ export class TransactionApi {
     });
   }
 
+  /** Movimenti che possono completare il trasferimento del movimento indicato (stesso mese, importo opposto). */
+  getTransferCandidates(id: number): Promise<Transaction[]> {
+    return this.api.read(
+      "GET",
+      apiConfig.transactions.transferCandidates(id),
+      "Errore nel caricamento dei movimenti corrispondenti",
+    );
+  }
+
+  /** Collega `counterpartId` al trasferimento di `id`; la sua data diventa quella di `id`. */
+  linkTransferCounterpart(id: number, counterpartId: number): Promise<void> {
+    return this.api.write(
+      "POST",
+      apiConfig.transactions.transferCounterpart(id),
+      "Errore nel collegamento del trasferimento",
+      { counterpartId },
+    );
+  }
+
   addTransfer(transfer: TransferPayload): Promise<void> {
     return this.api.write("POST", apiConfig.transfers.base, "Errore nel salvataggio del trasferimento", transfer);
   }

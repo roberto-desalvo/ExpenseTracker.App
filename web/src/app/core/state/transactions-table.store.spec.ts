@@ -52,6 +52,15 @@ describe("TransactionsTableStore", () => {
     expect(store.request()?.idAccounts).toEqual([2]);
   });
 
+  it("il filtro Trasferimenti entra nella richiesta e riparte dalla prima pagina", () => {
+    expect(store.request()?.onlyTransfers).toBeNull();
+    store.modifyPage(2);
+    store.modifyOnlyTransfers(true);
+    expect(store.request()).toMatchObject({ onlyTransfers: true, page: 0 });
+    store.modifyOnlyTransfers(false);
+    expect(store.request()?.onlyTransfers).toBeNull();
+  });
+
   it("l'ordinamento sulla stessa colonna inverte la direzione e riparte dalla prima pagina", () => {
     store.modifyPage(3);
     store.modifySort("date");
