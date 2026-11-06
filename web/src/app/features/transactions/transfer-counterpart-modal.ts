@@ -139,22 +139,23 @@ const dayFormatter = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "
     .account { font-size: var(--app-text-sm); color: var(--app-text-secondary); }
     .amount { font-size: var(--app-text-md); font-weight: 700; color: var(--app-text); white-space: nowrap; }
     .amount.income { color: var(--app-income); }
-    .candidates { display: flex; flex-direction: column; gap: 4px; }
+    .candidates { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
     .candidate {
-      display: block; border: 1px solid var(--app-border); border-radius: var(--app-radius-control); padding-right: 12px;
+      display: block; min-width: 0; max-width: 100%; box-sizing: border-box; border: 1px solid var(--app-border); border-radius: var(--app-radius-control); padding-right: 12px;
     }
-    .candidate ::ng-deep .mdc-form-field { width: 100%; }
+    .candidate ::ng-deep .mdc-form-field { display: flex; width: 100%; min-width: 0; }
     .candidate ::ng-deep label { flex: 1; min-width: 0; cursor: pointer; }
     .muted { font-size: var(--app-text-sm); color: var(--app-text-muted); }
-    .new-option { display: flex; flex-direction: column; border: 1px dashed var(--app-primary); border-radius: var(--app-radius-control); }
+    .new-option { display: flex; flex-direction: column; min-width: 0; overflow: hidden; border: 1px dashed var(--app-primary); border-radius: var(--app-radius-control); }
     .new-option.active { background-color: var(--app-primary-soft); }
     .new-option .candidate { border: none; }
     .new-badge {
-      display: inline-block; padding: 0 6px; margin-right: 4px; border-radius: 999px; vertical-align: 1px;
+      display: inline-block; flex-shrink: 0; padding: 0 6px; margin-right: 4px; border-radius: 999px; vertical-align: 1px;
       background-color: var(--app-primary); color: var(--app-primary-contrast);
       font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
     }
-    .new-fields { display: flex; flex-direction: column; gap: 12px; padding: 4px 12px 12px; }
+    .new-fields { display: flex; flex-direction: column; gap: 12px; padding: 4px 12px 12px; min-width: 0; }
+    .new-fields mat-form-field { min-width: 0; }
   `,
 })
 export class TransferCounterpartModal {
@@ -196,7 +197,7 @@ export class TransferCounterpartModal {
   private loadId = 0;
 
   constructor() {
-    // a ogni apertura si ricaricano i candidati; nessuno è preselezionato, "Collega" si abilita dopo la scelta
+    // a ogni apertura si ricaricano i candidati; se ce n'è uno solo è preselezionato, altrimenti "Collega" si abilita dopo la scelta
     effect(() => {
       const source = this.transaction();
       untracked(() => void this.load(source));
@@ -223,6 +224,7 @@ export class TransferCounterpartModal {
       const candidates = await this.api.getTransferCandidates(source.id);
       if (id !== this.loadId) return;
       this.candidates.set(candidates);
+      if (candidates.length === 1) this.selectedId.set(candidates[0].id);
     } catch {
       // l'errore è già notificato dal layer API
     } finally {
