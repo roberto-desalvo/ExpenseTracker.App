@@ -12,15 +12,7 @@ import Transaction from "../../core/models/Transaction";
 import { QuickActionsService } from "../../core/state/quick-actions.service";
 import { TransactionsStore } from "../../core/state/transactions.store";
 import { startOfMonth } from "../../core/utils/date.utilities";
-import {
-  enumerateMonthKeys,
-  formatCurrency,
-  formatMonthYear,
-  formatPercent,
-  formatSignedCurrency,
-  toMonthKey,
-} from "../../core/utils/format.utilities";
-import { CashFlowPoint } from "../../shared/charts/cash-flow-chart";
+import { formatCurrency, formatMonthYear, formatPercent, formatSignedCurrency } from "../../core/utils/format.utilities";
 import { CategoryDonutChart } from "../../shared/charts/category-donut-chart";
 import { RankedBarList } from "../../shared/charts/ranked-bar-list";
 import { PageContainer } from "../../shared/ui/page-container";
@@ -28,6 +20,7 @@ import { PageHeader } from "../../shared/ui/page-header";
 import { SurfaceCard } from "../../shared/ui/surface-card";
 import { AccountsOverview } from "./accounts-overview";
 import { HeroBalanceCard } from "./hero-balance-card";
+import { DailyFlow, monthToDateAverages } from "./month-to-date";
 import { RecentTransactions } from "./recent-transactions";
 import { StatTile } from "./stat-tile";
 
@@ -51,8 +44,6 @@ const greeting = (date: Date) => {
   return "Buonasera";
 };
 
-const average = (values: number[]) => (values.length ? values.reduce((s, v) => s + v, 0) / values.length : 0);
-
 /** Variazione percentuale rispetto alla media, come frase breve. */
 @Component({
   selector: "app-versus-average",
@@ -65,7 +56,7 @@ const average = (values: number[]) => (values.length ? values.reduce((s, v) => s
         <strong [class.text-income]="good()" [class.text-expense]="!good()">
           {{ diff() >= 0 ? "+" : "−" }}{{ formatPercent(absDiff(), 0) }}
         </strong>
-        rispetto alla media degli ultimi 6 mesi ({{ formatCurrency(avg()) }})
+        rispetto alla media degli ultimi 6 mesi allo stesso giorno ({{ formatCurrency(avg()) }})
       </span>
     }
   `,
@@ -115,8 +106,8 @@ export class DashboardPage {
 
   protected readonly loading = signal(true);
   protected readonly data = signal<LandingDashboard | null>(null);
-  // flusso mensile degli ultimi 12 mesi: serve solo per le medie di confronto dei KPI
-  private readonly cashFlow = signal<CashFlowPoint[]>([]);
+  // flusso giornaliero dei 6 mesi precedenti: serve solo per le medie di confronto dei KPI
+  private readonly dailyFlow = signal<DailyFlow[]>([]);
   protected readonly recent = signal<Transaction[]>([]);
   protected readonly recentLoading = signal(true);
   protected readonly balanceVisible = signal(readBalanceVisible());
@@ -145,18 +136,8 @@ export class DashboardPage {
     return asOf ? new Date(asOf).toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" }) : "";
   });
 
-  protected readonly history = computed(() => {
-    const currentKey = toMonthKey(this.now);
-    const past = this.cashFlow()
-      .filter((p) => p.period !== currentKey)
-      .slice(-6);
-    return {
-      avgSpent: average(past.map((p) => p.spent)),
-      avgEarned: average(past.map((p) => p.earned)),
-      avgInvested: average(past.map((p) => p.invested)),
-      avgNet: average(past.map((p) => p.earned - p.spent)),
-    };
-  });
+  // confronto a parità di giorni: ogni mese passato è sommato fino allo stesso giorno di oggi
+  protected readonly history = computed(() => monthToDateAverages(this.dailyFlow(), this.now));
 
   protected readonly breakdownItems = computed(() =>
     (this.data()?.categories ?? []).map((c) => ({
@@ -188,7 +169,7 @@ export class DashboardPage {
 
   private load() {
     const today = new Date();
-    const firstMonth = startOfMonth(today, -11);
+    const firstMonth = startOfMonth(today, -6);
 
     const loadLanding = async () => {
       this.loading.set(true);
@@ -201,28 +182,21 @@ export class DashboardPage {
       }
     };
 
-    const loadCashFlow = async () => {
+    const loadDailyFlow = async () => {
       try {
         const result = await this.api.getTimeSeries({
           startDate: firstMonth.toISOString(),
-          endDate: today.toISOString(),
+          endDate: startOfMonth(today).toISOString(),
           idAccounts: [],
           idCategories: [],
-          granularity: 3,
+          granularity: 1,
           excludeTransfers: true,
         });
-        const byPeriod = new Map((result.series[0]?.values ?? []).map((p) => [p.period, p]));
-        // il BE omette i mesi senza movimenti: li riempiamo a zero per non falsare l'asse
-        this.cashFlow.set(
-          enumerateMonthKeys(firstMonth, today).map((period) => ({
-            period,
-            earned: byPeriod.get(period)?.earned ?? 0,
-            spent: byPeriod.get(period)?.spent ?? 0,
-            invested: byPeriod.get(period)?.invested ?? 0,
-          })),
+        this.dailyFlow.set(
+          (result.series[0]?.values ?? []).map(({ period, earned, spent, invested }) => ({ period, earned, spent, invested })),
         );
       } catch {
-        this.cashFlow.set([]);
+        this.dailyFlow.set([]);
       }
     };
 
@@ -245,7 +219,7 @@ export class DashboardPage {
       }
     };
 
-    return Promise.all([loadLanding(), loadCashFlow(), loadRecent()]);
+    return Promise.all([loadLanding(), loadDailyFlow(), loadRecent()]);
   }
 
   protected toggleBalance() {
