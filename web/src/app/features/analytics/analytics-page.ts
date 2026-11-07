@@ -16,7 +16,7 @@ import { AnalyticsLayoutStore } from "../../core/state/analytics-layout.store";
 import { CategoriesStore } from "../../core/state/categories.store";
 import { TransactionsStore } from "../../core/state/transactions.store";
 import { ThemeService } from "../../core/theme/theme.service";
-import { startOfMonth, toDateInputValue, toIsoDateEnd, toIsoDateStart } from "../../core/utils/date.utilities";
+import { addMonths, toDateInputValue, toIsoDateEnd, toIsoDateStart } from "../../core/utils/date.utilities";
 import {
   enumerateMonthKeys,
   formatCurrency,
@@ -78,15 +78,15 @@ const rangeFor = (preset: RangePreset): { start: string; end: string } => {
   const end = toDateInputValue(today);
   switch (preset) {
     case "3m":
-      return { start: toDateInputValue(startOfMonth(today, -2)), end };
+      return { start: toDateInputValue(addMonths(today, -3)), end };
     case "6m":
-      return { start: toDateInputValue(startOfMonth(today, -5)), end };
+      return { start: toDateInputValue(addMonths(today, -6)), end };
     case "24m":
-      return { start: toDateInputValue(startOfMonth(today, -23)), end };
+      return { start: toDateInputValue(addMonths(today, -24)), end };
     case "ytd":
       return { start: toDateInputValue(new Date(today.getFullYear(), 0, 1)), end };
     default:
-      return { start: toDateInputValue(startOfMonth(today, -11)), end };
+      return { start: toDateInputValue(addMonths(today, -12)), end };
   }
 };
 

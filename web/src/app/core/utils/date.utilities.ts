@@ -12,6 +12,15 @@ export const toDateInputValue = (date: Date): string =>
 export const startOfMonth = (date: Date, monthsOffset = 0): Date =>
   new Date(date.getFullYear(), date.getMonth() + monthsOffset, 1);
 
+/**
+ * Stesso giorno di `date` spostato di `monthsOffset` mesi; se il mese di arrivo è più corto
+ * (es. 31/3 − 1 mese) si ferma all'ultimo giorno del mese (28/2 o 29/2).
+ */
+export const addMonths = (date: Date, monthsOffset: number): Date => {
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + monthsOffset + 1, 0).getDate();
+  return new Date(date.getFullYear(), date.getMonth() + monthsOffset, Math.min(date.getDate(), lastDay));
+};
+
 /** Intervallo di giorni interi, estremi inclusi in formato yyyy-MM-dd. */
 export interface PeriodRange {
   from: string;
