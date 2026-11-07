@@ -267,11 +267,22 @@ mat-progress-bar {
   min-width: 0;
   display: flex;
   flex-direction: column;
+
+  // data del movimento diversa da quella della riga Excel
+  .date-diff {
+    font-weight: 600;
+    color: var(--app-text);
+  }
 }
 
 .description-field {
   grid-area: description;
   width: 100%;
+
+  // icona "concatena DB - Excel": evidenziata quando la descrizione è quella concatenata
+  button.active {
+    color: var(--mat-sys-primary);
+  }
 }
 
 .category-field {

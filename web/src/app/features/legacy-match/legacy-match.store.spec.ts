@@ -4,7 +4,7 @@ import { LegacyMatchApi } from "../../core/api/legacy-match.api";
 import { NotificationService } from "../../core/api/notification.service";
 import { LegacyMonth } from "../../core/models/LegacyMatch";
 import { TransactionsStore } from "../../core/state/transactions.store";
-import { LegacyMatchStore, defaultPairDescription, findDuplicate } from "./legacy-match.store";
+import { LegacyMatchStore, concatenatedPairDescription, defaultPairDescription, findDuplicate } from "./legacy-match.store";
 
 const MONTH: LegacyMonth = {
   sheet: { name: "Ottobre2025", year: 2025, month: 10 },
@@ -59,7 +59,7 @@ describe("LegacyMatchStore", () => {
   it("opens the first sheet and builds pairs from the suggestions", () => {
     expect(getMonth).toHaveBeenCalledWith(file, "Ottobre2025");
     expect(store.pairList()).toEqual([
-      { rowNumber: 2, transactionId: 10, description: "POS CONAD - spesa conad", categoryId: 7, included: true, suggested: true },
+      { rowNumber: 2, transactionId: 10, description: "spesa conad", categoryId: 7, included: true, suggested: true },
     ]);
     expect(store.pairIndexByRow().get(2)).toBe(1);
   });
@@ -69,7 +69,7 @@ describe("LegacyMatchStore", () => {
     store.selectTransaction(10);
 
     expect(store.pairList().map((p) => [p.rowNumber, p.transactionId])).toEqual([[3, 10]]);
-    expect(store.pairs().get(3)).toMatchObject({ description: "POS CONAD - gtt", categoryId: null, suggested: false });
+    expect(store.pairs().get(3)).toMatchObject({ description: "gtt", categoryId: null, suggested: false });
     expect(store.selectedRow()).toBeNull();
   });
 
@@ -220,7 +220,26 @@ describe("LegacyMatchStore", () => {
     expect(findDuplicate(row, row.description, [previousMonth, sameMonth])?.id).toBe(12);
   });
 
-  it("builds the default description from the non-empty parts", () => {
-    expect(defaultPairDescription(MONTH.excelRows[0], { ...MONTH.dbTransactions[0], description: " " })).toBe("spesa conad");
+  it("builds the concatenated description from the non-empty parts", () => {
+    expect(concatenatedPairDescription(MONTH.excelRows[0], { ...MONTH.dbTransactions[0], description: " " })).toBe("spesa conad");
+  });
+
+  it("proposes the Excel description, falling back to the DB one when empty", () => {
+    expect(defaultPairDescription(MONTH.excelRows[0], MONTH.dbTransactions[0])).toBe("spesa conad");
+    expect(defaultPairDescription({ ...MONTH.excelRows[0], description: " " }, MONTH.dbTransactions[0])).toBe("POS CONAD");
+  });
+
+  it("toggles the pair description between Excel only and \"DB - Excel\"", () => {
+    store.toggleConcatenation(2);
+    expect(store.pairs().get(2)?.description).toBe("POS CONAD - spesa conad");
+    expect(store.isConcatenated(store.pairs().get(2)!)).toBe(true);
+
+    store.toggleConcatenation(2);
+    expect(store.pairs().get(2)?.description).toBe("spesa conad");
+
+    store.updatePair(2, { description: "spesa settimanale" });
+    expect(store.isConcatenated(store.pairs().get(2)!)).toBe(false);
+    store.toggleConcatenation(2);
+    expect(store.pairs().get(2)?.description).toBe("POS CONAD - spesa conad");
   });
 });

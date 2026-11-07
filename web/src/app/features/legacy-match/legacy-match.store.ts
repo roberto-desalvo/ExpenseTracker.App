@@ -49,7 +49,7 @@ export const findDuplicate = (
 /**
  * Movimento già abbinato in una sessione precedente che sembra corrispondere alla riga Excel: stesso conto,
  * stesso periodo (i movimenti caricati sono quelli del mese del foglio più 7 giorni prima e dopo), stessa somma e descrizione che contiene
- * quella Excel (es. "DB - Excel"). Solo i movimenti già abbinati: le descrizioni bancarie contengono spesso
+ * quella Excel (es. "Excel" o "DB - Excel"). Solo i movimenti già abbinati: le descrizioni bancarie contengono spesso
  * per caso il testo Excel (es. "gtt" in "GTT TORINO").
  */
 export const findExistingMatch = (
@@ -93,9 +93,13 @@ const writeHandled = (key: string, value: HandledRows) => {
   }
 };
 
-/** Descrizione proposta per il movimento abbinato: "descrizione DB - descrizione Excel". */
-export const defaultPairDescription = (row: LegacyExcelRow, transaction: LegacyDbTransaction) =>
+/** Descrizione concatenata per il movimento abbinato: "descrizione DB - descrizione Excel". */
+export const concatenatedPairDescription = (row: LegacyExcelRow, transaction: LegacyDbTransaction) =>
   [transaction.description.trim(), row.description.trim()].filter((part) => part.length > 0).join(" - ");
+
+/** Descrizione proposta per il movimento abbinato: quella Excel (se vuota, quella DB), senza concatenarle. */
+export const defaultPairDescription = (row: LegacyExcelRow, transaction: LegacyDbTransaction) =>
+  row.description.trim() || transaction.description.trim();
 
 /**
  * Stato della pagina di abbinamento dello storico Excel: file scelto, foglio (mese) corrente, righe e
@@ -321,6 +325,25 @@ export class LegacyMatchStore {
       next.set(rowNumber, { ...pair, ...patch });
       return next;
     });
+  }
+
+  /** La descrizione della coppia è quella concatenata "DB - Excel". */
+  isConcatenated(pair: LegacyPair) {
+    const row = this.row(pair.rowNumber);
+    const transaction = this.transaction(pair.transactionId);
+    return !!row && !!transaction && pair.description.trim() === concatenatedPairDescription(row, transaction);
+  }
+
+  /** Alterna la descrizione della coppia tra quella concatenata "DB - Excel" e quella proposta (Excel). */
+  toggleConcatenation(rowNumber: number) {
+    const pair = this.pairs().get(rowNumber);
+    const row = this.row(rowNumber);
+    const transaction = pair && this.transaction(pair.transactionId);
+    if (!pair || !row || !transaction) return;
+    const description = this.isConcatenated(pair)
+      ? defaultPairDescription(row, transaction)
+      : concatenatedPairDescription(row, transaction);
+    this.updatePair(rowNumber, { description });
   }
 
   /** Salva le coppie incluse e ricarica il mese (i movimenti salvati risultano già abbinati). */

@@ -1,7 +1,7 @@
 <app-page-container>
   <app-page-header
     title="Abbinamento storico Excel"
-    subtitle="Abbina le righe di un mese di Spese.xlsx ai movimenti registrati: il movimento prende la categoria del file e la descrizione «DB - Excel»."
+    subtitle="Abbina le righe di un mese di Spese.xlsx ai movimenti registrati: il movimento prende la categoria e la descrizione del file (o, a scelta, «DB - Excel»)."
   >
     <a actions matButton [routerLink]="routes.transactions"><mat-icon>arrow_back</mat-icon> Movimenti</a>
     <button actions matButton="filled" (click)="fileInput.click()" [disabled]="store.loading() || store.saving()">
@@ -210,7 +210,8 @@
               <div class="pair-source">
                 <span class="excel">{{ row?.description }}</span>
                 <span class="meta">
-                  {{ day(row?.date ?? null) }} · {{ formatSignedCurrency(row?.amount ?? 0) }} → {{ t?.description }}
+                  Excel {{ day(row?.date ?? null) }} · {{ formatSignedCurrency(row?.amount ?? 0) }} → DB
+                  <span [class.date-diff]="row?.date?.slice(0, 10) !== t?.date?.slice(0, 10)">{{ day(t?.date ?? null) }}</span> · {{ t?.description }}
                   @if (!pair.suggested) {
                     · manuale
                   }
@@ -219,6 +220,20 @@
               <mat-form-field appearance="outline" subscriptSizing="dynamic" class="description-field">
                 <mat-label>Descrizione</mat-label>
                 <input matInput [value]="pair.description" maxlength="500" (input)="onDescriptionInput(pair.rowNumber, $event)" />
+                @let concatenated = store.isConcatenated(pair);
+                @let concatLabel = concatenated ? "Usa solo la descrizione Excel" : "Concatena descrizione DB ed Excel";
+                <button
+                  matIconButton
+                  matSuffix
+                  type="button"
+                  [class.active]="concatenated"
+                  [attr.aria-pressed]="concatenated"
+                  [matTooltip]="concatLabel"
+                  [attr.aria-label]="concatLabel"
+                  (click)="store.toggleConcatenation(pair.rowNumber)"
+                >
+                  <mat-icon class="icon-sm">merge</mat-icon>
+                </button>
               </mat-form-field>
               <mat-form-field appearance="outline" subscriptSizing="dynamic" class="category-field">
                 <mat-label>Categoria</mat-label>

@@ -33,7 +33,7 @@ interface AccountOption {
  * Spese.xlsx, a destra i movimenti a DB dello stesso mese (più 7 giorni
  * prima e dopo). Le coppie suggerite (stesso conto,
  * importo ±0,02 €) si possono correggere; al salvataggio il movimento prende la categoria Excel e
- * la descrizione "DB - Excel", entrambe modificabili.
+ * la descrizione Excel (o, con l'icona apposita, "DB - Excel"), entrambe modificabili.
  */
 @Component({
   selector: "app-legacy-match-page",
