@@ -2,11 +2,11 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from "@an
 import { MatTooltip } from "@angular/material/tooltip";
 import { LandingAccountBalance } from "../../core/models/LandingDashboard";
 import { ThemeService } from "../../core/theme/theme.service";
-import { formatCurrency, formatPercent, formatSignedCurrency } from "../../core/utils/format.utilities";
+import { formatCurrency, formatPercent } from "../../core/utils/format.utilities";
 import { buildEntityColorMap } from "../../shared/charts/entityColors";
 import { EmptyState } from "../../shared/ui/empty-state";
 
-/** Ripartizione del patrimonio per conto: barra 100% + elenco con saldo e movimento del mese. */
+/** Ripartizione del patrimonio per conto: barra 100% + elenco con saldo e quota sul totale. */
 @Component({
   selector: "app-accounts-overview",
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -38,12 +38,7 @@ import { EmptyState } from "../../shared/ui/empty-state";
               <span class="name nowrap">{{ x.name }}</span>
               <span class="share">{{ share !== null ? formatPercent(share) + " del totale" : "—" }}</span>
             </div>
-            <div class="amounts">
-              <span class="balance">{{ hidden() ? "••••••" : formatCurrency(x.currentBalance) }}</span>
-              <span class="month" [class.text-income]="x.netMonth >= 0" [class.text-expense]="x.netMonth < 0">
-                {{ formatSignedCurrency(x.netMonth) }} questo mese
-              </span>
-            </div>
+            <span class="balance">{{ hidden() ? "••••••" : formatCurrency(x.currentBalance) }}</span>
           </div>
         }
       </div>
@@ -61,9 +56,7 @@ import { EmptyState } from "../../shared/ui/empty-state";
     .dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
     .name { font-size: var(--app-text-md); font-weight: 600; color: var(--app-text); }
     .share { font-size: var(--app-text-sm); color: var(--app-text-muted); }
-    .amounts { display: flex; flex-direction: column; text-align: right; }
-    .balance { font-size: var(--app-text-md); font-weight: 650; color: var(--app-text); }
-    .month { font-size: var(--app-text-sm); font-weight: 600; }
+    .balance { font-size: var(--app-text-md); font-weight: 650; color: var(--app-text); text-align: right; }
   `,
 })
 export class AccountsOverview {
@@ -72,7 +65,6 @@ export class AccountsOverview {
 
   private readonly theme = inject(ThemeService);
   protected readonly formatCurrency = formatCurrency;
-  protected readonly formatSignedCurrency = formatSignedCurrency;
   protected readonly formatPercent = formatPercent;
 
   private readonly colorMap = computed(() => {
