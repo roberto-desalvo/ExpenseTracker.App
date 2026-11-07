@@ -1,7 +1,7 @@
 <app-page-container>
   <app-page-header
     title="Abbinamento storico Excel"
-    subtitle="Abbina le righe di un mese di Spese.xlsx ai movimenti registrati: il movimento prende la categoria e la descrizione del file (o, a scelta, «DB - Excel»)."
+    subtitle="Abbina le righe di un mese di Spese.xlsx ai movimenti registrati: il movimento prende la categoria del file e mantiene la sua descrizione (o, a scelta, «DB - Excel»)."
   >
     <a actions matButton [routerLink]="routes.transactions"><mat-icon>arrow_back</mat-icon> Movimenti</a>
     <button actions matButton="filled" (click)="fileInput.click()" [disabled]="store.loading() || store.saving()">
@@ -221,7 +221,7 @@
                 <mat-label>Descrizione</mat-label>
                 <input matInput [value]="pair.description" maxlength="500" (input)="onDescriptionInput(pair.rowNumber, $event)" />
                 @let concatenated = store.isConcatenated(pair);
-                @let concatLabel = concatenated ? "Usa solo la descrizione Excel" : "Concatena descrizione DB ed Excel";
+                @let concatLabel = concatenated ? "Usa solo la descrizione DB" : "Concatena descrizione DB ed Excel";
                 <button
                   matIconButton
                   matSuffix

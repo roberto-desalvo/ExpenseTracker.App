@@ -97,9 +97,9 @@ const writeHandled = (key: string, value: HandledRows) => {
 export const concatenatedPairDescription = (row: LegacyExcelRow, transaction: LegacyDbTransaction) =>
   [transaction.description.trim(), row.description.trim()].filter((part) => part.length > 0).join(" - ");
 
-/** Descrizione proposta per il movimento abbinato: quella Excel (se vuota, quella DB), senza concatenarle. */
+/** Descrizione proposta per il movimento abbinato: quella DB (se vuota, quella Excel), senza concatenarle. */
 export const defaultPairDescription = (row: LegacyExcelRow, transaction: LegacyDbTransaction) =>
-  row.description.trim() || transaction.description.trim();
+  transaction.description.trim() || row.description.trim();
 
 /**
  * Stato della pagina di abbinamento dello storico Excel: file scelto, foglio (mese) corrente, righe e
@@ -334,7 +334,7 @@ export class LegacyMatchStore {
     return !!row && !!transaction && pair.description.trim() === concatenatedPairDescription(row, transaction);
   }
 
-  /** Alterna la descrizione della coppia tra quella concatenata "DB - Excel" e quella proposta (Excel). */
+  /** Alterna la descrizione della coppia tra quella concatenata "DB - Excel" e quella proposta (DB). */
   toggleConcatenation(rowNumber: number) {
     const pair = this.pairs().get(rowNumber);
     const row = this.row(rowNumber);

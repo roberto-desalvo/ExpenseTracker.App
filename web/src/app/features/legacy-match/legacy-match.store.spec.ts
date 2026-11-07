@@ -59,7 +59,7 @@ describe("LegacyMatchStore", () => {
   it("opens the first sheet and builds pairs from the suggestions", () => {
     expect(getMonth).toHaveBeenCalledWith(file, "Ottobre2025");
     expect(store.pairList()).toEqual([
-      { rowNumber: 2, transactionId: 10, description: "spesa conad", categoryId: 7, included: true, suggested: true },
+      { rowNumber: 2, transactionId: 10, description: "POS CONAD", categoryId: 7, included: true, suggested: true },
     ]);
     expect(store.pairIndexByRow().get(2)).toBe(1);
   });
@@ -69,7 +69,7 @@ describe("LegacyMatchStore", () => {
     store.selectTransaction(10);
 
     expect(store.pairList().map((p) => [p.rowNumber, p.transactionId])).toEqual([[3, 10]]);
-    expect(store.pairs().get(3)).toMatchObject({ description: "gtt", categoryId: null, suggested: false });
+    expect(store.pairs().get(3)).toMatchObject({ description: "POS CONAD", categoryId: null, suggested: false });
     expect(store.selectedRow()).toBeNull();
   });
 
@@ -224,18 +224,18 @@ describe("LegacyMatchStore", () => {
     expect(concatenatedPairDescription(MONTH.excelRows[0], { ...MONTH.dbTransactions[0], description: " " })).toBe("spesa conad");
   });
 
-  it("proposes the Excel description, falling back to the DB one when empty", () => {
-    expect(defaultPairDescription(MONTH.excelRows[0], MONTH.dbTransactions[0])).toBe("spesa conad");
-    expect(defaultPairDescription({ ...MONTH.excelRows[0], description: " " }, MONTH.dbTransactions[0])).toBe("POS CONAD");
+  it("proposes the DB description, falling back to the Excel one when empty", () => {
+    expect(defaultPairDescription(MONTH.excelRows[0], MONTH.dbTransactions[0])).toBe("POS CONAD");
+    expect(defaultPairDescription(MONTH.excelRows[0], { ...MONTH.dbTransactions[0], description: " " })).toBe("spesa conad");
   });
 
-  it("toggles the pair description between Excel only and \"DB - Excel\"", () => {
+  it("toggles the pair description between DB only and \"DB - Excel\"", () => {
     store.toggleConcatenation(2);
     expect(store.pairs().get(2)?.description).toBe("POS CONAD - spesa conad");
     expect(store.isConcatenated(store.pairs().get(2)!)).toBe(true);
 
     store.toggleConcatenation(2);
-    expect(store.pairs().get(2)?.description).toBe("spesa conad");
+    expect(store.pairs().get(2)?.description).toBe("POS CONAD");
 
     store.updatePair(2, { description: "spesa settimanale" });
     expect(store.isConcatenated(store.pairs().get(2)!)).toBe(false);
