@@ -21,6 +21,7 @@ public class Category
 
     public User? UserNavigation { get; set; }
     public ICollection<Transaction> Transactions { get; set; } = [];
+    public ICollection<CategoryBudget> Budgets { get; set; } = [];
 
     public static IEnumerable<Category> CreateDefaultCategories(int userId)
         => Enum.GetValues<CategoryEnum>()

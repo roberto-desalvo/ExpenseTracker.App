@@ -1,0 +1,146 @@
+<app-page-container>
+  <app-page-header title="Pianificazione" subtitle="Quanto prevedi di spendere per categoria, mese per mese.">
+    <div actions class="month-nav">
+      <span [matTooltip]="dirty() ? 'Salva o annulla le modifiche' : 'Mese precedente'">
+        <button
+          matIconButton
+          aria-label="Mese precedente"
+          [disabled]="dirty() || monthIndex() >= months.length - 1"
+          (click)="goTo(monthIndex() + 1)"
+        >
+          <mat-icon>chevron_left</mat-icon>
+        </button>
+      </span>
+      <app-month-picker [value]="selectedOption()" [months]="months" [disabled]="dirty()" (monthChange)="selectMonth($event)" />
+      <span [matTooltip]="dirty() ? 'Salva o annulla le modifiche' : 'Mese successivo'">
+        <button matIconButton aria-label="Mese successivo" [disabled]="dirty() || monthIndex() <= 0" (click)="goTo(monthIndex() - 1)">
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+      </span>
+    </div>
+  </app-page-header>
+
+  @if (!data()) {
+    <app-surface-card>
+      <div class="skeleton skeleton-rounded summary-skeleton"></div>
+    </app-surface-card>
+  } @else {
+    <!-- Riepilogo del mese -->
+    <app-surface-card>
+      <div class="summary">
+        <div class="figure">
+          <p class="label">Previsto</p>
+          <p class="value heading-font">{{ formatCurrency(summary().planned) }}</p>
+          <p class="hint">{{ editable() ? (isCurrent() ? "Mese in corso" : "Mese futuro") : "Mese concluso" }}</p>
+        </div>
+        @if (summary().spent !== null) {
+          <div class="figure">
+            <p class="label">{{ isCurrent() ? "Speso finora" : "Speso" }}</p>
+            <p class="value heading-font">{{ formatCurrency(summary().spent!) }}</p>
+            @if (summary().progress; as p) {
+              <p class="hint">{{ formatPercent(p.ratio * 100, 0) }} del previsto</p>
+            }
+          </div>
+          @if (summary().progress; as p) {
+            <div class="figure">
+              <p class="label">{{ p.over ? "Sforamento" : isCurrent() ? "Ancora disponibile" : "Risparmiato" }}</p>
+              <p class="value heading-font" [class.over]="p.over" [class.under]="!p.over">{{ formatCurrency(Math.abs(p.diff)) }}</p>
+            </div>
+          }
+          <div class="figure">
+            <p class="label">Non prevista</p>
+            <p class="value heading-font">{{ formatCurrency(summary().unplanned!) }}</p>
+            <p class="hint">Categorie senza previsione</p>
+          </div>
+        }
+      </div>
+      @if (summary().progress; as p) {
+        <div class="bar total-bar" role="progressbar" aria-label="Speso sul previsto" [attr.aria-valuenow]="Math.round(p.ratio * 100)">
+          <span class="fill" [class.over]="p.over" [style.width.%]="p.fill"></span>
+        </div>
+      }
+    </app-surface-card>
+
+    <!-- Categorie -->
+    <app-surface-card
+      title="Categorie"
+      [subtitle]="editable() ? 'Lascia vuoto per non pianificare una categoria.' : 'Previsione e spesa effettiva del mese.'"
+      [hasAction]="editable()"
+    >
+      @if (editable()) {
+        <div card-action class="card-actions">
+          <button matButton="outlined" (click)="copyPrevious()" [disabled]="saving()">
+            <mat-icon>content_copy</mat-icon> Copia da mese prec.
+          </button>
+        </div>
+      }
+
+      @if (visibleRows().length === 0) {
+        <app-empty-state
+          icon="event_note"
+          title="Nessuna previsione"
+          [text]="editable() ? 'Non ci sono categorie da pianificare.' : 'Per questo mese non è stata fatta nessuna previsione e non ci sono spese.'"
+        />
+      } @else {
+        <ul class="rows" [class.loading]="loading()">
+          @for (row of visibleRows(); track row.categoryId) {
+            <li class="row" [class.with-bar]="hasActuals()">
+              <span class="name">{{ row.name }}</span>
+
+              @if (editable()) {
+                <label class="amount-field" [class.invalid]="row.invalid">
+                  <input
+                    inputmode="decimal"
+                    autocomplete="off"
+                    placeholder="—"
+                    [attr.aria-label]="'Previsione ' + row.name"
+                    [value]="row.text"
+                    (input)="setAmount(row.categoryId, $event)"
+                    (keydown.enter)="save()"
+                  />
+                  <span class="currency">€</span>
+                </label>
+              } @else {
+                <span class="amount">{{ row.planned === null ? "Non prevista" : formatCurrency(row.planned) }}</span>
+              }
+
+              @if (hasActuals()) {
+                <div class="progress">
+                  @if (row.progress; as p) {
+                    <div class="bar" role="progressbar" [attr.aria-label]="'Speso ' + row.name" [attr.aria-valuenow]="Math.round(p.ratio * 100)">
+                      <span class="fill" [class.over]="p.over" [style.width.%]="p.fill"></span>
+                    </div>
+                    <span class="detail">
+                      {{ formatCurrency(row.spent ?? 0) }} · {{ formatPercent(p.ratio * 100, 0) }}
+                      @if (p.diff !== 0) {
+                        <span [class.over]="p.over" [class.under]="!p.over">({{ formatSignedCurrency(p.diff) }})</span>
+                      }
+                    </span>
+                  } @else if ((row.spent ?? 0) > 0) {
+                    <div class="bar unplanned"><span class="fill" style="width: 100%"></span></div>
+                    <span class="detail">{{ formatCurrency(row.spent!) }} non previsti</span>
+                  } @else {
+                    <span class="detail muted">Nessuna spesa</span>
+                  }
+                </div>
+              }
+            </li>
+          }
+        </ul>
+
+        @if (editable()) {
+          <div class="footer">
+            @if (invalid()) {
+              <span class="error-text">Importi non validi: usa solo cifre e la virgola.</span>
+            }
+            <span class="spacer"></span>
+            <button matButton (click)="discard()" [disabled]="!dirty() || saving()">Annulla</button>
+            <button matButton="filled" (click)="save()" [disabled]="!dirty() || invalid() || saving()">
+              <mat-icon>save</mat-icon> Salva
+            </button>
+          </div>
+        }
+      }
+    </app-surface-card>
+  }
+</app-page-container>

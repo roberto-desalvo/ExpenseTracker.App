@@ -4,6 +4,7 @@ export const ROUTES = {
   imports: "/movimenti/import",
   legacyMatch: "/movimenti/abbinamento-excel",
   analytics: "/analisi",
+  planning: "/pianificazione",
   settings: "/impostazioni",
 } as const;
 

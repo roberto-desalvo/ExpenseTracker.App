@@ -39,6 +39,9 @@ export const apiConfig = {
     sync: `${categoryBase}/sync`,
     byId: (id: number) => `${categoryBase}/${id}`,
   },
+  budget: {
+    base: resource("budget"),
+  },
   transfers: {
     base: transferBase,
   },

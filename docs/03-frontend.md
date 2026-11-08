@@ -1,6 +1,6 @@
 # 3. Frontend
 
-Il frontend (`web/`) è una SPA Angular 22 in italiano: componenti standalone, signals, change detection zoneless. Mostra la panoramica dei conti, l'elenco dei movimenti, le analisi nel tempo e le impostazioni; tutte le modifiche passano dall'API del backend.
+Il frontend (`web/`) è una SPA Angular 22 in italiano: componenti standalone, signals, change detection zoneless. Mostra la panoramica dei conti, l'elenco dei movimenti, le analisi nel tempo, la pianificazione delle spese e le impostazioni; tutte le modifiche passano dall'API del backend.
 
 ## Organizzazione dell'interfaccia
 
@@ -13,6 +13,7 @@ flowchart TD
     mov --> movimp["/movimenti/import Import"]
     mov -.->|admin| movxls["/movimenti/abbinamento-excel Storico Excel"]
     shell --> ana["/analisi Analisi"]
+    shell --> pian["/pianificazione Pianificazione"]
     shell --> imp["/impostazioni Impostazioni"]
     imp --> cat[Categorie]
     imp --> conti[Conti]
@@ -28,6 +29,7 @@ flowchart TD
 | **Import** `/movimenti/import` | Tab di Movimenti: storico degli import da file (dall'app, OneDrive, script) con stato, conto, periodo, movimenti nuovi e già presenti, errore; quelli in coda o in elaborazione si aggiornano da soli |
 | **Abbinamento storico Excel** `/movimenti/abbinamento-excel` | Solo admin (guard `adminGuard` e bottone **Abbina Excel** in Movimenti): si carica `Spese.xlsx` e si sceglie un mese; a sinistra le righe del foglio, a destra i movimenti a DB dello stesso mese più gli ultimi 7 giorni del precedente e i primi 7 del successivo, con le coppie suggerite numerate su entrambi i lati. Si abbina a mano selezionando una riga e poi un movimento, oppure si toglie una riga con **Segna come abbinata**. Le righe abbinate, salvate o segnate escono da entrambe le liste, così restano in vista quelle mancanti; sono ricordate per file e foglio nel `sessionStorage` e tornano visibili con **Mostra abbinati** (con l'azione per riportarle tra le righe da gestire). Filtro per conto. Un triangolo di warning sulla riga Excel e sulla coppia segnala che nel periodo esiste già un movimento abbinato in una sessione precedente, sullo stesso conto e con la stessa somma, la cui descrizione contiene quella Excel. Le righe di **Contanti e Hype** (conti senza import automatico) non si abbinano: al caricamento del foglio si apre una finestra dedicata (riapribile dalla barra) per crearle come nuovi movimenti, con testo e categoria modificabili; un triangolo di warning, con il dettaglio al passaggio del mouse, segnala un movimento già esistente sullo stesso conto nello stesso mese con stesso nome e stessa somma (quelle righe partono escluse). Sotto, per ogni coppia, le date di riga Excel e movimento (evidenziata quella del movimento se diversa), descrizione e categoria da salvare (modificabili) e inclusione; la descrizione proposta è quella DB e un'icona nel campo la alterna con quella concatenata «DB - Excel»; **Salva** aggiorna i movimenti e ricarica il mese. **Ripristina mese**, dopo conferma, annulla gli abbinamenti del mese a DB (elimina i movimenti creati dallo storico, ripristina descrizione e categoria degli altri) e azzera le righe gestite nella sessione |
 | **Analisi** `/analisi` | Periodo (3–24 mesi a ritroso dallo stesso giorno di oggi, da inizio anno, personalizzato) e granularità (giorno, settimana, mese, anno), poi le card scelte dall'utente in Impostazioni → Analisi (ordine e larghezza; griglia a 6 colonne da 1200px, sotto tutte a piena larghezza): sintesi del periodo (saldi puntuali a inizio e fine), flusso di cassa (con la quota investita delle uscite e il tasso di investimento), patrimonio totale e per conto, classifica dei periodi, spese/entrate per categoria, classifica delle categorie. Ogni grafico ha anche la vista tabella. Cliccando un periodo nel flusso di cassa o nelle categorie si apre Movimenti filtrato su quel periodo (e sulla categoria/tipo cliccati); filtri e viste sono nei query param, quindi il back del browser ripristina la pagina com'era |
+| **Pianificazione** `/pianificazione?mese=yyyy-MM` | Un mese alla volta (frecce o calendario, da 24 mesi fa a 12 mesi avanti; il mese è nel query param, assente = mese corrente), con riepilogo (previsto, speso, sforamento o risparmio, spesa non prevista) e lista delle categorie. Mese corrente e futuri: importo previsto modificabile per categoria (vuoto = non pianificata), **Copia da mese prec.** riempie i campi con le previsioni del mese precedente, **Salva**/**Annulla**; con modifiche non salvate il cambio mese è bloccato. Mese corrente e passati: per ogni categoria barra speso/previsto con percentuale e differenza, rossa oltre il 100%; nei mesi passati la lista è in sola lettura e mostra solo le categorie con previsione o spesa |
 | **Impostazioni** `/impostazioni?sezione=` | **Categorie**: CRUD con parole chiave e priorità, sincronizzazione delle categorie su un periodo (classifica per parole chiave solo i movimenti ancora nella categoria predefinita). **Conti**: card con saldo e netto del mese, creazione e modifica di nome, IBAN e tipo di conto (un tipo per conto; i tipi delle banche abilitano l'import da file). **Analisi**: scheletro della pagina Analisi su cui trascinare (CDK drag and drop) le card visibili e quelle nascoste; le card verticali (classifiche) occupano 1/3 o 1/2 della riga, quelle orizzontali (grafici per periodo) 1/2, 2/3 o tutta; il layout è salvato a DB al clic su Salva. **Aspetto**: stile, tema chiaro/scuro/automatico, navigazione laterale o superiore |
 
 **Shell.** Barra laterale comprimibile (default) o barra superiore, a scelta in Aspetto; sotto i 900px diventa una barra compatta con menu a scomparsa. Il pulsante **Nuovo** apre da qualunque pagina le modali di nuova transazione o nuovo trasferimento, montate una sola volta nella shell.
@@ -46,17 +48,17 @@ flowchart TD
 | `core/state/` | Store a signal condivisi |
 | `core/theme/` | `ThemeService`, preset di stile, palette dei grafici |
 | `core/utils/` | Formattazione di importi, date e periodi |
-| `features/` | Pagine: `dashboard`, `transactions`, `imports`, `analytics`, `settings` |
+| `features/` | Pagine: `dashboard`, `transactions`, `imports`, `analytics`, `planning`, `settings` |
 | `layout/` | Shell e azioni dell'intestazione |
 | `pages/auth/` | Pagine di login |
-| `shared/ui/`, `shared/charts/` | Componenti riusabili (tabella dati, drawer, modali, ricerca, ...) e grafici ECharts |
+| `shared/ui/`, `shared/charts/` | Componenti riusabili (tabella dati, drawer, modali, ricerca, selettore del mese, ...) e grafici ECharts |
 
 Le pagine sono caricate in lazy (`app.routes.ts`); anche ECharts viene scaricato solo alla prima pagina con un grafico.
 
 ## Stato e dati
 
 - **Store** (`core/state/`) — servizi `providedIn: "root"` con signal: `AccountsStore`, `CategoriesStore` e `AccountTypesStore` (anagrafiche caricate una volta dalla shell), `TransactionsStore`, `ImportsStore` (conti importabili, upload, storico; finché ci sono import in corso li ricontrolla ogni pochi secondi e ne notifica l'esito), `TransactionsTableStore` (filtri, ordinamento, paginazione della tabella), `AnalyticsLayoutStore` (layout della pagina Analisi; il catalogo delle card è in `core/config/analytics-cards.ts`), `AppearanceStore` (preferenze di aspetto: caricate dalla shell, poi salvate a ogni modifica), `QuickActionsService` (modali). Nessuna libreria di state management.
-- **Aggiornamento** — dopo ogni modifica `TransactionsStore` incrementa `dataVersion`; dashboard, analisi e conti lo osservano e ricaricano i propri aggregati. Lo fa anche quando un import da file si conclude con nuovi movimenti.
+- **Aggiornamento** — dopo ogni modifica `TransactionsStore` incrementa `dataVersion`; dashboard, analisi, pianificazione e conti lo osservano e ricaricano i propri aggregati. Lo fa anche quando un import da file si conclude con nuovi movimenti.
 - **API** — tutte le chiamate passano da `ApiClient`, che condivide le richieste identiche in volo. L'interceptor di autenticazione aggiunge l'header; quello degli errori estrae il messaggio dai problem details, lo mostra in una snackbar e rilancia l'errore.
 
 ## Autenticazione

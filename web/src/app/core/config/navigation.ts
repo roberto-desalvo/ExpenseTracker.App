@@ -12,6 +12,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", path: ROUTES.dashboard, icon: "space_dashboard", description: "Panoramica del mese e del patrimonio" },
   { label: "Movimenti", path: ROUTES.transactions, icon: "receipt_long", description: "Elenco transazioni con filtri" },
   { label: "Analisi", path: ROUTES.analytics, icon: "insights", description: "Andamenti nel tempo" },
+  { label: "Pianificazione", path: ROUTES.planning, icon: "event_note", description: "Previsioni di spesa per categoria" },
   { label: "Impostazioni", path: ROUTES.settings, icon: "tune", description: "Categorie, conti e aspetto" },
 ];
 

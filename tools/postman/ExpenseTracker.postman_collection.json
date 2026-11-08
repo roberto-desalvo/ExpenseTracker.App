@@ -869,6 +869,65 @@
       ]
     },
     {
+        "name": "Budget",
+        "item": [
+            {
+                "name": "Budget_Get",
+                "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                        "raw": "{{baseUrl}}/budget?month=2026-12-01",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "budget"
+                        ],
+                        "query": [
+                            {
+                                "key": "month",
+                                "value": "2026-12-01"
+                            }
+                        ]
+                    },
+                    "description": "Pianificazione del mese: previsione per categoria e, per il mese corrente (fino a oggi) e i passati, spesa effettiva (trasferimenti esclusi)."
+                }
+            },
+            {
+                "name": "Budget_Put",
+                "request": {
+                    "method": "PUT",
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "url": {
+                        "raw": "{{baseUrl}}/budget",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "budget"
+                        ]
+                    },
+                    "description": "Sostituisce le previsioni del mese (solo mese corrente o futuri). Categorie assenti o con importo nullo/zero restano senza previsione.",
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n  \"month\": \"2026-12-01\",\n  \"lines\": [\n    { \"categoryId\": {{categoryId}}, \"amount\": 400 }\n  ]\n}",
+                        "options": {
+                            "raw": {
+                                "language": "json"
+                            }
+                        }
+                    }
+                }
+            }
+        ]
+    },
+    {
         "name": "UserSettings",
         "item": [
             {

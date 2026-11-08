@@ -11,6 +11,7 @@ erDiagram
     User ||--o{ ImportLog : registra
     Account ||--o{ Transaction : contiene
     Category |o--o{ Transaction : classifica
+    Category ||--o{ CategoryBudget : pianifica
     Transfer |o--o{ Transaction : "collega (2 leg)"
     Account |o--o{ ImportLog : riguarda
     AccountType |o--o{ Account : "tipo di"
@@ -46,6 +47,12 @@ erDiagram
         bool IsDefault
         string Tags "parole chiave , o ;"
         int Kind "categoria di sistema (CategoryEnum)"
+    }
+    CategoryBudget {
+        int Id PK
+        int CategoryId FK
+        date Month "primo giorno del mese"
+        decimal Amount "decimal(18,2), spesa prevista"
     }
     Transaction {
         int Id PK
@@ -101,6 +108,7 @@ erDiagram
 | `Accounts` | Conto finanziario; l'IBAN serve a riconoscere i trasferimenti negli import, il tipo a scegliere il conto di destinazione |
 | `AccountTypes` | Catalogo fisso dei tipi di conto (BBVA, Satispay, Trade Republic, Sella, Revolut, Contanti, Hype, PayPal), creato dalla migration; i primi quattro hanno un import da file |
 | `Categories` | Categorie dell'utente; quelle con `Kind` valorizzato sono le 11 di sistema create con l'utente |
+| `CategoryBudgets` | Previsione di spesa di una categoria per un mese (pagina Pianificazione); appartiene all'utente tramite la categoria |
 | `Transactions` | Movimento; importo positivo = entrata, negativo = uscita; `Source` ne indica l'origine (inserito dall'utente, import da file, creato dallo storico Excel, scritto da script SQL diretto sul DB); `LegacyMatchedAt` indica che è stato abbinato a una riga dello storico Excel e `LegacyOriginalDescription` conserva la descrizione precedente al primo abbinamento |
 | `Transfers` | Collega le due metà di un trasferimento |
 | `ImportLogs` | Stato ed esito di ogni import di file; per gli import dall'app anche il blob del file |
@@ -114,6 +122,7 @@ erDiagram
 | Univoco filtrato `Accounts (UserId, Iban)` | Un IBAN identifica un solo conto per utente (utenti diversi possono condividerlo) |
 | Univoco filtrato `Accounts (UserId, AccountTypeId)` | Un conto per tipo per utente: gli import risolvono il conto dal tipo |
 | Univoco filtrato `Categories (UserId, Kind)` | Al più una categoria di sistema per tipo e per utente |
+| Univoco `CategoryBudgets (CategoryId, Month)` | Una previsione per categoria e mese |
 | Univoci filtrati `Users.AzureOid`, `Users.AppOid` | Un utente per identità |
 | Indici `ImportLogs (UserId, ImportedOn)`, `(UserId, Status)` | Storico cronologico e import in corso |
 
@@ -122,6 +131,7 @@ erDiagram
 | User → Account, User → Category, Account → Transaction, AccountType → Account | Bloccata (Restrict) |
 | Category → Transaction, Transfer → Transaction | Il movimento resta, il riferimento diventa `NULL` |
 | User → ImportLog | I log vengono eliminati (Cascade) |
+| Category → CategoryBudget | Le previsioni vengono eliminate (Cascade) |
 | Account → ImportLog | Il log resta, `AccountId` diventa `NULL` |
 
 ## Regole sui dati
@@ -129,6 +139,7 @@ erDiagram
 - **Saldo calcolato** — nessun saldo è memorizzato: si ottiene sommando i movimenti del conto.
 - **Categorie di sistema** — `CategoryEnum` (Default, MoneyTransfers, WorkIncomes, Housing, HealthAndFitness, FoodAndBeverage, Transportation, Entertainment, Clothes, SavingsAndInvestments, Gifts) definisce le categorie create per ogni utente. I valori non sono id: il codice risolve l'id dell'utente tramite `Category.Kind`.
 - **Giroconti esclusi dai flussi** — nei totali di entrate/uscite un movimento è un trasferimento se ha `TransferId` oppure è nella categoria `MoneyTransfers`. Saldi e patrimonio li includono sempre.
+- **Previsioni di spesa** — si modificano solo per il mese corrente e i futuri; i mesi passati restano in sola lettura per il confronto con la spesa effettiva (uscite, trasferimenti esclusi).
 - **Conto degli import** — un estratto conto bancario va sul conto dell'utente del tipo di quella banca; se manca, l'import fallisce. Solo il formato Excel interno crea i conti che nomina e non trova.
 
 ## Migration
