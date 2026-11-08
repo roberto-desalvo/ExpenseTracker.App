@@ -26,6 +26,44 @@
   white-space: nowrap;
 }
 
+// "Raggruppa per": su mobile etichetta sopra e toggle a tutta larghezza, da tablet in poi sulla stessa riga
+.group-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+
+  @media (min-width: 600px) {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.granularity {
+  max-width: 100%;
+
+  @media (max-width: 599px) {
+    display: flex;
+    width: 100%;
+
+    ::ng-deep .mat-button-toggle {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+  }
+}
+
+// su schermi stretti i pulsanti dei periodi sono più compatti (il gruppo scorre in orizzontale se serve)
+@media (max-width: 599px) {
+  .nowrap-group ::ng-deep .mat-button-toggle-label-content {
+    padding-inline: 12px;
+  }
+}
+
+.filters > * {
+  min-width: 0;
+}
+
 .group-label {
   font-size: var(--app-text-sm);
   color: var(--app-text-secondary);

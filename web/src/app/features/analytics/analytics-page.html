@@ -22,10 +22,10 @@
         </mat-button-toggle-group>
       </div>
       <span class="spacer"></span>
-      <div class="row gap-sm">
+      <div class="group-row">
         <span class="group-label">Raggruppa per</span>
         <mat-button-toggle-group
-          class="segmented"
+          class="segmented granularity"
           [value]="granularity()"
           (change)="pick(granularity, $event.value)"
           aria-label="Raggruppamento"
