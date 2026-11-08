@@ -13,6 +13,7 @@
         [id]="layoutList"
         cdkDropListOrientation="mixed"
         [cdkDropListData]="draft()"
+        [cdkDropListSortPredicate]="sortPredicate"
         (cdkDropListDropped)="drop($event)"
         aria-label="Card visibili nella pagina Analisi"
       >
@@ -24,8 +25,9 @@
           [style.--span]="span[card.width]"
           [class.vertical]="def.orientation === 'vertical'"
         >
-          <div class="block-head">
-            <mat-icon class="handle" cdkDragHandle matTooltip="Trascina per spostare">drag_indicator</mat-icon>
+          <!-- si trascina dall'intestazione: il resto della card lascia lo scorrimento della pagina su touch -->
+          <div class="block-head" cdkDragHandle>
+            <mat-icon class="handle">drag_indicator</mat-icon>
             <mat-icon class="icon-sm block-icon">{{ def.icon }}</mat-icon>
             <span class="block-title">{{ def.title }}</span>
             <button
@@ -69,8 +71,6 @@
               }
             </mat-button-toggle-group>
           </div>
-
-          <div *cdkDragPlaceholder class="block-placeholder" [style.--span]="span[card.width]"></div>
         </div>
         } @empty {
         <p class="empty-drop">Nessuna card visibile: trascina qui una card disponibile.</p>

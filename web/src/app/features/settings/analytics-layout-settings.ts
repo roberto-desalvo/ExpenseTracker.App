@@ -1,5 +1,6 @@
-import { CdkDragDrop, DragDropModule, moveItemInArray } from "@angular/cdk/drag-drop";
-import { ChangeDetectionStrategy, Component, computed, inject, linkedSignal } from "@angular/core";
+import { CdkDrag, CdkDragDrop, CdkDropList, DragDropModule, moveItemInArray } from "@angular/cdk/drag-drop";
+import { DOCUMENT } from "@angular/common";
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, linkedSignal } from "@angular/core";
 import { MatButtonModule } from "@angular/material/button";
 import { MatButtonToggleModule } from "@angular/material/button-toggle";
 import { MatIconModule } from "@angular/material/icon";
@@ -20,6 +21,7 @@ import {
 import { CardWidth } from "../../core/models/AnalyticsLayout";
 import { AnalyticsLayoutStore } from "../../core/state/analytics-layout.store";
 import { SurfaceCard } from "../../shared/ui/surface-card";
+import { shouldSwap } from "./grid-sort";
 
 const LAYOUT_LIST = "analytics-layout";
 
@@ -62,9 +64,37 @@ export class AnalyticsLayoutSettings {
   protected readonly dirty = computed(() => !sameLayout(this.draft(), this.store.layout()));
   protected readonly isDefault = computed(() => sameLayout(this.draft(), DEFAULT_ANALYTICS_LAYOUT));
 
+  /** ultima posizione del puntatore (coordinate viewport), letta dal predicato di riordino */
+  private pointer = { x: 0, y: 0 };
+
   constructor() {
     this.store.ensureLoaded();
+    // stessi eventi del CDK, in cattura sul document e registrati prima dei suoi: la posizione è già aggiornata quando valuta il riordino
+    const track = (e: MouseEvent | TouchEvent) => {
+      const point = "touches" in e ? e.touches[0] : e;
+      if (point) this.pointer = { x: point.clientX, y: point.clientY };
+    };
+    const document = inject(DOCUMENT);
+    const events = ["mousemove", "touchmove"] as const;
+    events.forEach((type) => document.addEventListener(type, track, { capture: true, passive: true }));
+    inject(DestroyRef).onDestroy(() =>
+      events.forEach((type) => document.removeEventListener(type, track, { capture: true })),
+    );
   }
+
+  /** Riordino nello scheletro: la card sotto il puntatore cede il posto solo oltre la sua metà (vedi `shouldSwap`). */
+  protected readonly sortPredicate = (index: number, drag: CdkDrag, drop: CdkDropList): boolean => {
+    const items = drop.getSortedItems();
+    const current = items.indexOf(drag);
+    const target = items[index];
+    if (current === -1 || !target) return true; // card in arrivo dall'elenco delle nascoste
+    return shouldSwap(
+      this.pointer,
+      target.element.nativeElement.getBoundingClientRect(),
+      drag.getPlaceholderElement().getBoundingClientRect(),
+      index > current,
+    );
+  };
 
   protected cardOf(id: AnalyticsCardId): AnalyticsCardDefinition {
     return CARD_BY_ID.get(id)!;
