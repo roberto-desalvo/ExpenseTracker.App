@@ -34,6 +34,7 @@ public static class AddServicesExtensions
         });
 
         services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<IBudgetRepository, BudgetRepository>();
         services.AddScoped<ITransactionRepository, TransactionRepository>();
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<IAccountTypeRepository, AccountTypeRepository>();

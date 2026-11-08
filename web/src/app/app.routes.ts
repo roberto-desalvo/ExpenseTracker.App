@@ -18,6 +18,10 @@ export const routes: Routes = [
   },
   { path: "analisi", loadComponent: () => import("./features/analytics/analytics-page").then((m) => m.AnalyticsPage) },
   {
+    path: "pianificazione",
+    loadComponent: () => import("./features/planning/planning-page").then((m) => m.PlanningPage),
+  },
+  {
     path: "impostazioni",
     loadComponent: () => import("./features/settings/settings-page").then((m) => m.SettingsPage),
   },

@@ -20,6 +20,7 @@ public static class AddServicesExtensions
         services.AddScoped<IAccountTypeService, AccountTypeService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ICategoryService, CategoryService>();
+        services.AddScoped<IBudgetService, BudgetService>();
         services.AddScoped<ITransactionService, TransactionService>();
         services.AddScoped<ITransferService, TransferService>();
         services.AddScoped<IExcelImportService, ExcelImportService>();

@@ -11,7 +11,7 @@ import { AccountsStore } from "../../core/state/accounts.store";
 import { CategoriesStore } from "../../core/state/categories.store";
 import { MovementType, PeriodMode, TransactionsTableStore } from "../../core/state/transactions-table.store";
 import { TransactionsStore } from "../../core/state/transactions.store";
-import { MonthPicker } from "./month-picker";
+import { MonthPicker } from "../../shared/ui/month-picker";
 import { MultiSelectFilter } from "./multi-select-filter";
 
 const toDate = (value: string | null) => (value ? parseISO(value) : null);

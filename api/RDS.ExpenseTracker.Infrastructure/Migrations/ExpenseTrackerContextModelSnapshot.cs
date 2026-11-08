@@ -169,6 +169,31 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                     b.ToTable("Categories");
                 });
 
+            modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.CategoryBudget", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Month")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId", "Month")
+                        .IsUnique();
+
+                    b.ToTable("CategoryBudgets");
+                });
+
             modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.ImportLog", b =>
                 {
                     b.Property<int>("Id")
@@ -441,6 +466,17 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                     b.Navigation("UserNavigation");
                 });
 
+            modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.CategoryBudget", b =>
+                {
+                    b.HasOne("RDS.ExpenseTracker.Domain.Entities.Category", "CategoryNavigation")
+                        .WithMany("Budgets")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CategoryNavigation");
+                });
+
             modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.ImportLog", b =>
                 {
                     b.HasOne("RDS.ExpenseTracker.Domain.Entities.Account", "AccountNavigation")
@@ -491,6 +527,8 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
 
             modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.Category", b =>
                 {
+                    b.Navigation("Budgets");
+
                     b.Navigation("Transactions");
                 });
 

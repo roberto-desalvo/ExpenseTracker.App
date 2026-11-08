@@ -19,7 +19,7 @@ const monthKey = (date: Date) => format(date, "yyyy-MM");
 
 /**
  * Selettore di mese: calendario Material che si apre sugli anni e si chiude alla scelta del mese.
- * Sono selezionabili solo i mesi presenti in `months` (quelli con movimenti); emette lo `startDate` del mese scelto.
+ * Sono selezionabili solo i mesi presenti in `months` (es. quelli con movimenti); emette lo `startDate` del mese scelto.
  */
 @Component({
   selector: "app-month-picker",
