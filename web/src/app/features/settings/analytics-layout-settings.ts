@@ -1,5 +1,6 @@
-import { CdkDragDrop, DragDropModule, moveItemInArray } from "@angular/cdk/drag-drop";
-import { ChangeDetectionStrategy, Component, computed, inject, linkedSignal } from "@angular/core";
+import { CdkDrag, CdkDragDrop, CdkDropList, DragDropModule, moveItemInArray } from "@angular/cdk/drag-drop";
+import { DOCUMENT } from "@angular/common";
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, linkedSignal } from "@angular/core";
 import { MatButtonModule } from "@angular/material/button";
 import { MatButtonToggleModule } from "@angular/material/button-toggle";
 import { MatIconModule } from "@angular/material/icon";
@@ -20,6 +21,7 @@ import {
 import { CardWidth } from "../../core/models/AnalyticsLayout";
 import { AnalyticsLayoutStore } from "../../core/state/analytics-layout.store";
 import { SurfaceCard } from "../../shared/ui/surface-card";
+import { shouldSwap } from "./grid-sort";
 
 const LAYOUT_LIST = "analytics-layout";
 
@@ -62,8 +64,48 @@ export class AnalyticsLayoutSettings {
   protected readonly dirty = computed(() => !sameLayout(this.draft(), this.store.layout()));
   protected readonly isDefault = computed(() => sameLayout(this.draft(), DEFAULT_ANALYTICS_LAYOUT));
 
+  /** ultima posizione del puntatore (coordinate viewport), letta dal predicato di riordino */
+  private pointer = { x: 0, y: 0 };
+
+  private readonly document = inject(DOCUMENT);
+
   constructor() {
     this.store.ensureLoaded();
+    // stessi eventi del CDK, in cattura sul document e registrati prima dei suoi: la posizione è già aggiornata quando valuta il riordino
+    const track = (e: MouseEvent | TouchEvent) => {
+      const point = "touches" in e ? e.touches[0] : e;
+      if (point) this.pointer = { x: point.clientX, y: point.clientY };
+    };
+    const events = ["mousemove", "touchmove"] as const;
+    events.forEach((type) => this.document.addEventListener(type, track, { capture: true, passive: true }));
+    inject(DestroyRef).onDestroy(() =>
+      events.forEach((type) => this.document.removeEventListener(type, track, { capture: true })),
+    );
+  }
+
+  /** Riordino nello scheletro: la card sotto il puntatore cede il posto solo oltre la sua metà (vedi `shouldSwap`). */
+  // Lavora sul DOM e non sugli indici: per una card in arrivo dall'altra lista l'indice del CDK non corrisponde
+  // a `getSortedItems()`, che contiene solo le card proprie. Con l'orientamento `mixed` il CDK sposta davvero
+  // il segnaposto nel DOM, quindi l'ordine segnaposto/card dà la direzione dello spostamento.
+  protected readonly sortPredicate = (_index: number, drag: CdkDrag, drop: CdkDropList): boolean => {
+    const container = drop.element.nativeElement;
+    const placeholder = drag.getPlaceholderElement();
+    if (placeholder.parentElement !== container) return true; // ingresso dall'altra lista: decide il CDK
+    const hit = this.document.elementFromPoint(this.pointer.x, this.pointer.y);
+    const target = hit && Array.from(container.children).find((c) => c !== placeholder && c.contains(hit));
+    if (!target) return true;
+    const forward = Boolean(placeholder.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING);
+    return shouldSwap(this.pointer, target.getBoundingClientRect(), placeholder.getBoundingClientRect(), forward);
+  };
+
+  /**
+   * Durante il trascinamento il CDK misura le liste collegate una volta sola, all'inizio, e le rimisura solo a uno
+   * scroll: se la griglia cambia altezza (il segnaposto cambia riga), l'elenco delle nascoste sotto di lei si sposta
+   * ma resta "ricevibile" nella vecchia posizione e non accetta più la card. Uno scroll sintetico sul document (non
+   * risale a window, quindi non tocca overlay & co.) gliela fa rimisurare; per la lista che sta trascinando è un no-op.
+   */
+  protected refreshDropZones() {
+    this.document.dispatchEvent(new Event("scroll"));
   }
 
   protected cardOf(id: AnalyticsCardId): AnalyticsCardDefinition {

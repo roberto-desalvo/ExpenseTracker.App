@@ -54,6 +54,7 @@ $gap: 12px;
   align-items: center;
   gap: 6px;
   min-width: 0;
+  cursor: grab;
 }
 
 .handle {
@@ -131,6 +132,17 @@ $gap: 12px;
 .badge {
   font-size: var(--app-text-sm);
   color: var(--app-text-secondary);
+}
+
+// segnaposto nello scheletro = clone della card trascinata: stessa dimensione, così la griglia non salta durante il riordino
+.block.cdk-drag-placeholder {
+  border: 2px dashed var(--app-primary);
+  background-color: var(--app-primary-soft);
+  box-shadow: none;
+
+  > * {
+    visibility: hidden;
+  }
 }
 
 .block-placeholder {
