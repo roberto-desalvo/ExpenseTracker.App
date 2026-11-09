@@ -41,6 +41,7 @@ export const apiConfig = {
   },
   budget: {
     base: resource("budget"),
+    totals: resource("budget/totals"),
   },
   transfers: {
     base: transferBase,

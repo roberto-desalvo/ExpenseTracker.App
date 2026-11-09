@@ -20,6 +20,13 @@ public class BudgetMonthDto
     public List<BudgetLineDto> Lines { get; set; } = [];
 }
 
+// Totale previsto di un mese (solo mesi con almeno una previsione).
+public class BudgetTotalDto
+{
+    public DateTime Month { get; set; }
+    public decimal Planned { get; set; }
+}
+
 public class BudgetLineDto
 {
     public int CategoryId { get; set; }

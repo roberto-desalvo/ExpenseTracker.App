@@ -8,5 +8,6 @@ namespace RDS.ExpenseTracker.Domain.Services;
 public interface IBudgetService : IService
 {
     Task<Result<BudgetMonthDto>> GetMonth(DateTime month, int userId);
+    Task<Result<List<BudgetTotalDto>>> GetTotals(DateTime startDate, DateTime endDate, int userId);
     Task<Result> SaveMonth(BudgetMonthUpdateRequest request, int userId);
 }

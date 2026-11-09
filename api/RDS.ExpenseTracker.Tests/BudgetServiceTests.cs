@@ -37,6 +37,34 @@ public class BudgetServiceTests
     }
 
     [Fact]
+    public async Task GetTotals_SumsMonthsTouchedByRange()
+    {
+        var repository = new FakeBudgetRepository();
+        repository.Budgets.AddRange([
+            new CategoryBudget { CategoryId = Groceries, Month = new DateTime(2026, 8, 1), Amount = 100m },
+            new CategoryBudget { CategoryId = Groceries, Month = new DateTime(2026, 9, 1), Amount = 400m },
+            new CategoryBudget { CategoryId = Restaurants, Month = new DateTime(2026, 9, 1), Amount = 50m },
+            new CategoryBudget { CategoryId = Groceries, Month = new DateTime(2026, 11, 1), Amount = 300m },
+            new CategoryBudget { CategoryId = Groceries, Month = new DateTime(2026, 12, 1), Amount = 999m },
+        ]);
+
+        var result = await CreateService(repository).GetTotals(new DateTime(2026, 9, 15), new DateTime(2026, 11, 8, 23, 59, 59), UserId);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Select(t => (t.Month, t.Planned)).Should().Equal(
+            (new DateTime(2026, 9, 1), 450m),
+            (new DateTime(2026, 11, 1), 300m));
+    }
+
+    [Fact]
+    public async Task GetTotals_InvalidRange_Fails()
+    {
+        var result = await CreateService(new FakeBudgetRepository()).GetTotals(new DateTime(2026, 11, 1), new DateTime(2026, 10, 1), UserId);
+
+        result.IsFailed.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task GetMonth_ExcludesMoneyTransfersCategory()
     {
         var result = await CreateService(new FakeBudgetRepository()).GetMonth(new DateTime(2026, 12, 1), UserId);
@@ -168,6 +196,14 @@ public class BudgetServiceTests
 
         public Task<IEnumerable<CategoryBudget>> GetBudgets(DateTime monthStart, int userId)
             => Task.FromResult<IEnumerable<CategoryBudget>>(Budgets.Where(b => b.Month == monthStart).ToList());
+
+        public Task<IEnumerable<(DateTime Month, decimal Planned)>> GetPlannedTotals(DateTime firstMonth, DateTime lastMonth, int userId)
+            => Task.FromResult<IEnumerable<(DateTime Month, decimal Planned)>>(Budgets
+                .Where(b => b.Month >= firstMonth && b.Month <= lastMonth)
+                .GroupBy(b => b.Month)
+                .OrderBy(g => g.Key)
+                .Select(g => (g.Key, g.Sum(b => b.Amount)))
+                .ToList());
 
         public Task ReplaceMonthBudgets(DateTime monthStart, IEnumerable<CategoryBudget> budgets, int userId)
         {

@@ -7,6 +7,9 @@ public interface IBudgetRepository : IRepositoryBase
 {
     Task<IEnumerable<CategoryBudget>> GetBudgets(DateTime monthStart, int userId);
 
+    // Totale previsto per mese (solo i mesi con almeno una previsione) tra firstMonth e lastMonth inclusi.
+    Task<IEnumerable<(DateTime Month, decimal Planned)>> GetPlannedTotals(DateTime firstMonth, DateTime lastMonth, int userId);
+
     // Sostituisce le previsioni del mese dell'utente con quelle indicate (le categorie assenti restano senza previsione).
     Task ReplaceMonthBudgets(DateTime monthStart, IEnumerable<CategoryBudget> budgets, int userId);
 

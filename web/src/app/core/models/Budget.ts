@@ -20,6 +20,13 @@ export interface BudgetMonth {
   lines: BudgetLine[];
 }
 
+/** Totale previsto di un mese (solo mesi con almeno una previsione). */
+export interface BudgetTotal {
+  /** primo giorno del mese (ISO) */
+  month: string;
+  planned: number;
+}
+
 export interface BudgetMonthUpdate {
   /** yyyy-MM-01 */
   month: string;

@@ -895,6 +895,34 @@
                 }
             },
             {
+                "name": "Budget_GetTotals",
+                "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                        "raw": "{{baseUrl}}/budget/totals?startDate=2026-01-01&endDate=2026-12-31",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "budget",
+                            "totals"
+                        ],
+                        "query": [
+                            {
+                                "key": "startDate",
+                                "value": "2026-01-01"
+                            },
+                            {
+                                "key": "endDate",
+                                "value": "2026-12-31"
+                            }
+                        ]
+                    },
+                    "description": "Totale previsto per mese, per i mesi toccati dall'intervallo che hanno almeno una previsione (usato dalla card Pianificazioni di Analisi)."
+                }
+            },
+            {
                 "name": "Budget_Put",
                 "request": {
                     "method": "PUT",

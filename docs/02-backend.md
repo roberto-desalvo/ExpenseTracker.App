@@ -71,6 +71,7 @@ Prefisso `/api`. Tutti richiedono autenticazione salvo dove indicato. Una collec
 | | `POST category`, `PUT category`, `DELETE category/{id}` | CRUD; l'eliminazione sposta i movimenti sulla predefinita |
 | | `POST category/sync` | Ricategorizza i movimenti di un periodo con le parole chiave |
 | Pianificazione | `GET budget?month=yyyy-MM-01` | Previsione di spesa per categoria del mese (esclusa Money transfers) e, per il mese corrente (fino a oggi) e i passati, spesa effettiva per categoria, totale e quota non prevista (categorie senza previsione e movimenti senza categoria); trasferimenti esclusi come in Analisi |
+| | `GET budget/totals?startDate=&endDate=` | Totale previsto per mese dei mesi toccati dall'intervallo con almeno una previsione (card Pianificazioni di Analisi) |
 | | `PUT budget` | Body `{ month, lines: [{ categoryId, amount }] }`: sostituisce le previsioni del mese; solo mese corrente o futuri, importi non negativi (vuoto o zero = nessuna previsione) |
 | Movimenti | `POST transaction/query` | Elenco paginato con filtri (anche `onlyTransfers`: collegati a un trasferimento o in Money transfers; `onlyIncompleteTransfers`: solo quelli con `transferIncomplete` o `transferMissing`) e ordinamento; ogni movimento riporta `transferId`, `transferIncomplete` (trasferimento senza il ramo di segno opposto) e `transferMissing` (Money transfers senza trasferimento) |
 | | `GET transaction/{id}`, `GET transaction/latest`, `GET transaction/month-options` | Dettaglio, ultimo movimento, mesi disponibili |

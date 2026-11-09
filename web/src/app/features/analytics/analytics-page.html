@@ -253,6 +253,40 @@
         />
         }
       </app-surface-card>
+      } @case ('planning') {
+      <app-surface-card
+        title="Pianificazioni"
+        [subtitle]="
+                  'Spesa prevista ed effettiva nei mesi pianificati · ' +
+                  periodLabel() +
+                  ' · sotto il mese la previsione è divisa in parti uguali sui giorni'
+                "
+        [hasAction]="true"
+      >
+        <app-chart-view-toggle card-action [(value)]="planView" />
+        @if (planLoading()) {
+        <span class="skeleton skeleton-rounded chart-skeleton"></span>
+        } @else {
+        @let p = planSummary();
+        @if (planPoints().length > 0) {
+        <div class="plan-summary">
+          <app-summary-figure label="Previsto" [value]="formatCurrency(p.planned)" />
+          <app-summary-figure
+            label="Speso"
+            [value]="formatCurrency(p.spent)"
+            [hint]="p.ratio === null ? '' : formatPercent(p.ratio) + ' del previsto'"
+          />
+          <app-summary-figure
+            label="Scostamento"
+            [value]="formatSignedCurrency(p.diff)"
+            [tone]="p.diff > 0 ? tokens().expense : tokens().income"
+            [hint]="p.diff > 0 ? 'oltre la previsione' : 'entro la previsione'"
+          />
+        </div>
+        }
+        <app-plan-vs-actual-chart [points]="planPoints()" [height]="300" [view]="planView()" />
+        }
+      </app-surface-card>
       } }
     </div>
     }

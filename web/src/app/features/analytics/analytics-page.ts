@@ -5,7 +5,9 @@ import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatIconModule } from "@angular/material/icon";
 import { MatInputModule } from "@angular/material/input";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
+import { BudgetApi } from "../../core/api/budget.api";
 import { TransactionApi } from "../../core/api/transaction.api";
+import { BudgetTotal } from "../../core/models/Budget";
 import { WIDTH_SPAN } from "../../core/config/analytics-cards";
 import { ROUTES } from "../../core/config/routes";
 import { drillDownParams } from "../../core/navigation/drill-down";
@@ -29,12 +31,14 @@ import { PeriodClick } from "../../shared/charts/chart-options";
 import { ChartView, ChartViewToggle } from "../../shared/charts/chart-parts";
 import { buildEntityColorMap } from "../../shared/charts/entityColors";
 import { LineSeries, NetWorthAreaChart } from "../../shared/charts/net-worth-area-chart";
+import { PlanVsActualChart } from "../../shared/charts/plan-vs-actual-chart";
 import { RankedBarList } from "../../shared/charts/ranked-bar-list";
 import { StackSeries, StackedPeriodBars } from "../../shared/charts/stacked-period-bars";
 import { EmptyState } from "../../shared/ui/empty-state";
 import { PageContainer } from "../../shared/ui/page-container";
 import { PageHeader } from "../../shared/ui/page-header";
 import { SurfaceCard } from "../../shared/ui/surface-card";
+import { planVsActual } from "./plan-vs-actual";
 
 type RangePreset = "3m" | "6m" | "12m" | "24m" | "ytd" | "custom";
 type Granularity = 1 | 2 | 3 | 4;
@@ -173,6 +177,7 @@ export class SummaryFigure {
     NetWorthAreaChart,
     StackedPeriodBars,
     RankedBarList,
+    PlanVsActualChart,
     ChartViewToggle,
     MatButtonModule,
     MatButtonToggleModule,
@@ -185,6 +190,7 @@ export class SummaryFigure {
 })
 export class AnalyticsPage {
   private readonly api = inject(TransactionApi);
+  private readonly budgetApi = inject(BudgetApi);
   private readonly accounts = inject(AccountsStore);
   private readonly categories = inject(CategoriesStore);
   private readonly transactions = inject(TransactionsStore);
@@ -236,12 +242,18 @@ export class AnalyticsPage {
     decode(CATEGORY_KIND_PARAMS, this.initial.get("classifica-categorie"), "spent"),
   );
 
+  protected readonly planView = signal<ChartView>(decode(VIEW_PARAMS, this.initial.get("pianificazioni"), "chart"));
+  private readonly planTotals = signal<BudgetTotal[] | null>(null);
+  private readonly planDailyFlow = signal<TimeSeriesList | null>(null);
+  protected readonly planLoading = signal(false);
+
   // le chiamate servono solo alle card visibili
   private readonly needsAccounts = computed(() => this.layout.isVisible("net-worth"));
   private readonly needsCategories = computed(
     () => this.layout.isVisible("category-periods") || this.layout.isVisible("category-rank"),
   );
   private readonly needsRank = computed(() => this.layout.isVisible("period-rank"));
+  private readonly needsPlanning = computed(() => this.layout.isVisible("planning"));
 
   protected readonly invalidRange = computed(() => this.range().start > this.range().end);
   // chiavi stabili: un nuovo array con gli stessi id (es. dopo una rinomina) non deve far ripartire le chiamate
@@ -276,6 +288,21 @@ export class AnalyticsPage {
         .sort((x, y) => y.value - x.value)
         .slice(0, RANK_SIZE)
     );
+  });
+
+  // previsione mensile divisa in parti uguali sui giorni: si aggrega per la granularità della pagina
+  protected readonly planPoints = computed(() => {
+    const { start, end } = this.range();
+    const plannedByMonth = new Map((this.planTotals() ?? []).map((t) => [t.month.slice(0, 7), t.planned]));
+    const spentByDay = new Map((this.planDailyFlow()?.series[0]?.values ?? []).map((v) => [v.period, v.spent]));
+    return planVsActual(start, end, this.granularity(), plannedByMonth, spentByDay);
+  });
+
+  protected readonly planSummary = computed(() => {
+    const points = this.planPoints();
+    const planned = points.reduce((s, p) => s + p.planned, 0);
+    const spent = points.reduce((s, p) => s + p.spent, 0);
+    return { planned, spent, diff: spent - planned, ratio: planned > 0 ? (spent / planned) * 100 : null };
   });
 
   protected readonly netWorth = computed(() =>
@@ -385,6 +412,14 @@ export class AnalyticsPage {
       untracked(() => void this.loadRank(start, end, granularity));
     });
 
+    // pianificazioni: totali previsti per mese e speso giornaliero, ripartiti poi sulla granularità della pagina
+    effect(() => {
+      const { start, end } = this.range();
+      this.transactions.dataVersion();
+      if (!this.needsPlanning() || this.invalidRange() || !start || !end) return;
+      untracked(() => void this.loadPlanning(start, end));
+    });
+
     // i cambi di filtro sostituiscono la voce di cronologia corrente; solo il drill-down ne aggiunge una
     effect(() => {
       const preset = this.preset();
@@ -401,6 +436,7 @@ export class AnalyticsPage {
         categorie: encode(CATEGORY_KIND_PARAMS, this.categoryKind(), "spent"),
         "categorie-vista": encode(VIEW_PARAMS, this.categoryView(), "chart"),
         "classifica-categorie": encode(CATEGORY_KIND_PARAMS, this.rankCategoryKind(), "spent"),
+        pianificazioni: encode(VIEW_PARAMS, this.planView(), "chart"),
       };
       untracked(() => void this.router.navigate([], { relativeTo: this.route, queryParams, replaceUrl: true }));
     });
@@ -474,6 +510,30 @@ export class AnalyticsPage {
       // errore già mostrato dal layer API
     } finally {
       this.rankLoading.set(false);
+    }
+  }
+
+  private async loadPlanning(start: string, end: string) {
+    this.planLoading.set(true);
+    try {
+      const [totals, daily] = await Promise.all([
+        this.budgetApi.getTotals(start, end),
+        // stessa base dello speso della pianificazione: uscite senza trasferimenti
+        this.api.getTimeSeries({
+          startDate: toIsoDateStart(start),
+          endDate: toIsoDateEnd(end),
+          granularity: 1,
+          idAccounts: [],
+          idCategories: [],
+          excludeTransfers: true,
+        }),
+      ]);
+      this.planTotals.set(totals);
+      this.planDailyFlow.set(daily);
+    } catch {
+      // errore già mostrato dal layer API
+    } finally {
+      this.planLoading.set(false);
     }
   }
 
