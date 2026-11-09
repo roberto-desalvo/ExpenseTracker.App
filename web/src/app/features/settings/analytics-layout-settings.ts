@@ -67,6 +67,8 @@ export class AnalyticsLayoutSettings {
   /** ultima posizione del puntatore (coordinate viewport), letta dal predicato di riordino */
   private pointer = { x: 0, y: 0 };
 
+  private readonly document = inject(DOCUMENT);
+
   constructor() {
     this.store.ensureLoaded();
     // stessi eventi del CDK, in cattura sul document e registrati prima dei suoi: la posizione è già aggiornata quando valuta il riordino
@@ -74,27 +76,37 @@ export class AnalyticsLayoutSettings {
       const point = "touches" in e ? e.touches[0] : e;
       if (point) this.pointer = { x: point.clientX, y: point.clientY };
     };
-    const document = inject(DOCUMENT);
     const events = ["mousemove", "touchmove"] as const;
-    events.forEach((type) => document.addEventListener(type, track, { capture: true, passive: true }));
+    events.forEach((type) => this.document.addEventListener(type, track, { capture: true, passive: true }));
     inject(DestroyRef).onDestroy(() =>
-      events.forEach((type) => document.removeEventListener(type, track, { capture: true })),
+      events.forEach((type) => this.document.removeEventListener(type, track, { capture: true })),
     );
   }
 
   /** Riordino nello scheletro: la card sotto il puntatore cede il posto solo oltre la sua metà (vedi `shouldSwap`). */
-  protected readonly sortPredicate = (index: number, drag: CdkDrag, drop: CdkDropList): boolean => {
-    const items = drop.getSortedItems();
-    const current = items.indexOf(drag);
-    const target = items[index];
-    if (current === -1 || !target) return true; // card in arrivo dall'elenco delle nascoste
-    return shouldSwap(
-      this.pointer,
-      target.element.nativeElement.getBoundingClientRect(),
-      drag.getPlaceholderElement().getBoundingClientRect(),
-      index > current,
-    );
+  // Lavora sul DOM e non sugli indici: per una card in arrivo dall'altra lista l'indice del CDK non corrisponde
+  // a `getSortedItems()`, che contiene solo le card proprie. Con l'orientamento `mixed` il CDK sposta davvero
+  // il segnaposto nel DOM, quindi l'ordine segnaposto/card dà la direzione dello spostamento.
+  protected readonly sortPredicate = (_index: number, drag: CdkDrag, drop: CdkDropList): boolean => {
+    const container = drop.element.nativeElement;
+    const placeholder = drag.getPlaceholderElement();
+    if (placeholder.parentElement !== container) return true; // ingresso dall'altra lista: decide il CDK
+    const hit = this.document.elementFromPoint(this.pointer.x, this.pointer.y);
+    const target = hit && Array.from(container.children).find((c) => c !== placeholder && c.contains(hit));
+    if (!target) return true;
+    const forward = Boolean(placeholder.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING);
+    return shouldSwap(this.pointer, target.getBoundingClientRect(), placeholder.getBoundingClientRect(), forward);
   };
+
+  /**
+   * Durante il trascinamento il CDK misura le liste collegate una volta sola, all'inizio, e le rimisura solo a uno
+   * scroll: se la griglia cambia altezza (il segnaposto cambia riga), l'elenco delle nascoste sotto di lei si sposta
+   * ma resta "ricevibile" nella vecchia posizione e non accetta più la card. Uno scroll sintetico sul document (non
+   * risale a window, quindi non tocca overlay & co.) gliela fa rimisurare; per la lista che sta trascinando è un no-op.
+   */
+  protected refreshDropZones() {
+    this.document.dispatchEvent(new Event("scroll"));
+  }
 
   protected cardOf(id: AnalyticsCardId): AnalyticsCardDefinition {
     return CARD_BY_ID.get(id)!;

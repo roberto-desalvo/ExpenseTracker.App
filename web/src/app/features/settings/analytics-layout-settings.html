@@ -15,6 +15,8 @@
         [cdkDropListData]="draft()"
         [cdkDropListSortPredicate]="sortPredicate"
         (cdkDropListDropped)="drop($event)"
+        (cdkDropListSorted)="refreshDropZones()"
+        (cdkDropListEntered)="refreshDropZones()"
         aria-label="Card visibili nella pagina Analisi"
       >
         @for (card of draft(); track card.id) { @let def = cardOf(card.id);
@@ -90,6 +92,8 @@
       cdkDropListOrientation="mixed"
       [cdkDropListData]="hidden()"
       (cdkDropListDropped)="drop($event)"
+      (cdkDropListSorted)="refreshDropZones()"
+      (cdkDropListEntered)="refreshDropZones()"
       aria-label="Card nascoste"
     >
       @for (def of hidden(); track def.id) {
