@@ -136,3 +136,10 @@
 .metric {
   margin-bottom: 16px;
 }
+
+.plan-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}

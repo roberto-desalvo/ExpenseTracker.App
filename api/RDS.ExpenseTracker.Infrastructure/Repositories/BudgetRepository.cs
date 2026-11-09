@@ -21,6 +21,15 @@ public class BudgetRepository : RepositoryBase, IBudgetRepository
             .Where(b => b.Month == monthStart)
             .ToListAsync();
 
+    public async Task<IEnumerable<(DateTime Month, decimal Planned)>> GetPlannedTotals(DateTime firstMonth, DateTime lastMonth, int userId)
+        => await ForUser(userId)
+            .AsNoTracking()
+            .Where(b => b.Month >= firstMonth && b.Month <= lastMonth)
+            .GroupBy(b => b.Month)
+            .OrderBy(group => group.Key)
+            .Select(group => ValueTuple.Create(group.Key, group.Sum(b => b.Amount)))
+            .ToListAsync();
+
     public async Task ReplaceMonthBudgets(DateTime monthStart, IEnumerable<CategoryBudget> budgets, int userId)
     {
         var existing = await ForUser(userId)

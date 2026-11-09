@@ -87,6 +87,17 @@ public class BudgetService : IBudgetService
         return Result.Ok(dto);
     }
 
+    public async Task<Result<List<BudgetTotalDto>>> GetTotals(DateTime startDate, DateTime endDate, int userId)
+    {
+        if (startDate > endDate)
+            return Result.Fail(DomainErrors.BadRequest("EndDate must be greater than StartDate"));
+
+        var totals = await _repository.GetPlannedTotals(StartOfMonth(startDate), StartOfMonth(endDate), userId);
+        return Result.Ok(totals
+            .Select(t => new BudgetTotalDto { Month = t.Month, Planned = t.Planned })
+            .ToList());
+    }
+
     public async Task<Result> SaveMonth(BudgetMonthUpdateRequest request, int userId)
     {
         if (request is null)

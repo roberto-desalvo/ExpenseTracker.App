@@ -28,6 +28,18 @@ public class BudgetFunctions : FunctionBase
         return await ExecuteAsync(() => _service.GetMonth(month, userId));
     }
 
+    [Function("Budget_GetTotals")]
+    public async Task<IActionResult> GetTotals(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "budget/totals")] HttpRequest req)
+    {
+        var startDate = GetQueryDate(req, "startDate")
+            ?? throw new BadRequestDomainException("Query parameter 'startDate' is required.");
+        var endDate = GetQueryDate(req, "endDate")
+            ?? throw new BadRequestDomainException("Query parameter 'endDate' is required.");
+        var userId = await _currentUserAccessor.GetUserIdAsync();
+        return await ExecuteAsync(() => _service.GetTotals(startDate, endDate, userId));
+    }
+
     [Function("Budget_Put")]
     public async Task<IActionResult> Put(
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "budget")] HttpRequest req)

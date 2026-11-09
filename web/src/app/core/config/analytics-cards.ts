@@ -1,7 +1,7 @@
 import { AnalyticsCardLayout, AnalyticsLayout, CardWidth } from "../models/AnalyticsLayout";
 
 export type AnalyticsCardId =
-  "summary" | "cash-flow" | "net-worth" | "period-rank" | "category-periods" | "category-rank";
+  "summary" | "cash-flow" | "net-worth" | "period-rank" | "category-periods" | "category-rank" | "planning";
 
 /** Verticali (liste, classifiche): 1/3 o 1/2. Orizzontali (grafici per periodo): 1/2, 2/3 o intera. */
 export type CardOrientation = "vertical" | "horizontal";
@@ -83,6 +83,14 @@ export const ANALYTICS_CARDS: readonly AnalyticsCardDefinition[] = [
     icon: "format_list_numbered",
     orientation: "vertical",
     defaultWidth: "third",
+  },
+  {
+    id: "planning",
+    title: "Pianificazioni",
+    description: "Spesa prevista ed effettiva per periodo e scostamento dalla previsione",
+    icon: "event_note",
+    orientation: "horizontal",
+    defaultWidth: "full",
   },
 ];
 
