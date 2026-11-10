@@ -18,7 +18,7 @@ public static class OneDriveImportPathResolver
         ["Excel"] = BankFileSource.Excel,
     };
 
-    /// <summary>Sottocartelle delle banche create al collegamento di OneDrive.</summary>
+    /// <summary>Sottocartelle delle banche create nella cartella dell'app al collegamento di OneDrive.</summary>
     public static readonly IReadOnlyList<string> DefaultBankFolders = ["BBVA", "Sella", "Satispay", "Trade_Republic"];
 
     /// <summary>

@@ -11,13 +11,14 @@ using System.Text.Json.Serialization;
 namespace RDS.ExpenseTracker.Functions.Functions;
 
 /// <summary>
-/// Import automatico dei file caricati nella cartella OneDrive collegata da ogni utente
-/// (<c>/Transazioni/&lt;Banca&gt;/file</c>):
+/// Import automatico dei file caricati nella cartella dell'app del OneDrive collegato da ogni utente
+/// (<c>Apps/&lt;app&gt;/&lt;Banca&gt;/file</c>):
 /// <list type="number">
 ///   <item>Microsoft Graph notifica una modifica nella cartella a <c>OneDrive_Notifications</c>;</item>
-///   <item>per ogni utente notificato viene accodato un messaggio e <c>OneDrive_Sync</c> legge la sua delta query,
-///         importa i nuovi file e li sposta in <c>Importati</c> / <c>Errori</c>;</item>
-///   <item><c>OneDrive_SubscriptionRenewal</c> crea o rinnova ogni giorno le subscription Graph (durano ~29 giorni).</item>
+///   <item>per ogni utente notificato viene accodato un messaggio e <c>OneDrive_Sync</c> importa i file presenti
+///         nelle sue cartelle banca e li sposta in <c>Importati</c> / <c>Errori</c>;</item>
+///   <item><c>OneDrive_SubscriptionRenewal</c> crea o rinnova ogni giorno le subscription Graph (durano ~29 giorni)
+///         e accoda una sincronizzazione per gli utenti rimasti senza subscription.</item>
 /// </list>
 /// Il collegamento è gestito da <see cref="OneDriveConnectionFunctions"/>.
 /// Con <c>OneDriveImport:Enabled = false</c> le function non fanno nulla.
@@ -84,7 +85,7 @@ public class OneDriveImportFunctions
 
         _logger.LogInformation("OneDrive change notification received for user(s) {UserIds}: sync queued", string.Join(", ", userIds));
 
-        // Un solo messaggio per utente: la delta query raccoglie comunque tutte le modifiche.
+        // Un solo messaggio per utente: la sincronizzazione elabora comunque tutti i file presenti.
         return new OneDriveNotificationOutput
         {
             HttpResponse = new AcceptedResult(),
@@ -93,7 +94,7 @@ public class OneDriveImportFunctions
     }
 
     /// <summary>
-    /// Importa i file caricati dall'utente dopo la sua ultima sincronizzazione. Se un'altra sincronizzazione dello
+    /// Importa i file presenti nelle cartelle banca dell'utente. Se un'altra sincronizzazione dello
     /// stesso utente è in corso solleva un'eccezione: il messaggio torna visibile dopo il <c>visibilityTimeout</c>
     /// di host.json e viene ritentato.
     /// </summary>
@@ -115,20 +116,25 @@ public class OneDriveImportFunctions
 
     /// <summary>
     /// Per ogni collegamento attivo crea la subscription Graph se manca o la rinnova se scade entro 5 giorni.
+    /// Gli utenti rimasti senza subscription non ricevono notifiche: per loro viene accodata una sincronizzazione.
     /// </summary>
     [Function("OneDrive_SubscriptionRenewal")]
-    public async Task SubscriptionRenewal(
+    [QueueOutput(SyncQueueName)]
+    public async Task<string[]> SubscriptionRenewal(
         [TimerTrigger("%" + RenewalScheduleSetting + "%", RunOnStartup = false, UseMonitor = true)] TimerInfo timer,
         CancellationToken cancellationToken)
     {
         if (!_options.Enabled)
         {
             _logger.LogInformation("OneDrive import disabled: subscription renewal skipped");
-            return;
+            return [];
         }
 
         var summary = await _oneDriveImportService.RenewSubscriptionsAsync(cancellationToken);
-        _logger.LogInformation("OneDrive subscription renewal: {@Summary}", summary);
+        _logger.LogInformation(
+            "OneDrive subscription renewal: {Connections} connections, {Created} created, {Renewed} renewed, {Failed} failed, {WithoutSubscription} synced without subscription",
+            summary.Connections, summary.Created, summary.Renewed, summary.Failed, summary.UsersWithoutSubscription.Count);
+        return [.. summary.UsersWithoutSubscription.Select(SyncMessageFor)];
     }
 
     public static string SyncMessageFor(int userId) => JsonSerializer.Serialize(new OneDriveSyncMessage(userId));

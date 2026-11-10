@@ -107,17 +107,15 @@ public class OneDriveConnectionService : IOneDriveConnectionService
         // Nuova autorizzazione (anche di un altro account Microsoft): la subscription precedente non serve più.
         await DeleteSubscriptionAsync(connection, cancellationToken);
 
-        string folderId;
+        OneDriveAppFolder folder;
         string? driveOwner;
-        OneDriveDeltaResult baseline;
         try
         {
-            folderId = await _oneDriveClient.EnsureChildFolderAsync(userId, IOneDriveClient.RootFolderId, _options.FolderName, cancellationToken);
+            // OneDrive crea la cartella dell'app al primo accesso.
+            folder = await _oneDriveClient.GetAppFolderAsync(userId, cancellationToken);
             foreach (var bankFolder in OneDriveImportPathResolver.DefaultBankFolders)
-                await _oneDriveClient.EnsureChildFolderAsync(userId, folderId, bankFolder, cancellationToken);
+                await _oneDriveClient.EnsureChildFolderAsync(userId, folder.Id, bankFolder, cancellationToken);
 
-            // Solo i file caricati da ora in poi vengono importati.
-            baseline = await _oneDriveClient.GetDeltaAsync(userId, folderId, deltaLink: null, cancellationToken);
             driveOwner = await _oneDriveClient.GetDriveOwnerAsync(userId, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -132,9 +130,9 @@ public class OneDriveConnectionService : IOneDriveConnectionService
         ClearDeviceCode(connection);
         connection.Status = OneDriveConnectionStatus.Connected;
         connection.DriveOwner = Truncate(driveOwner, 256);
-        connection.FolderId = folderId;
+        connection.FolderId = folder.Id;
+        connection.FolderPath = Truncate(folder.Path, 400);
         connection.ClientState = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
-        connection.DeltaLink = baseline.DeltaLink;
         connection.SubscriptionId = null;
         connection.SubscriptionExpiresAt = null;
         connection.LockedUntil = null;
@@ -143,7 +141,7 @@ public class OneDriveConnectionService : IOneDriveConnectionService
         connection.LastError = null;
         await _connectionRepository.SaveAsync(connection, cancellationToken);
 
-        _logger.LogInformation("OneDrive of user {UserId} connected (folder {FolderId})", userId, folderId);
+        _logger.LogInformation("OneDrive of user {UserId} connected (folder {FolderPath})", userId, folder.Path);
 
         await TryCreateSubscriptionAsync(connection, cancellationToken);
         return ToDto(connection);
@@ -241,7 +239,7 @@ public class OneDriveConnectionService : IOneDriveConnectionService
             _logger.LogError(ex, "OneDrive subscription of user {UserId} not created", connection.UserId);
         }
 
-        // Il collegamento resta attivo: il timer giornaliero ritenta la creazione della subscription.
+        // Il collegamento resta attivo: il timer giornaliero ritenta la subscription e intanto sincronizza la cartella.
         connection.LastError = OneDriveImportService.SubscriptionFailedMessage;
         await _connectionRepository.UpdateStatusAsync(connection.Id, connection.Status, connection.LastError, cancellationToken);
     }
@@ -278,7 +276,6 @@ public class OneDriveConnectionService : IOneDriveConnectionService
         {
             Available = Available,
             Status = connection?.Status ?? OneDriveConnectionStatus.NotConnected,
-            FolderName = _options.FolderName,
             BankFolders = OneDriveImportPathResolver.DefaultBankFolders,
         };
 
@@ -300,6 +297,7 @@ public class OneDriveConnectionService : IOneDriveConnectionService
 
         if (connection.Status != OneDriveConnectionStatus.Pending)
         {
+            dto.FolderPath = connection.FolderPath;
             dto.DriveOwner = connection.DriveOwner;
             dto.ConnectedOn = AsUtc(connection.ConnectedOn);
             dto.LastSyncOn = AsUtc(connection.LastSyncOn);

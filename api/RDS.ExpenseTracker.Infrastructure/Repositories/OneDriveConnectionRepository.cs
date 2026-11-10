@@ -55,12 +55,10 @@ public class OneDriveConnectionRepository : RepositoryBase, IOneDriveConnectionR
             .Where(c => c.Id == connectionId)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.LockedUntil, (DateTime?)null), cancellationToken);
 
-    public Task UpdateDeltaLinkAsync(int connectionId, string deltaLink, DateTime syncedOn, CancellationToken cancellationToken = default)
+    public Task UpdateLastSyncAsync(int connectionId, DateTime syncedOn, CancellationToken cancellationToken = default)
         => Context.OneDriveConnections
             .Where(c => c.Id == connectionId)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(x => x.DeltaLink, deltaLink)
-                .SetProperty(x => x.LastSyncOn, syncedOn), cancellationToken);
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.LastSyncOn, syncedOn), cancellationToken);
 
     public Task UpdateSubscriptionAsync(int connectionId, string subscriptionId, DateTime expiresAt, CancellationToken cancellationToken = default)
         => Context.OneDriveConnections

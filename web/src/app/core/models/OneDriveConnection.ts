@@ -5,8 +5,8 @@ export interface OneDriveConnection {
   /** false se l'import da OneDrive non è configurato in questo ambiente */
   available: boolean;
   status: OneDriveConnectionStatus;
-  /** cartella nella radice del drive e sottocartelle delle banche in cui salvare gli estratti conto */
-  folderName: string;
+  /** cartella dell'app nel drive (nota dopo il collegamento) e sottocartelle delle banche in cui salvare gli estratti conto */
+  folderPath?: string | null;
   bankFolders: string[];
   /** accesso in corso: codice da inserire sulla pagina Microsoft */
   userCode?: string | null;

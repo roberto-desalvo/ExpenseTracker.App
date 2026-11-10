@@ -5,14 +5,14 @@ using RDS.ExpenseTracker.Domain.Entities;
 namespace RDS.ExpenseTracker.Domain.Services;
 
 /// <summary>
-/// Import automatico dei file caricati nella cartella OneDrive collegata da ogni utente
-/// (<c>/&lt;Cartella&gt;/&lt;Banca&gt;/file</c>), guidato dalle change notifications di Microsoft Graph.
+/// Import automatico dei file caricati nella cartella dell'app del OneDrive collegato da ogni utente
+/// (<c>Apps/&lt;app&gt;/&lt;Banca&gt;/file</c>), guidato dalle change notifications di Microsoft Graph.
 /// </summary>
 public interface IOneDriveImportService : IService
 {
     /// <summary>
-    /// Legge le modifiche dalla delta query dell'utente, importa i nuovi file delle cartelle banca e li sposta in
-    /// <c>Importati</c> o <c>Errori</c>. Senza un collegamento attivo non fa nulla.
+    /// Importa i file presenti nelle cartelle banca dell'utente e li sposta in <c>Importati</c> o <c>Errori</c>
+    /// (un file resta nella cartella della banca solo finché non è stato elaborato). Senza un collegamento attivo non fa nulla.
     /// </summary>
     /// <returns>Fallisce se un'altra sincronizzazione dello stesso utente è in corso (da ritentare).</returns>
     Task<Result<OneDriveSyncSummary>> SyncAsync(int userId, CancellationToken cancellationToken = default);
@@ -24,6 +24,7 @@ public interface IOneDriveImportService : IService
 
     /// <summary>
     /// Esegue <see cref="EnsureSubscriptionAsync"/> per tutti i collegamenti attivi; l'errore di uno non blocca gli altri.
+    /// Restituisce anche gli utenti rimasti senza subscription, da sincronizzare a parte (non ricevono notifiche).
     /// </summary>
     Task<OneDriveRenewalSummary> RenewSubscriptionsAsync(CancellationToken cancellationToken = default);
 
@@ -37,11 +38,11 @@ public interface IOneDriveImportService : IService
 
 public sealed record OneDriveNotification(string? SubscriptionId, string? ClientState);
 
-public sealed record OneDriveSyncSummary(bool BaselineCreated, int ImportedFiles, int FailedFiles, int IgnoredItems);
+public sealed record OneDriveSyncSummary(int ImportedFiles, int FailedFiles);
 
 public sealed record OneDriveSubscriptionStatus(string SubscriptionId, DateTimeOffset ExpiresAt, string Action);
 
-public sealed record OneDriveRenewalSummary(int Connections, int Created, int Renewed, int Failed);
+public sealed record OneDriveRenewalSummary(int Connections, int Created, int Renewed, int Failed, IReadOnlyList<int> UsersWithoutSubscription);
 
 public static class OneDriveErrors
 {

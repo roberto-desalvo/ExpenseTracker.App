@@ -8,8 +8,8 @@ using System.Text.Json.Serialization;
 namespace RDS.ExpenseTracker.Infrastructure.OneDrive;
 
 /// <summary>
-/// Client Microsoft Graph (REST v1.0) per il OneDrive personale di un utente, con il suo token delegato
-/// fornito da <see cref="IOneDriveTokenService"/>. Usa solo le poche chiamate necessarie all'import.
+/// Client Microsoft Graph (REST v1.0) per la cartella dell'app nel OneDrive personale di un utente, con il suo
+/// token delegato fornito da <see cref="IOneDriveTokenService"/>. Usa solo le poche chiamate necessarie all'import.
 /// </summary>
 public sealed class GraphOneDriveClient : IOneDriveClient
 {
@@ -25,55 +25,47 @@ public sealed class GraphOneDriveClient : IOneDriveClient
         _httpClient.BaseAddress ??= new Uri(GraphBaseUrl);
     }
 
-    public async Task<string?> GetDriveOwnerAsync(int userId, CancellationToken cancellationToken = default)
+    public async Task<OneDriveAppFolder> GetAppFolderAsync(int userId, CancellationToken cancellationToken = default)
     {
-        var drive = await SendForJsonAsync<DriveDto>(userId, HttpMethod.Get, "me/drive?$select=id,owner", body: null, cancellationToken);
-        return drive.Owner?.User?.DisplayName;
+        var folder = await SendForJsonAsync<DriveItemDto>(
+            userId, HttpMethod.Get, "me/drive/special/approot?$select=id,name,parentReference", body: null, cancellationToken);
+
+        // parentReference.path: "/drive/root:/Apps" → "Apps/<nome>"
+        var parentPath = folder.ParentReference?.Path ?? string.Empty;
+        var separator = parentPath.IndexOf(':');
+        var relativeParent = separator >= 0 ? Uri.UnescapeDataString(parentPath[(separator + 1)..]).Trim('/') : string.Empty;
+        var path = string.IsNullOrEmpty(relativeParent) ? folder.Name ?? string.Empty : $"{relativeParent}/{folder.Name}";
+
+        return new OneDriveAppFolder(folder.Id, path);
     }
 
-    public async Task<IReadOnlyList<OneDriveItem>> GetChildFoldersAsync(int userId, string folderId, CancellationToken cancellationToken = default)
+    public async Task<string?> GetDriveOwnerAsync(int userId, CancellationToken cancellationToken = default)
     {
-        var folders = new List<OneDriveItem>();
+        try
+        {
+            var drive = await SendForJsonAsync<DriveDto>(userId, HttpMethod.Get, "me/drive?$select=id,owner", body: null, cancellationToken);
+            return drive.Owner?.User?.DisplayName;
+        }
+        catch (HttpRequestException)
+        {
+            // Solo informativo: con il permesso limitato alla cartella dell'app Graph può negare i dati del drive.
+            return null;
+        }
+    }
+
+    public async Task<IReadOnlyList<OneDriveItem>> GetChildrenAsync(int userId, string folderId, CancellationToken cancellationToken = default)
+    {
+        var items = new List<OneDriveItem>();
         string? url = $"me/drive/items/{Uri.EscapeDataString(folderId)}/children?$select=id,name,folder,file,parentReference&$top=200";
 
         while (url is not null)
         {
             var page = await SendForJsonAsync<DriveItemPage>(userId, HttpMethod.Get, url, body: null, cancellationToken);
-            folders.AddRange(page.Value.Select(ToModel).Where(i => i.IsFolder));
+            items.AddRange(page.Value.Select(ToModel));
             url = page.NextLink;
         }
 
-        return folders;
-    }
-
-    public async Task<OneDriveDeltaResult> GetDeltaAsync(int userId, string folderId, string? deltaLink, CancellationToken cancellationToken = default)
-    {
-        var items = new List<OneDriveItem>();
-        string? url = deltaLink ?? $"me/drive/items/{Uri.EscapeDataString(folderId)}/delta?token=latest";
-
-        while (true)
-        {
-            using var request = await CreateRequestAsync(userId, HttpMethod.Get, url!, body: null, cancellationToken);
-            using var response = await _httpClient.SendAsync(request, cancellationToken);
-
-            if (response.StatusCode == HttpStatusCode.Gone)
-                throw new OneDriveDeltaExpiredException("The OneDrive delta link has expired (410 Gone): a resync is required.");
-
-            await EnsureSuccessAsync(response, cancellationToken);
-            var page = await response.Content.ReadFromJsonAsync<DriveItemPage>(cancellationToken)
-                ?? throw new InvalidOperationException("Empty delta response from Microsoft Graph.");
-
-            items.AddRange(page.Value.Select(ToModel));
-
-            if (page.NextLink is not null)
-            {
-                url = page.NextLink;
-                continue;
-            }
-
-            return new OneDriveDeltaResult(items,
-                page.DeltaLink ?? throw new InvalidOperationException("Delta response without @odata.deltaLink."));
-        }
+        return items;
     }
 
     public async Task<Stream> DownloadAsync(int userId, string itemId, CancellationToken cancellationToken = default)
@@ -220,23 +212,22 @@ public sealed class GraphOneDriveClient : IOneDriveClient
         dto.Name ?? string.Empty,
         dto.ParentReference?.Id,
         IsFile: dto.File is not null,
-        IsFolder: dto.Folder is not null,
-        IsDeleted: dto.Deleted is not null);
+        IsFolder: dto.Folder is not null);
 
     private sealed record DriveItemPage(
         [property: JsonPropertyName("value")] List<DriveItemDto> Value,
-        [property: JsonPropertyName("@odata.nextLink")] string? NextLink,
-        [property: JsonPropertyName("@odata.deltaLink")] string? DeltaLink);
+        [property: JsonPropertyName("@odata.nextLink")] string? NextLink);
 
     private sealed record DriveItemDto(
         [property: JsonPropertyName("id")] string Id,
         [property: JsonPropertyName("name")] string? Name,
         [property: JsonPropertyName("parentReference")] ItemReferenceDto? ParentReference,
         [property: JsonPropertyName("file")] object? File,
-        [property: JsonPropertyName("folder")] object? Folder,
-        [property: JsonPropertyName("deleted")] object? Deleted);
+        [property: JsonPropertyName("folder")] object? Folder);
 
-    private sealed record ItemReferenceDto([property: JsonPropertyName("id")] string? Id);
+    private sealed record ItemReferenceDto(
+        [property: JsonPropertyName("id")] string? Id,
+        [property: JsonPropertyName("path")] string? Path);
 
     private sealed record DriveDto([property: JsonPropertyName("owner")] IdentitySetDto? Owner);
 

@@ -13,7 +13,7 @@ public class OneDriveImportServiceTests
 {
     private const int UserId = 7;
     private const int AdminId = 8;
-    private const string FolderId = "transazioni";
+    private const string FolderId = AppFolderId;
     private const string BbvaFolderId = "bbva";
     private const string SatispayFolderId = "satispay";
     private const string ExcelFolderId = "excel";
@@ -29,7 +29,7 @@ public class OneDriveImportServiceTests
 
     public OneDriveImportServiceTests()
     {
-        _client.ChildFolders.AddRange([
+        _client.Items.AddRange([
             Folder(BbvaFolderId, "BBVA", FolderId),
             Folder(SatispayFolderId, "Satispay", FolderId),
             Folder(ExcelFolderId, "Excel", FolderId),
@@ -40,61 +40,57 @@ public class OneDriveImportServiceTests
         _connection = _connections.Add(Connected(UserId));
     }
 
-    private static OneDriveConnection Connected(int userId, string? deltaLink = "delta-0") => new()
+    private static OneDriveConnection Connected(int userId) => new()
     {
         UserId = userId,
         Status = OneDriveConnectionStatus.Connected,
         FolderId = FolderId,
         ClientState = ClientState,
-        DeltaLink = deltaLink,
     };
 
     private OneDriveImportService CreateService() => new(
         _client, _connections, _users, _importer, _options, NullLogger<OneDriveImportService>.Instance);
 
     [Fact]
-    public async Task SyncAsync_CreatesBaselineWithoutImporting_WhenThereIsNoDeltaLink()
-    {
-        _connection.DeltaLink = null;
-        _client.DeltaItems.Add(File("f1", "old.csv", BbvaFolderId));
-
-        var result = await CreateService().SyncAsync(UserId);
-
-        result.Value.BaselineCreated.Should().BeTrue();
-        _client.DeltaRequests.Should().ContainSingle().Which.Should().BeNull("the baseline uses token=latest");
-        _connection.DeltaLink.Should().Be("delta-1");
-        _importer.Calls.Should().BeEmpty();
-        _connections.ReleasedLocks.Should().Equal(_connection.Id);
-    }
-
-    [Fact]
     public async Task SyncAsync_ImportsNewBankFilesOfTheUser_AndMovesThemToImportedFolder()
     {
-        _client.DeltaItems.AddRange([
+        _client.Items.AddRange([
             File("f1", "estratto.csv", BbvaFolderId),
             File("f2", "satispay.xlsx", SatispayFolderId),
         ]);
 
         var result = await CreateService().SyncAsync(UserId);
 
-        result.Value.Should().Be(new OneDriveSyncSummary(false, ImportedFiles: 2, FailedFiles: 0, IgnoredItems: 0));
+        result.Value.Should().Be(new OneDriveSyncSummary(ImportedFiles: 2, FailedFiles: 0));
         _importer.Calls.Should().Equal(
             (BankFileSource.Bbva, BankFileFormat.Csv, "estratto.csv", UserId, "BBVA CSV (OneDrive)"),
             (BankFileSource.SatisPay, BankFileFormat.Xlsx, "satispay.xlsx", UserId, "Satispay XLSX (OneDrive)"));
         _client.Moves.Should().Equal(("f1", $"{BbvaFolderId}/Importati"), ("f2", $"{SatispayFolderId}/Importati"));
         _client.UserIds.Should().OnlyContain(id => id == UserId, "Graph is always called with the token of the connection owner");
-        _connection.DeltaLink.Should().Be("delta-1");
         _connection.LastSyncOn.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task SyncAsync_DoesNotImportAgain_FilesAlreadyMovedOutOfTheBankFolder()
+    {
+        _client.Items.Add(File("f1", "estratto.csv", BbvaFolderId));
+        var service = CreateService();
+        await service.SyncAsync(UserId);
+
+        var second = await service.SyncAsync(UserId);
+
+        second.Value.Should().Be(new OneDriveSyncSummary(0, 0));
+        _importer.Calls.Should().ContainSingle();
     }
 
     [Fact]
     public async Task SyncAsync_IgnoresTheLegacyExcelFolder_ForNonAdminUsers()
     {
-        _client.DeltaItems.Add(File("f1", "Spese.xlsx", ExcelFolderId));
+        _client.Items.Add(File("f1", "Spese.xlsx", ExcelFolderId));
 
         var result = await CreateService().SyncAsync(UserId);
 
-        result.Value.Should().Be(new OneDriveSyncSummary(false, 0, 0, IgnoredItems: 1));
+        result.Value.Should().Be(new OneDriveSyncSummary(0, 0));
         _importer.Calls.Should().BeEmpty();
         _client.Moves.Should().BeEmpty();
     }
@@ -103,7 +99,7 @@ public class OneDriveImportServiceTests
     public async Task SyncAsync_ImportsTheLegacyExcelFolder_ForAdminUsers()
     {
         _connections.Add(Connected(AdminId));
-        _client.DeltaItems.Add(File("f1", "Spese.xlsx", ExcelFolderId));
+        _client.Items.Add(File("f1", "Spese.xlsx", ExcelFolderId));
 
         var result = await CreateService().SyncAsync(AdminId);
 
@@ -115,7 +111,7 @@ public class OneDriveImportServiceTests
     [Fact]
     public async Task SyncAsync_MovesFailedImportsToErrorFolder()
     {
-        _client.DeltaItems.AddRange([File("f1", "bad.csv", BbvaFolderId), File("f2", "boom.csv", BbvaFolderId)]);
+        _client.Items.AddRange([File("f1", "bad.csv", BbvaFolderId), File("f2", "boom.csv", BbvaFolderId)]);
         _importer.Results["bad.csv"] = Result.Fail("Invalid header");
         _importer.Throws["boom.csv"] = new InvalidOperationException("boom");
 
@@ -129,7 +125,7 @@ public class OneDriveImportServiceTests
     [Fact]
     public async Task SyncAsync_MovesUnsupportedFilesToErrorFolder_WithoutImporting()
     {
-        _client.DeltaItems.Add(File("f1", "estratto.pdf", BbvaFolderId));
+        _client.Items.Add(File("f1", "estratto.pdf", BbvaFolderId));
 
         var result = await CreateService().SyncAsync(UserId);
 
@@ -139,22 +135,20 @@ public class OneDriveImportServiceTests
     }
 
     [Fact]
-    public async Task SyncAsync_IgnoresFoldersDeletedItemsAndFilesOutsideBankFolders()
+    public async Task SyncAsync_IgnoresFilesOutsideBankFolders()
     {
-        _client.DeltaItems.AddRange([
-            Folder(BbvaFolderId, "BBVA", FolderId),
+        _client.Items.AddRange([
             File("f1", "root.csv", FolderId),
             File("f2", "other.csv", OtherFolderId),
+            Folder("bbva-importati", "Importati", BbvaFolderId),
             File("f3", "already.csv", "bbva-importati"),
-            File("f4", "deleted.csv", BbvaFolderId) with { IsDeleted = true },
         ]);
 
         var result = await CreateService().SyncAsync(UserId);
 
-        result.Value.Should().Be(new OneDriveSyncSummary(false, 0, 0, IgnoredItems: 5));
+        result.Value.Should().Be(new OneDriveSyncSummary(0, 0));
         _importer.Calls.Should().BeEmpty();
         _client.Moves.Should().BeEmpty();
-        _connection.DeltaLink.Should().Be("delta-1");
     }
 
     [Fact]
@@ -166,7 +160,7 @@ public class OneDriveImportServiceTests
 
         result.IsFailed.Should().BeTrue();
         result.Errors.Should().ContainSingle().Which.Message.Should().Contain("in progress");
-        _client.DeltaRequests.Should().BeEmpty();
+        _client.UserIds.Should().BeEmpty();
         _connections.ReleasedLocks.Should().BeEmpty();
     }
 
@@ -179,7 +173,7 @@ public class OneDriveImportServiceTests
 
         var result = await CreateService().SyncAsync(UserId);
 
-        result.Value.Should().Be(new OneDriveSyncSummary(false, 0, 0, 0));
+        result.Value.Should().Be(new OneDriveSyncSummary(0, 0));
         _client.UserIds.Should().BeEmpty();
     }
 
@@ -202,29 +196,18 @@ public class OneDriveImportServiceTests
         result.IsSuccess.Should().BeTrue("the message must not be retried");
         _connection.Status.Should().Be(OneDriveConnectionStatus.ReconnectRequired);
         _connection.LastError.Should().Be(OneDriveImportService.ReconnectMessage);
-        _connection.DeltaLink.Should().Be("delta-0");
+        _connection.LastSyncOn.Should().BeNull();
         _connections.ReleasedLocks.Should().Equal(_connection.Id);
     }
 
     [Fact]
-    public async Task SyncAsync_CreatesNewBaseline_WhenDeltaLinkExpired()
-    {
-        _client.ExpireDeltaLink = "delta-0";
-
-        var result = await CreateService().SyncAsync(UserId);
-
-        result.Value.BaselineCreated.Should().BeTrue();
-        _connection.DeltaLink.Should().Be("delta-1");
-    }
-
-    [Fact]
-    public async Task EnsureSubscriptionAsync_CreatesSubscriptionOnTheUserFolder_WhenMissing()
+    public async Task EnsureSubscriptionAsync_CreatesSubscriptionOnTheAppFolder_WhenMissing()
     {
         var result = await CreateService().EnsureSubscriptionAsync(Connected(UserId).WithId(_connection.Id));
 
         result.Value.Action.Should().Be("created");
         var created = _client.CreatedSubscriptions.Should().ContainSingle().Subject;
-        created.Resource.Should().Be($"/me/drive/items/{FolderId}");
+        created.Resource.Should().Be("/me/drive/special/approot");
         created.NotificationUrl.Should().Be(NotificationUrl);
         created.ClientState.Should().Be(ClientState);
         _connection.SubscriptionId.Should().Be("sub-1");
@@ -274,7 +257,8 @@ public class OneDriveImportServiceTests
 
         var summary = await CreateService().RenewSubscriptionsAsync();
 
-        summary.Should().Be(new OneDriveRenewalSummary(Connections: 3, Created: 1, Renewed: 1, Failed: 1));
+        (summary.Connections, summary.Created, summary.Renewed, summary.Failed).Should().Be((3, 1, 1, 1));
+        summary.UsersWithoutSubscription.Should().BeEmpty("users 7 and 8 get notifications, user 9 must reconnect");
         _client.RenewedSubscriptions.Should().Equal("sub-0");
         _connection.SubscriptionExpiresAt.Should().BeAfter(DateTime.UtcNow.AddDays(25));
         admin.SubscriptionId.Should().Be("sub-1");
@@ -289,6 +273,7 @@ public class OneDriveImportServiceTests
         var summary = await CreateService().RenewSubscriptionsAsync();
 
         summary.Failed.Should().Be(1);
+        summary.UsersWithoutSubscription.Should().Equal([UserId], "without notifications the folder is synced by the daily timer");
         _connection.Status.Should().Be(OneDriveConnectionStatus.Connected);
         _connection.LastError.Should().Be(OneDriveImportService.SubscriptionFailedMessage);
     }

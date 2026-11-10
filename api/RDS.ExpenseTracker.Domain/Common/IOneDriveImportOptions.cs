@@ -12,12 +12,6 @@ public interface IOneDriveImportOptions
     string ClientId { get; }
 
     /// <summary>
-    /// Nome della cartella, nella radice del drive dell'utente, creata al collegamento e poi osservata;
-    /// contiene una sottocartella per banca.
-    /// </summary>
-    string FolderName { get; }
-
-    /// <summary>
     /// URL pubblico dell'endpoint che riceve le notifiche Graph; vuoto se non è noto (sviluppo locale):
     /// in quel caso non si creano subscription e la sincronizzazione è solo manuale.
     /// </summary>

@@ -119,7 +119,7 @@ flowchart TD
     blob --> job
     job --> bfi
     http[ImportFunctions<br/>upload HTTP] --> bfi
-    od[OneDrive_Sync<br/>file da /Transazioni/&lt;Banca&gt;] --> bfi
+    od[OneDrive_Sync<br/>file da Apps/&lt;app&gt;/&lt;Banca&gt;] --> bfi
     bfi[IBankFileImportService<br/>conto dal tipo, sceglie l'importer, converte XLSX→CSV] --> imp
     imp[Importer della banca<br/>parse delle righe] --> dedup[Deduplica per ExternalId]
     dedup --> enrich[Categoria da parole chiave]
@@ -135,15 +135,15 @@ flowchart TD
 - **Categorie** — assegnate cercando le parole chiave delle categorie dell'utente nella descrizione (vince la priorità più bassa); senza corrispondenza si usa la categoria predefinita.
 - **Trasferimenti** — riconosciuti in tre modi: IBAN della controparte uguale all'IBAN di un altro conto dell'utente; regole configurate in `TransferMatching:Rules` (tipo di conto + testo della descrizione sui due lati); a posteriori, con la riconciliazione, anche per categoria di sistema `MoneyTransfers` con importo opposto entro 3 giorni.
 - **Tracciamento** — ogni import (riuscito o fallito) scrive una riga in `ImportLogs` con stato, periodo coperto, movimenti nuovi, duplicati scartati ed eventuali errori; gli import sincroni (HTTP, OneDrive) nascono già conclusi.
-- **OneDrive** — ogni utente collega il proprio OneDrive personale (`OneDriveConnections`, uno per utente). Un file importato viene spostato in `<Banca>/Importati`, uno fallito in `<Banca>/Errori`; la cartella `Excel` (file storico) è letta solo per gli admin. Un lock sulla riga del collegamento impedisce due sincronizzazioni contemporanee dello stesso utente; lì è salvata anche la posizione della delta query.
+- **OneDrive** — ogni utente collega il proprio OneDrive personale (`OneDriveConnections`, uno per utente). La sincronizzazione importa tutti i file presenti nelle cartelle banca della cartella dell'app: un file importato viene spostato in `<Banca>/Importati`, uno fallito in `<Banca>/Errori`, quindi resta nella cartella della banca solo ciò che è ancora da elaborare. La cartella `Excel` (file storico, da creare a mano) è letta solo per gli admin. Un lock sulla riga del collegamento impedisce due sincronizzazioni contemporanee dello stesso utente.
 
 ## Collegamento di OneDrive
 
-`OneDriveConnectionService` gestisce il collegamento con il *device code flow* sul client pubblico dell'app registration OneDrive (solo account Microsoft personali, scope `Files.ReadWrite offline_access`):
+`OneDriveConnectionService` gestisce il collegamento con il *device code flow* sul client pubblico dell'app registration OneDrive (solo account Microsoft personali, scope `Files.ReadWrite.AppFolder offline_access`: l'app vede solo la propria cartella, `Apps/<nome dell'app registration>`, creata da OneDrive):
 
 1. `POST onedrive/connection` chiede a Microsoft un codice e lo salva nel collegamento (`Pending`); il frontend lo mostra insieme al link della pagina di accesso.
-2. Il frontend chiama `onedrive/connection/complete` all'intervallo indicato. Quando l'utente ha autorizzato l'app il servizio salva il refresh token in Key Vault (secret `OneDriveRefreshToken-<id utente>`, riscritto a ogni rotazione), crea nella radice del drive la cartella `Transazioni` con le sottocartelle delle banche, registra la baseline della delta query (si importano solo i file caricati da quel momento) e crea la subscription Graph con un `clientState` casuale.
-3. Se la subscription non può essere creata il collegamento resta attivo con un avviso: il timer giornaliero ritenta e l'utente può usare la sincronizzazione manuale. Senza URL pubblico delle notifiche (sviluppo locale) la subscription non viene creata.
+2. Il frontend chiama `onedrive/connection/complete` all'intervallo indicato. Quando l'utente ha autorizzato l'app il servizio salva il refresh token in Key Vault (secret `OneDriveRefreshToken-<id utente>`, riscritto a ogni rotazione), crea nella cartella dell'app le sottocartelle delle banche e la subscription Graph sulla cartella (`/me/drive/special/approot`) con un `clientState` casuale.
+3. Se la subscription non può essere creata il collegamento resta attivo con un avviso: il timer giornaliero ritenta e, finché manca, accoda lui una sincronizzazione al giorno; l'utente può anche usare la sincronizzazione manuale. Senza URL pubblico delle notifiche (sviluppo locale) la subscription non viene creata.
 
 Se Microsoft rifiuta il refresh token (accesso revocato o 90 giorni senza utilizzo) il collegamento passa a `ReconnectRequired` e l'utente deve ripetere l'accesso; un nuovo accesso sostituisce quello attivo solo quando viene completato. Lo scollegamento elimina subscription e collegamento e rende inutilizzabile il secret.
 

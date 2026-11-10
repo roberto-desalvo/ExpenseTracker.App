@@ -3,7 +3,7 @@ using RDS.ExpenseTracker.Domain.Enums;
 namespace RDS.ExpenseTracker.Domain.Entities;
 
 // Collegamento del OneDrive personale di un utente (al massimo uno per utente) per l'import automatico:
-// autorizzazione in corso (device code), cartella osservata, posizione della delta query, subscription Graph
+// autorizzazione in corso (device code), cartella dell'app nel drive, subscription Graph
 // e lock che impedisce due sincronizzazioni contemporanee. Il refresh token non è qui ma in Key Vault.
 public class OneDriveConnection
 {
@@ -21,15 +21,14 @@ public class OneDriveConnection
     public DateTime? DeviceCodeExpiresAt { get; set; }
     public int? PollIntervalSeconds { get; set; }
 
-    // Proprietario del drive collegato (nome mostrato all'utente) e cartella osservata.
+    // Proprietario del drive collegato (nome mostrato all'utente, se disponibile) e cartella dell'app:
+    // l'unica a cui il token dà accesso, creata da OneDrive (es. Apps/ExpenseTracker).
     public string? DriveOwner { get; set; }
     public string? FolderId { get; set; }
+    public string? FolderPath { get; set; }
 
     // Segreto inviato da Graph in ogni notifica della subscription di questo collegamento.
     public string? ClientState { get; set; }
-
-    // Link restituito dall'ultima delta query; null = baseline non ancora fatta.
-    public string? DeltaLink { get; set; }
 
     public string? SubscriptionId { get; set; }
     public DateTime? SubscriptionExpiresAt { get; set; }

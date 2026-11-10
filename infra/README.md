@@ -134,17 +134,19 @@ mano non vengono toccate e si possono eliminare dopo il passaggio.
 
 Con `ONEDRIVE_IMPORT_ENABLED=true` ogni utente (tranne quello demo) collega il proprio OneDrive personale
 dall'app, in Impostazioni › Import: accede con il suo account Microsoft (device code flow sul client pubblico
-dell'app registration OneDrive) e l'app crea nel suo drive la cartella `/Transazioni` con le sottocartelle
-BBVA / Sella / Satispay / Trade_Republic. Microsoft Graph notifica ogni modifica della cartella, la function
-importa i nuovi file e li sposta in `<Banca>/Importati` o `<Banca>/Errori`; il timer
+dell'app registration OneDrive). Il permesso richiesto è `Files.ReadWrite.AppFolder`: l'app vede solo la propria
+cartella, che OneDrive crea come `Apps/<displayName dell'app registration>` (`ExpenseTracker` in prod), e vi
+crea le sottocartelle BBVA / Sella / Satispay / Trade_Republic. Microsoft Graph notifica ogni modifica della
+cartella, la function importa i file presenti e li sposta in `<Banca>/Importati` o `<Banca>/Errori`; il timer
 `OneDrive_SubscriptionRenewal` (parametro `oneDriveSubscriptionRenewalSchedule`, default `0 0 4 * * *` UTC)
-rinnova le subscription Graph.
+rinnova le subscription Graph e sincronizza i collegamenti che ne sono rimasti senza.
 
 I OneDrive sono personali (account Microsoft), quindi la Function App usa token delegati: il refresh token di
 ogni utente è un secret del Key Vault (`OneDriveRefreshToken-<id utente>`), scritto al collegamento e a ogni
 rotazione dalla managed identity (`Key Vault Secrets Officer`). Non serve alcun passaggio manuale: lo script
 `connect-onedrive.ps1` non esiste più e i secret `OneDriveRefreshToken` e `OneDriveClientState` che creava si
-possono eliminare. Chi usava l'import con il vecchio collegamento unico deve ricollegare OneDrive dall'app.
+possono eliminare. Chi usava l'import con il vecchio collegamento unico (cartella `/Transazioni`) deve
+ricollegare OneDrive dall'app e salvare i file nella nuova cartella.
 
 **Rimozione della vecchia Logic App**: il deploy incrementale non elimina le risorse tolte dal template.
 Dopo il primo deploy di questa versione:

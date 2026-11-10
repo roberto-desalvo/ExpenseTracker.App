@@ -17,8 +17,8 @@ public interface IOneDriveConnectionService : IService
     Task<Result<OneDriveConnectionDto>> StartAsync(int userId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Controlla se l'utente ha autorizzato l'app; in caso positivo crea la cartella con le sottocartelle delle
-    /// banche, registra la baseline della delta query e la subscription Graph.
+    /// Controlla se l'utente ha autorizzato l'app; in caso positivo crea nella cartella dell'app le sottocartelle
+    /// delle banche e la subscription Graph.
     /// </summary>
     Task<Result<OneDriveConnectionDto>> CompleteAsync(int userId, CancellationToken cancellationToken = default);
 

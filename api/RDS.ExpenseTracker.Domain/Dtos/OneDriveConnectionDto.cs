@@ -10,8 +10,9 @@ public class OneDriveConnectionDto
 
     public OneDriveConnectionStatus Status { get; set; }
 
-    // Cartella (nella radice del drive) e sottocartelle delle banche in cui salvare gli estratti conto.
-    public string FolderName { get; set; } = string.Empty;
+    // Cartella dell'app nel drive (nota dopo il collegamento, es. Apps/ExpenseTracker) e sottocartelle
+    // delle banche in cui salvare gli estratti conto.
+    public string? FolderPath { get; set; }
     public IReadOnlyList<string> BankFolders { get; set; } = [];
 
     // Solo con Status = Pending: codice da inserire sulla pagina Microsoft e intervallo tra i controlli.

@@ -13,7 +13,7 @@ public class OneDriveConnectionServiceTests
 {
     private const int UserId = 7;
     private const int DemoUserId = 8;
-    private const string FolderId = "root/Transazioni";
+    private const string FolderId = AppFolderId;
 
     private readonly FakeOneDriveClient _client = new();
     private readonly FakeConnectionRepository _connections = new();
@@ -43,7 +43,7 @@ public class OneDriveConnectionServiceTests
 
         result.Value.Available.Should().BeTrue();
         result.Value.Status.Should().Be(OneDriveConnectionStatus.NotConnected);
-        result.Value.FolderName.Should().Be("Transazioni");
+        result.Value.FolderPath.Should().BeNull("the app folder is known only after the connection");
         result.Value.BankFolders.Should().Equal("BBVA", "Sella", "Satispay", "Trade_Republic");
     }
 
@@ -98,7 +98,7 @@ public class OneDriveConnectionServiceTests
     }
 
     [Fact]
-    public async Task CompleteAsync_CreatesFoldersBaselineAndSubscription_WhenAuthorized()
+    public async Task CompleteAsync_CreatesBankFoldersInTheAppFolderAndTheSubscription_WhenAuthorized()
     {
         var service = CreateService();
         await service.StartAsync(UserId);
@@ -107,21 +107,22 @@ public class OneDriveConnectionServiceTests
 
         result.Value.Status.Should().Be(OneDriveConnectionStatus.Connected);
         result.Value.DriveOwner.Should().Be("Mario Rossi");
+        result.Value.FolderPath.Should().Be(AppFolderPath);
         result.Value.AutomaticSync.Should().BeTrue();
         result.Value.UserCode.Should().BeNull();
         result.Value.LastError.Should().BeNull();
 
         _client.EnsuredFolders.Should().Equal(
-            "root/Transazioni", $"{FolderId}/BBVA", $"{FolderId}/Sella", $"{FolderId}/Satispay", $"{FolderId}/Trade_Republic");
+            $"{FolderId}/BBVA", $"{FolderId}/Sella", $"{FolderId}/Satispay", $"{FolderId}/Trade_Republic");
 
         var connection = _connections.ForUser(UserId)!;
         connection.FolderId.Should().Be(FolderId);
         connection.DeviceCode.Should().BeNull();
-        connection.DeltaLink.Should().Be("delta-1");
+        connection.FolderPath.Should().Be(AppFolderPath);
         connection.ClientState.Should().NotBeNullOrEmpty();
         connection.SubscriptionId.Should().Be("sub-1");
         _client.CreatedSubscriptions.Should().ContainSingle()
-            .Which.Should().Be(($"/me/drive/items/{FolderId}", NotificationUrl, connection.ClientState!));
+            .Which.Should().Be((OneDriveImportService.SubscriptionResource, NotificationUrl, connection.ClientState!));
     }
 
     [Fact]

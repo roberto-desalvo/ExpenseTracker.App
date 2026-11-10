@@ -47,7 +47,7 @@ I workflow non eseguono i test: il deploy non ha un gate automatico.
 | `ConnectionStrings:DefaultConnection` | Database (in Azure passwordless con managed identity) |
 | `DevAuth` | Login di sviluppo, solo in `Development` |
 | `DemoAuth` | Login demo: `Enabled`, `SigningKey` (≥ 32 byte, in Key Vault) |
-| `OneDriveImport` | Import da OneDrive: `Enabled` (in Azure la variabile `ONEDRIVE_IMPORT_ENABLED`), `ClientId` dell'app registration, `FolderName` (default `Transazioni`), `KeyVaultUri`, `NotificationUrl` (default: host pubblico della Function App) |
+| `OneDriveImport` | Import da OneDrive: `Enabled` (in Azure la variabile `ONEDRIVE_IMPORT_ENABLED`), `ClientId` dell'app registration, `KeyVaultUri`, `NotificationUrl` (default: host pubblico della Function App) |
 | `DemoResetSchedule`, `OneDriveSubscriptionRenewalSchedule` | Orari NCRONTAB (UTC) dei timer |
 | `TradeRepublicCsv`, `TransferMatching` | Opzioni degli importer: nome del sotto-conto per le righe TRADING, regole per collegare i trasferimenti (`AccountType1/2` = nomi dei tipi di conto) |
 | `ImportStorage:ContainerName` | Container dei file caricati dall'app (default `bank-imports`), nello storage di `AzureWebJobsStorage` |

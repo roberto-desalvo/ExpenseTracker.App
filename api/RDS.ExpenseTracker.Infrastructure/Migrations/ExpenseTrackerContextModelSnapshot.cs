@@ -278,10 +278,6 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                     b.Property<DateTime?>("ConnectedOn")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("DeltaLink")
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
-
                     b.Property<string>("DeviceCode")
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
@@ -296,6 +292,10 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                     b.Property<string>("FolderId")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("FolderPath")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
 
                     b.Property<string>("LastError")
                         .HasMaxLength(1000)

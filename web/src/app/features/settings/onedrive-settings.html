@@ -2,7 +2,7 @@
 
 <app-surface-card
   title="OneDrive"
-  subtitle="Collega il tuo OneDrive personale: gli estratti conto che salvi nelle cartelle delle banche vengono importati da soli."
+  subtitle="Collega il tuo OneDrive personale: gli estratti conto che salvi nella cartella dell'app vengono importati da soli."
 >
   @if (!c) {
     <div class="loading">
@@ -58,6 +58,9 @@
           }
         </span>
         <span class="status-detail">
+          @if (c.folderPath) {
+            Cartella <code>{{ c.folderPath }}</code> ·
+          }
           Dal {{ dateTime(c.connectedOn) }} · Ultima sincronizzazione: {{ c.lastSyncOn ? dateTime(c.lastSyncOn) : "mai" }}
         </span>
       </div>
@@ -71,7 +74,7 @@
     } @else if (c.status === "Connected" && !c.automaticSync) {
       <div class="alert alert-info">
         <mat-icon class="icon-sm">info</mat-icon>
-        <span>L'import automatico non è attivo: usa "Sincronizza ora" dopo aver caricato i file.</span>
+        <span>L'import immediato non è attivo: i file vengono importati una volta al giorno, oppure subito con "Sincronizza ora".</span>
       </div>
     }
 
@@ -88,8 +91,8 @@
   } @else {
     <div class="connect">
       <p class="text-secondary">
-        Ti chiediamo di accedere con il tuo account Microsoft personale. ExpenseTracker crea la cartella
-        <strong>{{ c.folderName }}</strong> nel tuo OneDrive e legge solo i file che salvi lì dentro.
+        Ti chiediamo di accedere con il tuo account Microsoft personale. ExpenseTracker può usare solo la propria cartella,
+        che OneDrive crea dentro <strong>App</strong>: il resto dei tuoi file non gli è accessibile.
       </p>
       <button matButton="filled" [disabled]="store.busy()" (click)="store.connect()"><mat-icon>link</mat-icon> Collega OneDrive</button>
     </div>
@@ -100,11 +103,16 @@
   <app-surface-card title="Come funziona">
     <ul class="how">
       <li>
-        Salva l'estratto conto (CSV o Excel) esportato dalla banca nella sua cartella:
+        Salva l'estratto conto (CSV o Excel) esportato dalla banca nella sua cartella, dentro
+        @if (c!.folderPath) {
+          <code>{{ c!.folderPath }}</code>:
+        } @else {
+          la cartella dell'app (la vedrai qui dopo il collegamento):
+        }
         <ul class="folders">
           @for (folder of c!.bankFolders; track folder) {
             <li>
-              <code>{{ c!.folderName }}/{{ folder }}</code>
+              <code>{{ folder }}</code>
             </li>
           }
         </ul>
@@ -117,7 +125,7 @@
         Dopo l'import il file viene spostato nella sottocartella <code>Importati</code>, oppure in <code>Errori</code> se non è
         stato possibile leggerlo. L'esito di ogni file è in <a [routerLink]="routes.imports">Movimenti › Import</a>.
       </li>
-      <li>Vengono importati solo i file caricati dopo il collegamento.</li>
+      <li>ExpenseTracker non può leggere né modificare nient'altro nel tuo OneDrive.</li>
     </ul>
   </app-surface-card>
 }

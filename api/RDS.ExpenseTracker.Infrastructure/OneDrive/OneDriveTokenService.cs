@@ -23,7 +23,8 @@ public sealed class OneDriveTokenService : IOneDriveTokenService, IDisposable
 
     // Account Microsoft personali: endpoint "consumers".
     private const string Authority = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
-    private const string Scopes = "Files.ReadWrite offline_access";
+    // Solo la cartella dell'app (Apps/<nome dell'app>): il resto del drive dell'utente non è accessibile.
+    private const string Scopes = "Files.ReadWrite.AppFolder offline_access";
     private const string DeviceCodeGrantType = "urn:ietf:params:oauth:grant-type:device_code";
 
     // Valore scritto nel secret quando l'utente scollega OneDrive: con il soft delete di Key Vault un secret

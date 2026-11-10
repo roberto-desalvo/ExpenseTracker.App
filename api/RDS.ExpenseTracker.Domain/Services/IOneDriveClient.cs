@@ -3,29 +3,22 @@ using RDS.ExpenseTracker.Domain.Models.OneDrive;
 namespace RDS.ExpenseTracker.Domain.Services;
 
 /// <summary>
-/// Accesso al OneDrive personale dell'utente <c>userId</c> tramite Microsoft Graph (token delegato).
-/// Implementato in Infrastructure.
+/// Accesso, tramite Microsoft Graph, alla cartella dell'app nel OneDrive personale dell'utente <c>userId</c>:
+/// il token delegato (<c>Files.ReadWrite.AppFolder</c>) non vede il resto del drive. Implementato in Infrastructure.
 /// </summary>
 /// <remarks>
 /// Ogni metodo può sollevare <see cref="OneDriveAuthorizationException"/> se l'utente deve ricollegare OneDrive.
 /// </remarks>
 public interface IOneDriveClient
 {
-    /// <summary>Id speciale della radice del drive, accettato come cartella padre.</summary>
-    const string RootFolderId = "root";
+    /// <summary>Cartella dell'app (<c>Apps/&lt;nome dell'app&gt;</c>): OneDrive la crea al primo accesso.</summary>
+    Task<OneDriveAppFolder> GetAppFolderAsync(int userId, CancellationToken cancellationToken = default);
 
-    /// <summary>Nome visualizzato del proprietario del drive.</summary>
+    /// <summary>Nome visualizzato del proprietario del drive; null se il token non consente di leggerlo.</summary>
     Task<string?> GetDriveOwnerAsync(int userId, CancellationToken cancellationToken = default);
 
-    /// <summary>Elenca le sottocartelle dirette di una cartella.</summary>
-    Task<IReadOnlyList<OneDriveItem>> GetChildFoldersAsync(int userId, string folderId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Delta query sulla cartella. Con <paramref name="deltaLink"/> null restituisce una baseline vuota
-    /// (<c>token=latest</c>): da quel momento vengono riportate solo le modifiche successive.
-    /// </summary>
-    /// <exception cref="OneDriveDeltaExpiredException">Il deltaLink non è più valido.</exception>
-    Task<OneDriveDeltaResult> GetDeltaAsync(int userId, string folderId, string? deltaLink, CancellationToken cancellationToken = default);
+    /// <summary>Elenca file e sottocartelle diretti di una cartella.</summary>
+    Task<IReadOnlyList<OneDriveItem>> GetChildrenAsync(int userId, string folderId, CancellationToken cancellationToken = default);
 
     /// <summary>Scarica il contenuto di un file in memoria.</summary>
     Task<Stream> DownloadAsync(int userId, string itemId, CancellationToken cancellationToken = default);

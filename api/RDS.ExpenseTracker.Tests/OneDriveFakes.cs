@@ -12,18 +12,18 @@ namespace RDS.ExpenseTracker.Tests;
 // Fake condivisi dai test dell'import e del collegamento OneDrive.
 internal static class OneDriveFakes
 {
-    public const string RootId = "root";
+    public const string AppFolderId = "approot";
+    public const string AppFolderPath = "Apps/ExpenseTracker";
     public const string NotificationUrl = "https://func/api/onedrive/notifications";
 
-    public static OneDriveItem File(string id, string name, string parentId) => new(id, name, parentId, IsFile: true, IsFolder: false, IsDeleted: false);
+    public static OneDriveItem File(string id, string name, string parentId) => new(id, name, parentId, IsFile: true, IsFolder: false);
 
-    public static OneDriveItem Folder(string id, string name, string parentId = RootId) => new(id, name, parentId, IsFile: false, IsFolder: true, IsDeleted: false);
+    public static OneDriveItem Folder(string id, string name, string parentId = AppFolderId) => new(id, name, parentId, IsFile: false, IsFolder: true);
 
     internal sealed class TestOptions : IOneDriveImportOptions
     {
         public bool Enabled { get; set; } = true;
         public string ClientId => "client";
-        public string FolderName => "Transazioni";
         public string NotificationUrl { get; set; } = OneDriveFakes.NotificationUrl;
         public string KeyVaultUri => "https://vault.test";
         public string RefreshTokenSecretName => "OneDriveRefreshToken";
@@ -33,13 +33,10 @@ internal static class OneDriveFakes
 
     internal sealed class FakeOneDriveClient : IOneDriveClient
     {
-        private int _deltaCounter;
         private int _subscriptionCounter;
 
-        public List<OneDriveItem> ChildFolders { get; } = [];
-        public List<OneDriveItem> DeltaItems { get; } = [];
-        public List<string?> DeltaRequests { get; } = [];
-        public string? ExpireDeltaLink { get; set; }
+        /// <summary>File e cartelle del drive: i figli di una cartella sono gli elementi con quel ParentId.</summary>
+        public List<OneDriveItem> Items { get; } = [];
         public List<(string ItemId, string Target)> Moves { get; } = [];
         public List<string> EnsuredFolders { get; } = [];
         public HashSet<string> ExistingSubscriptions { get; } = [];
@@ -66,21 +63,19 @@ internal static class OneDriveFakes
             return Task.FromResult<string?>("Mario Rossi");
         }
 
-        public Task<IReadOnlyList<OneDriveItem>> GetChildFoldersAsync(int userId, string folderId, CancellationToken cancellationToken = default)
+        public Task<OneDriveAppFolder> GetAppFolderAsync(int userId, CancellationToken cancellationToken = default)
         {
             Use(userId);
-            return Task.FromResult<IReadOnlyList<OneDriveItem>>(ChildFolders.Where(f => f.ParentId == folderId).ToList());
+            if (FolderError is not null)
+                throw FolderError;
+
+            return Task.FromResult(new OneDriveAppFolder(AppFolderId, AppFolderPath));
         }
 
-        public Task<OneDriveDeltaResult> GetDeltaAsync(int userId, string folderId, string? deltaLink, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<OneDriveItem>> GetChildrenAsync(int userId, string folderId, CancellationToken cancellationToken = default)
         {
             Use(userId);
-            DeltaRequests.Add(deltaLink);
-            if (deltaLink is not null && deltaLink == ExpireDeltaLink)
-                throw new OneDriveDeltaExpiredException("expired");
-
-            var items = deltaLink is null ? [] : DeltaItems.ToList();
-            return Task.FromResult(new OneDriveDeltaResult(items, $"delta-{++_deltaCounter}"));
+            return Task.FromResult<IReadOnlyList<OneDriveItem>>(Items.Where(i => i.ParentId == folderId).ToList());
         }
 
         public Task<Stream> DownloadAsync(int userId, string itemId, CancellationToken cancellationToken = default)
@@ -103,6 +98,10 @@ internal static class OneDriveFakes
         {
             Use(userId);
             Moves.Add((itemId, targetFolderId));
+            // come su OneDrive: il file lascia la cartella della banca
+            var index = Items.FindIndex(i => i.Id == itemId);
+            if (index >= 0)
+                Items[index] = Items[index] with { ParentId = targetFolderId };
             return Task.CompletedTask;
         }
 
@@ -197,9 +196,8 @@ internal static class OneDriveFakes
             return Task.CompletedTask;
         }
 
-        public Task UpdateDeltaLinkAsync(int connectionId, string deltaLink, DateTime syncedOn, CancellationToken cancellationToken = default)
+        public Task UpdateLastSyncAsync(int connectionId, DateTime syncedOn, CancellationToken cancellationToken = default)
         {
-            ById(connectionId).DeltaLink = deltaLink;
             ById(connectionId).LastSyncOn = syncedOn;
             return Task.CompletedTask;
         }
@@ -234,8 +232,8 @@ internal static class OneDriveFakes
             PollIntervalSeconds = c.PollIntervalSeconds,
             DriveOwner = c.DriveOwner,
             FolderId = c.FolderId,
+            FolderPath = c.FolderPath,
             ClientState = c.ClientState,
-            DeltaLink = c.DeltaLink,
             SubscriptionId = c.SubscriptionId,
             SubscriptionExpiresAt = c.SubscriptionExpiresAt,
             LockedUntil = c.LockedUntil,

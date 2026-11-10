@@ -10,14 +10,14 @@ public class OneDriveConnectionConfiguration : IEntityTypeConfiguration<OneDrive
     {
         builder.HasKey(c => c.Id);
 
-        // I device code e i deltaLink di Graph sono token opachi di lunghezza variabile.
+        // Il device code è un token opaco di lunghezza variabile.
         builder.Property(c => c.DeviceCode).HasMaxLength(4000);
         builder.Property(c => c.UserCode).HasMaxLength(50);
         builder.Property(c => c.VerificationUri).HasMaxLength(500);
         builder.Property(c => c.DriveOwner).HasMaxLength(256);
         builder.Property(c => c.FolderId).HasMaxLength(200);
+        builder.Property(c => c.FolderPath).HasMaxLength(400);
         builder.Property(c => c.ClientState).HasMaxLength(100);
-        builder.Property(c => c.DeltaLink).HasMaxLength(4000);
         builder.Property(c => c.SubscriptionId).HasMaxLength(100);
         builder.Property(c => c.LastError).HasMaxLength(1000);
 

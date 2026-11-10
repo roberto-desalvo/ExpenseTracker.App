@@ -8,7 +8,6 @@ import { OneDriveStore } from "./onedrive.store";
 const connection = (overrides: Partial<OneDriveConnection> = {}): OneDriveConnection => ({
   available: true,
   status: "NotConnected",
-  folderName: "Transazioni",
   bankFolders: ["BBVA", "Sella"],
   automaticSync: false,
   ...overrides,
@@ -24,7 +23,7 @@ const pending = (overrides: Partial<OneDriveConnection> = {}) =>
     ...overrides,
   });
 
-const connected = connection({ status: "Connected", driveOwner: "Mario Rossi", automaticSync: true });
+const connected = connection({ status: "Connected", driveOwner: "Mario Rossi", folderPath: "Apps/ExpenseTracker", automaticSync: true });
 
 describe("OneDriveStore", () => {
   let store: OneDriveStore;

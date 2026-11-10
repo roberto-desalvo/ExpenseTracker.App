@@ -20,9 +20,6 @@ public class OneDriveImportOptions : IAppOptions, IOneDriveImportOptions
     /// <inheritdoc />
     public string ClientId { get; set; } = string.Empty;
 
-    /// <inheritdoc />
-    public string FolderName { get; set; } = "Transazioni";
-
     /// <summary>
     /// URL pubblico dell'endpoint delle notifiche Graph. Se non impostato si ricava da <c>WEBSITE_HOSTNAME</c>
     /// (nome host pubblico della Function App, impostato dalla piattaforma); in locale resta vuoto.

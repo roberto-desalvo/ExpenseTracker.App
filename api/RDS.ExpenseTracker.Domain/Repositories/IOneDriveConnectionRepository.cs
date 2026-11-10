@@ -24,7 +24,7 @@ public interface IOneDriveConnectionRepository : IRepositoryBase
 
     Task ReleaseLockAsync(int connectionId, CancellationToken cancellationToken = default);
 
-    Task UpdateDeltaLinkAsync(int connectionId, string deltaLink, DateTime syncedOn, CancellationToken cancellationToken = default);
+    Task UpdateLastSyncAsync(int connectionId, DateTime syncedOn, CancellationToken cancellationToken = default);
 
     // Azzera anche LastError: la subscription è di nuovo attiva.
     Task UpdateSubscriptionAsync(int connectionId, string subscriptionId, DateTime expiresAt, CancellationToken cancellationToken = default);

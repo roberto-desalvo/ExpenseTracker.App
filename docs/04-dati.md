@@ -100,8 +100,8 @@ erDiagram
         string DeviceCode "accesso in corso"
         string DriveOwner
         string FolderId
+        string FolderPath "es. Apps/ExpenseTracker"
         string ClientState
-        string DeltaLink
         string SubscriptionId
         datetime SubscriptionExpiresAt
         datetime LockedUntil
@@ -120,7 +120,7 @@ erDiagram
 | `Transactions` | Movimento; importo positivo = entrata, negativo = uscita; `Source` ne indica l'origine (inserito dall'utente, import da file, creato dallo storico Excel, scritto da script SQL diretto sul DB); `LegacyMatchedAt` indica che è stato abbinato a una riga dello storico Excel e `LegacyOriginalDescription` conserva la descrizione precedente al primo abbinamento |
 | `Transfers` | Collega le due metà di un trasferimento |
 | `ImportLogs` | Stato ed esito di ogni import di file; per gli import dall'app anche il blob del file |
-| `OneDriveConnections` | Collegamento OneDrive di un utente (al massimo uno): accesso in corso, cartella osservata, posizione della delta query, subscription Graph con il suo `clientState`, lock, ultimo errore. Il refresh token è in Key Vault |
+| `OneDriveConnections` | Collegamento OneDrive di un utente (al massimo uno): accesso in corso, cartella dell'app nel drive, subscription Graph con il suo `clientState`, lock, ultimo errore. Il refresh token è in Key Vault |
 
 ## Vincoli principali
 
