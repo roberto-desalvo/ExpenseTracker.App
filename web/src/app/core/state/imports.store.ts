@@ -1,11 +1,11 @@
 import { Injectable, computed, inject, signal } from "@angular/core";
 import { ImportApi } from "../api/import.api";
 import { NotificationService } from "../api/notification.service";
-import { AuthService } from "../auth/auth.service";
 import Account from "../models/Account";
 import { ImportLog, isImportActive } from "../models/ImportLog";
 import { AccountsStore } from "./accounts.store";
 import { AccountTypesStore } from "./account-types.store";
+import { CurrentUserStore } from "./current-user.store";
 import { TransactionsStore } from "./transactions.store";
 
 /** Intervallo di aggiornamento mentre ci sono import in coda o in elaborazione. */
@@ -21,13 +21,13 @@ export class ImportsStore {
   private readonly api = inject(ImportApi);
   private readonly accounts = inject(AccountsStore);
   private readonly accountTypes = inject(AccountTypesStore);
-  private readonly auth = inject(AuthService);
+  private readonly currentUser = inject(CurrentUserStore);
   private readonly transactions = inject(TransactionsStore);
   private readonly notifications = inject(NotificationService);
 
   /** Conti dell'utente di un tipo importabile; l'utente demo non può importare file. */
   readonly importableAccounts = computed<Account[]>(() => {
-    if (this.auth.user()?.mode === "demo") return [];
+    if (this.currentUser.isDemo()) return [];
     const types = this.accountTypes.byId();
     return this.accounts.all().filter((a) => a.accountTypeId != null && types.get(a.accountTypeId)?.supportsImport === true);
   });

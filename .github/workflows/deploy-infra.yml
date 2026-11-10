@@ -13,7 +13,7 @@
 #            SQL_SERVER_RESOURCE_GROUP (optional, default AZURE_RESOURCE_GROUP),
 #            DEMO_AUTH_ENABLED (optional, default false),
 #            CUSTOM_DOMAIN (optional, custom domain of the Static Web App, e.g. www.expensetracker.lol),
-#            ONEDRIVE_IMPORT_ENABLED (optional, default false), ONEDRIVE_TARGET_USER_EMAIL (OneDrive import)
+#            ONEDRIVE_IMPORT_ENABLED (optional, default false: users can connect their OneDrive from the app)
 
 name: Deploy Infrastructure (Bicep)
 
@@ -59,7 +59,6 @@ jobs:
       DEMO_AUTH_ENABLED: ${{ vars.DEMO_AUTH_ENABLED || 'false' }}
       CUSTOM_DOMAIN: ${{ vars.CUSTOM_DOMAIN }}
       ONEDRIVE_IMPORT_ENABLED: ${{ vars.ONEDRIVE_IMPORT_ENABLED || 'false' }}
-      ONEDRIVE_TARGET_USER_EMAIL: ${{ vars.ONEDRIVE_TARGET_USER_EMAIL }}
       DEMO_AUTH_SIGNING_KEY: ${{ secrets.DEMO_AUTH_SIGNING_KEY }}
     steps:
       - uses: actions/checkout@v7

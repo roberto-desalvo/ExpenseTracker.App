@@ -1,37 +1,32 @@
 namespace RDS.ExpenseTracker.Domain.Common;
 
 /// <summary>
-/// Configurazione dell'import automatico dei file caricati in una cartella OneDrive personale.
+/// Configurazione dell'import automatico dei file caricati nel OneDrive personale che ogni utente collega dall'app.
 /// </summary>
 public interface IOneDriveImportOptions
 {
-    /// <summary>Se false le function OneDrive non fanno nulla (ambienti senza consenso OneDrive).</summary>
+    /// <summary>Se false il collegamento non è disponibile e le function OneDrive non fanno nulla.</summary>
     bool Enabled { get; }
 
     /// <summary>Client id dell'app registration OneDrive (account Microsoft personali, client pubblico).</summary>
     string ClientId { get; }
 
-    /// <summary>Id della cartella radice osservata (es. <c>/Transazioni</c>), con una sottocartella per banca.</summary>
-    string FolderId { get; }
-
-    /// <summary>Email dell'utente ExpenseTracker a cui appartengono i dati importati.</summary>
-    string TargetUserEmail { get; }
+    /// <summary>
+    /// Nome della cartella, nella radice del drive dell'utente, creata al collegamento e poi osservata;
+    /// contiene una sottocartella per banca.
+    /// </summary>
+    string FolderName { get; }
 
     /// <summary>
-    /// URL pubblico dell'endpoint che riceve le notifiche Graph. Vuoto = ricavato da <c>WEBSITE_HOSTNAME</c>.
+    /// URL pubblico dell'endpoint che riceve le notifiche Graph; vuoto se non è noto (sviluppo locale):
+    /// in quel caso non si creano subscription e la sincronizzazione è solo manuale.
     /// </summary>
     string NotificationUrl { get; }
 
-    /// <summary>Segreto condiviso inviato da Graph in ogni notifica, per scartare le chiamate non autentiche.</summary>
-    string ClientState { get; }
-
-    /// <summary>Risorsa Graph osservata; vuoto = <c>/me/drive/items/{FolderId}</c>.</summary>
-    string SubscriptionResource { get; }
-
-    /// <summary>Vault che contiene il refresh token delegato.</summary>
+    /// <summary>Vault che contiene i refresh token delegati (uno per utente).</summary>
     string KeyVaultUri { get; }
 
-    /// <summary>Nome del secret con il refresh token (scritto dallo script di consenso e ruotato dalla function).</summary>
+    /// <summary>Prefisso del nome dei secret con i refresh token: <c>&lt;prefisso&gt;-&lt;id utente&gt;</c>.</summary>
     string RefreshTokenSecretName { get; }
 
     /// <summary>Sottocartella (della cartella della banca) in cui spostare i file importati.</summary>

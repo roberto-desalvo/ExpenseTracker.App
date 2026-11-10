@@ -53,6 +53,11 @@ export const apiConfig = {
     base: importBase,
     query: `${importBase}/query`,
   },
+  oneDrive: {
+    connection: resource("onedrive/connection"),
+    complete: resource("onedrive/connection/complete"),
+    sync: resource("onedrive/sync"),
+  },
   userSettings: {
     me: resource("user/me"),
     analyticsLayout: resource("user/analytics-layout"),

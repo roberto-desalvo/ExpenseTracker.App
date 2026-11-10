@@ -29,6 +29,6 @@ public interface IImportJobService : IService
     /// </summary>
     Task ProcessAsync(int importLogId, CancellationToken cancellationToken = default);
 
-    /// <summary>Storico degli import dell'utente, dal più recente.</summary>
+    /// <summary>Storico degli import dell'utente (non demo), dal più recente.</summary>
     Task<Result<PagedResult<ImportLogDto>>> GetImportLogs(ImportLogQueryRequest request, int userId);
 }

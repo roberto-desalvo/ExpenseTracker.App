@@ -26,7 +26,6 @@ infra/
 │   └── modules/
 ├── scripts/
 │   ├── bootstrap.ps1              # .env + bootstrap Bicep + environment/secret/variabili GitHub
-│   ├── connect-onedrive.ps1       # consenso OneDrive (refresh token in Key Vault) + subscription Graph
 │   ├── grant-function-sql-access.sql
 │   ├── load-env.ps1               # carica infra/.env nella sessione PowerShell
 │   └── load-env.sh                # idem per bash (da usare con source)
@@ -62,15 +61,14 @@ az deployment sub create -l $env:AZURE_LOCATION -n expensetracker-bootstrap `
    delle PR): variabili e secret stanno lì e tutti i job della pipeline lo referenziano.
 3. **Secrets** dell'environment: gli output `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` e
    (opzionale) `DEMO_AUTH_SIGNING_KEY`. **Variables** dell'environment: `AZURE_RESOURCE_GROUP`, `SQL_SERVER_NAME`, `SQL_DATABASE_NAME`,
-   `SQL_SERVER_RESOURCE_GROUP`, `DEMO_AUTH_ENABLED`, `CUSTOM_DOMAIN`, `ONEDRIVE_IMPORT_ENABLED`,
-   `ONEDRIVE_TARGET_USER_EMAIL` (vedi sotto).
+   `SQL_SERVER_RESOURCE_GROUP`, `DEMO_AUTH_ENABLED`, `CUSTOM_DOMAIN`, `ONEDRIVE_IMPORT_ENABLED`
+   (vedi sotto).
 4. In alternativa ai passi 1-3 a mano: `scripts/bootstrap.ps1` (vedi sotto).
 5. Eseguire la pipeline `Deploy Infrastructure (Bicep)` (o deploy locale, vedi sotto).
 6. Impostare `FILES_SENDER_ASSIGN=true` e `FILES_SENDER_UPNS` in `infra/.env` e rieseguire il bootstrap
    (passo 1): assegna il ruolo `Files.Sender` della nuova API agli utenti.
-7. **Import da OneDrive**: con `ONEDRIVE_IMPORT_ENABLED=true` e `ONEDRIVE_TARGET_USER_EMAIL` impostati (e il
-   deploy eseguito), lanciare `./infra/scripts/connect-onedrive.ps1` e accedere con l'account Microsoft del
-   OneDrive (vedi [Import da OneDrive](#import-da-onedrive)). Il consenso non è automatizzabile.
+7. **Import da OneDrive**: con `ONEDRIVE_IMPORT_ENABLED=true` (e il deploy eseguito) ogni utente collega il
+   proprio OneDrive dall'app, in Impostazioni › Import (vedi [Import da OneDrive](#import-da-onedrive)).
 8. Eseguire [`scripts/grant-function-sql-access.sql`](scripts/grant-function-sql-access.sql) sul database
    come amministratore Entra ID (utenti DB della managed identity e dell'identità di deploy GitHub, che applica
    le migration: T-SQL, non gestibile da Bicep).
@@ -134,24 +132,19 @@ mano non vengono toccate e si possono eliminare dopo il passaggio.
 
 ## Import da OneDrive
 
-L'import dei file salvati nella cartella OneDrive `oneDriveFolderId` (`/Transazioni`, sottocartelle BBVA /
-Sella / Satispay / Trade_Republic / Excel) non è più una Logic App: lo fanno le function `OneDrive_*` della
-Function App. Microsoft Graph notifica ogni modifica della cartella, la function importa i nuovi file e li
-sposta in `<Banca>/Importati` o `<Banca>/Errori`; il timer `OneDrive_SubscriptionRenewal` (parametro
-`oneDriveSubscriptionRenewalSchedule`, default `0 0 4 * * *` UTC) rinnova la subscription Graph.
+Con `ONEDRIVE_IMPORT_ENABLED=true` ogni utente (tranne quello demo) collega il proprio OneDrive personale
+dall'app, in Impostazioni › Import: accede con il suo account Microsoft (device code flow sul client pubblico
+dell'app registration OneDrive) e l'app crea nel suo drive la cartella `/Transazioni` con le sottocartelle
+BBVA / Sella / Satispay / Trade_Republic. Microsoft Graph notifica ogni modifica della cartella, la function
+importa i nuovi file e li sposta in `<Banca>/Importati` o `<Banca>/Errori`; il timer
+`OneDrive_SubscriptionRenewal` (parametro `oneDriveSubscriptionRenewalSchedule`, default `0 0 4 * * *` UTC)
+rinnova le subscription Graph.
 
-Il OneDrive è personale (account Microsoft), quindi la Function App usa un token delegato:
-
-```powershell
-. ./infra/scripts/load-env.ps1          # AZURE_RESOURCE_GROUP
-./infra/scripts/connect-onedrive.ps1    # device code: accedere con l'account del OneDrive
-```
-
-Lo script legge gli output dell'ultimo deploy e salva in Key Vault il refresh token (`OneDriveRefreshToken`) e
-il `clientState` delle notifiche (`OneDriveClientState`). Poi riavvia la Function App e crea la subscription.
-Richiede `Key Vault Secrets Officer` sul vault per l'utente che lo esegue. Va rieseguito solo se il token viene
-revocato o resta inutilizzato per 90 giorni. I file già presenti nella cartella al momento dell'attivazione non
-vengono importati.
+I OneDrive sono personali (account Microsoft), quindi la Function App usa token delegati: il refresh token di
+ogni utente è un secret del Key Vault (`OneDriveRefreshToken-<id utente>`), scritto al collegamento e a ogni
+rotazione dalla managed identity (`Key Vault Secrets Officer`). Non serve alcun passaggio manuale: lo script
+`connect-onedrive.ps1` non esiste più e i secret `OneDriveRefreshToken` e `OneDriveClientState` che creava si
+possono eliminare. Chi usava l'import con il vecchio collegamento unico deve ricollegare OneDrive dall'app.
 
 **Rimozione della vecchia Logic App**: il deploy incrementale non elimina le risorse tolte dal template.
 Dopo il primo deploy di questa versione:

@@ -11,20 +11,22 @@ using System.Text.Json.Serialization;
 namespace RDS.ExpenseTracker.Functions.Functions;
 
 /// <summary>
-/// Import automatico dei file caricati nella cartella OneDrive (<c>/Transazioni/&lt;Banca&gt;/file</c>):
+/// Import automatico dei file caricati nella cartella OneDrive collegata da ogni utente
+/// (<c>/Transazioni/&lt;Banca&gt;/file</c>):
 /// <list type="number">
 ///   <item>Microsoft Graph notifica una modifica nella cartella a <c>OneDrive_Notifications</c>;</item>
-///   <item>la notifica viene accodata e <c>OneDrive_Sync</c> legge la delta query, importa i nuovi file e li
-///         sposta in <c>Importati</c> / <c>Errori</c>;</item>
-///   <item><c>OneDrive_SubscriptionRenewal</c> crea o rinnova ogni giorno la subscription Graph (dura ~29 giorni).</item>
+///   <item>per ogni utente notificato viene accodato un messaggio e <c>OneDrive_Sync</c> legge la sua delta query,
+///         importa i nuovi file e li sposta in <c>Importati</c> / <c>Errori</c>;</item>
+///   <item><c>OneDrive_SubscriptionRenewal</c> crea o rinnova ogni giorno le subscription Graph (durano ~29 giorni).</item>
 /// </list>
-/// Sostituisce la Logic App di import. Con <c>OneDriveImport:Enabled = false</c> le function non fanno nulla.
+/// Il collegamento è gestito da <see cref="OneDriveConnectionFunctions"/>.
+/// Con <c>OneDriveImport:Enabled = false</c> le function non fanno nulla.
 /// </summary>
 public class OneDriveImportFunctions
 {
     public const string SyncQueueName = "onedrive-sync";
 
-    /// <summary>App setting (risolto dall'host) con lo schedule NCRONTAB, in UTC, del rinnovo della subscription.</summary>
+    /// <summary>App setting (risolto dall'host) con lo schedule NCRONTAB, in UTC, del rinnovo delle subscription.</summary>
     public const string RenewalScheduleSetting = "OneDriveSubscriptionRenewalSchedule";
 
     private readonly IOneDriveImportService _oneDriveImportService;
@@ -43,8 +45,8 @@ public class OneDriveImportFunctions
 
     /// <summary>
     /// Endpoint delle change notifications Graph. Anonimo (Graph non invia token): le notifiche sono
-    /// autenticate dal <c>clientState</c> condiviso. Risponde subito (Graph attende al massimo pochi secondi)
-    /// e delega il lavoro alla coda.
+    /// autenticate dal <c>clientState</c> del collegamento a cui appartiene la subscription. Risponde subito
+    /// (Graph attende al massimo pochi secondi) e delega il lavoro alla coda.
     /// </summary>
     [Function("OneDrive_Notifications")]
     [AllowAnonymousFunction]
@@ -74,32 +76,29 @@ public class OneDriveImportFunctions
             return new OneDriveNotificationOutput { HttpResponse = new BadRequestResult() };
         }
 
-        var notifications = batch?.Value ?? [];
-        var valid = notifications.Where(n => _oneDriveImportService.IsValidClientState(n.ClientState)).ToList();
+        var notifications = (batch?.Value ?? []).Select(n => new OneDriveNotification(n.SubscriptionId, n.ClientState));
+        var userIds = await _oneDriveImportService.ResolveNotifiedUsersAsync(notifications, req.HttpContext.RequestAborted);
 
-        if (valid.Count < notifications.Count)
-            _logger.LogWarning("Discarded {Count} OneDrive notifications with an invalid clientState", notifications.Count - valid.Count);
-
-        if (valid.Count == 0)
+        if (userIds.Count == 0)
             return new OneDriveNotificationOutput { HttpResponse = new AcceptedResult() };
 
-        _logger.LogInformation("OneDrive change notification received for subscription(s) {SubscriptionIds}: sync queued",
-            string.Join(", ", valid.Select(n => n.SubscriptionId).Distinct()));
+        _logger.LogInformation("OneDrive change notification received for user(s) {UserIds}: sync queued", string.Join(", ", userIds));
 
-        // Un solo messaggio per batch: la delta query raccoglie comunque tutte le modifiche.
+        // Un solo messaggio per utente: la delta query raccoglie comunque tutte le modifiche.
         return new OneDriveNotificationOutput
         {
             HttpResponse = new AcceptedResult(),
-            SyncMessage = JsonSerializer.Serialize(new { receivedOn = DateTimeOffset.UtcNow }),
+            SyncMessages = [.. userIds.Select(SyncMessageFor)],
         };
     }
 
     /// <summary>
-    /// Importa i file caricati dall'ultima sincronizzazione. Se un'altra sincronizzazione è in corso solleva
-    /// un'eccezione: il messaggio torna visibile dopo il <c>visibilityTimeout</c> di host.json e viene ritentato.
+    /// Importa i file caricati dall'utente dopo la sua ultima sincronizzazione. Se un'altra sincronizzazione dello
+    /// stesso utente è in corso solleva un'eccezione: il messaggio torna visibile dopo il <c>visibilityTimeout</c>
+    /// di host.json e viene ritentato.
     /// </summary>
     [Function("OneDrive_Sync")]
-    public async Task Sync([QueueTrigger(SyncQueueName)] string message, CancellationToken cancellationToken)
+    public async Task Sync([QueueTrigger(SyncQueueName)] OneDriveSyncMessage message, CancellationToken cancellationToken)
     {
         if (!_options.Enabled)
         {
@@ -107,16 +106,15 @@ public class OneDriveImportFunctions
             return;
         }
 
-        var result = await _oneDriveImportService.SyncAsync(cancellationToken);
+        var result = await _oneDriveImportService.SyncAsync(message.UserId, cancellationToken);
         if (result.IsFailed)
-            throw new InvalidOperationException($"OneDrive sync failed: {string.Join("; ", result.Errors.Select(e => e.Message))}");
+            throw new InvalidOperationException($"OneDrive sync of user {message.UserId} failed: {string.Join("; ", result.Errors.Select(e => e.Message))}");
 
-        _logger.LogInformation("OneDrive sync result: {@Summary}", result.Value);
+        _logger.LogInformation("OneDrive sync result for user {UserId}: {@Summary}", message.UserId, result.Value);
     }
 
     /// <summary>
-    /// Crea la subscription Graph se manca (e la baseline della delta query) o la rinnova se scade entro 5 giorni.
-    /// Da eseguire a mano dopo <c>connect-onedrive.ps1</c>: <c>POST /admin/functions/OneDrive_SubscriptionRenewal</c>.
+    /// Per ogni collegamento attivo crea la subscription Graph se manca o la rinnova se scade entro 5 giorni.
     /// </summary>
     [Function("OneDrive_SubscriptionRenewal")]
     public async Task SubscriptionRenewal(
@@ -129,27 +127,13 @@ public class OneDriveImportFunctions
             return;
         }
 
-        var notificationUrl = ResolveNotificationUrl();
-        var result = await _oneDriveImportService.EnsureSubscriptionAsync(notificationUrl, cancellationToken);
-        if (result.IsFailed)
-            throw new InvalidOperationException($"OneDrive subscription renewal failed: {string.Join("; ", result.Errors.Select(e => e.Message))}");
-
-        _logger.LogInformation("OneDrive subscription {Action}: {SubscriptionId} expires at {ExpiresAt:o}",
-            result.Value.Action, result.Value.SubscriptionId, result.Value.ExpiresAt);
+        var summary = await _oneDriveImportService.RenewSubscriptionsAsync(cancellationToken);
+        _logger.LogInformation("OneDrive subscription renewal: {@Summary}", summary);
     }
 
-    private string ResolveNotificationUrl()
-    {
-        if (!string.IsNullOrWhiteSpace(_options.NotificationUrl))
-            return _options.NotificationUrl;
+    public static string SyncMessageFor(int userId) => JsonSerializer.Serialize(new OneDriveSyncMessage(userId));
 
-        // Nome host pubblico della Function App, impostato dalla piattaforma.
-        var hostName = Environment.GetEnvironmentVariable("WEBSITE_HOSTNAME");
-        if (string.IsNullOrWhiteSpace(hostName))
-            throw new InvalidOperationException("Set OneDriveImport:NotificationUrl (WEBSITE_HOSTNAME is not available).");
-
-        return $"https://{hostName}/api/onedrive/notifications";
-    }
+    public sealed record OneDriveSyncMessage(int UserId);
 
     public sealed class OneDriveNotificationOutput
     {
@@ -157,7 +141,7 @@ public class OneDriveImportFunctions
         public IActionResult HttpResponse { get; set; } = new AcceptedResult();
 
         [QueueOutput(SyncQueueName)]
-        public string? SyncMessage { get; set; }
+        public string[]? SyncMessages { get; set; }
     }
 
     private sealed record GraphNotificationBatch([property: JsonPropertyName("value")] List<GraphNotification>? Value);

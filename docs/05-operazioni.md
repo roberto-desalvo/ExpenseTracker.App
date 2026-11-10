@@ -22,7 +22,6 @@ L'ambiente Azure è descritto interamente in Bicep (`infra/`) e distribuito da G
 |---|---|
 | Bootstrap (resource group, identità OIDC, secret e variabili GitHub) | `./infra/scripts/bootstrap.ps1` |
 | Utenti SQL della managed identity e dell'identità di deploy | `infra/scripts/grant-function-sql-access.sql` |
-| Consenso OneDrive (refresh token in Key Vault, creazione subscription) | `./infra/scripts/connect-onedrive.ps1` (da ripetere se il token viene revocato o resta inutilizzato 90 giorni) |
 | Dominio custom | Record DNS TXT e CNAME (o ALIAS per un apex) verso la Static Web App |
 
 ## CI/CD (`.github/workflows/`)
@@ -48,7 +47,7 @@ I workflow non eseguono i test: il deploy non ha un gate automatico.
 | `ConnectionStrings:DefaultConnection` | Database (in Azure passwordless con managed identity) |
 | `DevAuth` | Login di sviluppo, solo in `Development` |
 | `DemoAuth` | Login demo: `Enabled`, `SigningKey` (≥ 32 byte, in Key Vault) |
-| `OneDriveImport` | Import da OneDrive: `Enabled`, cartella, utente destinatario, Key Vault, `ClientState` |
+| `OneDriveImport` | Import da OneDrive: `Enabled` (in Azure la variabile `ONEDRIVE_IMPORT_ENABLED`), `ClientId` dell'app registration, `FolderName` (default `Transazioni`), `KeyVaultUri`, `NotificationUrl` (default: host pubblico della Function App) |
 | `DemoResetSchedule`, `OneDriveSubscriptionRenewalSchedule` | Orari NCRONTAB (UTC) dei timer |
 | `TradeRepublicCsv`, `TransferMatching` | Opzioni degli importer: nome del sotto-conto per le righe TRADING, regole per collegare i trasferimenti (`AccountType1/2` = nomi dei tipi di conto) |
 | `ImportStorage:ContainerName` | Container dei file caricati dall'app (default `bank-imports`), nello storage di `AzureWebJobsStorage` |
@@ -77,7 +76,7 @@ cd web; npm install; npm start
 | Ambito | Strumenti | Cosa copre |
 |---|---|---|
 | Backend (`RDS.ExpenseTracker.Tests`) | xUnit, FluentAssertions; fake scritte a mano al posto dei mock | Parsing degli importer (anche su file reali), deduplica, matching e riconciliazione dei trasferimenti, categorizzazione, log degli import, dati demo e di test |
-| Frontend (`*.spec.ts` accanto al codice) | Vitest via `ng test` | Store della tabella movimenti, interceptor HTTP, `ThemeService` |
+| Frontend (`*.spec.ts` accanto al codice) | Vitest via `ng test` | Store della tabella movimenti, degli import e del collegamento OneDrive, interceptor HTTP, `ThemeService` |
 
 ArchUnitNET è referenziato ma non ci sono ancora regole di architettura.
 

@@ -13,7 +13,7 @@ Demo disponibile www.expensetracker.lol
 - Gestione movimenti, categorie e conti.
 - Import di estratti conto CSV/Excel di BBVA, Sella, Satispay e Trade Republic, con deduplica dei movimenti.
 - Riconoscimento automatico dei trasferimenti tra conti (anche tramite IBAN).
-- Import automatico degli estratti conto salvati in una cartella OneDrive (notifiche Microsoft Graph → Azure Function).
+- Import automatico degli estratti conto salvati nel proprio OneDrive personale, collegato dall'app (notifiche Microsoft Graph → Azure Function).
 - Modalità demo: accesso senza account Microsoft come utente di test, con dati fittizi.
 - Seeding dei dati di test, eseguito ogni giorno da una timer function per ripristinare i dati demo.
 

@@ -2,93 +2,124 @@ using FluentAssertions;
 using FluentResults;
 using Microsoft.Extensions.Logging.Abstractions;
 using RDS.ExpenseTracker.Application.Services;
-using RDS.ExpenseTracker.Domain.Common;
 using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
-using RDS.ExpenseTracker.Domain.Models.DataImport;
-using RDS.ExpenseTracker.Domain.Models.OneDrive;
-using RDS.ExpenseTracker.Domain.Repositories;
 using RDS.ExpenseTracker.Domain.Services;
+using static RDS.ExpenseTracker.Tests.OneDriveFakes;
 
 namespace RDS.ExpenseTracker.Tests;
 
 public class OneDriveImportServiceTests
 {
-    private const string RootId = "root";
+    private const int UserId = 7;
+    private const int AdminId = 8;
+    private const string FolderId = "transazioni";
     private const string BbvaFolderId = "bbva";
     private const string SatispayFolderId = "satispay";
     private const string ExcelFolderId = "excel";
     private const string OtherFolderId = "other";
-    private const string UserEmail = "owner@example.com";
     private const string ClientState = "secret-state";
 
     private readonly FakeOneDriveClient _client = new();
-    private readonly FakeSyncStateRepository _state = new();
+    private readonly FakeConnectionRepository _connections = new();
     private readonly FakeUserRepository _users = new();
     private readonly FakeBankFileImportService _importer = new();
     private readonly TestOptions _options = new();
+    private readonly OneDriveConnection _connection;
 
     public OneDriveImportServiceTests()
     {
         _client.ChildFolders.AddRange([
-            Folder(BbvaFolderId, "BBVA"),
-            Folder(SatispayFolderId, "Satispay"),
-            Folder(ExcelFolderId, "Excel"),
-            Folder(OtherFolderId, "Varie"),
+            Folder(BbvaFolderId, "BBVA", FolderId),
+            Folder(SatispayFolderId, "Satispay", FolderId),
+            Folder(ExcelFolderId, "Excel", FolderId),
+            Folder(OtherFolderId, "Varie", FolderId),
         ]);
-        _users.Users.Add(new User(7, UserEmail));
+        _users.Users.Add(new User(UserId, "user@example.com"));
+        _users.Users.Add(new User(AdminId, "admin@example.com") { IsAdmin = true });
+        _connection = _connections.Add(Connected(UserId));
     }
 
+    private static OneDriveConnection Connected(int userId, string? deltaLink = "delta-0") => new()
+    {
+        UserId = userId,
+        Status = OneDriveConnectionStatus.Connected,
+        FolderId = FolderId,
+        ClientState = ClientState,
+        DeltaLink = deltaLink,
+    };
+
     private OneDriveImportService CreateService() => new(
-        _client, _state, _users, _importer, _options, NullLogger<OneDriveImportService>.Instance);
+        _client, _connections, _users, _importer, _options, NullLogger<OneDriveImportService>.Instance);
 
     [Fact]
-    public async Task SyncAsync_CreatesBaselineWithoutImporting_OnFirstRun()
+    public async Task SyncAsync_CreatesBaselineWithoutImporting_WhenThereIsNoDeltaLink()
     {
+        _connection.DeltaLink = null;
         _client.DeltaItems.Add(File("f1", "old.csv", BbvaFolderId));
 
-        var result = await CreateService().SyncAsync(CancellationToken.None);
+        var result = await CreateService().SyncAsync(UserId);
 
         result.Value.BaselineCreated.Should().BeTrue();
         _client.DeltaRequests.Should().ContainSingle().Which.Should().BeNull("the baseline uses token=latest");
-        _state.State.DeltaLink.Should().Be("delta-1");
+        _connection.DeltaLink.Should().Be("delta-1");
         _importer.Calls.Should().BeEmpty();
-        _state.LockReleased.Should().BeTrue();
+        _connections.ReleasedLocks.Should().Equal(_connection.Id);
     }
 
     [Fact]
-    public async Task SyncAsync_ImportsNewBankFiles_AndMovesThemToImportedFolder()
+    public async Task SyncAsync_ImportsNewBankFilesOfTheUser_AndMovesThemToImportedFolder()
     {
-        _state.State.DeltaLink = "delta-0";
         _client.DeltaItems.AddRange([
             File("f1", "estratto.csv", BbvaFolderId),
             File("f2", "satispay.xlsx", SatispayFolderId),
-            File("f3", "movimenti.xlsx", ExcelFolderId),
         ]);
 
-        var result = await CreateService().SyncAsync(CancellationToken.None);
+        var result = await CreateService().SyncAsync(UserId);
 
-        result.Value.Should().Be(new OneDriveSyncSummary(false, ImportedFiles: 3, FailedFiles: 0, IgnoredItems: 0));
+        result.Value.Should().Be(new OneDriveSyncSummary(false, ImportedFiles: 2, FailedFiles: 0, IgnoredItems: 0));
         _importer.Calls.Should().Equal(
-            (BankFileSource.Bbva, BankFileFormat.Csv, "estratto.csv", 7, "BBVA CSV (OneDrive)"),
-            (BankFileSource.SatisPay, BankFileFormat.Xlsx, "satispay.xlsx", 7, "Satispay XLSX (OneDrive)"),
-            (BankFileSource.Excel, BankFileFormat.Xlsx, "movimenti.xlsx", 7, "Excel (OneDrive)"));
-        _client.Moves.Should().Equal(
-            ("f1", $"{BbvaFolderId}/Importati"),
-            ("f2", $"{SatispayFolderId}/Importati"),
-            ("f3", $"{ExcelFolderId}/Importati"));
-        _state.State.DeltaLink.Should().Be("delta-1");
+            (BankFileSource.Bbva, BankFileFormat.Csv, "estratto.csv", UserId, "BBVA CSV (OneDrive)"),
+            (BankFileSource.SatisPay, BankFileFormat.Xlsx, "satispay.xlsx", UserId, "Satispay XLSX (OneDrive)"));
+        _client.Moves.Should().Equal(("f1", $"{BbvaFolderId}/Importati"), ("f2", $"{SatispayFolderId}/Importati"));
+        _client.UserIds.Should().OnlyContain(id => id == UserId, "Graph is always called with the token of the connection owner");
+        _connection.DeltaLink.Should().Be("delta-1");
+        _connection.LastSyncOn.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task SyncAsync_IgnoresTheLegacyExcelFolder_ForNonAdminUsers()
+    {
+        _client.DeltaItems.Add(File("f1", "Spese.xlsx", ExcelFolderId));
+
+        var result = await CreateService().SyncAsync(UserId);
+
+        result.Value.Should().Be(new OneDriveSyncSummary(false, 0, 0, IgnoredItems: 1));
+        _importer.Calls.Should().BeEmpty();
+        _client.Moves.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SyncAsync_ImportsTheLegacyExcelFolder_ForAdminUsers()
+    {
+        _connections.Add(Connected(AdminId));
+        _client.DeltaItems.Add(File("f1", "Spese.xlsx", ExcelFolderId));
+
+        var result = await CreateService().SyncAsync(AdminId);
+
+        result.Value.ImportedFiles.Should().Be(1);
+        _importer.Calls.Should().Equal((BankFileSource.Excel, BankFileFormat.Xlsx, "Spese.xlsx", AdminId, "Excel (OneDrive)"));
+        _client.Moves.Should().Equal(("f1", $"{ExcelFolderId}/Importati"));
     }
 
     [Fact]
     public async Task SyncAsync_MovesFailedImportsToErrorFolder()
     {
-        _state.State.DeltaLink = "delta-0";
         _client.DeltaItems.AddRange([File("f1", "bad.csv", BbvaFolderId), File("f2", "boom.csv", BbvaFolderId)]);
         _importer.Results["bad.csv"] = Result.Fail("Invalid header");
         _importer.Throws["boom.csv"] = new InvalidOperationException("boom");
 
-        var result = await CreateService().SyncAsync(CancellationToken.None);
+        var result = await CreateService().SyncAsync(UserId);
 
         result.Value.FailedFiles.Should().Be(2);
         _client.Moves.Should().Equal(("f1", $"{BbvaFolderId}/Errori"), ("f2", $"{BbvaFolderId}/Errori"));
@@ -98,98 +129,115 @@ public class OneDriveImportServiceTests
     [Fact]
     public async Task SyncAsync_MovesUnsupportedFilesToErrorFolder_WithoutImporting()
     {
-        _state.State.DeltaLink = "delta-0";
-        _client.DeltaItems.AddRange([File("f1", "estratto.pdf", BbvaFolderId), File("f2", "movimenti.csv", ExcelFolderId)]);
+        _client.DeltaItems.Add(File("f1", "estratto.pdf", BbvaFolderId));
 
-        var result = await CreateService().SyncAsync(CancellationToken.None);
+        var result = await CreateService().SyncAsync(UserId);
 
-        result.Value.FailedFiles.Should().Be(2);
+        result.Value.FailedFiles.Should().Be(1);
         _importer.Calls.Should().BeEmpty();
-        _client.Moves.Should().Equal(("f1", $"{BbvaFolderId}/Errori"), ("f2", $"{ExcelFolderId}/Errori"));
+        _client.Moves.Should().Equal(("f1", $"{BbvaFolderId}/Errori"));
     }
 
     [Fact]
     public async Task SyncAsync_IgnoresFoldersDeletedItemsAndFilesOutsideBankFolders()
     {
-        _state.State.DeltaLink = "delta-0";
         _client.DeltaItems.AddRange([
-            Folder(BbvaFolderId, "BBVA"),
-            File("f1", "root.csv", RootId),
+            Folder(BbvaFolderId, "BBVA", FolderId),
+            File("f1", "root.csv", FolderId),
             File("f2", "other.csv", OtherFolderId),
             File("f3", "already.csv", "bbva-importati"),
             File("f4", "deleted.csv", BbvaFolderId) with { IsDeleted = true },
         ]);
 
-        var result = await CreateService().SyncAsync(CancellationToken.None);
+        var result = await CreateService().SyncAsync(UserId);
 
         result.Value.Should().Be(new OneDriveSyncSummary(false, 0, 0, IgnoredItems: 5));
         _importer.Calls.Should().BeEmpty();
         _client.Moves.Should().BeEmpty();
-        _state.State.DeltaLink.Should().Be("delta-1");
+        _connection.DeltaLink.Should().Be("delta-1");
     }
 
     [Fact]
-    public async Task SyncAsync_Fails_WhenAnotherSyncHoldsTheLock()
+    public async Task SyncAsync_Fails_WhenAnotherSyncOfTheUserHoldsTheLock()
     {
-        _state.LockAvailable = false;
+        _connections.LockAvailable = false;
 
-        var result = await CreateService().SyncAsync(CancellationToken.None);
+        var result = await CreateService().SyncAsync(UserId);
 
         result.IsFailed.Should().BeTrue();
         result.Errors.Should().ContainSingle().Which.Message.Should().Contain("in progress");
         _client.DeltaRequests.Should().BeEmpty();
-        _state.LockReleased.Should().BeFalse();
+        _connections.ReleasedLocks.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(OneDriveConnectionStatus.Pending)]
+    [InlineData(OneDriveConnectionStatus.ReconnectRequired)]
+    public async Task SyncAsync_DoesNothing_WhenTheConnectionIsNotActive(OneDriveConnectionStatus status)
+    {
+        _connection.Status = status;
+
+        var result = await CreateService().SyncAsync(UserId);
+
+        result.Value.Should().Be(new OneDriveSyncSummary(false, 0, 0, 0));
+        _client.UserIds.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task SyncAsync_DoesNotAdvanceDelta_WhenTargetUserIsMissing()
+    public async Task SyncAsync_DoesNothing_WhenTheUserHasNoConnection()
     {
-        _state.State.DeltaLink = "delta-0";
-        _users.Users.Clear();
-        _client.DeltaItems.Add(File("f1", "estratto.csv", BbvaFolderId));
+        var result = await CreateService().SyncAsync(AdminId);
 
-        var result = await CreateService().SyncAsync(CancellationToken.None);
+        result.IsSuccess.Should().BeTrue();
+        _client.UserIds.Should().BeEmpty();
+    }
 
-        result.IsFailed.Should().BeTrue();
-        _state.State.DeltaLink.Should().Be("delta-0");
-        _client.Moves.Should().BeEmpty();
-        _state.LockReleased.Should().BeTrue();
+    [Fact]
+    public async Task SyncAsync_RequiresReconnection_WhenTheAuthorizationIsNoLongerValid()
+    {
+        _client.UnauthorizedUsers.Add(UserId);
+
+        var result = await CreateService().SyncAsync(UserId);
+
+        result.IsSuccess.Should().BeTrue("the message must not be retried");
+        _connection.Status.Should().Be(OneDriveConnectionStatus.ReconnectRequired);
+        _connection.LastError.Should().Be(OneDriveImportService.ReconnectMessage);
+        _connection.DeltaLink.Should().Be("delta-0");
+        _connections.ReleasedLocks.Should().Equal(_connection.Id);
     }
 
     [Fact]
     public async Task SyncAsync_CreatesNewBaseline_WhenDeltaLinkExpired()
     {
-        _state.State.DeltaLink = "delta-0";
         _client.ExpireDeltaLink = "delta-0";
 
-        var result = await CreateService().SyncAsync(CancellationToken.None);
+        var result = await CreateService().SyncAsync(UserId);
 
         result.Value.BaselineCreated.Should().BeTrue();
-        _state.State.DeltaLink.Should().Be("delta-1");
+        _connection.DeltaLink.Should().Be("delta-1");
     }
 
     [Fact]
-    public async Task EnsureSubscriptionAsync_CreatesBaselineAndSubscription_WhenMissing()
+    public async Task EnsureSubscriptionAsync_CreatesSubscriptionOnTheUserFolder_WhenMissing()
     {
-        var result = await CreateService().EnsureSubscriptionAsync("https://func/api/onedrive/notifications", CancellationToken.None);
+        var result = await CreateService().EnsureSubscriptionAsync(Connected(UserId).WithId(_connection.Id));
 
         result.Value.Action.Should().Be("created");
-        _state.State.DeltaLink.Should().Be("delta-1");
         var created = _client.CreatedSubscriptions.Should().ContainSingle().Subject;
-        created.Resource.Should().Be($"/me/drive/items/{RootId}");
-        created.NotificationUrl.Should().Be("https://func/api/onedrive/notifications");
+        created.Resource.Should().Be($"/me/drive/items/{FolderId}");
+        created.NotificationUrl.Should().Be(NotificationUrl);
         created.ClientState.Should().Be(ClientState);
-        _state.State.SubscriptionId.Should().Be("sub-1");
+        _connection.SubscriptionId.Should().Be("sub-1");
     }
 
     [Fact]
     public async Task EnsureSubscriptionAsync_KeepsSubscription_WhenFarFromExpiry()
     {
-        _state.State.DeltaLink = "delta-0";
-        _state.State.SubscriptionId = "sub-0";
-        _state.State.SubscriptionExpiresAt = DateTime.UtcNow.AddDays(20);
+        var connection = Connected(UserId).WithId(_connection.Id);
+        connection.SubscriptionId = "sub-0";
+        connection.SubscriptionExpiresAt = DateTime.UtcNow.AddDays(20);
 
-        var result = await CreateService().EnsureSubscriptionAsync("https://func/api/onedrive/notifications", CancellationToken.None);
+        var result = await CreateService().EnsureSubscriptionAsync(connection);
 
         result.Value.Action.Should().Be("unchanged");
         _client.CreatedSubscriptions.Should().BeEmpty();
@@ -197,200 +245,106 @@ public class OneDriveImportServiceTests
     }
 
     [Fact]
-    public async Task EnsureSubscriptionAsync_RenewsSubscription_WhenCloseToExpiry()
+    public async Task EnsureSubscriptionAsync_Fails_WithoutANotificationUrl()
     {
-        _state.State.DeltaLink = "delta-0";
-        _state.State.SubscriptionId = "sub-0";
-        _state.State.SubscriptionExpiresAt = DateTime.UtcNow.AddDays(2);
+        _options.NotificationUrl = string.Empty;
+
+        var result = await CreateService().EnsureSubscriptionAsync(Connected(UserId).WithId(_connection.Id));
+
+        result.IsFailed.Should().BeTrue();
+        _client.CreatedSubscriptions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RenewSubscriptionsAsync_HandlesEveryActiveConnection_AndKeepsGoingAfterAFailure()
+    {
+        // utente 7: subscription vicina alla scadenza → rinnovata
+        _connection.SubscriptionId = "sub-0";
+        _connection.SubscriptionExpiresAt = DateTime.UtcNow.AddDays(2);
         _client.ExistingSubscriptions.Add("sub-0");
+        // utente 8: subscription scomparsa → ricreata
+        var admin = _connections.Add(Connected(AdminId));
+        admin.SubscriptionId = "gone";
+        admin.SubscriptionExpiresAt = DateTime.UtcNow.AddDays(-1);
+        // utente 9: autorizzazione revocata → da ricollegare
+        var revoked = _connections.Add(Connected(9));
+        _client.UnauthorizedUsers.Add(9);
+        // utente 10: collegamento non completato → ignorato
+        _connections.Add(new OneDriveConnection { UserId = 10, Status = OneDriveConnectionStatus.Pending });
 
-        var result = await CreateService().EnsureSubscriptionAsync("https://func/api/onedrive/notifications", CancellationToken.None);
+        var summary = await CreateService().RenewSubscriptionsAsync();
 
-        result.Value.Action.Should().Be("renewed");
+        summary.Should().Be(new OneDriveRenewalSummary(Connections: 3, Created: 1, Renewed: 1, Failed: 1));
         _client.RenewedSubscriptions.Should().Equal("sub-0");
-        _state.State.SubscriptionExpiresAt.Should().BeAfter(DateTime.UtcNow.AddDays(25));
+        _connection.SubscriptionExpiresAt.Should().BeAfter(DateTime.UtcNow.AddDays(25));
+        admin.SubscriptionId.Should().Be("sub-1");
+        revoked.Status.Should().Be(OneDriveConnectionStatus.ReconnectRequired);
     }
 
     [Fact]
-    public async Task EnsureSubscriptionAsync_RecreatesSubscription_WhenItNoLongerExists()
+    public async Task RenewSubscriptionsAsync_RecordsTheError_WhenGraphRefusesTheSubscription()
     {
-        _state.State.DeltaLink = "delta-0";
-        _state.State.SubscriptionId = "sub-0";
-        _state.State.SubscriptionExpiresAt = DateTime.UtcNow.AddDays(-1);
+        _client.SubscriptionError = new HttpRequestException("validation failed");
 
-        var result = await CreateService().EnsureSubscriptionAsync("https://func/api/onedrive/notifications", CancellationToken.None);
+        var summary = await CreateService().RenewSubscriptionsAsync();
 
-        result.Value.Action.Should().Be("created");
-        _state.State.SubscriptionId.Should().Be("sub-1");
+        summary.Failed.Should().Be(1);
+        _connection.Status.Should().Be(OneDriveConnectionStatus.Connected);
+        _connection.LastError.Should().Be(OneDriveImportService.SubscriptionFailedMessage);
     }
-
-    [Theory]
-    [InlineData(ClientState, true)]
-    [InlineData("other", false)]
-    [InlineData(null, false)]
-    public void IsValidClientState_ComparesWithTheConfiguredSecret(string? clientState, bool expected)
-        => CreateService().IsValidClientState(clientState).Should().Be(expected);
 
     [Fact]
-    public void IsValidClientState_RejectsEverything_WhenNoSecretIsConfigured()
+    public async Task ResolveNotifiedUsersAsync_ReturnsTheOwnersOfTheNotifiedSubscriptions_Once()
     {
-        _options.ClientState = string.Empty;
+        _connection.SubscriptionId = "sub-user";
+        var admin = _connections.Add(Connected(AdminId));
+        admin.SubscriptionId = "sub-admin";
+        admin.ClientState = "admin-state";
 
-        CreateService().IsValidClientState(string.Empty).Should().BeFalse();
+        var userIds = await CreateService().ResolveNotifiedUsersAsync([
+            new OneDriveNotification("sub-user", ClientState),
+            new OneDriveNotification("sub-user", ClientState),
+            new OneDriveNotification("sub-admin", "admin-state"),
+        ]);
+
+        userIds.Should().Equal(UserId, AdminId);
     }
 
-    private static OneDriveItem File(string id, string name, string parentId) => new(id, name, parentId, IsFile: true, IsFolder: false, IsDeleted: false);
-
-    private static OneDriveItem Folder(string id, string name) => new(id, name, RootId, IsFile: false, IsFolder: true, IsDeleted: false);
-
-    private sealed class TestOptions : IOneDriveImportOptions
+    [Fact]
+    public async Task ResolveNotifiedUsersAsync_DiscardsUnknownSubscriptionsAndWrongClientStates()
     {
-        public bool Enabled => true;
-        public string ClientId => "client";
-        public string FolderId => RootId;
-        public string TargetUserEmail => UserEmail;
-        public string NotificationUrl => string.Empty;
-        public string ClientState { get; set; } = OneDriveImportServiceTests.ClientState;
-        public string SubscriptionResource => string.Empty;
-        public string KeyVaultUri => string.Empty;
-        public string RefreshTokenSecretName => "OneDriveRefreshToken";
-        public string ImportedFolderName => "Importati";
-        public string FailedFolderName => "Errori";
+        _connection.SubscriptionId = "sub-user";
+        var admin = _connections.Add(Connected(AdminId));
+        admin.SubscriptionId = "sub-admin";
+        admin.ClientState = "admin-state";
+
+        var userIds = await CreateService().ResolveNotifiedUsersAsync([
+            new OneDriveNotification("sub-user", "admin-state"),
+            new OneDriveNotification("sub-admin", null),
+            new OneDriveNotification("sub-unknown", ClientState),
+            new OneDriveNotification(null, ClientState),
+        ]);
+
+        userIds.Should().BeEmpty();
     }
 
-    private sealed class FakeOneDriveClient : IOneDriveClient
+    [Fact]
+    public async Task ResolveNotifiedUsersAsync_DiscardsNotificationsOfInactiveConnections()
     {
-        private int _deltaCounter;
-        private int _subscriptionCounter;
+        _connection.SubscriptionId = "sub-user";
+        _connection.Status = OneDriveConnectionStatus.ReconnectRequired;
 
-        public List<OneDriveItem> ChildFolders { get; } = [];
-        public List<OneDriveItem> DeltaItems { get; } = [];
-        public List<string?> DeltaRequests { get; } = [];
-        public string? ExpireDeltaLink { get; set; }
-        public List<(string ItemId, string Target)> Moves { get; } = [];
-        public List<string> EnsuredFolders { get; } = [];
-        public HashSet<string> ExistingSubscriptions { get; } = [];
-        public List<(string Resource, string NotificationUrl, string ClientState)> CreatedSubscriptions { get; } = [];
-        public List<string> RenewedSubscriptions { get; } = [];
+        var userIds = await CreateService().ResolveNotifiedUsersAsync([new OneDriveNotification("sub-user", ClientState)]);
 
-        public Task<IReadOnlyList<OneDriveItem>> GetChildFoldersAsync(string folderId, CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<OneDriveItem>>(ChildFolders.Where(f => f.ParentId == folderId).ToList());
-
-        public Task<OneDriveDeltaResult> GetDeltaAsync(string folderId, string? deltaLink, CancellationToken cancellationToken = default)
-        {
-            DeltaRequests.Add(deltaLink);
-            if (deltaLink is not null && deltaLink == ExpireDeltaLink)
-                throw new OneDriveDeltaExpiredException("expired");
-
-            var items = deltaLink is null ? [] : DeltaItems.ToList();
-            return Task.FromResult(new OneDriveDeltaResult(items, $"delta-{++_deltaCounter}"));
-        }
-
-        public Task<Stream> DownloadAsync(string itemId, CancellationToken cancellationToken = default)
-            => Task.FromResult<Stream>(new MemoryStream([1, 2, 3]));
-
-        public Task<string> EnsureChildFolderAsync(string parentFolderId, string name, CancellationToken cancellationToken = default)
-        {
-            EnsuredFolders.Add($"{parentFolderId}/{name}");
-            return Task.FromResult($"{parentFolderId}/{name}");
-        }
-
-        public Task MoveAsync(string itemId, string targetFolderId, CancellationToken cancellationToken = default)
-        {
-            Moves.Add((itemId, targetFolderId));
-            return Task.CompletedTask;
-        }
-
-        public Task<OneDriveSubscription> CreateSubscriptionAsync(string resource, string notificationUrl, string clientState, DateTimeOffset expiresAt, CancellationToken cancellationToken = default)
-        {
-            CreatedSubscriptions.Add((resource, notificationUrl, clientState));
-            var id = $"sub-{++_subscriptionCounter}";
-            ExistingSubscriptions.Add(id);
-            return Task.FromResult(new OneDriveSubscription(id, expiresAt));
-        }
-
-        public Task<OneDriveSubscription?> RenewSubscriptionAsync(string subscriptionId, DateTimeOffset expiresAt, CancellationToken cancellationToken = default)
-        {
-            if (!ExistingSubscriptions.Contains(subscriptionId))
-                return Task.FromResult<OneDriveSubscription?>(null);
-
-            RenewedSubscriptions.Add(subscriptionId);
-            return Task.FromResult<OneDriveSubscription?>(new OneDriveSubscription(subscriptionId, expiresAt));
-        }
+        userIds.Should().BeEmpty();
     }
+}
 
-    private sealed class FakeSyncStateRepository : IOneDriveSyncStateRepository
+internal static class OneDriveConnectionTestExtensions
+{
+    public static OneDriveConnection WithId(this OneDriveConnection connection, int id)
     {
-        public OneDriveSyncState State { get; } = new() { Id = OneDriveSyncState.SingletonId };
-        public bool LockAvailable { get; set; } = true;
-        public bool LockReleased { get; private set; }
-
-        public Task<OneDriveSyncState> GetAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult(new OneDriveSyncState
-            {
-                Id = State.Id,
-                DeltaLink = State.DeltaLink,
-                SubscriptionId = State.SubscriptionId,
-                SubscriptionExpiresAt = State.SubscriptionExpiresAt,
-            });
-
-        public Task<bool> TryAcquireLockAsync(TimeSpan duration, CancellationToken cancellationToken = default)
-            => Task.FromResult(LockAvailable);
-
-        public Task ReleaseLockAsync(CancellationToken cancellationToken = default)
-        {
-            LockReleased = true;
-            return Task.CompletedTask;
-        }
-
-        public Task UpdateDeltaLinkAsync(string deltaLink, DateTime syncedOn, CancellationToken cancellationToken = default)
-        {
-            State.DeltaLink = deltaLink;
-            State.LastSyncOn = syncedOn;
-            return Task.CompletedTask;
-        }
-
-        public Task UpdateSubscriptionAsync(string subscriptionId, DateTime expiresAt, CancellationToken cancellationToken = default)
-        {
-            State.SubscriptionId = subscriptionId;
-            State.SubscriptionExpiresAt = expiresAt;
-            return Task.CompletedTask;
-        }
-
-        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
-    }
-
-    private sealed class FakeUserRepository : IUserRepository
-    {
-        public List<User> Users { get; } = [];
-
-        public Task<User?> GetByEmail(string email) => Task.FromResult(Users.FirstOrDefault(u => u.Email == email));
-        public Task<User?> GetByAzureOid(string azureOid) => throw new NotSupportedException();
-        public Task<User?> GetByAppOid(string appOid) => throw new NotSupportedException();
-        public Task<User?> GetById(int id) => throw new NotSupportedException();
-        public Task<User> GetOrCreateUserAsync(string azureOid, string email) => throw new NotSupportedException();
-        public Task AddUser(User user) => throw new NotSupportedException();
-        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
-    }
-
-    private sealed class FakeBankFileImportService : IBankFileImportService
-    {
-        public List<(BankFileSource Source, BankFileFormat Format, string FileName, int UserId, string? LogSource)> Calls { get; } = [];
-        public Dictionary<string, Result<int>> Results { get; } = [];
-        public Dictionary<string, Exception> Throws { get; } = [];
-
-        public Task<Result<int>> ImportAsync(BankFileSource source, BankFileFormat format, Stream content, string fileName, int userId, bool importAll = false, string? logSource = null)
-        {
-            Calls.Add((source, format, fileName, userId, logSource));
-            if (Throws.TryGetValue(fileName, out var ex))
-                throw ex;
-            return Task.FromResult(Results.TryGetValue(fileName, out var result) ? result : Result.Ok(1));
-        }
-
-        public Task<Result<int>> RunTrackedAsync(string logSource, string? fileName, int userId, Func<ImportStatistics, Task<Result<int>>> import)
-            => throw new NotSupportedException();
-
-        public Task<Result<int>> ImportWithoutLogAsync(BankFileSource source, BankFileFormat format, Stream content, string fileName, int userId, bool importAll, ImportStatistics statistics, int? accountId = null)
-            => throw new NotSupportedException();
+        connection.Id = id;
+        return connection;
     }
 }

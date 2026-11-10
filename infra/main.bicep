@@ -39,16 +39,10 @@ param staticWebAppName string = ''
 param customDomainName string = ''
 
 // ---- Import automatico da OneDrive (functions OneDrive_*) ----
-@description('OneDrive item ID of the watched folder (/Transazioni, one subfolder per bank).')
-param oneDriveFolderId string
-
-@description('Enable the OneDrive import functions. Requires the one-time consent (infra/scripts/connect-onedrive.ps1).')
+@description('Enable the OneDrive import: every user connects their own personal OneDrive from the app (Impostazioni > Import).')
 param oneDriveImportEnabled bool = false
 
-@description('Email of the ExpenseTracker user that owns the data imported from OneDrive.')
-param oneDriveTargetUserEmail string = ''
-
-@description('NCRONTAB schedule (UTC) of the timer function that creates/renews the Graph subscription on the OneDrive folder.')
+@description('NCRONTAB schedule (UTC) of the timer function that creates/renews the Graph subscriptions on the connected OneDrive folders.')
 param oneDriveSubscriptionRenewalSchedule string = '0 0 4 * * *'
 
 // ---- Entra ID (app registrations created by modules/entra.bicep) ----
@@ -200,9 +194,6 @@ module functionApp 'modules/functionApp.bicep' = {
     keyVaultUri: keyVault.outputs.vaultUri
     oneDriveImportEnabled: oneDriveImportEnabled
     oneDriveClientId: entra.outputs.oneDriveClientId
-    oneDriveFolderId: oneDriveFolderId
-    oneDriveTargetUserEmail: oneDriveTargetUserEmail
-    oneDriveClientStateSecretUri: keyVault.outputs.oneDriveClientStateSecretUri
     oneDriveSubscriptionRenewalSchedule: oneDriveSubscriptionRenewalSchedule
     sqlConnectionString: sqlConnectionString
     azureAdTenantId: tenant().tenantId
@@ -234,5 +225,5 @@ output apiScope string = entra.outputs.apiScope
 output apiServicePrincipalId string = entra.outputs.apiServicePrincipalId
 output filesSenderRoleId string = entra.outputs.filesSenderRoleId
 output spaClientId string = entra.outputs.spaClientId
-// Used by infra/scripts/connect-onedrive.ps1 (device code consent for the OneDrive import).
+// Public client used by the Function App for the OneDrive connections of the users (device code flow).
 output oneDriveClientId string = entra.outputs.oneDriveClientId

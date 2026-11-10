@@ -46,9 +46,6 @@ az deployment group what-if -g <resource-group> --parameters ./infra/parameters/
 az deployment sub create -l westeurope --parameters ./infra/bootstrap/bootstrap.bicepparam
 # ...or all in one (load .env + bootstrap + GitHub environment secrets/variables via gh); supports -WhatIf, -SkipBootstrap, -SkipGitHub
 ./infra/scripts/bootstrap.ps1
-
-# One-time OneDrive consent for the automatic import (device code; refresh token -> Key Vault, then creates the Graph subscription)
-./infra/scripts/connect-onedrive.ps1
 ```
 
 Entra ID app registrations (API + SPA) are created by `infra/modules/entra.bicep` via the Microsoft Graph Bicep extension (`infra/bicepconfig.json`).
@@ -99,11 +96,13 @@ SQL Server via EF Core Code-First. Core entities:
 
 `ImportJobFunctions` handle the in-app import: `POST imports` stores the file in the `bank-imports` blob container, records a `Queued` `ImportLog` and enqueues it on `bank-file-import`; `ImportJob_Process` runs the pipeline via `ImportJobService` and sets the log to `Completed`/`Failed`.
 
-`OneDriveImportFunctions` replace the former Logic App: Microsoft Graph change notifications on the OneDrive folder (`/Transazioni/<Bank>/file`) → queue `onedrive-sync` → `OneDriveImportService` (delta query, import, move to `Importati`/`Errori`); a daily timer renews the Graph subscription. The drive is a personal OneDrive, so Graph is called with a delegated refresh token kept in Key Vault (`OneDriveTokenProvider`).
+`OneDriveImportFunctions` run the automatic import from the personal OneDrive each user connects from the app: Microsoft Graph change notifications on the user's folder (`/Transazioni/<Bank>/file`) → queue `onedrive-sync` (one message per user) → `OneDriveImportService` (delta query, import, move to `Importati`/`Errori`); a daily timer renews the Graph subscriptions. `OneDriveConnectionFunctions` + `OneDriveConnectionService` handle the connection (device code flow; one `OneDriveConnection` row per user). The drives are personal, so Graph is called with each user's delegated refresh token kept in Key Vault (`OneDriveTokenService`, secret `OneDriveRefreshToken-<userId>`).
+
+Access rules: in-app import, import history and the OneDrive connection are open to every user except the demo one (`Users.IsDemo` → 403); everything about the legacy Excel workbook (legacy match, `import/excel*`, the OneDrive `Excel` folder) is admin-only (`Users.IsAdmin`).
 
 ### Frontend
 
-Angular 22 SPA (standalone components, signals, zoneless) in `web/`. State lives in root-provided signal stores in `src/app/core/state/` (no NgRx). UI uses Angular Material + CDK with SCSS; charts use ECharts via `ngx-echarts`. Pages (lazy routes in `src/app/app.routes.ts`): Dashboard (`/`), Movimenti (`/movimenti`), Analisi (`/analisi`), Pianificazione (`/pianificazione`), Impostazioni (`/impostazioni`: Categorie, Conti, Aspetto). Visual styles are switchable presets (`src/app/core/theme/stylePresets.ts`); `ThemeService` writes the active tokens as CSS variables (`--app-*`, `--mat-sys-*`) on `:root`, and components use `var(--app-…)` or `ThemeService.tokens()`. All API calls go through `ApiClient` + the `*.api.ts` services in `src/app/core/api/`; auth header and error notifications are HTTP interceptors.
+Angular 22 SPA (standalone components, signals, zoneless) in `web/`. State lives in root-provided signal stores in `src/app/core/state/` (no NgRx). UI uses Angular Material + CDK with SCSS; charts use ECharts via `ngx-echarts`. Pages (lazy routes in `src/app/app.routes.ts`): Dashboard (`/`), Movimenti (`/movimenti`), Analisi (`/analisi`), Pianificazione (`/pianificazione`), Impostazioni (`/impostazioni`: Categorie, Conti, Import, Analisi, Aspetto). Visual styles are switchable presets (`src/app/core/theme/stylePresets.ts`); `ThemeService` writes the active tokens as CSS variables (`--app-*`, `--mat-sys-*`) on `:root`, and components use `var(--app-…)` or `ThemeService.tokens()`. All API calls go through `ApiClient` + the `*.api.ts` services in `src/app/core/api/`; auth header and error notifications are HTTP interceptors.
 
 Authentication is MSAL (Azure AD) via `@azure/msal-browser` directly: the singleton `msalInstance` is in `src/app/core/auth/msalInstance.ts` and `AuthService` initializes it in an app initializer; the required scope is `api://[client-id]/access_as_user`.
 

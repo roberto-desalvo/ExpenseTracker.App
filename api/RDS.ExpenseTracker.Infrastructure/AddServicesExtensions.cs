@@ -42,7 +42,7 @@ public static class AddServicesExtensions
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ITransferReconciliationRepository, TransferReconciliationRepository>();
         services.AddScoped<IImportLogRepository, ImportLogRepository>();
-        services.AddScoped<IOneDriveSyncStateRepository, OneDriveSyncStateRepository>();
+        services.AddScoped<IOneDriveConnectionRepository, OneDriveConnectionRepository>();
 
         return services;
     }
@@ -78,8 +78,8 @@ public static class AddServicesExtensions
     /// </summary>
     public static IServiceCollection AddOneDriveServices(this IServiceCollection services)
     {
-        services.AddHttpClient(OneDriveTokenProvider.HttpClientName);
-        services.AddSingleton<IOneDriveTokenProvider, OneDriveTokenProvider>();
+        services.AddHttpClient(OneDriveTokenService.HttpClientName);
+        services.AddSingleton<IOneDriveTokenService, OneDriveTokenService>();
         services.AddHttpClient<IOneDriveClient, GraphOneDriveClient>(client =>
         {
             client.BaseAddress = new Uri(GraphOneDriveClient.GraphBaseUrl);

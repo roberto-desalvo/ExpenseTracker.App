@@ -18,7 +18,7 @@ ExpenseTracker è una web app personale per tenere traccia di entrate, uscite e 
 - Analisi nel tempo: patrimonio, flusso di cassa, spese per categoria, classifiche.
 - Gestione di movimenti, trasferimenti, categorie (con parole chiave per la categorizzazione automatica) e conti (con IBAN).
 - Import di CSV/XLSX di BBVA, Sella, Satispay e Trade Republic, più un formato Excel storico.
-- Import automatico dalla cartella OneDrive `/Transazioni/<Banca>/`.
+- Import automatico dalla cartella `/Transazioni/<Banca>/` del OneDrive personale che ogni utente collega dall'app.
 - Riconoscimento automatico dei trasferimenti tra i propri conti.
 - Modalità demo con dati fittizi, rigenerati ogni notte.
 

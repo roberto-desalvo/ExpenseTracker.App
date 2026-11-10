@@ -25,11 +25,8 @@ param extraSpaRedirectUris = [
 // domain has been removed from the old Static Web App: a domain can be bound to one site at a time.
 param customDomainName = readEnvironmentVariable('CUSTOM_DOMAIN', '')
 
-// OneDrive import (functions OneDrive_*): folder /Transazioni (one subfolder per bank) on the personal OneDrive.
-// Enable it after the one-time consent with infra/scripts/connect-onedrive.ps1.
-param oneDriveFolderId = 'FDF9C7785021C0DD!s8fdd505250cf42f78945c5886597afd3'
+// OneDrive import: every user connects their own personal OneDrive from the app (Impostazioni > Import).
 param oneDriveImportEnabled = bool(readEnvironmentVariable('ONEDRIVE_IMPORT_ENABLED', 'false'))
-param oneDriveTargetUserEmail = readEnvironmentVariable('ONEDRIVE_TARGET_USER_EMAIL', '')
 
 // portal.azure.com: lets you run the functions from the portal "Test/Run" pane.
 param extraCorsOrigins = [

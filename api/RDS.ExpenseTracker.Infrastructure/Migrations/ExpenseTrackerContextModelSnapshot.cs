@@ -263,20 +263,55 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                     b.ToTable("ImportLogs");
                 });
 
-            modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.OneDriveSyncState", b =>
+            modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.OneDriveConnection", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ClientState")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("ConnectedOn")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("DeltaLink")
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("DeviceCode")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<DateTime?>("DeviceCodeExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DriveOwner")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("FolderId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<DateTime?>("LastSyncOn")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("LockedUntil")
                         .HasColumnType("datetime2");
+
+                    b.Property<int?>("PollIntervalSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("SubscriptionExpiresAt")
                         .HasColumnType("datetime2");
@@ -285,15 +320,25 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("UserCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("VerificationUri")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.HasKey("Id");
 
-                    b.ToTable("OneDriveSyncStates");
+                    b.HasIndex("SubscriptionId");
 
-                    b.HasData(
-                        new
-                        {
-                            Id = 1
-                        });
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("OneDriveConnections");
                 });
 
             modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.Transaction", b =>
@@ -491,6 +536,17 @@ namespace RDS.ExpenseTracker.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("AccountNavigation");
+
+                    b.Navigation("UserNavigation");
+                });
+
+            modelBuilder.Entity("RDS.ExpenseTracker.Domain.Entities.OneDriveConnection", b =>
+                {
+                    b.HasOne("RDS.ExpenseTracker.Domain.Entities.User", "UserNavigation")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("UserNavigation");
                 });

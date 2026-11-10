@@ -1,6 +1,7 @@
 using FluentResults;
 using Microsoft.Extensions.Logging;
 using RDS.ExpenseTracker.Domain.Common;
+using RDS.ExpenseTracker.Domain.Entities;
 using RDS.ExpenseTracker.Domain.Enums;
 using RDS.ExpenseTracker.Domain.Models.OneDrive;
 using RDS.ExpenseTracker.Domain.Repositories;
@@ -17,8 +18,12 @@ public class OneDriveImportService : IOneDriveImportService
     public static readonly TimeSpan RenewalThreshold = TimeSpan.FromDays(5);
     public static readonly TimeSpan LockDuration = TimeSpan.FromMinutes(10);
 
+    public const string ReconnectMessage = "L'accesso a OneDrive è scaduto o è stato revocato: ricollega OneDrive.";
+    public const string SubscriptionFailedMessage =
+        "Non è stato possibile attivare l'import automatico: verrà ritentato. Nel frattempo puoi usare \"Sincronizza ora\".";
+
     private readonly IOneDriveClient _oneDriveClient;
-    private readonly IOneDriveSyncStateRepository _stateRepository;
+    private readonly IOneDriveConnectionRepository _connectionRepository;
     private readonly IUserRepository _userRepository;
     private readonly IBankFileImportService _bankFileImportService;
     private readonly IOneDriveImportOptions _options;
@@ -27,7 +32,7 @@ public class OneDriveImportService : IOneDriveImportService
 
     public OneDriveImportService(
         IOneDriveClient oneDriveClient,
-        IOneDriveSyncStateRepository stateRepository,
+        IOneDriveConnectionRepository connectionRepository,
         IUserRepository userRepository,
         IBankFileImportService bankFileImportService,
         IOneDriveImportOptions options,
@@ -35,7 +40,7 @@ public class OneDriveImportService : IOneDriveImportService
         TimeProvider? timeProvider = null)
     {
         _oneDriveClient        = oneDriveClient        ?? throw new ArgumentNullException(nameof(oneDriveClient));
-        _stateRepository       = stateRepository       ?? throw new ArgumentNullException(nameof(stateRepository));
+        _connectionRepository  = connectionRepository  ?? throw new ArgumentNullException(nameof(connectionRepository));
         _userRepository        = userRepository        ?? throw new ArgumentNullException(nameof(userRepository));
         _bankFileImportService = bankFileImportService ?? throw new ArgumentNullException(nameof(bankFileImportService));
         _options               = options               ?? throw new ArgumentNullException(nameof(options));
@@ -45,53 +50,92 @@ public class OneDriveImportService : IOneDriveImportService
 
     private DateTime UtcNow => _timeProvider.GetUtcNow().UtcDateTime;
 
-    public bool IsValidClientState(string? clientState)
+    public async Task<IReadOnlyList<int>> ResolveNotifiedUsersAsync(
+        IEnumerable<OneDriveNotification> notifications, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(_options.ClientState) || string.IsNullOrEmpty(clientState))
+        ArgumentNullException.ThrowIfNull(notifications);
+
+        var userIds = new List<int>();
+
+        foreach (var group in notifications.Where(n => !string.IsNullOrEmpty(n.SubscriptionId)).GroupBy(n => n.SubscriptionId!))
+        {
+            var connection = await _connectionRepository.GetBySubscriptionIdAsync(group.Key, cancellationToken);
+
+            if (connection is not { Status: OneDriveConnectionStatus.Connected }
+                || !group.Any(n => IsValidClientState(connection, n.ClientState)))
+            {
+                _logger.LogWarning("Discarded OneDrive notification for unknown subscription {SubscriptionId} or with an invalid clientState", group.Key);
+                continue;
+            }
+
+            if (!userIds.Contains(connection.UserId))
+                userIds.Add(connection.UserId);
+        }
+
+        return userIds;
+    }
+
+    private static bool IsValidClientState(OneDriveConnection connection, string? clientState)
+    {
+        if (string.IsNullOrEmpty(connection.ClientState) || string.IsNullOrEmpty(clientState))
             return false;
 
         return CryptographicOperations.FixedTimeEquals(
             Encoding.UTF8.GetBytes(clientState),
-            Encoding.UTF8.GetBytes(_options.ClientState));
+            Encoding.UTF8.GetBytes(connection.ClientState));
     }
 
-    public async Task<Result<OneDriveSyncSummary>> SyncAsync(CancellationToken cancellationToken = default)
+    public async Task<Result<OneDriveSyncSummary>> SyncAsync(int userId, CancellationToken cancellationToken = default)
     {
-        if (!await _stateRepository.TryAcquireLockAsync(LockDuration, cancellationToken))
+        var connection = await _connectionRepository.GetByUserIdAsync(userId, cancellationToken);
+        if (connection is not { Status: OneDriveConnectionStatus.Connected, FolderId: not null })
+        {
+            // Collegamento rimosso (o da rifare) dopo l'accodamento della sincronizzazione.
+            _logger.LogInformation("OneDrive sync skipped: user {UserId} has no active connection", userId);
+            return new OneDriveSyncSummary(BaselineCreated: false, 0, 0, 0);
+        }
+
+        if (!await _connectionRepository.TryAcquireLockAsync(connection.Id, LockDuration, cancellationToken))
             return Result.Fail(OneDriveErrors.SyncInProgress());
 
         try
         {
-            return await SyncLockedAsync(cancellationToken);
+            return await SyncLockedAsync(connection, cancellationToken);
+        }
+        catch (OneDriveAuthorizationException ex)
+        {
+            await MarkReconnectRequiredAsync(connection, ex);
+            return new OneDriveSyncSummary(BaselineCreated: false, 0, 0, 0);
         }
         finally
         {
             // CancellationToken.None: il lock va rilasciato anche se l'esecuzione è stata annullata.
-            await _stateRepository.ReleaseLockAsync(CancellationToken.None);
+            await _connectionRepository.ReleaseLockAsync(connection.Id, CancellationToken.None);
         }
     }
 
-    private async Task<Result<OneDriveSyncSummary>> SyncLockedAsync(CancellationToken cancellationToken)
+    private async Task<Result<OneDriveSyncSummary>> SyncLockedAsync(OneDriveConnection connection, CancellationToken cancellationToken)
     {
-        var state = await _stateRepository.GetAsync(cancellationToken);
+        var userId = connection.UserId;
+        var folderId = connection.FolderId!;
 
-        if (state.DeltaLink is null)
+        if (connection.DeltaLink is null)
         {
-            await CreateBaselineAsync(cancellationToken);
+            await CreateBaselineAsync(connection, cancellationToken);
             return new OneDriveSyncSummary(BaselineCreated: true, 0, 0, 0);
         }
 
         OneDriveDeltaResult delta;
         try
         {
-            delta = await _oneDriveClient.GetDeltaAsync(_options.FolderId, state.DeltaLink, cancellationToken);
+            delta = await _oneDriveClient.GetDeltaAsync(userId, folderId, connection.DeltaLink, cancellationToken);
         }
         catch (OneDriveDeltaExpiredException ex)
         {
             // Graph chiede una risincronizzazione completa: si riparte da una nuova baseline. I file caricati
             // nel frattempo non vengono importati automaticamente (vanno ricaricati).
-            _logger.LogWarning(ex, "OneDrive delta link expired: creating a new baseline");
-            await CreateBaselineAsync(cancellationToken);
+            _logger.LogWarning(ex, "OneDrive delta link of user {UserId} expired: creating a new baseline", userId);
+            await CreateBaselineAsync(connection, cancellationToken);
             return new OneDriveSyncSummary(BaselineCreated: true, 0, 0, 0);
         }
 
@@ -102,15 +146,13 @@ public class OneDriveImportService : IOneDriveImportService
 
         if (files.Count > 0)
         {
-            var user = string.IsNullOrWhiteSpace(_options.TargetUserEmail)
-                ? null
-                : await _userRepository.GetByEmail(_options.TargetUserEmail);
+            var user = await _userRepository.GetById(userId);
 
             // Senza utente il deltaLink non avanza: i file verranno elaborati alla prossima esecuzione.
             if (user is null)
-                return Result.Fail(DomainErrors.NotFound($"OneDrive import target user '{_options.TargetUserEmail}'"));
+                return Result.Fail(DomainErrors.NotFound("User", userId));
 
-            var bankFolders = await GetBankFoldersAsync(cancellationToken);
+            var bankFolders = await GetBankFoldersAsync(userId, folderId, allowLegacyExcel: user.IsAdmin, cancellationToken);
             var folderCache = new Dictionary<(string ParentId, string Name), string>();
 
             foreach (var file in files)
@@ -122,15 +164,15 @@ public class OneDriveImportService : IOneDriveImportService
                     continue;
                 }
 
-                var succeeded = await ProcessFileAsync(file, source, user.Id, folderCache, cancellationToken);
+                var succeeded = await ProcessFileAsync(file, source, userId, folderCache, cancellationToken);
                 if (succeeded) imported++; else failed++;
             }
         }
 
-        await _stateRepository.UpdateDeltaLinkAsync(delta.DeltaLink, UtcNow, cancellationToken);
+        await _connectionRepository.UpdateDeltaLinkAsync(connection.Id, delta.DeltaLink, UtcNow, cancellationToken);
 
         var summary = new OneDriveSyncSummary(BaselineCreated: false, imported, failed, ignored);
-        _logger.LogInformation("OneDrive sync completed: {@Summary}", summary);
+        _logger.LogInformation("OneDrive sync of user {UserId} completed: {@Summary}", userId, summary);
         return summary;
     }
 
@@ -148,15 +190,16 @@ public class OneDriveImportService : IOneDriveImportService
         {
             _logger.LogWarning("OneDrive file {FileName} in {Source} folder has an unsupported extension: moved to {Folder}",
                 file.Name, source, _options.FailedFolderName);
-            await MoveToAsync(file, bankFolderId, _options.FailedFolderName, folderCache, cancellationToken);
+            await MoveToAsync(userId, file, bankFolderId, _options.FailedFolderName, folderCache, cancellationToken);
             return false;
         }
 
-        _logger.LogInformation("Importing OneDrive file {FileName} ({ItemId}) as {Source} {Format}", file.Name, file.Id, source, format);
+        _logger.LogInformation("Importing OneDrive file {FileName} ({ItemId}) of user {UserId} as {Source} {Format}",
+            file.Name, file.Id, userId, source, format);
 
         // Un errore di download (Graph) interrompe la sincronizzazione senza spostare il file:
         // il deltaLink non avanza e il messaggio in coda viene ritentato.
-        await using var content = await _oneDriveClient.DownloadAsync(file.Id, cancellationToken);
+        await using var content = await _oneDriveClient.DownloadAsync(userId, file.Id, cancellationToken);
 
         bool succeeded;
         try
@@ -172,12 +215,13 @@ public class OneDriveImportService : IOneDriveImportService
             succeeded = false;
         }
 
-        await MoveToAsync(file, bankFolderId,
+        await MoveToAsync(userId, file, bankFolderId,
             succeeded ? _options.ImportedFolderName : _options.FailedFolderName, folderCache, cancellationToken);
         return succeeded;
     }
 
     private async Task MoveToAsync(
+        int userId,
         OneDriveItem file,
         string bankFolderId,
         string folderName,
@@ -186,21 +230,22 @@ public class OneDriveImportService : IOneDriveImportService
     {
         if (!folderCache.TryGetValue((bankFolderId, folderName), out var targetId))
         {
-            targetId = await _oneDriveClient.EnsureChildFolderAsync(bankFolderId, folderName, cancellationToken);
+            targetId = await _oneDriveClient.EnsureChildFolderAsync(userId, bankFolderId, folderName, cancellationToken);
             folderCache[(bankFolderId, folderName)] = targetId;
         }
 
-        await _oneDriveClient.MoveAsync(file.Id, targetId, cancellationToken);
+        await _oneDriveClient.MoveAsync(userId, file.Id, targetId, cancellationToken);
     }
 
-    private async Task<Dictionary<string, BankFileSource>> GetBankFoldersAsync(CancellationToken cancellationToken)
+    private async Task<Dictionary<string, BankFileSource>> GetBankFoldersAsync(
+        int userId, string folderId, bool allowLegacyExcel, CancellationToken cancellationToken)
     {
-        var folders = await _oneDriveClient.GetChildFoldersAsync(_options.FolderId, cancellationToken);
+        var folders = await _oneDriveClient.GetChildFoldersAsync(userId, folderId, cancellationToken);
         var result = new Dictionary<string, BankFileSource>();
 
         foreach (var folder in folders)
         {
-            if (OneDriveImportPathResolver.ResolveBankFolder(folder.Name) is { } source)
+            if (OneDriveImportPathResolver.ResolveBankFolder(folder.Name, allowLegacyExcel) is { } source)
                 result[folder.Id] = source;
             else
                 _logger.LogDebug("OneDrive folder {FolderName} is not a bank folder: ignored", folder.Name);
@@ -209,57 +254,111 @@ public class OneDriveImportService : IOneDriveImportService
         return result;
     }
 
-    private async Task CreateBaselineAsync(CancellationToken cancellationToken)
+    private async Task CreateBaselineAsync(OneDriveConnection connection, CancellationToken cancellationToken)
     {
-        var baseline = await _oneDriveClient.GetDeltaAsync(_options.FolderId, deltaLink: null, cancellationToken);
-        await _stateRepository.UpdateDeltaLinkAsync(baseline.DeltaLink, UtcNow, cancellationToken);
-        _logger.LogInformation("OneDrive delta baseline created: only files uploaded from now on will be imported");
+        var baseline = await _oneDriveClient.GetDeltaAsync(connection.UserId, connection.FolderId!, deltaLink: null, cancellationToken);
+        await _connectionRepository.UpdateDeltaLinkAsync(connection.Id, baseline.DeltaLink, UtcNow, cancellationToken);
+        connection.DeltaLink = baseline.DeltaLink;
+        _logger.LogInformation("OneDrive delta baseline of user {UserId} created: only files uploaded from now on will be imported",
+            connection.UserId);
     }
 
-    public async Task<Result<OneDriveSubscriptionStatus>> EnsureSubscriptionAsync(string notificationUrl, CancellationToken cancellationToken = default)
+    public async Task<Result<OneDriveSubscriptionStatus>> EnsureSubscriptionAsync(OneDriveConnection connection, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(notificationUrl))
-            return Result.Fail(DomainErrors.Required(nameof(notificationUrl)));
-        if (string.IsNullOrWhiteSpace(_options.ClientState))
-            return Result.Fail(DomainErrors.Required("OneDriveImport:ClientState"));
+        ArgumentNullException.ThrowIfNull(connection);
 
-        var state = await _stateRepository.GetAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(_options.NotificationUrl))
+            return Result.Fail(DomainErrors.Required("OneDriveImport:NotificationUrl"));
+        if (string.IsNullOrWhiteSpace(connection.FolderId) || string.IsNullOrWhiteSpace(connection.ClientState))
+            return Result.Fail(DomainErrors.BadRequest("The OneDrive connection is not complete."));
+
+        var userId = connection.UserId;
         var now = _timeProvider.GetUtcNow();
 
         // La baseline va fatta prima che arrivino notifiche: altrimenti il primo file caricato
         // verrebbe "consumato" dalla baseline senza essere importato.
-        if (state.DeltaLink is null)
-            await CreateBaselineAsync(cancellationToken);
+        if (connection.DeltaLink is null)
+            await CreateBaselineAsync(connection, cancellationToken);
 
-        if (state.SubscriptionId is not null && state.SubscriptionExpiresAt is { } currentExpiry
+        if (connection.SubscriptionId is not null && connection.SubscriptionExpiresAt is { } currentExpiry
             && new DateTimeOffset(DateTime.SpecifyKind(currentExpiry, DateTimeKind.Utc)) > now + RenewalThreshold)
         {
-            return new OneDriveSubscriptionStatus(state.SubscriptionId, DateTime.SpecifyKind(currentExpiry, DateTimeKind.Utc), "unchanged");
+            return new OneDriveSubscriptionStatus(connection.SubscriptionId, DateTime.SpecifyKind(currentExpiry, DateTimeKind.Utc), "unchanged");
         }
 
         var expiresAt = now + SubscriptionLifetime;
 
-        if (state.SubscriptionId is not null)
+        if (connection.SubscriptionId is not null)
         {
-            var renewed = await _oneDriveClient.RenewSubscriptionAsync(state.SubscriptionId, expiresAt, cancellationToken);
+            var renewed = await _oneDriveClient.RenewSubscriptionAsync(userId, connection.SubscriptionId, expiresAt, cancellationToken);
             if (renewed is not null)
             {
-                await _stateRepository.UpdateSubscriptionAsync(renewed.Id, renewed.ExpiresAt.UtcDateTime, cancellationToken);
-                _logger.LogInformation("OneDrive subscription {SubscriptionId} renewed until {ExpiresAt:o}", renewed.Id, renewed.ExpiresAt);
+                await SaveSubscriptionAsync(connection, renewed, cancellationToken);
+                _logger.LogInformation("OneDrive subscription {SubscriptionId} of user {UserId} renewed until {ExpiresAt:o}",
+                    renewed.Id, userId, renewed.ExpiresAt);
                 return new OneDriveSubscriptionStatus(renewed.Id, renewed.ExpiresAt, "renewed");
             }
 
-            _logger.LogWarning("OneDrive subscription {SubscriptionId} no longer exists: creating a new one", state.SubscriptionId);
+            _logger.LogWarning("OneDrive subscription {SubscriptionId} no longer exists: creating a new one", connection.SubscriptionId);
         }
 
-        var resource = string.IsNullOrWhiteSpace(_options.SubscriptionResource)
-            ? $"/me/drive/items/{_options.FolderId}"
-            : _options.SubscriptionResource;
-
-        var created = await _oneDriveClient.CreateSubscriptionAsync(resource, notificationUrl, _options.ClientState, expiresAt, cancellationToken);
-        await _stateRepository.UpdateSubscriptionAsync(created.Id, created.ExpiresAt.UtcDateTime, cancellationToken);
-        _logger.LogInformation("OneDrive subscription {SubscriptionId} created on {Resource} until {ExpiresAt:o}",
-            created.Id, resource, created.ExpiresAt);
+        var resource = $"/me/drive/items/{connection.FolderId}";
+        var created = await _oneDriveClient.CreateSubscriptionAsync(
+            userId, resource, _options.NotificationUrl, connection.ClientState, expiresAt, cancellationToken);
+        await SaveSubscriptionAsync(connection, created, cancellationToken);
+        _logger.LogInformation("OneDrive subscription {SubscriptionId} of user {UserId} created on {Resource} until {ExpiresAt:o}",
+            created.Id, userId, resource, created.ExpiresAt);
         return new OneDriveSubscriptionStatus(created.Id, created.ExpiresAt, "created");
+    }
+
+    private async Task SaveSubscriptionAsync(OneDriveConnection connection, OneDriveSubscription subscription, CancellationToken cancellationToken)
+    {
+        await _connectionRepository.UpdateSubscriptionAsync(connection.Id, subscription.Id, subscription.ExpiresAt.UtcDateTime, cancellationToken);
+        connection.SubscriptionId = subscription.Id;
+        connection.SubscriptionExpiresAt = subscription.ExpiresAt.UtcDateTime;
+        connection.LastError = null;
+    }
+
+    public async Task<OneDriveRenewalSummary> RenewSubscriptionsAsync(CancellationToken cancellationToken = default)
+    {
+        var connections = await _connectionRepository.GetConnectedAsync(cancellationToken);
+        int created = 0, renewed = 0, failed = 0;
+
+        foreach (var connection in connections)
+        {
+            try
+            {
+                var result = await EnsureSubscriptionAsync(connection, cancellationToken);
+                if (result.IsFailed)
+                {
+                    failed++;
+                    _logger.LogWarning("OneDrive subscription of user {UserId} not renewed: {Errors}",
+                        connection.UserId, string.Join("; ", result.Errors.Select(e => e.Message)));
+                }
+                else if (result.Value.Action == "created") created++;
+                else if (result.Value.Action == "renewed") renewed++;
+            }
+            catch (OneDriveAuthorizationException ex)
+            {
+                failed++;
+                await MarkReconnectRequiredAsync(connection, ex);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                failed++;
+                _logger.LogError(ex, "OneDrive subscription renewal of user {UserId} failed", connection.UserId);
+                await _connectionRepository.UpdateStatusAsync(
+                    connection.Id, OneDriveConnectionStatus.Connected, SubscriptionFailedMessage, CancellationToken.None);
+            }
+        }
+
+        return new OneDriveRenewalSummary(connections.Count, created, renewed, failed);
+    }
+
+    private async Task MarkReconnectRequiredAsync(OneDriveConnection connection, OneDriveAuthorizationException ex)
+    {
+        _logger.LogWarning(ex, "OneDrive authorization of user {UserId} is no longer valid: reconnection required", connection.UserId);
+        await _connectionRepository.UpdateStatusAsync(
+            connection.Id, OneDriveConnectionStatus.ReconnectRequired, ReconnectMessage, CancellationToken.None);
     }
 }

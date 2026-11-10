@@ -106,9 +106,9 @@ resource apiServicePrincipal 'Microsoft.Graph/servicePrincipals@v1.0' = {
   appId: apiApp.appId
 }
 
-// OneDrive import (functions OneDrive_*): the watched folder is on a personal OneDrive (Microsoft account),
-// where Microsoft Graph does not allow app-only access. The Function App therefore uses a delegated
-// refresh token, obtained once by infra/scripts/connect-onedrive.ps1 (device code flow) and kept in Key Vault.
+// OneDrive import (functions OneDrive_*): the watched folders are on the personal OneDrive (Microsoft account)
+// of each user, where Microsoft Graph does not allow app-only access. The Function App therefore uses delegated
+// refresh tokens, obtained when a user connects OneDrive from the app (device code flow) and kept in Key Vault.
 // Public client (no secret), personal Microsoft accounts only.
 var oneDriveUniqueName = '${appName}-onedrive-${environmentName}'
 var graphAppId = '00000003-0000-0000-c000-000000000000'
