@@ -1,15 +1,6 @@
 ﻿BEGIN TRANSACTION;
 DROP TABLE [OneDriveSyncStates];
 
-CREATE TABLE [CategoryBudgets] (
-    [Id] int NOT NULL IDENTITY,
-    [CategoryId] int NOT NULL,
-    [Month] date NOT NULL,
-    [Amount] decimal(18,2) NOT NULL,
-    CONSTRAINT [PK_CategoryBudgets] PRIMARY KEY ([Id]),
-    CONSTRAINT [FK_CategoryBudgets_Categories_CategoryId] FOREIGN KEY ([CategoryId]) REFERENCES [Categories] ([Id]) ON DELETE CASCADE
-);
-
 CREATE TABLE [OneDriveConnections] (
     [Id] int NOT NULL IDENTITY,
     [UserId] int NOT NULL,
@@ -32,8 +23,6 @@ CREATE TABLE [OneDriveConnections] (
     CONSTRAINT [PK_OneDriveConnections] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_OneDriveConnections_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE
 );
-
-CREATE UNIQUE INDEX [IX_CategoryBudgets_CategoryId_Month] ON [CategoryBudgets] ([CategoryId], [Month]);
 
 CREATE INDEX [IX_OneDriveConnections_SubscriptionId] ON [OneDriveConnections] ([SubscriptionId]);
 
