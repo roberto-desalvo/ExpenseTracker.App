@@ -38,7 +38,9 @@ La registrazione DI è per convenzione: `AddApplicationServices()` e `AddInfrast
 
 **Utente interno.** Al primo accesso con Entra ID l'utente viene creato dall'oid del token (*JIT provisioning*), con le sue categorie di default. Gli accessi demo e sviluppo cercano un utente esistente per email e non lo creano mai. Gli endpoint di import accettano anche token app-only, risolti tramite `Users.AppOid`.
 
-**Admin.** `Users.IsAdmin` abilita le funzioni di amministrazione (oggi l'abbinamento dello storico Excel); il controllo è nel servizio, che risponde 403 agli altri utenti.
+**Admin.** `Users.IsAdmin` abilita le funzioni di amministrazione, cioè tutto ciò che riguarda il file Excel storico: l'abbinamento ai movimenti, gli endpoint `import/excel*` e la cartella `Excel` di OneDrive. Gli altri utenti ricevono 403 (la cartella OneDrive viene ignorata).
+
+**Demo.** L'utente demo (`Users.IsDemo`) non può importare file, vedere lo storico degli import né collegare OneDrive: i servizi rispondono 403.
 
 **Isolamento.** Ogni servizio riceve lo `userId` e i repository filtrano sui conti dell'utente: una risorsa di un altro utente risponde 404. Le uniche operazioni trasversali a tutti gli utenti sono il reset dei dati demo e la riconciliazione dei trasferimenti.
 
@@ -89,9 +91,9 @@ Prefisso `/api`. Tutti richiedono autenticazione salvo dove indicato. Una collec
 | | `GET user/appearance`, `PUT user/appearance` | Preferenze di aspetto (`preset`, `mode`: light/dark/system, `nav`: sidebar/topbar); `null` se mai salvate |
 | Demo | `POST demo/generate` | Rigenera i dati dell'utente demo (solo utenti con `IsDemo`) |
 | Import dall'app | `POST imports` | Multipart `file` (CSV/XLSX, max 10 MB) + `accountId`: salva il file e lo accoda, risponde 202 con l'import `Queued` (non per l'utente demo) |
-| | `POST imports/query` | Storico paginato degli import dell'utente (filtro opzionale per stato) |
+| | `POST imports/query` | Storico paginato degli import dell'utente (filtro opzionale per stato; non per l'utente demo) |
 | Import *(ruolo `Files.Sender`)* | `POST import/{banca}-csv`, `…-csv/stream`, `…-xlsx` | Import di un estratto conto (banca: `bbva`, `sella`, `satispay`, `traderepublic`) |
-| | `POST import/excel`, `import/excel/base64`, `import/excel/stream` | Import del formato Excel storico |
+| | `POST import/excel`, `import/excel/base64`, `import/excel/stream` | Import del formato Excel storico (solo admin) |
 | | `POST import/transfers/reconcile` | Collega a posteriori i trasferimenti (`dryRun` opzionale) |
 | | `POST import/test-seed` | Rigenera l'utente di test con 5 anni di dati |
 | Storico Excel *(admin)* | `POST legacy-match/sheets` | Multipart `file` (Spese.xlsx): fogli mensili del file |
@@ -99,7 +101,12 @@ Prefisso `/api`. Tutti richiedono autenticazione salvo dove indicato. Una collec
 | | `POST legacy-match/apply` | Salva descrizione e categoria sui movimenti abbinati e li marca (`LegacyMatchedAt`) |
 | | `POST legacy-match/create` | Crea come nuovi movimenti (già marcati) le righe di Contanti e Hype |
 | | `POST legacy-match/reset` | Body `{ year, month }`: annulla gli abbinamenti del mese (vedi sotto) |
-| OneDrive | `POST onedrive/notifications` *(anonimo)* | Notifiche Microsoft Graph |
+| OneDrive *(non per l'utente demo)* | `GET onedrive/connection` | Stato del collegamento dell'utente (disponibilità, stato, cartelle, ultimo errore) |
+| | `POST onedrive/connection` | Avvia il collegamento: restituisce il codice da inserire sulla pagina Microsoft |
+| | `POST onedrive/connection/complete` | Controlla se l'utente ha autorizzato l'app e, in caso positivo, completa il collegamento |
+| | `DELETE onedrive/connection` | Scollega OneDrive |
+| | `POST onedrive/sync` | Accoda una sincronizzazione della cartella dell'utente (202) |
+| | `POST onedrive/notifications` *(anonimo)* | Notifiche Microsoft Graph |
 
 ## Pipeline di import
 
@@ -112,7 +119,7 @@ flowchart TD
     blob --> job
     job --> bfi
     http[ImportFunctions<br/>upload HTTP] --> bfi
-    od[OneDrive_Sync<br/>file da /Transazioni/&lt;Banca&gt;] --> bfi
+    od[OneDrive_Sync<br/>file da Apps/&lt;app&gt;/&lt;Banca&gt;] --> bfi
     bfi[IBankFileImportService<br/>conto dal tipo, sceglie l'importer, converte XLSX→CSV] --> imp
     imp[Importer della banca<br/>parse delle righe] --> dedup[Deduplica per ExternalId]
     dedup --> enrich[Categoria da parole chiave]
@@ -128,7 +135,17 @@ flowchart TD
 - **Categorie** — assegnate cercando le parole chiave delle categorie dell'utente nella descrizione (vince la priorità più bassa); senza corrispondenza si usa la categoria predefinita.
 - **Trasferimenti** — riconosciuti in tre modi: IBAN della controparte uguale all'IBAN di un altro conto dell'utente; regole configurate in `TransferMatching:Rules` (tipo di conto + testo della descrizione sui due lati); a posteriori, con la riconciliazione, anche per categoria di sistema `MoneyTransfers` con importo opposto entro 3 giorni.
 - **Tracciamento** — ogni import (riuscito o fallito) scrive una riga in `ImportLogs` con stato, periodo coperto, movimenti nuovi, duplicati scartati ed eventuali errori; gli import sincroni (HTTP, OneDrive) nascono già conclusi.
-- **OneDrive** — un file importato viene spostato in `<Banca>/Importati`, uno fallito in `<Banca>/Errori`. Un lock sul database impedisce due sincronizzazioni contemporanee; la posizione della delta query è salvata in `OneDriveSyncStates`.
+- **OneDrive** — ogni utente collega il proprio OneDrive personale (`OneDriveConnections`, uno per utente). La sincronizzazione importa tutti i file presenti nelle cartelle banca della cartella dell'app: un file importato viene spostato in `<Banca>/Importati`, uno fallito in `<Banca>/Errori`, quindi resta nella cartella della banca solo ciò che è ancora da elaborare. La cartella `Excel` (file storico, da creare a mano) è letta solo per gli admin. Un lock sulla riga del collegamento impedisce due sincronizzazioni contemporanee dello stesso utente.
+
+## Collegamento di OneDrive
+
+`OneDriveConnectionService` gestisce il collegamento con il *device code flow* sul client pubblico dell'app registration OneDrive (solo account Microsoft personali, scope `Files.ReadWrite.AppFolder offline_access`: l'app vede solo la propria cartella, `Apps/<nome dell'app registration>`, creata da OneDrive):
+
+1. `POST onedrive/connection` chiede a Microsoft un codice e lo salva nel collegamento (`Pending`); il frontend lo mostra insieme al link della pagina di accesso.
+2. Il frontend chiama `onedrive/connection/complete` all'intervallo indicato. Quando l'utente ha autorizzato l'app il servizio salva il refresh token in Key Vault (secret `OneDriveRefreshToken-<id utente>`, riscritto a ogni rotazione), crea nella cartella dell'app le sottocartelle delle banche e la subscription Graph sulla cartella (`/me/drive/special/approot`) con un `clientState` casuale.
+3. Se la subscription non può essere creata il collegamento resta attivo con un avviso: il timer giornaliero ritenta e, finché manca, accoda lui una sincronizzazione al giorno; l'utente può anche usare la sincronizzazione manuale. Senza URL pubblico delle notifiche (sviluppo locale) la subscription non viene creata.
+
+Se Microsoft rifiuta il refresh token (accesso revocato o 90 giorni senza utilizzo) il collegamento passa a `ReconnectRequired` e l'utente deve ripetere l'accesso; un nuovo accesso sostituisce quello attivo solo quando viene completato. Lo scollegamento elimina subscription e collegamento e rende inutilizzabile il secret.
 
 Gli script PowerShell in `tools/scripts/` chiamano gli endpoint di import.
 

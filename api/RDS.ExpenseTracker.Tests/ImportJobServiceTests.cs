@@ -205,6 +205,14 @@ public class ImportJobServiceTests
         result.IsFailed.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task GetImportLogs_IsForbidden_ForTheDemoUser()
+    {
+        var result = await CreateService().GetImportLogs(new ImportLogQueryRequest { PageSize = 20 }, DemoUserId);
+
+        result.Errors.Should().ContainSingle().Which.Should().BeOfType<ForbiddenResultError>();
+    }
+
     private sealed class FakeImportLogRepository : IImportLogRepository
     {
         private int _nextId = 1;

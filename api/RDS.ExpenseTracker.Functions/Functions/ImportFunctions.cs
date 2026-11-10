@@ -15,6 +15,7 @@ namespace RDS.ExpenseTracker.Functions.Functions;
 /// Rows already known (by fingerprint / external id) are skipped unless <c>importAll=true</c>.
 /// Every file import (successful or not) is recorded in <c>ImportLogs</c> via <see cref="IBankFileImportService"/>,
 /// shared with the automatic OneDrive import (<see cref="OneDriveImportFunctions"/>).
+/// The internal Excel workbook (legacy file) can only be imported by admin users.
 /// </summary>
 [RequireRole("Files.Sender")]
 public class ImportFunctions : FunctionBase
@@ -25,6 +26,7 @@ public class ImportFunctions : FunctionBase
     private readonly IBankFileImportService _bankFileImportService;
     private readonly ITestSeedService _testSeedService;
     private readonly ITransferReconciliationService _transferReconciliationService;
+    private readonly IUserService _userService;
     private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly ILogger<ImportFunctions> _logger;
 
@@ -33,6 +35,7 @@ public class ImportFunctions : FunctionBase
         IBankFileImportService bankFileImportService,
         ITestSeedService testSeedService,
         ITransferReconciliationService transferReconciliationService,
+        IUserService userService,
         ICurrentUserAccessor currentUserAccessor,
         ILogger<ImportFunctions> logger)
     {
@@ -40,6 +43,7 @@ public class ImportFunctions : FunctionBase
         _bankFileImportService           = bankFileImportService           ?? throw new ArgumentNullException(nameof(bankFileImportService));
         _testSeedService                 = testSeedService                 ?? throw new ArgumentNullException(nameof(testSeedService));
         _transferReconciliationService   = transferReconciliationService   ?? throw new ArgumentNullException(nameof(transferReconciliationService));
+        _userService                     = userService                     ?? throw new ArgumentNullException(nameof(userService));
         _currentUserAccessor             = currentUserAccessor             ?? throw new ArgumentNullException(nameof(currentUserAccessor));
         _logger                          = logger                          ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -93,7 +97,7 @@ public class ImportFunctions : FunctionBase
         _logger.LogInformation("Excel base64 import received. FileName={FileName}, Base64Length={Base64Length}, ImportAll={ImportAll}",
             fileName, request.Base64Content.Length, importAll);
 
-        var userId = await _currentUserAccessor.GetUserIdForImportAsync();
+        var userId = await GetImportUserIdAsync(BankFileSource.Excel);
         var result = await _bankFileImportService.RunTrackedAsync("Excel base64", fileName, userId, statistics =>
             _excelImportService.ImportFromExcelBase64Async(request.Base64Content, fileName, userId, importAll, statistics));
         return ToImportResult(result);
@@ -217,7 +221,7 @@ public class ImportFunctions : FunctionBase
         _logger.LogInformation("{Label} import received. FileName={FileName}, Size={Size} bytes, ImportAll={ImportAll}",
             label, file.FileName, file.Length, importAll);
 
-        var userId = await _currentUserAccessor.GetUserIdForImportAsync();
+        var userId = await GetImportUserIdAsync(source);
         using var stream = file.OpenReadStream();
         var result = await _bankFileImportService.ImportAsync(
             source, NativeFormat(source), stream, file.FileName, userId, importAll, label);
@@ -241,7 +245,7 @@ public class ImportFunctions : FunctionBase
         _logger.LogInformation("{Label} import received. FileName={FileName}, ContentLength={ContentLength}, ImportAll={ImportAll}",
             label, fileName, req.ContentLength, importAll);
 
-        var userId = await _currentUserAccessor.GetUserIdForImportAsync();
+        var userId = await GetImportUserIdAsync(source);
         using var memoryStream = await ReadBodyToMemoryAsync(req);
         var result = await _bankFileImportService.ImportAsync(
             source, NativeFormat(source), memoryStream, fileName, userId, importAll, label);
@@ -268,10 +272,20 @@ public class ImportFunctions : FunctionBase
         _logger.LogInformation("{Label} import received. ByteCount={ByteCount}, ImportAll={ImportAll}",
             label, xlsxStream.Length, importAll);
 
-        var userId = await _currentUserAccessor.GetUserIdForImportAsync();
+        var userId = await GetImportUserIdAsync(source);
         var result = await _bankFileImportService.ImportAsync(
             source, BankFileFormat.Xlsx, xlsxStream, fileName, userId, importAll, label);
         return ToImportResult(result);
+    }
+
+    // Il file storico interno (Excel) è riservato agli admin: 403 per gli altri utenti.
+    private async Task<int> GetImportUserIdAsync(BankFileSource source)
+    {
+        var userId = await _currentUserAccessor.GetUserIdForImportAsync();
+        if (source == BankFileSource.Excel)
+            await ExecuteAsync(() => _userService.EnsureAdminAsync(userId));
+
+        return userId;
     }
 
     // Excel interno = cartella di lavoro; banche = CSV (le varianti XLSX usano ImportXlsxAsCsvAsync).

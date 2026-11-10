@@ -9,6 +9,8 @@ public class OneDriveImportOptions : IAppOptions, IOneDriveImportOptions
 {
     public const string SectionName = "OneDriveImport";
 
+    private string _notificationUrl = string.Empty;
+
     /// <inheritdoc />
     string IAppOptions.SectionName => SectionName;
 
@@ -18,20 +20,24 @@ public class OneDriveImportOptions : IAppOptions, IOneDriveImportOptions
     /// <inheritdoc />
     public string ClientId { get; set; } = string.Empty;
 
-    /// <inheritdoc />
-    public string FolderId { get; set; } = string.Empty;
+    /// <summary>
+    /// URL pubblico dell'endpoint delle notifiche Graph. Se non impostato si ricava da <c>WEBSITE_HOSTNAME</c>
+    /// (nome host pubblico della Function App, impostato dalla piattaforma); in locale resta vuoto.
+    /// </summary>
+    public string NotificationUrl
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(_notificationUrl))
+                return _notificationUrl;
 
-    /// <inheritdoc />
-    public string TargetUserEmail { get; set; } = string.Empty;
-
-    /// <inheritdoc />
-    public string NotificationUrl { get; set; } = string.Empty;
-
-    /// <inheritdoc />
-    public string ClientState { get; set; } = string.Empty;
-
-    /// <inheritdoc />
-    public string SubscriptionResource { get; set; } = string.Empty;
+            var hostName = Environment.GetEnvironmentVariable("WEBSITE_HOSTNAME");
+            return string.IsNullOrWhiteSpace(hostName) || hostName.StartsWith("localhost", StringComparison.OrdinalIgnoreCase)
+                ? string.Empty
+                : $"https://{hostName}/api/onedrive/notifications";
+        }
+        set => _notificationUrl = value ?? string.Empty;
+    }
 
     /// <inheritdoc />
     public string KeyVaultUri { get; set; } = string.Empty;

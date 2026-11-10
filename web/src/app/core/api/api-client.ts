@@ -39,6 +39,11 @@ export class ApiClient {
     );
   }
 
+  /** Scrittura con corpo di risposta JSON (nessuna deduplica). */
+  send<T>(method: "POST" | "PUT" | "DELETE", url: string, fallbackMessage: string, body?: unknown): Promise<T> {
+    return firstValueFrom(this.http.request<T>(method, url, { body, context: this.context(fallbackMessage) }));
+  }
+
   /** Upload multipart (il browser imposta content type e boundary del FormData), con corpo di risposta JSON. */
   upload<T>(url: string, fallbackMessage: string, form: FormData): Promise<T> {
     return firstValueFrom(this.http.post<T>(url, form, { context: this.context(fallbackMessage) }));

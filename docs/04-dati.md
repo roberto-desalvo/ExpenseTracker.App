@@ -9,6 +9,7 @@ erDiagram
     User ||--o{ Account : possiede
     User ||--o{ Category : possiede
     User ||--o{ ImportLog : registra
+    User ||--o| OneDriveConnection : collega
     Account ||--o{ Transaction : contiene
     Category |o--o{ Transaction : classifica
     Category ||--o{ CategoryBudget : pianifica
@@ -92,13 +93,20 @@ erDiagram
         int SkippedDuplicatesCount
         string ErrorMessage
     }
-    OneDriveSyncState {
-        int Id PK "riga unica, Id = 1"
-        string DeltaLink
+    OneDriveConnection {
+        int Id PK
+        int UserId FK "univoco"
+        int Status "Pending | Connected | ReconnectRequired"
+        string DeviceCode "accesso in corso"
+        string DriveOwner
+        string FolderId
+        string FolderPath "es. Apps/ExpenseTracker"
+        string ClientState
         string SubscriptionId
         datetime SubscriptionExpiresAt
         datetime LockedUntil
         datetime LastSyncOn
+        string LastError
     }
 ```
 
@@ -112,7 +120,7 @@ erDiagram
 | `Transactions` | Movimento; importo positivo = entrata, negativo = uscita; `Source` ne indica l'origine (inserito dall'utente, import da file, creato dallo storico Excel, scritto da script SQL diretto sul DB); `LegacyMatchedAt` indica che è stato abbinato a una riga dello storico Excel e `LegacyOriginalDescription` conserva la descrizione precedente al primo abbinamento |
 | `Transfers` | Collega le due metà di un trasferimento |
 | `ImportLogs` | Stato ed esito di ogni import di file; per gli import dall'app anche il blob del file |
-| `OneDriveSyncStates` | Stato dell'import OneDrive: posizione della delta query, subscription Graph, lock |
+| `OneDriveConnections` | Collegamento OneDrive di un utente (al massimo uno): accesso in corso, cartella dell'app nel drive, subscription Graph con il suo `clientState`, lock, ultimo errore. Il refresh token è in Key Vault |
 
 ## Vincoli principali
 
@@ -125,12 +133,13 @@ erDiagram
 | Univoco `CategoryBudgets (CategoryId, Month)` | Una previsione per categoria e mese |
 | Univoci filtrati `Users.AzureOid`, `Users.AppOid` | Un utente per identità |
 | Indici `ImportLogs (UserId, ImportedOn)`, `(UserId, Status)` | Storico cronologico e import in corso |
+| Univoco `OneDriveConnections (UserId)`, indice `(SubscriptionId)` | Un collegamento per utente; le notifiche Graph lo individuano dalla subscription |
 
 | Relazione | Alla cancellazione del padre |
 |---|---|
 | User → Account, User → Category, Account → Transaction, AccountType → Account | Bloccata (Restrict) |
 | Category → Transaction, Transfer → Transaction | Il movimento resta, il riferimento diventa `NULL` |
-| User → ImportLog | I log vengono eliminati (Cascade) |
+| User → ImportLog, User → OneDriveConnection | Log e collegamento vengono eliminati (Cascade) |
 | Category → CategoryBudget | Le previsioni vengono eliminate (Cascade) |
 | Account → ImportLog | Il log resta, `AccountId` diventa `NULL` |
 

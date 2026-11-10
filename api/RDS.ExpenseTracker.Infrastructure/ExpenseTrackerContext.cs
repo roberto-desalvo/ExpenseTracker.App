@@ -13,7 +13,7 @@ public class ExpenseTrackerContext : DbContext
     public DbSet<Transfer> Transfers { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<ImportLog> ImportLogs { get; set; }
-    public DbSet<OneDriveSyncState> OneDriveSyncStates { get; set; }
+    public DbSet<OneDriveConnection> OneDriveConnections { get; set; }
 
     public ExpenseTrackerContext(DbContextOptions<ExpenseTrackerContext> opt) : base(opt)
     {

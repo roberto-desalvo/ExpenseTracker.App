@@ -1,7 +1,7 @@
 // Entra ID app registrations (Microsoft Graph Bicep extension):
 //   - API: exposes the delegated scopes and the Files.Sender app role validated by the Functions backend.
 //   - SPA: the Angular frontend (MSAL, auth code + PKCE), pre-authorized on the API (no consent prompt).
-//   - OneDrive import: public client for personal Microsoft accounts (delegated Files.ReadWrite on Graph).
+//   - OneDrive import: public client for personal Microsoft accounts (delegated Files.ReadWrite.AppFolder on Graph).
 // The deployment identity needs the Graph application permission Application.ReadWrite.OwnedBy
 // (granted by infra/bootstrap): it becomes owner of the apps it creates.
 extension microsoftGraphV1
@@ -106,20 +106,22 @@ resource apiServicePrincipal 'Microsoft.Graph/servicePrincipals@v1.0' = {
   appId: apiApp.appId
 }
 
-// OneDrive import (functions OneDrive_*): the watched folder is on a personal OneDrive (Microsoft account),
-// where Microsoft Graph does not allow app-only access. The Function App therefore uses a delegated
-// refresh token, obtained once by infra/scripts/connect-onedrive.ps1 (device code flow) and kept in Key Vault.
-// Public client (no secret), personal Microsoft accounts only.
+// OneDrive import (functions OneDrive_*): the watched folders are on the personal OneDrive (Microsoft account)
+// of each user, where Microsoft Graph does not allow app-only access. The Function App therefore uses delegated
+// refresh tokens, obtained when a user connects OneDrive from the app (device code flow) and kept in Key Vault.
+// Public client (no secret), personal Microsoft accounts only. The app can only reach its own folder in the
+// user's drive (Files.ReadWrite.AppFolder): OneDrive creates it as Apps/<displayName>, so the display name below
+// is the folder name the users see (and the name shown on the Microsoft consent page).
 var oneDriveUniqueName = '${appName}-onedrive-${environmentName}'
 var graphAppId = '00000003-0000-0000-c000-000000000000'
 var graphDelegatedScopeIds = {
-  filesReadWrite: '5c28f0bf-8a70-41f1-8ab2-9032436ddb65'
+  filesReadWriteAppFolder: '8019c312-3263-48e6-825e-2b833497195b'
   offlineAccess: '7427e0e9-2fba-42fe-b0c0-848c9e6a8182'
 }
 
 resource oneDriveApp 'Microsoft.Graph/applications@v1.0' = {
   uniqueName: oneDriveUniqueName
-  displayName: 'ExpenseTracker OneDrive import (${environmentName})'
+  displayName: environmentName == 'prod' ? 'ExpenseTracker' : 'ExpenseTracker (${environmentName})'
   signInAudience: 'PersonalMicrosoftAccount'
   isFallbackPublicClient: true // device code flow + refresh without client secret
   api: {
@@ -135,7 +137,7 @@ resource oneDriveApp 'Microsoft.Graph/applications@v1.0' = {
       resourceAppId: graphAppId
       resourceAccess: [
         {
-          id: graphDelegatedScopeIds.filesReadWrite
+          id: graphDelegatedScopeIds.filesReadWriteAppFolder
           type: 'Scope'
         }
         {

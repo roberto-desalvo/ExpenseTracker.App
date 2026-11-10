@@ -152,6 +152,12 @@ public class ImportJobService : IImportJobService
         if (request.PageSize <= 0 || request.PageSize > MaxPageSize)
             return Result.Fail(DomainErrors.BadRequest($"pageSize must be between 1 and {MaxPageSize}"));
 
+        var user = await _userRepository.GetById(userId);
+        if (user is null)
+            return Result.Fail(DomainErrors.NotFound("User", userId));
+        if (user.IsDemo)
+            return Result.Fail(DomainErrors.Forbidden("Imports are not available to the demo user."));
+
         var (items, totalCount) = await _importLogRepository.GetPagedImportLogs(request, userId);
         return Result.Ok(new PagedResult<ImportLogDto>
         {

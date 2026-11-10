@@ -1,0 +1,141 @@
+@let c = store.connection();
+
+<app-surface-card
+  title="OneDrive"
+  subtitle="Collega il tuo OneDrive personale: gli estratti conto che salvi nella cartella dell'app vengono importati da soli."
+>
+  @if (!c) {
+    <div class="loading">
+      @if (store.isLoading()) {
+        <mat-spinner diameter="20" />
+        <span>Caricamento…</span>
+      } @else {
+        <span>Stato del collegamento non disponibile.</span>
+        <button matButton (click)="store.load()">Riprova</button>
+      }
+    </div>
+  } @else if (!c.available) {
+    <div class="alert alert-info">
+      <mat-icon class="icon-sm">info</mat-icon>
+      <span>L'import da OneDrive non è attivo in questo ambiente. Puoi comunque importare i file da Movimenti › Import.</span>
+    </div>
+  } @else if (store.signingIn() && c.userCode) {
+    <ol class="steps">
+      <li>
+        <span>Apri la pagina di accesso Microsoft.</span>
+        <a matButton="outlined" [href]="c.verificationUri" target="_blank" rel="noopener noreferrer">
+          <mat-icon>open_in_new</mat-icon> Apri la pagina
+        </a>
+      </li>
+      <li>
+        <span>Inserisci questo codice.</span>
+        <div class="code-row">
+          <code class="code">{{ c.userCode }}</code>
+          <button matIconButton matTooltip="Copia il codice" aria-label="Copia il codice" (click)="copyCode(c.userCode)">
+            <mat-icon>content_copy</mat-icon>
+          </button>
+        </div>
+      </li>
+      <li>
+        <span>Accedi con l'account Microsoft del tuo OneDrive e autorizza ExpenseTracker.</span>
+      </li>
+    </ol>
+    <div class="waiting">
+      <mat-spinner diameter="16" />
+      <span>In attesa dell'autorizzazione… Il codice è valido fino alle {{ time(c.codeExpiresOn) }}.</span>
+      <button matButton [disabled]="store.busy()" (click)="store.cancel()">Annulla</button>
+    </div>
+  } @else if (c.status === "Connected" || c.status === "ReconnectRequired") {
+    <div class="status-row">
+      <span class="status-icon" [class.warning]="c.status !== 'Connected'">
+        <mat-icon>{{ c.status === "Connected" ? "cloud_done" : "cloud_off" }}</mat-icon>
+      </span>
+      <div class="col status-text">
+        <span class="status-title">
+          {{ c.status === "Connected" ? "Collegato" : "Da ricollegare" }}
+          @if (c.driveOwner) {
+            <span class="owner">· {{ c.driveOwner }}</span>
+          }
+        </span>
+        <span class="status-detail">
+          @if (c.folderPath) {
+            Cartella <code>{{ c.folderPath }}</code> ·
+          }
+          Dal {{ dateTime(c.connectedOn) }} · Ultima sincronizzazione: {{ c.lastSyncOn ? dateTime(c.lastSyncOn) : "mai" }}
+        </span>
+      </div>
+    </div>
+
+    @if (c.lastError) {
+      <div class="alert" [class.alert-error]="c.status !== 'Connected'" [class.alert-warning]="c.status === 'Connected'">
+        <mat-icon class="icon-sm">{{ c.status === "Connected" ? "warning" : "error" }}</mat-icon>
+        <span>{{ c.lastError }}</span>
+      </div>
+    } @else if (c.status === "Connected" && !c.automaticSync) {
+      <div class="alert alert-info">
+        <mat-icon class="icon-sm">info</mat-icon>
+        <span>L'import immediato non è attivo: i file vengono importati una volta al giorno, oppure subito con "Sincronizza ora".</span>
+      </div>
+    }
+
+    <div class="actions">
+      @if (c.status === "Connected") {
+        <button matButton="outlined" [disabled]="store.busy()" (click)="store.syncNow()"><mat-icon>sync</mat-icon> Sincronizza ora</button>
+      } @else {
+        <button matButton="filled" [disabled]="store.busy()" (click)="store.connect()"><mat-icon>link</mat-icon> Ricollega OneDrive</button>
+      }
+      <button matButton class="btn-danger" [disabled]="store.busy()" (click)="disconnectOpen.set(true)">
+        <mat-icon>link_off</mat-icon> Scollega
+      </button>
+    </div>
+  } @else {
+    <div class="connect">
+      <p class="text-secondary">
+        Ti chiediamo di accedere con il tuo account Microsoft personale. ExpenseTracker può usare solo la propria cartella,
+        che OneDrive crea dentro <strong>App</strong>: il resto dei tuoi file non gli è accessibile.
+      </p>
+      <button matButton="filled" [disabled]="store.busy()" (click)="store.connect()"><mat-icon>link</mat-icon> Collega OneDrive</button>
+    </div>
+  }
+</app-surface-card>
+
+@if (c?.available) {
+  <app-surface-card title="Come funziona">
+    <ul class="how">
+      <li>
+        Salva l'estratto conto (CSV o Excel) esportato dalla banca nella sua cartella, dentro
+        @if (c!.folderPath) {
+          <code>{{ c!.folderPath }}</code>:
+        } @else {
+          la cartella dell'app (la vedrai qui dopo il collegamento):
+        }
+        <ul class="folders">
+          @for (folder of c!.bankFolders; track folder) {
+            <li>
+              <code>{{ folder }}</code>
+            </li>
+          }
+        </ul>
+      </li>
+      <li>
+        I movimenti finiscono sul conto a cui hai assegnato il tipo di quella banca in
+        <a [routerLink]="routes.settings" [queryParams]="{ sezione: 'conti' }">Impostazioni › Conti</a>.
+      </li>
+      <li>
+        Dopo l'import il file viene spostato nella sottocartella <code>Importati</code>, oppure in <code>Errori</code> se non è
+        stato possibile leggerlo. L'esito di ogni file è in <a [routerLink]="routes.imports">Movimenti › Import</a>.
+      </li>
+      <li>ExpenseTracker non può leggere né modificare nient'altro nel tuo OneDrive.</li>
+    </ul>
+  </app-surface-card>
+}
+
+<app-confirm-delete-dialog
+  [open]="disconnectOpen()"
+  (closed)="disconnectOpen.set(false)"
+  [confirmAction]="disconnect"
+  [busy]="store.busy()"
+  title="Scollegare OneDrive?"
+  message="I nuovi file non verranno più importati. I file già presenti su OneDrive e i movimenti importati non vengono toccati."
+  confirmLabel="Scollega"
+/>

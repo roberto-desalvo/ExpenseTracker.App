@@ -6,18 +6,21 @@ import { MatTabsModule } from "@angular/material/tabs";
 import { ActivatedRoute, ParamMap, Router, RouterLink } from "@angular/router";
 import { map } from "rxjs";
 import { ROUTES } from "../../core/config/routes";
+import { CurrentUserStore } from "../../core/state/current-user.store";
 import { PageContainer } from "../../shared/ui/page-container";
 import { PageHeader } from "../../shared/ui/page-header";
 import { AccountsSettings } from "./accounts-settings";
 import { AnalyticsLayoutSettings } from "./analytics-layout-settings";
 import { AppearanceSettings } from "./appearance-settings";
 import { CategoriesSettings } from "./categories-settings";
+import { OneDriveSettings } from "./onedrive-settings";
 
-type SettingsSection = "categorie" | "conti" | "analisi" | "aspetto";
+type SettingsSection = "categorie" | "conti" | "import" | "analisi" | "aspetto";
 
 const SECTIONS: { id: SettingsSection; label: string; description: string; icon: string }[] = [
   { id: "categorie", label: "Categorie", description: "Classificazione dei movimenti e regole di import", icon: "category" },
   { id: "conti", label: "Conti", description: "Conti correnti, carte e wallet", icon: "account_balance_wallet" },
+  { id: "import", label: "Import", description: "Import automatico degli estratti conto da OneDrive", icon: "cloud_sync" },
   { id: "analisi", label: "Analisi", description: "Card della pagina Analisi e loro disposizione", icon: "dashboard_customize" },
   { id: "aspetto", label: "Aspetto", description: "Stile, tema e navigazione", icon: "palette" },
 ];
@@ -26,6 +29,7 @@ const SECTIONS: { id: SettingsSection; label: string; description: string; icon:
 const normalizeSection = (params: ParamMap): SettingsSection => {
   const value = params.get("sezione") ?? params.get("tab");
   if (value === "conti" || value === "account") return "conti";
+  if (value === "import") return "import";
   if (value === "analisi") return "analisi";
   if (value === "aspetto") return "aspetto";
   return "categorie";
@@ -44,6 +48,7 @@ const normalizeSection = (params: ParamMap): SettingsSection => {
     CategoriesSettings,
     AnalyticsLayoutSettings,
     AppearanceSettings,
+    OneDriveSettings,
   ],
   template: `
     <app-page-container>
@@ -51,7 +56,7 @@ const normalizeSection = (params: ParamMap): SettingsSection => {
 
       @if (!isDesktop()) {
         <nav mat-tab-nav-bar [tabPanel]="panel" mat-stretch-tabs class="mobile-tabs">
-          @for (s of sections; track s.id) {
+          @for (s of sections(); track s.id) {
             <a mat-tab-link [active]="s.id === active()" [routerLink]="[]" [queryParams]="queryFor(s.id)">
               <mat-icon class="icon-sm tab-icon">{{ s.icon }}</mat-icon>
               {{ s.label }}
@@ -63,7 +68,7 @@ const normalizeSection = (params: ParamMap): SettingsSection => {
       <div class="layout">
         @if (isDesktop()) {
           <nav class="section-nav" aria-label="Sezioni impostazioni">
-            @for (s of sections; track s.id) {
+            @for (s of sections(); track s.id) {
               <button
                 type="button"
                 class="section-item"
@@ -94,6 +99,9 @@ const normalizeSection = (params: ParamMap): SettingsSection => {
             }
             @case ("conti") {
               <app-accounts-settings />
+            }
+            @case ("import") {
+              <app-onedrive-settings />
             }
             @case ("analisi") {
               <app-analytics-layout-settings />
@@ -132,7 +140,11 @@ const normalizeSection = (params: ParamMap): SettingsSection => {
 })
 export class SettingsPage {
   private readonly router = inject(Router);
-  protected readonly sections = SECTIONS;
+  private readonly currentUser = inject(CurrentUserStore);
+  /** L'utente demo non può importare file né collegare OneDrive. */
+  protected readonly sections = computed(() =>
+    this.currentUser.isDemo() ? SECTIONS.filter((s) => s.id !== "import") : SECTIONS,
+  );
 
   protected readonly isDesktop = toSignal(
     inject(BreakpointObserver)
@@ -141,10 +153,11 @@ export class SettingsPage {
     { initialValue: window.matchMedia("(min-width: 900px)").matches },
   );
 
-  protected readonly active = toSignal(inject(ActivatedRoute).queryParamMap.pipe(map(normalizeSection)), {
+  private readonly requested = toSignal(inject(ActivatedRoute).queryParamMap.pipe(map(normalizeSection)), {
     initialValue: "categorie" as SettingsSection,
   });
-  protected readonly current = computed(() => SECTIONS.find((s) => s.id === this.active()) ?? SECTIONS[0]);
+  protected readonly current = computed(() => this.sections().find((s) => s.id === this.requested()) ?? SECTIONS[0]);
+  protected readonly active = computed(() => this.current().id);
 
   protected queryFor(section: SettingsSection) {
     return section === "categorie" ? {} : { sezione: section };

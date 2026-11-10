@@ -3,13 +3,14 @@ import { MatIconModule } from "@angular/material/icon";
 import { MatTabsModule } from "@angular/material/tabs";
 import { RouterLink } from "@angular/router";
 import { ROUTES } from "../../core/config/routes";
+import { CurrentUserStore } from "../../core/state/current-user.store";
 import { ImportsStore } from "../../core/state/imports.store";
 
 type TransactionsTab = "movimenti" | "import";
 
 /**
  * Tab della sezione Movimenti: elenco dei movimenti e storico degli import da file.
- * Il tab Import compare se l'utente ha conti importabili oppure se è già aperto (es. link diretto).
+ * Il tab Import è disponibile a tutti gli utenti tranne quello demo.
  */
 @Component({
   selector: "app-transactions-tabs",
@@ -49,5 +50,6 @@ export class TransactionsTabs {
 
   protected readonly imports = inject(ImportsStore);
   protected readonly routes = ROUTES;
-  protected readonly visible = computed(() => this.imports.canImport() || this.active() === "import");
+  private readonly currentUser = inject(CurrentUserStore);
+  protected readonly visible = computed(() => !this.currentUser.isDemo() || this.active() === "import");
 }

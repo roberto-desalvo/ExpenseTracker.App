@@ -1,5 +1,6 @@
 import { Routes } from "@angular/router";
 import { adminGuard } from "./core/auth/admin.guard";
+import { nonDemoGuard } from "./core/auth/non-demo.guard";
 
 export const routes: Routes = [
   { path: "", loadComponent: () => import("./features/dashboard/dashboard-page").then((m) => m.DashboardPage) },
@@ -9,6 +10,7 @@ export const routes: Routes = [
   },
   {
     path: "movimenti/import",
+    canMatch: [nonDemoGuard],
     loadComponent: () => import("./features/imports/imports-page").then((m) => m.ImportsPage),
   },
   {
