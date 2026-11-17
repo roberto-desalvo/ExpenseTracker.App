@@ -1,0 +1,30 @@
+flowchart TB
+    user([Utente])
+
+    subgraph ms [Servizi Microsoft]
+        direction LR
+        entra[Entra ID<br/>login e token]
+        od[Microsoft Graph<br/>OneDrive dell'utente]
+    end
+
+    subgraph Azure
+        swa[Static Web App<br/>SPA Angular]
+        func[Function App<br/>.NET 10 isolated<br/>HTTP, code, timer]
+        subgraph data [Dati e segreti]
+            direction LR
+            sql[(Azure SQL<br/>serverless)]
+            blob[(Blob Storage<br/>file caricati)]
+            queue[(Storage Queue<br/>import asincroni)]
+            kv[Key Vault<br/>refresh token]
+        end
+        ai[Application Insights]
+    end
+
+    user --> swa
+    user -. estratti conto .-> od
+    swa -- login MSAL --> entra
+    swa -- REST + JWT --> func
+    func -- valida JWT --> entra
+    od <-- notifiche e file --> func
+    func --> data
+    func -.-> ai

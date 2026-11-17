@@ -1,0 +1,27 @@
+sequenceDiagram
+    autonumber
+    actor U as Utente
+    participant SPA as SPA Angular
+    participant OD as OneDrive / Graph
+    participant API as Function App
+    participant Q as Storage Queue
+    participant IMP as BankFileImportService
+    participant DB as Azure SQL
+
+    alt Upload dall'app
+        U->>SPA: carica l'estratto conto
+        SPA->>API: POST /imports
+        Note over API: salva il file su Blob<br/>ImportLog = Queued
+        API->>Q: bank-file-import
+        API-->>SPA: 202 Accepted
+    else Import automatico
+        U->>OD: salva il file nella cartella della banca (cartella dell'app)
+        OD->>API: change notification
+        API->>Q: onedrive-sync (un messaggio per utente)
+    end
+    Q->>IMP: queue trigger
+    Note over IMP: parser della banca (CSV/XLSX)<br/>conto dal tipo di conto
+    IMP->>DB: inserisce i movimenti, deduplica su ExternalId
+    IMP->>DB: categorizza e collega i trasferimenti
+    IMP->>DB: ImportLog = Completed / Failed
+    SPA->>API: polling dello stato

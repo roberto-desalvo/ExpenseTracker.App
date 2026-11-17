@@ -1,0 +1,6 @@
+flowchart LR
+    F["Functions<br/>HTTP, code, timer<br/>middleware, auth, DI"] --> A["Application<br/>servizi, importer per banca<br/>matching dei trasferimenti"]
+    A --> I["Infrastructure<br/>EF Core, repository<br/>migration, client Graph"]
+    I --> D["Domain<br/>entità, DTO, interfacce<br/>errori di dominio"]
+    A --> D
+    F --> D

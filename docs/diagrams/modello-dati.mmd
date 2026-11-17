@@ -1,0 +1,10 @@
+erDiagram
+    User ||--o{ Account : possiede
+    User ||--o{ Category : possiede
+    User ||--o| OneDriveConnection : collega
+    User ||--o{ ImportLog : registra
+    AccountType |o--o{ Account : "tipo di"
+    Account ||--o{ Transaction : contiene
+    Category |o--o{ Transaction : classifica
+    Category ||--o{ CategoryBudget : pianifica
+    Transfer |o--o{ Transaction : "collega 2 movimenti"

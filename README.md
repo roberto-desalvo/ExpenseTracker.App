@@ -49,48 +49,18 @@ Tenere traccia delle proprie finanze su più conti (banca, carta, wallet, broker
 
 ## Architettura
 
+<!-- I diagrammi sono SVG generati dai sorgenti in docs/diagrams/*.mmd:
+     npx -p @mermaid-js/mermaid-cli mmdc -b white -i docs/diagrams/<nome>.mmd -o docs/images/<nome>.svg -->
+
 Una SPA Angular parla con un'API serverless su Azure Functions, appoggiata ad Azure SQL. Tutte le risorse sono a consumo (costo quasi nullo per un'app personale), definite in Bicep e raggiunte dalla Function App con managed identity, senza password.
 
-```mermaid
-flowchart LR
-    user([Utente])
-    subgraph Azure
-        swa[Static Web App<br/>SPA Angular]
-        func[Function App<br/>.NET 10 isolated]
-        queue[(Storage Queue<br/>onedrive-sync<br/>bank-file-import)]
-        blob[(Blob Storage<br/>bank-imports)]
-        sql[(Azure SQL<br/>serverless)]
-        kv[Key Vault]
-        ai[Application Insights]
-    end
-    entra[Entra ID]
-    graph[Microsoft Graph<br/>OneDrive dell'utente]
-
-    user --> swa
-    swa -- login MSAL --> entra
-    swa -- REST + JWT --> func
-    func -- valida JWT --> entra
-    func -- EF Core --> sql
-    func --> blob
-    func <--> queue
-    graph -- change notification --> func
-    func -- legge e sposta i file --> graph
-    func -- refresh token --> kv
-    func -.-> ai
-```
+<p align="center"><img src="docs/images/architettura.svg" alt="Architettura del sistema" width="720"></p>
 
 ### Backend: Clean Architecture
 
 Le regole di business non dipendono né dal database né dall'hosting: le dipendenze vanno in un solo verso, verso il dominio.
 
-```mermaid
-flowchart LR
-    F["<b>Functions</b><br/>HTTP, code, timer<br/>middleware, auth, DI"] --> A["<b>Application</b><br/>servizi, importer per banca<br/>matching dei trasferimenti"]
-    A --> I["<b>Infrastructure</b><br/>EF Core, repository<br/>migration, client Graph"]
-    I --> D["<b>Domain</b><br/>entità, DTO, interfacce<br/>errori di dominio"]
-    A --> D
-    F --> D
-```
+<p align="center"><img src="docs/images/clean-architecture.svg" alt="Layer della Clean Architecture"></p>
 
 Ogni richiesta attraversa una pipeline di middleware del worker: logging → gestione delle eccezioni (errori di dominio → `ProblemDetails`) → validazione del JWT e dei ruoli → function. I servizi restituiscono `Result<T>` (FluentResults) invece di lanciare eccezioni per gli errori di business, e ogni query è filtrata per utente.
 
@@ -98,62 +68,15 @@ Ogni richiesta attraversa una pipeline di middleware del worker: logging → ges
 
 Tre ingressi (upload dall'app, OneDrive, script) convergono sullo stesso servizio. Upload e notifiche rispondono subito; il lavoro vero avviene in coda.
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor U as Utente
-    participant SPA as SPA Angular
-    participant OD as OneDrive / Graph
-    participant API as Function App
-    participant Q as Storage Queue
-    participant IMP as BankFileImportService
-    participant DB as Azure SQL
-
-    alt Upload dall'app
-        U->>SPA: carica l'estratto conto
-        SPA->>API: POST /imports
-        API->>API: salva il file su Blob, ImportLog = Queued
-        API->>Q: bank-file-import
-        API-->>SPA: 202 Accepted
-    else Import automatico
-        U->>OD: salva il file nella cartella della banca (cartella dell'app)
-        OD->>API: change notification
-        API->>Q: onedrive-sync (un messaggio per utente)
-    end
-    Q->>IMP: queue trigger
-    IMP->>IMP: parser della banca (CSV/XLSX), conto dal tipo di conto
-    IMP->>DB: inserisce i movimenti, deduplica su ExternalId
-    IMP->>DB: categorizza e collega i trasferimenti
-    IMP->>DB: ImportLog = Completed / Failed
-    SPA->>API: polling dello stato
-```
+<p align="center"><img src="docs/images/pipeline-import.svg" alt="Pipeline di import"></p>
 
 ### Modello dei dati
 
-```mermaid
-erDiagram
-    User ||--o{ Account : possiede
-    User ||--o{ Category : possiede
-    User ||--o| OneDriveConnection : collega
-    User ||--o{ ImportLog : registra
-    AccountType |o--o{ Account : "tipo di"
-    Account ||--o{ Transaction : contiene
-    Category |o--o{ Transaction : classifica
-    Category ||--o{ CategoryBudget : pianifica
-    Transfer |o--o{ Transaction : "collega 2 movimenti"
-```
+<p align="center"><img src="docs/images/modello-dati.svg" alt="Modello dei dati"></p>
 
 ### CI/CD
 
-```mermaid
-flowchart LR
-    pr[Pull request] --> whatif[Bicep what-if<br/>build Angular<br/>preview SWA]
-    main[Push su main] --> infra[deploy-infra<br/>Bicep + app Entra ID]
-    main --> be[deploy-backend<br/>build .NET]
-    be --> db[deploy-database<br/>migration bundle EF Core]
-    db --> fn[Function App]
-    main --> fe[deploy-frontend<br/>build Angular] --> swa[Static Web App]
-```
+<p align="center"><img src="docs/images/ci-cd.svg" alt="Pipeline CI/CD"></p>
 
 GitHub Actions si autentica su Azure con **OIDC** (credenziali federate, nessun secret di lunga durata); i workflow leggono nomi e URL delle risorse dagli output del deploy dell'infrastruttura.
 

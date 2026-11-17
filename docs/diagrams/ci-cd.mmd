@@ -1,0 +1,7 @@
+flowchart LR
+    pr[Pull request] --> whatif[Bicep what-if<br/>build Angular<br/>preview SWA]
+    main[Push su main] --> infra[deploy-infra<br/>Bicep + app Entra ID]
+    main --> be[deploy-backend<br/>build .NET]
+    be --> db[deploy-database<br/>migration bundle EF Core]
+    db --> fn[Function App]
+    main --> fe[deploy-frontend<br/>build Angular] --> swa[Static Web App]
